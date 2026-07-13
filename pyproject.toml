@@ -15,17 +15,50 @@ addopts = "-v --tb=short"
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-extend-exclude = ["Himark/_gen"]
+extend-exclude = ["Himark/adapters/_gen"]
 force-exclude = true
 
 [tool.ruff.lint]
-# S101 bans bare `assert` outside tests; use explicit exceptions since
-# assertions can be disabled with -O.
-select = ["E", "F", "I", "UP", "B", "SIM", "S101"]
+# Strict by default: enable every stable rule, then subtract only the rules
+# that conflict with each other, conflict with the formatter, or that we have
+# a deliberate policy reason to drop. Every ignore below is justified inline so
+# the ruleset is auditable and identical across projects.
+select = ["ALL"]
+ignore = [
+    # Docstring rules that conflict with the google convention set below.
+    "D203",   # one-blank-line-before-class (conflicts with D211)
+    "D213",   # multi-line-summary-second-line (conflicts with D212)
+    # Rules that conflict with `ruff format`.
+    "COM812", # missing-trailing-comma
+    "ISC001", # single-line-implicit-string-concatenation
+    # Deliberate policy opt-outs.
+    "CPY001", # missing-copyright-notice -- not wanted on internal projects
+]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101"]
-"conftest.py" = ["S101"]
+# Tests and the conftest legitimately assert, shell out, touch private members,
+# use magic values, and skip docstrings/annotations.
+"tests/**" = ["S", "PLR2004", "ANN", "D", "INP001", "SLF001"]
+"conftest.py" = ["S", "ANN", "ARG", "D", "INP001"]
+# The CLI layer is the one place print() is a legitimate output channel.
+"Himark/cli/**" = ["T20"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.mccabe]
+max-complexity = 8
+
+[tool.ruff.lint.pylint]
+max-args = 5
+max-branches = 10
+max-returns = 5
+max-statements = 40
+
+[tool.ty]
+# Type-check strictly; every function is fully annotated (enforced by ANN)
+# so this has real signatures to work with.
+src = { exclude = ["Himark/adapters/_gen"] }
 
 [tool.vulture]
 min_confidence = 80
@@ -37,21 +70,34 @@ exclude = ["*/_gen/*"]
 root_package = "Himark"
 
 [[tool.importlinter.contracts]]
-name = "Engine layering"
+# The one standard layout, enforced everywhere. `exhaustive = true` means any
+# top-level package that is NOT one of these five is a contract violation, so
+# the directory structure is mandatory rather than merely conventional. Imports
+# may only point downward: cli -> app -> adapters -> core -> lib.
+name = "Standard layered layout"
 type = "layers"
-layers = ["Himark.match", "Himark.universe", "Himark.parser"]
+containers = ["Himark"]
+layers = [
+    "cli",
+    "app",
+    "adapters",
+    "core",
+    "lib",
+]
+exhaustive = true
+exhaustive_ignores = ["__main__"]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
-[tool.ty.src]
-exclude = ["Himark/_gen"]
-
 [dependency-groups]
+# Pinned to a series (not `>=`) so two projects scaffolded months apart enforce
+# the same ruleset. `==0.15.*` freezes ruff's stable ALL selection; bump the pin
+# in the scaffold template (not per project) to roll the standard forward.
 dev = [
-    "ruff>=0.9",
-    "ty>=0.0.1",
+    "ruff==0.15.*",
+    "ty==0.0.*",
     "pytest>=9.0",
     "hypothesis>=6.0",
     "import-linter>=2.0",
