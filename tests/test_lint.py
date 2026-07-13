@@ -63,9 +63,7 @@ def test_astgrep() -> None:
     Installed via the `ast-grep-cli` dev dependency (declared in
     pyproject.toml), which provides both the `ast-grep` and `sg` binaries.
     """
-    result = _run(
-        ["ast-grep", "scan", "--config", str(ROOT / "sgconfig.yml"), str(ROOT)]
-    )
+    result = _run(["ast-grep", "scan", "--config", str(ROOT / "sgconfig.yml"), str(ROOT)])
     assert result.returncode == 0, (
         f"ast-grep found violations (exit {result.returncode}):\n\n{result.stdout}\n{result.stderr}"
     )
