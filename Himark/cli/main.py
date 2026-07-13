@@ -1,56 +1,56 @@
 """cli.main: the command-line interface.
 
-Keep it thin -- parse arguments, call into app, format results. Typer is the
-standard framework: declare commands with @app.command() and describe
-arguments/options with typing.Annotated so `ty` sees real signatures.
+Keep it thin -- parse arguments, call into app, format results.  Typer is the
+standard framework; commands are registered via :func:`Himark.cli.registry.command`
+and wired here.  When invoked with no arguments in an interactive terminal, the
+app presents a numbered picker so the user can select a command.
 """
 
 from __future__ import annotations
 
-import subprocess
-from pathlib import Path
+import sys
 
+import click
 import typer
 
-app = typer.Typer(add_completion=False, no_args_is_help=True)
+from Himark.cli import commands  # noqa: F401 -- triggers @command registration
+from Himark.cli.registry import wire
 
-_ROOT = Path(__file__).resolve().parents[2]
-_ANTLR_VERSION = "4.13.2"
-# Relative to _ROOT (the antlr4 subprocess is run with cwd=_ROOT below) so the
-# "Generated from ..." header embedded in the output stays machine-independent.
-_GRAMMAR = Path("static/grammar/Himark.g4")
-_OUT_DIR = Path("Himark/adapters/_gen")
+_NO_COMMAND_MSG = "No command specified. Run with --help for usage."
+_INVALID_SELECTION_MSG = "Invalid selection."
+
+app = typer.Typer(add_completion=False, no_args_is_help=False, invoke_without_command=True)
+wire(app)
 
 
-# A no-op callback keeps this a named-subcommand CLI even while it has only one
-# command -- Typer otherwise collapses a single-command app so its name is not
-# required, which would make `gen-parser` uncallable by name.
-@app.callback()
-def _callback() -> None:
+@app.callback(invoke_without_command=True)
+def _main_callback(ctx: typer.Context) -> None:
     """Himark: a query language over pointed alphabets."""
+    if ctx.invoked_subcommand is not None:
+        return
 
+    # Non-interactive (piped / CI): fail loudly with actionable guidance.
+    if not sys.stdin.isatty():
+        raise click.UsageError(_NO_COMMAND_MSG)
 
-@app.command("gen-parser")
-def gen_parser() -> None:
-    """Regenerate the ANTLR lexer/parser/visitor from static/grammar/Himark.g4."""
-    # S603/S607: fixed argv, no untrusted input; "antlr4" is resolved via PATH by design.
-    subprocess.run(  # noqa: S603
-        [  # noqa: S607
-            "antlr4",
-            "-v",
-            _ANTLR_VERSION,
-            "-Dlanguage=Python3",
-            "-visitor",
-            "-no-listener",
-            "-Xexact-output-dir",
-            "-o",
-            str(_OUT_DIR),
-            str(_GRAMMAR),
-        ],
-        cwd=_ROOT,
-        check=True,
-    )
-    (_ROOT / _OUT_DIR / "__init__.py").touch()
+    # Interactive picker: enumerate registered commands and let the user choose.
+    commands_list = ctx.command.list_commands(ctx)
+    print("\n  Himark \u2014 a query language over pointed alphabets\n")
+    for idx, name in enumerate(commands_list, 1):
+        cmd_obj = ctx.command.get_command(ctx, name)
+        help_text = cmd_obj.get_short_help_str(ctx) if cmd_obj else ""
+        print(f"  {idx}. {name:20s} {help_text}")
+    print()
+
+    try:
+        raw = input("Select a command: ").strip()
+        choice = int(raw) - 1
+        selected = commands_list[choice]
+    except (ValueError, IndexError, EOFError):
+        raise SystemExit(_INVALID_SELECTION_MSG) from None
+
+    cmd_obj = ctx.command.get_command(ctx, selected)  # ty: ignore[unresolved-attribute]
+    ctx.invoke(cmd_obj)
 
 
 def main() -> None:
