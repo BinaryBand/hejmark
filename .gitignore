@@ -221,3 +221,6 @@ editors/
 docs/**/.*
 static/**/.*
 CLAUDE.md
+
+# Generated ANTLR parser (regenerate with `Himark gen-parser`)
+Himark/adapters/_gen/

@@ -8,11 +8,11 @@ Escapes are resolved here (``\x`` -> ``x``); no other normalization happens.
 
 from __future__ import annotations
 
+from typing import Any
+
 from antlr4 import CommonTokenStream, InputStream
 from antlr4.error.ErrorListener import ErrorListener
 
-from Himark.adapters._gen.HimarkLexer import HimarkLexer
-from Himark.adapters._gen.HimarkParser import HimarkParser
 from Himark.core.syntax import (
     Face,
     Fold,
@@ -22,6 +22,10 @@ from Himark.core.syntax import (
     Subtract,
     UniverseNode,
 )
+
+# Deferred (assigned at runtime by the first to_ast() call -- see _gen bootstrap in .FIX.md)
+HimarkLexer: Any
+HimarkParser: Any
 
 
 class _RaisingErrorListener(ErrorListener):
@@ -81,6 +85,14 @@ def _build_query(ctx: HimarkParser.QueryContext) -> QueryNode:
 
 def to_ast(source: str) -> QueryNode:
     """Parse Himark source into a faithful AST, raising on any syntax error."""
+    global HimarkLexer, HimarkParser  # noqa: PLW0603 -- deferred from module scope to break _gen bootstrap cycle
+    from Himark.adapters._gen.HimarkLexer import (  # noqa: PLC0415 -- deferred; see global above
+        HimarkLexer,
+    )
+    from Himark.adapters._gen.HimarkParser import (  # noqa: PLC0415 -- deferred; see global above
+        HimarkParser,
+    )
+
     lexer = HimarkLexer(InputStream(source))
     lexer.removeErrorListeners()
     lexer.addErrorListener(_RAISING_LISTENER)
