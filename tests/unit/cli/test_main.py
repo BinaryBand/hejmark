@@ -5,6 +5,7 @@ from __future__ import annotations
 import sys
 from unittest.mock import MagicMock, patch
 
+import click
 from typer.testing import CliRunner
 
 from Himark.cli.main import _main_callback, app
@@ -46,10 +47,13 @@ def test_picker_dispatches_command() -> None:
     """
     mock_ctx = MagicMock()
     mock_ctx.invoked_subcommand = None
-    mock_ctx.command.list_commands.return_value = ["gen-parser"]
-    mock_ctx.command.get_command.return_value = MagicMock(
+    # ctx.command must be a click.Group to pass the callback's isinstance guard.
+    mock_group = MagicMock(spec=click.Group)
+    mock_group.list_commands.return_value = ["gen-parser"]
+    mock_group.get_command.return_value = MagicMock(
         get_short_help_str=MagicMock(return_value="Regenerate the ANTLR parser"),
     )
+    mock_ctx.command = mock_group
 
     with (
         patch.object(sys.stdin, "isatty", return_value=True),

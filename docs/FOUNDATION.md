@@ -1,6 +1,6 @@
 # Himark Foundation -- The Root Model
 
-**Status:** Normative core (spec-first; see [TODO.md](TODO.md)) | **Governs:** [HMK.md](HMK.md), [ALGEBRA.md](ALGEBRA.md), [ENGINE.md](ENGINE.md)
+**Status:** Normative core
 
 This document is the axiomatic floor of the language. Every construct, present or future, is expressible as a constructor over the one object defined here, or enters as a new axiom recorded here; nothing may redefine the object itself.
 

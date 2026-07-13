@@ -11,4 +11,7 @@ single import line below.
 
 from __future__ import annotations
 
-from Himark.cli.commands import gen_parser  # noqa: F401
+from Himark.cli.commands import (
+    find,  # noqa: F401
+    gen_parser,  # noqa: F401
+)

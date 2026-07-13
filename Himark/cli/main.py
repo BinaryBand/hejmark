@@ -34,22 +34,33 @@ def _main_callback(ctx: typer.Context) -> None:
         raise click.UsageError(_NO_COMMAND_MSG)
 
     # Interactive picker: enumerate registered commands and let the user choose.
-    commands_list = ctx.command.list_commands(ctx)
+    # Enumeration lives on click.Group; guard in case the app collapsed to a
+    # single bare Command (no group), which has no subcommands to list.
+    group = ctx.command
+    if not isinstance(group, click.Group):
+        raise click.UsageError(_NO_COMMAND_MSG)
+
+    commands_list = group.list_commands(ctx)
     print("\n  Himark \u2014 a query language over pointed alphabets\n")
     for idx, name in enumerate(commands_list, 1):
-        cmd_obj = ctx.command.get_command(ctx, name)
-        help_text = cmd_obj.get_short_help_str(ctx) if cmd_obj else ""
+        cmd_obj = group.get_command(ctx, name)
+        help_text = cmd_obj.get_short_help_str() if cmd_obj else ""
         print(f"  {idx}. {name:20s} {help_text}")
     print()
 
     try:
         raw = input("Select a command: ").strip()
         choice = int(raw) - 1
-        selected = commands_list[choice]
-    except (ValueError, IndexError, EOFError):
+    except (ValueError, EOFError):
         raise SystemExit(_INVALID_SELECTION_MSG) from None
 
-    cmd_obj = ctx.command.get_command(ctx, selected)
+    if not 0 <= choice < len(commands_list):
+        raise SystemExit(_INVALID_SELECTION_MSG)
+    selected = commands_list[choice]
+
+    cmd_obj = group.get_command(ctx, selected)
+    if cmd_obj is None:
+        raise SystemExit(_INVALID_SELECTION_MSG)
     ctx.invoke(cmd_obj)
 
 
