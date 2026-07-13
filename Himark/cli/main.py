@@ -49,7 +49,7 @@ def _main_callback(ctx: typer.Context) -> None:
     except (ValueError, IndexError, EOFError):
         raise SystemExit(_INVALID_SELECTION_MSG) from None
 
-    cmd_obj = ctx.command.get_command(ctx, selected)  # ty: ignore[unresolved-attribute]
+    cmd_obj = ctx.command.get_command(ctx, selected)
     ctx.invoke(cmd_obj)
 
 

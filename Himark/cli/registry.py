@@ -41,7 +41,7 @@ def command(
     """
 
     def decorator(func: F) -> F:
-        cmd_name = name or func.__name__.replace("_", "-")
+        cmd_name = name or getattr(func, "__name__", "").replace("_", "-")
         _COMMANDS.append((cmd_name, func, {"group": group, **kwargs}))
         return func
 
