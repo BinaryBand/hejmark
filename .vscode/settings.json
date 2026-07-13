@@ -1,0 +1,20 @@
+{
+    "python.defaultInterpreterPath": "/home/nator/Documents/Temp/Himark/.venv/bin/python",
+    "python.testing.pytestArgs": [
+        "tests"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true,
+    "[python]": {
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.formatOnSave": true
+    },
+    "files.exclude": {
+        "**/__pycache__": true,
+        "**/.pytest_cache": true,
+        "**/.ruff_cache": true,
+        ".hypothesis": true,
+        ".import_linter_cache": true,
+        ".venv": true
+    }
+}
