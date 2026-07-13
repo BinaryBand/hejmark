@@ -1,0 +1,14 @@
+LBRACE=1
+RBRACE=2
+COMMA=3
+BANG=4
+RANGE=5
+DOT=6
+ESC=7
+CHAR=8
+'{'=1
+'}'=2
+','=3
+'!'=4
+'..'=5
+'.'=6
