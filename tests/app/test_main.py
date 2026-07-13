@@ -1,0 +1,9 @@
+"""Tests for the app layer."""
+
+from __future__ import annotations
+
+from Himark.app import main
+
+
+def test_app_main_imports() -> None:
+    assert main is not None

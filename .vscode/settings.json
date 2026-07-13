@@ -1,5 +1,5 @@
 {
-    "python.defaultInterpreterPath": "/home/nator/Documents/Temp/Himark/.venv/bin/python",
+    "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
     "python.testing.pytestArgs": [
         "tests"
     ],
