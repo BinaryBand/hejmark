@@ -4,20 +4,30 @@ version = "0.1.0"
 description = ""
 authors = [{ name = "BinaryBand", email = "BinaryBand@users.noreply.github.com" }]
 requires-python = ">=3.11"
-dependencies = ["antlr4-python3-runtime (==4.13.2)", "typer (>=0.16,<0.17)"]
+# Typer is the scaffold's one sanctioned runtime dependency (the standard shape
+# for the cli layer). Held at the 0.16 series rather than the scaffold's 0.15:
+# 0.15.x is broken against click 8.4.x (Parameter.make_metavar() signature
+# change), so the 0.15 series must not be restored.
+dependencies = ["antlr4-python3-runtime==4.13.2", "typer>=0.16,<0.17"]
 
 [project.scripts]
-"Himark" = "Himark.cli:main"
+# Installed console script; resolves to the same entry as `python -m Himark`.
+"Himark" = "Himark.cli.main:main"
 
 [tool.pytest.ini_options]
-minversion = "9.0"
+minversion = "9.1"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
-addopts = "-v --tb=short"
+# importlib mode lets tests/ mirror the package layout without duplicate
+# test-module basenames across layer subdirectories colliding on import.
+addopts = "-v --tb=short --import-mode=importlib"
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+# target-version is intentionally unset: ruff derives it from requires-python
+# (>=3.11 -> py311). The pinned .python-version fixes the interpreter that
+# actually resolves, so the target is stated once, in one place.
+# The ANTLR-generated parser is a build artifact, not authored source.
 extend-exclude = ["Himark/adapters/_gen"]
 force-exclude = true
 
@@ -36,7 +46,7 @@ ignore = [
     "ISC001", # single-line-implicit-string-concatenation
     # Deliberate policy opt-outs.
     "CPY001", # missing-copyright-notice -- not wanted on internal projects
-    "N999",   # invalid-module-name -- project name is Himark with capital H
+    "N999",   # invalid-module-name -- the project name is Himark, with a capital H
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -44,8 +54,10 @@ ignore = [
 # use magic values, and skip docstrings/annotations.
 "tests/**" = ["S", "PLR2004", "ANN", "D", "INP001", "SLF001"]
 "conftest.py" = ["S", "ANN", "ARG", "D", "INP001"]
-# The CLI layer is the one place print() is a legitimate output channel.
-"Himark/cli/**" = ["T20"]
+# The CLI layer is the one place print() is a legitimate output channel, and
+# Typer's idioms are intentional: callables as argument/option defaults (B008)
+# and boolean flags as parameters (FBT001/FBT002).
+"Himark/cli/**" = ["T20", "B008", "FBT001", "FBT002"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
@@ -60,8 +72,11 @@ max-returns = 5
 max-statements = 40
 
 [tool.ty]
-# Type-check strictly; every function is fully annotated (enforced by ANN)
-# so this has real signatures to work with.
+# ty runs at its default strictness, and those defaults ARE the policy here:
+# every function is fully annotated (enforced by ANN) so the checker has real
+# signatures to work with. When ty gains configurable rule levels worth pinning,
+# set them explicitly in this section and treat a change like rolling the
+# ruleset forward.
 src = { exclude = ["Himark/adapters/_gen"] }
 
 [tool.vulture]
@@ -77,7 +92,7 @@ root_package = "Himark"
 # The one standard layout, enforced everywhere. `exhaustive = true` means any
 # top-level package that is NOT one of these five is a contract violation, so
 # the directory structure is mandatory rather than merely conventional. Imports
-# may only point downward: cli -> app -> adapters -> core -> lib.
+# may only point downward: cli -> app -> adapters -> core -> utils.
 name = "Standard layered layout"
 type = "layers"
 containers = ["Himark"]
@@ -86,28 +101,39 @@ layers = [
     "app",
     "adapters",
     "core",
-    "lib",
+    "utils",
 ]
 exhaustive = true
 exhaustive_ignores = ["__main__"]
 
 [build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["uv_build>=0.9,<0.11"]
+build-backend = "uv_build"
 
-[tool.poetry]
-packages = [{ include = "Himark" }]
+[tool.uv.build-backend]
+# Flat layout: the importable package lives at the project root (Himark/), not
+# under src/, so point the build backend at the root instead of its default
+# "src".
+module-root = ""
+# The backend would otherwise normalize the project name to "himark"; the
+# importable package keeps its capital H.
+module-name = "Himark"
+# _gen is gitignored, and the backend excludes gitignored files by default; name
+# it explicitly so a built sdist/wheel still ships the generated parser.
+source-include = ["Himark/adapters/_gen/*.py"]
 
 [dependency-groups]
 # Pinned to a series (not `>=`) so two projects scaffolded months apart enforce
-# the same ruleset. `==0.15.*` freezes ruff's stable ALL selection; bump the pin
-# in the scaffold template (not per project) to roll the standard forward.
+# the identical ruleset; bump a pin in the scaffold template (not per project) to
+# roll the standard forward. ty is pinned exactly rather than to a series because
+# every ty release is still 0.0.x -- there is no meaningful series to pin to, so
+# treat a ty bump like rolling the ruleset.
 dev = [
     "ruff==0.15.*",
-    "ty==0.0.*",
-    "pytest>=9.0",
-    "hypothesis>=6.0",
-    "import-linter>=2.0",
-    "vulture>=2.14",
-    "ast-grep-cli>=0.44",
+    "ty==0.0.59",
+    "pytest==9.1.*",
+    "hypothesis==6.156.*",
+    "import-linter==2.13.*",
+    "vulture==2.16.*",
+    "ast-grep-cli==0.44.*",
 ]

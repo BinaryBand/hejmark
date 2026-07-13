@@ -2,14 +2,29 @@
 
 from __future__ import annotations
 
+import ast
 import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+PACKAGE = ROOT / "Himark"
+TESTS = ROOT / "tests"
+# The mirrored, per-layer unit tests live under tests/unit/, leaving the rest of
+# tests/ (e.g. tests/infrastructure/, tests/integration/) free for test
+# categories the mirror check does not police.
+UNIT_TESTS = TESTS / "unit"
 
 # No ruff rule caps file length; this is the single most effective knob for
 # keeping modules navigable, so enforce it here.
 MAX_MODULE_LINES = 400
+
+# Source modules that never need a dedicated mirror test: the package/CLI entry
+# shims and the pure Protocol interface module.
+MIRROR_EXEMPT = {"__main__.py", "ports.py"}
+
+# The ANTLR-generated parser package: a build artifact, exempt from the source
+# rules below just as it is from ruff, ty, vulture, and ast-grep.
+GENERATED = "_gen"
 
 
 def _run(cmd: list[str]) -> subprocess.CompletedProcess[str]:
@@ -76,11 +91,55 @@ def test_module_length() -> None:
         parts = path.relative_to(ROOT).parts
         if any(part.startswith(".") for part in parts) or "tests" in parts:
             continue
-        # _gen contains generated ANTLR code that is unavoidably long
-        if "_gen" in parts:
+        # _gen holds generated ANTLR code: not authored source, unavoidably long.
+        if GENERATED in parts:
             continue
         line_count = path.read_text().count("\n") + 1
         if line_count > MAX_MODULE_LINES:
             offenders.append(f"{path.relative_to(ROOT)}: {line_count} lines")
     listing = "\n".join(offenders)
     assert not offenders, f"modules exceed {MAX_MODULE_LINES} lines; split them:\n\n{listing}"
+
+
+def _has_top_level_definition(path: Path) -> bool:
+    """Return True if the module defines any top-level function or class."""
+    tree = ast.parse(path.read_text())
+    return any(
+        isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef)
+        for node in tree.body
+    )
+
+
+def _expected_test(rel: Path) -> Path:
+    """Map a source module (relative to PACKAGE) to its mirror test path."""
+    if rel.name == "__init__.py":
+        return UNIT_TESTS / rel.parent / f"test_{rel.parent.name}.py"
+    return UNIT_TESTS / rel.parent / f"test_{rel.stem}.py"
+
+
+def test_tests_mirror_package() -> None:
+    """Every source module with logic must have a mirrored test under tests/unit/.
+
+    tests/unit/ mirrors the package layout 1:1: a source module ``PKG/<path>.py``
+    requires ``tests/unit/<path>/test_<name>.py`` (a package ``__init__.py`` maps
+    to ``test_<dir>.py``). Pure namespace shells (no top-level def/class) and the
+    entries in MIRROR_EXEMPT are skipped, so a test is required only once a
+    module actually carries logic. Other tests/ subtrees (integration,
+    infrastructure, ...) are free-form and not checked here.
+    """
+    offenders: list[str] = []
+    for path in sorted(PACKAGE.rglob("*.py")):
+        rel = path.relative_to(PACKAGE)
+        if any(part.startswith(".") for part in rel.parts) or path.name in MIRROR_EXEMPT:
+            continue
+        if GENERATED in rel.parts:
+            continue
+        if not _has_top_level_definition(path):
+            continue
+        expected = _expected_test(rel)
+        if not expected.exists():
+            offenders.append(f"{path.relative_to(ROOT)} -> {expected.relative_to(ROOT)}")
+    listing = "\n".join(offenders)
+    assert not offenders, (
+        f"source modules missing their mirror test (create each right-hand file):\n\n{listing}"
+    )

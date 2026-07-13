@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from Himark.cli import main
+from Himark.cli.main import main
 
 if __name__ == "__main__":
     main()
