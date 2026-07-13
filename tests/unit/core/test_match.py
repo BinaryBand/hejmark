@@ -6,6 +6,8 @@ denotation is in the loop.
 
 from __future__ import annotations
 
+import pytest
+
 from Himark.core.match import finditer, match
 from Himark.core.universe import Entry, Query, Universe
 
@@ -79,6 +81,36 @@ def test_face_value_folds_the_chosen_spellings() -> None:
     # a is spelling 0 of 2, B is spelling 1 of 2 -> 0 * 2 + 1
     assert found.face_value == 1
     assert [part.face_index for part in found.parts] == [0, 1]
+
+
+def test_capture_zero_is_the_whole_match() -> None:
+    """Number 0 names the product entry -- its span is the whole match span."""
+    found = match(_query(_universe(("ab",)), _universe(("c",))), "abc")
+
+    assert found is not None
+    zero = found.capture(0)
+    assert zero.number == 0
+    assert zero.span == found.span == (0, 3)
+
+
+def test_captures_number_each_position_most_significant_first() -> None:
+    """1..k are the product operands in order, each carrying its own span."""
+    query = _query(_universe(("ab",)), _universe(("c",)))
+    found = match(query, "abc")
+
+    assert found is not None
+    assert [(c.number, c.span) for c in found.captures] == [(0, (0, 3)), (1, (0, 2)), (2, (2, 3))]
+
+
+def test_capture_out_of_range_raises_indexerror() -> None:
+    """A number with no operand is an error, not a wrap-around index."""
+    found = match(_query(_universe(("a",))), "a")
+
+    assert found is not None
+    with pytest.raises(IndexError):
+        found.capture(2)
+    with pytest.raises(IndexError):
+        found.capture(-1)
 
 
 def test_finditer_yields_non_overlapping_matches() -> None:

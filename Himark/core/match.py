@@ -35,6 +35,20 @@ class MatchPart:
 
 
 @dataclass(frozen=True)
+class Capture:
+    """One numbered span a match decomposes into -- derivation metadata.
+
+    Number 0 is the whole match (the product entry); numbers 1..k are the
+    product's operand positions, most-significant-first. A capture is derived,
+    never stored: the operand universe and position already name the entry, so
+    only the span -- where that entry landed in the text -- is recorded here.
+    """
+
+    number: int
+    span: tuple[int, int]
+
+
+@dataclass(frozen=True)
 class Match:
     """A whole match: overall span, per-position parts, and both axis values."""
 
@@ -42,6 +56,20 @@ class Match:
     parts: tuple[MatchPart, ...]
     value: int
     face_value: int
+
+    @property
+    def captures(self) -> tuple[Capture, ...]:
+        """Number every span: index 0 the whole match, then each position in order."""
+        positions = (Capture(i + 1, part.span) for i, part in enumerate(self.parts))
+        return (Capture(0, self.span), *positions)
+
+    def capture(self, number: int) -> Capture:
+        """Return the capture numbered ``number`` (0 is the whole match)."""
+        captures = self.captures
+        if not 0 <= number < len(captures):
+            msg = f"no capture numbered {number}: match has {len(captures)}"
+            raise IndexError(msg)
+        return captures[number]
 
 
 def _candidates(universe: Universe) -> list[_Candidate]:
