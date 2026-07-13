@@ -1,4 +1,6 @@
-"""CI/CD gate: fail the test suite when any linter, type checker, or dead-code scanner reports issues."""
+"""CI/CD gate: fail the test suite when any linter, type checker, or dead-code scanner
+reports issues.
+"""
 
 from __future__ import annotations
 
@@ -24,7 +26,8 @@ def test_ruff_format() -> None:
     """ruff format --check must report no reformats needed."""
     result = _run(["ruff", "format", "--check", str(ROOT)])
     assert result.returncode == 0, (
-        f"ruff format --check found unformatted files (exit {result.returncode}):\n\n{result.stdout}"
+        "ruff format --check found unformatted files "
+        f"(exit {result.returncode}):\n\n{result.stdout}"
     )
 
 

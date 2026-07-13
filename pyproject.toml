@@ -4,7 +4,7 @@ version = "0.1.0"
 description = ""
 authors = [{ name = "BinaryBand", email = "BinaryBand@users.noreply.github.com" }]
 requires-python = ">=3.11"
-dependencies = []
+dependencies = ["antlr4-python3-runtime (==4.13.2)"]
 
 [tool.pytest.ini_options]
 minversion = "9.0"
@@ -15,6 +15,8 @@ addopts = "-v --tb=short"
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+extend-exclude = ["Himark/_gen"]
+force-exclude = true
 
 [tool.ruff.lint]
 # S101 bans bare `assert` outside tests; use explicit exceptions since
@@ -29,13 +31,22 @@ select = ["E", "F", "I", "UP", "B", "SIM", "S101"]
 min_confidence = 80
 paths = ["Himark", "tests"]
 ignore_decorators = ["@pytest.fixture", "@pytest.mark.*"]
+exclude = ["*/_gen/*"]
 
 [tool.importlinter]
 root_package = "Himark"
 
+[[tool.importlinter.contracts]]
+name = "Engine layering"
+type = "layers"
+layers = ["Himark.match", "Himark.universe", "Himark.parser"]
+
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.ty.src]
+exclude = ["Himark/_gen"]
 
 [dependency-groups]
 dev = [

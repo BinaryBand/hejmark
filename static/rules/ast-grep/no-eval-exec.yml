@@ -2,6 +2,8 @@ id: no-eval-exec
 language: python
 severity: error
 message: "Avoid using eval/exec; prefer safer alternatives."
+ignores:
+  - "**/Himark/_gen/**"
 rule:
   any:
     - pattern: eval(...)
