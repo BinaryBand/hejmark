@@ -9,7 +9,7 @@
 ## Layer 1.5 -- Language Surface (interpretation)
 
 - Matching -- query and capture, text membership, maximal munch, decidability.
-- Transformation primitives -- set filtering (`less`/`only`), product/exponent, aggregate-by-union-or-fold, and the modifier pipeline that hosts them. Not `where`/`pad` themselves -- those are L2 definitions built from these.
+- Transformation primitives -- set filtering, product/exponent, aggregate-by-union-or-fold, and the modifier pipeline that hosts them.
 - Registers -- L1's positional index made addressable.
 
 > Finish Line: When L1.5's primitives suffice to define `where` and `pad` in L2 -- algebra alone, no built-in named modifiers.
