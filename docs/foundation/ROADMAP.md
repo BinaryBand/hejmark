@@ -14,8 +14,8 @@ Everything the host implements beyond denotation; the one layer allowed to rejec
 
 - Matching -- query and capture, text membership, maximal munch, zero-width exclusion; the matcher is scoped to guarded closure bodies (the settlement theorem's fragment), and stepping outside that scope is a diagnostic, never a denotation failure.
 - Names -- `uni hex = {0..9,a..f}`: declaration and splice-by-name. Pure compression; the floor's splice rule already anticipates the name.
-- Definitions -- `name args := body` rewrite forms and the modifier pipeline `A[f x g y]`; application to literal arguments is substitution, so the mechanism carries no denotation of its own.
-- Registers -- the floor's `<value, face>` coordinates made addressable off a match.
+- Definitions -- `name args := body` rewrite forms and the modifier pipeline `A[f x g y]`; application is substitution over the operand and literal arguments, and every application expands to a floor expression.
+- Registers -- the in-language spellings of the expander's metafunctions, so std bodies stay writable: `@0` reads the zero entry of the pipeline head, which is what lets `pad`'s declaration infer its fill (`{8,9,10,11,12}[pad 2]` fills with `8`; one radix rides the whole chain; an empty head degrades the fill to the unit, so `pad` no-ops -- total). Same footing as the `s` in the floor's own `{a..z}` = `{a.., !{s..}}`: notation whose expansion reads the source, never a runtime store -- captures stay on the floor's object. The register list *is* the metafunction inventory made visible, so a new register faces the scrutiny a new axiom does; whether `where`'s digit walk is writable over these or stays L1.5-level notation is the open question that sizes the list.
 - Diagnostics -- compiler errors live here: unknown name, malformed definition, unguarded matcher scope. The floor never rejects, so rejection is interpretation's whole job.
 
 > Finish line: the surface suffices to write all of L2 in-language -- no built-in named modifiers, no host code per entry.
