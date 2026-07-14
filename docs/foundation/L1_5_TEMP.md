@@ -37,7 +37,7 @@ The old surface shipped three transformation primitives -- `keep`/`drop` (alphab
 
 - Alphabet axis -- `keep`/`drop` are intersection and difference, on the floor's compression list since before this layer existed.
 - Value axis -- the closure generates the value line, so `span` is a definition, not a primitive. `numerals` below is the canonical numerals of the head radix in value order: the zero digit first, then the closure's stages width by width, product order within a width already being value order. `where` cuts it with a spelling range: over a character radix, value order and shortlex agree on canonical numerals, so the range cuts the value line exactly, and the order of the result is inherited from `numerals` through two subtractions.
-- Face axis -- the axis the floor hands no constructor is cut by **claim and subtract**: union the unwanted spellings in first, let the collision rule strip those faces from the later entries (a claimed spelling drops from every later claimant), then subtract the claimants back out. The collision rule is the face-axis scalpel; `faces` needed no primitive, only an idiom.
+- Face axis -- subtraction cuts it directly: the floor's subtraction acts on spellings, stripping the face that claims each one, and an entry drops only with its last face. A width cut is therefore a single subtraction of the unwanted widths -- `faces` needed no primitive, and not even an idiom.
 
 The std that the finish line asks for, written over this surface -- `C` is the code-point set as a bounded range, the one `uni` the spec seeds:
 
@@ -50,17 +50,17 @@ shorter w       := {spellings, !{C^w spellings}}              -- widths below w
 upto w          := {shorter w, C^w}                           -- widths at most w
 longer w        := {spellings, !{upto w}}                     -- widths above w
 where lo..hi    := {numerals, !{numerals, !{ {lo..hi} }}}     -- the value line cut by a spelling range
-pad w..w'       := {shorter w, longer w', fill^{w'} _, !{shorter w}, !{longer w'}}
+pad w..w'       := {fill^{w'} _, !{shorter w}, !{longer w'}}
 ```
 
-`pad` is the claim-and-subtract idiom end to end: `fill^{w'}` gives every entry its faces from bare up to `w'` extra fills, `shorter w` has already claimed every spelling too narrow and `longer w'` every spelling too wide, collision strips those faces from the filled entries, and the two subtractions remove the claimants -- no arithmetic on `w'` needed, since the overshoot faces land in `longer w'` regardless.
+`pad` is two face cuts: `fill^{w'}` gives every entry its faces from bare up to `w'` extra fills, and the subtractions strip every face too narrow or too wide, each entry surviving on whatever widths remain -- no arithmetic on `w'` needed, since the overshoot faces fall to `longer w'` regardless.
 
 | Expression | Denotes | Why |
 | --- | --- | --- |
 | `{0..9}[where 8..12]` | 8, 9, 10, 11, 12 | `numerals` cut by `{8..12}`: width-1 digits from 8, width-2 canonicals to 12 |
 | `{a..z}[where aa..cc]` | a, ..., z, ba, ..., cc  (55 entries) | `aa` binds canonical as `a`, so the width-1 numerals enter the range |
-| `{8,9,10,11,12}[pad 2]` | 88, 89, 10, 11, 12 | `@0` is `8`; `shorter 2` claims `8`, `9`; `longer 2` claims `810`, `888`, ... |
-| `{0..9}[where 8..12 pad 1..2]` | {8,08}, {9,09}, 10, 11, 12 | head fills `0`; widths 1-2 both legal, so `8` keeps both faces; `010` is claimed |
+| `{8,9,10,11,12}[pad 2]` | 88, 89, 10, 11, 12 | `@0` is `8`; `shorter 2` strips the bare `8`, `9`; `longer 2` strips `810`, `888`, ... |
+| `{0..9}[where 8..12 pad 1..2]` | {8,08}, {9,09}, 10, 11, 12 | head fills `0`; widths 1-2 both legal, so `8` keeps both faces; `010` is stripped |
 
 ## Diagnostics
 

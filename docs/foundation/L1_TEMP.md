@@ -17,7 +17,7 @@ The axiomatic floor: the one object, the constructors that build it, and the the
 Six, all total; they build every universe. Totality is the floor's one manner: no constructor rejects, so every boundary case below -- the closure's included -- carries a denotation.
 
 - Union `,` -- append a universe's entries, in its order, skipping any already present; a lone spelling is the singleton case. Idempotent, associative, not commutative.
-- Subtraction `!{...}` -- remove a universe's entries where present and renumber; an absent entry is a no-op. Dual to union over the same membership test.
+- Subtraction `!{...}` -- remove a universe's spellings where claimed, and renumber: each spelling of the operand strips the one face that claims it, an entry that loses every face drops with them, and a spelling naming nothing removes nothing (the no-op). Dual to union in exactly the sense the collision rule fixes: union settles a contested spelling by dropping it from the later claimant, subtraction removes a named spelling from its claimant -- both act on spellings, and entries enter or leave only as their faces do. On single-faced entries this is the familiar entry removal (`{a..z, !{a,e,i,o,u}}`); on a fold it is a face cut (`{{cat,feline}, !{feline}}` is one entry spelled only `cat`), so the face axis has a constructor after all -- subtraction's other blade. Renumbering runs on both axes: surviving entries recompact their values, surviving faces their indices, so canonical stays index 0.
 - Fold `{...}` as member -- quotient several faces onto one entry; a claimed spelling drops. Depth flattens: `{a,{b,{c,C}}}` = `{a,{b,c,C}}`, and a nested `{}` flattens to the unit's one face, the empty spelling -- which is what gives `{{{},0}}` its two faces, `` and `0`. Total: over the empty alphabet it yields the unit.
 - Final segment `{a..}` -- every spelling from `a` onward in spelling order, by the union rule. Unary: one cut, no right endpoint, no infinity token. Unboundedness is the missing second cut.
 - Product `{cat}{dog}` -- entries are tuples, one per factor, spelled by concatenation, ordered by positional value. Total (empty factor gives the empty universe). Identity: the unit -- a factor of order type $1$ wearing one empty face contributes no weight on the value axis and a factor of $1$ on the face axis, so `{{}}A` = `A` on both, and exponent `A^n` is well-formed down to `A^0`. Finite factors flatten (compression); an infinite factor does not, so product is a constructor, not notation.
@@ -50,6 +50,7 @@ The re-admission test: any construct enters as compression (above) or as a new a
 | `{a..z}` | a, b, ..., z  (26 entries) |
 | `{{cat,feline}}` | one entry, faces `cat` and `feline` |
 | `{a..z, !{a,e,i,o,u}}` | 21 consonants  (difference = subtraction) |
+| `{{cat,feline}, !{feline}}` | one entry, spelled only `cat`  (subtraction strips a face; the entry survives on its last spelling) |
 | `{a..}` | a, b, c, ...  (order type $\omega$) |
 | `{cat}{dog}` = `{catdog}` | catdog  (finite adjacency, compression) |
 | `{a,ab}{b,c}` | ab, ac, abb, abc  (values 0-3) |
