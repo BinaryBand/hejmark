@@ -1,4 +1,4 @@
-"""Every shipped ``examples/*.hmk`` must compile and behave as documented.
+"""Every shipped ``static/examples/*.hmk`` must compile and behave as documented.
 
 Each example isolates one FOUNDATION construct. This suite proves two things:
 every example file parses and denotes without error (it *compiles*), and each
@@ -15,7 +15,7 @@ import pytest
 
 from Himark import match, parse
 
-EXAMPLES = Path(__file__).resolve().parents[2] / "examples"
+EXAMPLES = Path(__file__).resolve().parents[2] / "static" / "examples"
 
 # filename -> (sample text, expected first matched substring, construct shown).
 # ``None`` means the query matches nothing (the empty universe is legal).
