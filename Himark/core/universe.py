@@ -3,10 +3,11 @@
 Denotation applies the four constructors (union, subtraction, fold, final
 segment) plus the range compression in a single left-to-right pass. The result
 is a tuple of **segments**: an :class:`Entry` is one entry wearing a sequence of
-face *pieces* (a literal spelling, or an :class:`~Himark.core.order.IntervalSet`
-of them), while a :class:`Run` contributes one single-face entry per spelling in
-an interval set. A final segment is an unbounded run, so a universe may hold
-infinitely many entries without ever materializing them.
+face *pieces*, each an :class:`~Himark.core.order.IntervalSet` (a literal
+spelling is the one-point interval set), while a :class:`Run` contributes one
+single-face entry per spelling in an interval set. A final segment is an
+unbounded run, so a universe may hold infinitely many entries without ever
+materializing them.
 
 The claim invariant is unchanged, only its carrier: ``claimed`` is an
 ``IntervalSet`` holding exactly the faces of the live entries. Values are
@@ -27,9 +28,6 @@ from Himark.core.syntax import Face, Final, Fold, Range, Subtract, UniverseNode
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-# One face of an entry: a literal spelling, or an interval set of spellings.
-Piece = str | IntervalSet
-
 
 class HimarkInfiniteError(ValueError):
     """Raised when an infinite universe is asked to materialize its entries."""
@@ -39,7 +37,7 @@ class HimarkInfiniteError(ValueError):
 class Entry:
     """One member of a universe: its face pieces (ordered, unique) and its value."""
 
-    faces: tuple[Piece, ...]
+    faces: tuple[IntervalSet, ...]
     value: int | Ordinal
 
     @property
@@ -47,21 +45,16 @@ class Entry:
         """How many spellings name this entry, summed across its pieces."""
         total: int | Ordinal = 0
         for piece in self.faces:
-            total = total + (1 if isinstance(piece, str) else _order_type(piece))
+            total = total + _order_type(piece)
         return total
 
     def face_index(self, spelling: str) -> int | Ordinal | None:
         """The position of ``spelling`` among this entry's faces, or ``None`` if absent."""
         offset: int | Ordinal = 0
         for piece in self.faces:
-            if isinstance(piece, str):
-                if piece == spelling:
-                    return offset
-                offset = offset + 1
-            elif piece.contains(spelling):
+            if piece.contains(spelling):
                 return offset + piece.rank(spelling)
-            else:
-                offset = offset + _order_type(piece)
+            offset = offset + _order_type(piece)
         return None
 
 
@@ -97,7 +90,7 @@ class Universe:
             if isinstance(segment, Run):
                 if segment.faces.cardinality() is None:
                     return False
-            elif any(isinstance(p, IntervalSet) and p.cardinality() is None for p in segment.faces):
+            elif any(p.cardinality() is None for p in segment.faces):
                 return False
         return True
 
@@ -106,7 +99,7 @@ class Universe:
         for segment in self.segments:
             if isinstance(segment, Run):
                 for i, spelling in enumerate(segment.faces):
-                    yield Entry((spelling,), segment.base + i)
+                    yield Entry((IntervalSet.point(spelling),), segment.base + i)
             else:
                 yield Entry(_materialize(segment.faces), segment.value)
 
@@ -154,25 +147,17 @@ def _order_type(faces: IntervalSet) -> int | Ordinal:
     return OMEGA if cardinality is None else cardinality
 
 
-def _materialize(pieces: tuple[Piece, ...]) -> tuple[str, ...]:
-    """Expand face pieces to a flat tuple of spellings (finite pieces only)."""
-    out: list[str] = []
+def _materialize(pieces: tuple[IntervalSet, ...]) -> tuple[IntervalSet, ...]:
+    """Expand face pieces to a flat tuple of single-spelling pieces (finite pieces only)."""
+    out: list[IntervalSet] = []
     for piece in pieces:
-        if isinstance(piece, str):
-            out.append(piece)
-        else:
-            out.extend(piece)
+        out.extend(IntervalSet.point(s) for s in piece)
     return tuple(out)
 
 
-def _piece_faces(piece: Piece) -> IntervalSet:
-    """The interval set of spellings a single piece names."""
-    return piece if isinstance(piece, IntervalSet) else IntervalSet.point(piece)
-
-
-def _fold_pieces(node: UniverseNode) -> list[Piece]:
+def _fold_pieces(node: UniverseNode) -> list[IntervalSet]:
     """The face pieces of a nested universe in entry order (its own scope)."""
-    pieces: list[Piece] = []
+    pieces: list[IntervalSet] = []
     for segment in denote(node).segments:
         if isinstance(segment, Run):
             pieces.append(segment.faces)
@@ -185,7 +170,7 @@ def _doomed(node: UniverseNode) -> IntervalSet:
     """The total face set of a subtracted universe -- every spelling it removes."""
     doomed = IntervalSet.empty()
     for piece in _fold_pieces(node):
-        doomed = doomed.union(_piece_faces(piece))
+        doomed = doomed.union(piece)
     return doomed
 
 
@@ -196,8 +181,9 @@ def _doomed(node: UniverseNode) -> IntervalSet:
 def _add_face(text: str, segments: list[Segment], claimed: IntervalSet) -> IntervalSet:
     """Union a single spelling: claim it as a new entry, or no-op if taken."""
     if not claimed.contains(text):
-        segments.append(Entry((text,), 0))
-        return claimed.union(IntervalSet.point(text))
+        point = IntervalSet.point(text)
+        segments.append(Entry((point,), 0))
+        return claimed.union(point)
     return claimed
 
 
@@ -212,17 +198,12 @@ def _add_run(faces: IntervalSet, segments: list[Segment], claimed: IntervalSet) 
 
 def _add_fold(node: Fold, segments: list[Segment], claimed: IntervalSet) -> IntervalSet:
     """Fold a nested universe into one entry, dropping already-claimed faces."""
-    kept: list[Piece] = []
+    kept: list[IntervalSet] = []
     for piece in _fold_pieces(node.universe):
-        if isinstance(piece, str):
-            if not claimed.contains(piece):
-                kept.append(piece)
-                claimed = claimed.union(IntervalSet.point(piece))
-        else:
-            available = piece.difference(claimed)
-            if not available.is_empty():
-                kept.append(available)
-                claimed = claimed.union(available)
+        available = piece.difference(claimed)
+        if not available.is_empty():
+            kept.append(available)
+            claimed = claimed.union(available)
     if kept:
         segments.append(Entry(tuple(kept), 0))
     return claimed
@@ -233,7 +214,7 @@ def _survives(segment: Segment, doomed: IntervalSet) -> Segment | None:
     if isinstance(segment, Run):
         shrunk = segment.faces.difference(doomed)
         return None if shrunk.is_empty() else Run(shrunk, 0)
-    if any(_piece_faces(piece).intersects(doomed) for piece in segment.faces):
+    if any(piece.intersects(doomed) for piece in segment.faces):
         return None
     return segment
 
@@ -255,7 +236,7 @@ def _claimed_of(segments: list[Segment]) -> IntervalSet:
             claimed = claimed.union(segment.faces)
         else:
             for piece in segment.faces:
-                claimed = claimed.union(_piece_faces(piece))
+                claimed = claimed.union(piece)
     return claimed
 
 

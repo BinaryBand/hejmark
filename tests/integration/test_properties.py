@@ -68,15 +68,15 @@ def test_product_index_bounds(faces_per_universe: list[list[str]]) -> None:
         # Pick the first generated face that actually survives in the denoted universe.
         found = False
         for face in faces:
-            if any(face in entry.faces for entry in universe.entries):
+            if any(piece.contains(face) for entry in universe.entries for piece in entry.faces):
                 chosen_faces.append(face)
                 found = True
                 break
         if not found:
             # None of the generated faces survived denotation (e.g. all duplicates).
-            # Fall back to any face from the first entry (materialized faces are spellings).
+            # Fall back to any face from the first entry (materialized faces are one-point sets).
             fallback = universe.entries[0].faces[0]
-            chosen_faces.append(fallback if isinstance(fallback, str) else next(iter(fallback)))
+            chosen_faces.append(next(iter(fallback)))
 
     text = "".join(chosen_faces)
 

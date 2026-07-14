@@ -9,12 +9,18 @@ from __future__ import annotations
 import pytest
 
 from Himark.core.match import finditer, match
+from Himark.core.order import IntervalSet
 from Himark.core.universe import Entry, Query, Universe
 
 
 def _universe(*entries: tuple[str, ...]) -> Universe:
     """Build a universe from face tuples; values follow declaration order."""
-    return Universe(tuple(Entry(faces, i) for i, faces in enumerate(entries)))
+    return Universe(
+        tuple(
+            Entry(tuple(IntervalSet.point(face) for face in faces), i)
+            for i, faces in enumerate(entries)
+        )
+    )
 
 
 def _query(*universes: Universe) -> Query:

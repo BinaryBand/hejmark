@@ -203,6 +203,23 @@ class IntervalSet:
                 s = successor(s)
                 index += 1
 
+    def __repr__(self) -> str:
+        """Compact repr: a point interval is its spelling, a range is ``a..z``."""
+        if not self.intervals:
+            return "{}"
+        parts = [_interval_repr(lo, hi) for lo, hi in self.intervals]
+        return parts[0] if len(parts) == 1 else "{" + ",".join(parts) + "}"
+
+
+def _interval_repr(lo: int, hi: int | None) -> str:
+    """The compact spelling of a single half-open interval ``[lo, hi)``."""
+    lo_s = spelling_from_index(lo)
+    if hi is None:
+        return f"{lo_s}.."
+    if hi - lo == 1:
+        return lo_s
+    return f"{lo_s}..{spelling_from_index(hi - 1)}"
+
 
 def _min_hi(a: int | None, b: int | None) -> int | None:
     """The smaller of two upper endpoints, treating ``None`` as infinity."""

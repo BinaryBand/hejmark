@@ -8,6 +8,10 @@ produce flat, valued universes.
 from __future__ import annotations
 
 from Himark import Entry, match, parse
+from Himark.core.order import IntervalSet
+
+# A materialized face piece is always a one-point interval set.
+_P = IntervalSet.point
 
 # ---------------------------------------------------------------------------
 # Smoke denotations (Stage 3 acceptance)
@@ -20,8 +24,8 @@ def test_fold_flatten_merges_faces() -> None:
     assert len(result.universes) == 1
     entries = result.universes[0].entries
     assert entries == (
-        Entry(("a",), 0),
-        Entry(("A",), 1),
+        Entry((_P("a"),), 0),
+        Entry((_P("A"),), 1),
     )
 
 
@@ -30,8 +34,8 @@ def test_deep_fold_flattens_fully() -> None:
     result = parse("{a,{b,{c,d},e,{f,g}}}")
     entries = result.universes[0].entries
     assert len(entries) == 2
-    assert entries[0] == Entry(("a",), 0)
-    assert entries[1] == Entry(("b", "c", "d", "e", "f", "g"), 1)
+    assert entries[0] == Entry((_P("a"),), 0)
+    assert entries[1] == Entry((_P("b"), _P("c"), _P("d"), _P("e"), _P("f"), _P("g")), 1)
 
 
 def test_subtraction_of_only_entry_makes_empty() -> None:
@@ -85,14 +89,14 @@ def test_range_five_entries() -> None:
     entries = result.universes[0].entries
     assert len(entries) == 5
     faces = [e.faces[0] for e in entries]
-    assert faces == ["a", "b", "c", "d", "e"]
+    assert faces == [_P(c) for c in "abcde"]
 
 
 def test_range_single_entry() -> None:
     """``{a..a}`` has one entry."""
     result = parse("{a..a}")
     assert len(result.universes[0].entries) == 1
-    assert result.universes[0].entries[0].faces == ("a",)
+    assert result.universes[0].entries[0].faces == (_P("a"),)
 
 
 def test_range_reversed_is_empty() -> None:
@@ -111,8 +115,8 @@ def test_subtraction_renumbers() -> None:
     result = parse("{a,b,c,!{b}}")
     entries = result.universes[0].entries
     assert len(entries) == 2
-    assert entries[0] == Entry(("a",), 0)
-    assert entries[1] == Entry(("c",), 1)
+    assert entries[0] == Entry((_P("a"),), 0)
+    assert entries[1] == Entry((_P("c"),), 1)
 
 
 def test_reunion_after_subtraction() -> None:
@@ -120,7 +124,7 @@ def test_reunion_after_subtraction() -> None:
     result = parse("{a,!{a},a}")
     entries = result.universes[0].entries
     assert len(entries) == 1
-    assert entries[0] == Entry(("a",), 0)
+    assert entries[0] == Entry((_P("a"),), 0)
 
 
 def test_any_face_subtraction() -> None:
