@@ -2,7 +2,7 @@
 
 These drive the public API end to end: parsing a final segment, denoting an
 infinite universe symbolically, and matching it against finite text with ordinal
-values. FOUNDATION.md's worked cases are pinned here.
+values. FOUNDATION's worked cases are pinned here.
 """
 
 from __future__ import annotations

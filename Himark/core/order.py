@@ -1,6 +1,6 @@
 """The spelling order: shortlex over spellings, and symbolic interval sets.
 
-FOUNDATION.md fixes the **spelling order** as shortlex (shorter first, ties by
+FOUNDATION fixes the **spelling order** as shortlex (shorter first, ties by
 code point) -- a well-order of type omega. This module realizes it three ways:
 
 - :func:`spelling_index` places every spelling at its global shortlex position,
@@ -19,7 +19,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 # Base of the shortlex enumeration: the whole Unicode code space, 0..0x10FFFF.
-# Surrogates ride along by design (FOUNDATION.md); nothing is special-cased.
+# Surrogates ride along by design (FOUNDATION); nothing is special-cased.
 _N = 0x110000
 _MAX = 0x10FFFF
 

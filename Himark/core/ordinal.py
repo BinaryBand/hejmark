@@ -1,6 +1,6 @@
 """Minimal Cantor-normal-form ordinals for transfinite positional values.
 
-FOUNDATION.md reads the positional formula in ordinal arithmetic once a base is
+FOUNDATION reads the positional formula in ordinal arithmetic once a base is
 infinite: ``sum_i b^(k-1-i) * value(p_i)``, with the base power on the *left* so
 that non-commutative multiplication (``omega*2 != 2*omega``) is respected. This
 module carries just enough of the ordinals below ``omega^omega`` to evaluate
