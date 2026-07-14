@@ -4,12 +4,12 @@ The axiomatic floor: the one object, the constructors that build it, and the the
 
 ## The object
 
-- Face -- a spelling naming an entry; one entry may wear several (a fold).
+- Face -- a spelling naming an entry; one entry may wear several (a fold), ordered by declaration and indexed from 0; the index-0 face is canonical.
 - Entry -- one member of an alphabet.
-- Alphabet -- a well-ordered set of entries, ordered by declaration. Virtual: denoted, never materialized.
+- Alphabet -- a well-ordered set of entries, ordered by declaration. Virtual: denoted, never materialized, possibly infinite.
 - Spelling order -- shortlex over spellings (shorter first, ties by code point). A well-order of type $\omega$; the order every cut cuts.
-- Universe -- *the object*: an alphabet. Each entry has a `value` (its ordinal position); each face a `face` index. Both are ordinals below $\omega^\omega$, naturals when finite. Fixing one `<value, face>` address is a capture -- a matching role, specified at L1.5.
-- Empty universe -- the empty alphabet (`{a,!{a}}`), order type $0$. Legal and denotable; emptiness is meaningless, not invalid.
+- Universe -- *the object*: a pointed alphabet `<alphabet, value, face>` -- a virtual list paired with one position. `value` picks the entry: an ordinal below $\omega^\omega$ -- a natural for a flat alphabet, a mixed-radix vector over a product's factors (positional value, below). `face` picks the spelling: an ordinal index into that entry's faces, **resting at 0** (the canonical face) and non-zero only for a folded entry hit by a later spelling. Together `<value, face>` is the **capture**, carried at the floor -- structural, like congruence by depth, not an add-on above. A written universe leaves `value` free to range over the list; matching binds `value` to one entry and `face` to the spelling that hit (L1.5). `face` never changes the denotation -- every face names the same member -- which is why it has a canonical rest where `value` ranges.
+- Empty universe -- the empty alphabet (`{a,!{a}}`), order type $0$: no entry, so no position to bind -- the object's only nullability. Legal and denotable; emptiness is meaningless, not invalid.
 
 ## The constructors
 
@@ -25,7 +25,7 @@ Five, all total; they build every universe.
 
 Forced by the object, never postulated.
 
-- Positional value -- a tuple $p_0 \ldots p_{k-1}$ over factor order types $b_i$ sits at $\sum_i \mathrm{value}(p_i) \cdot (b_{i+1} \cdots b_{k-1})$: mixed radix, most-significant-first. The face axis composes identically over per-entry face counts. Finite factors give naturals; an infinite factor gives an ordinal -- Cantor normal form at base $\omega$, weight on the left, multiplication no longer commuting. Position equals value only when the factors are uniquely decodable: concatenation is not injective (`{a,ab}{c,bc}` spells `abc` twice, and the union no-op keeps the lower value), yet the denotation stays faithful either way.
+- Positional value -- a tuple $p_0 \ldots p_{k-1}$ over factor order types $b_i$ sits at $\sum_i \mathrm{value}(p_i) \cdot (b_{i+1} \cdots b_{k-1})$: mixed radix, most-significant-first. The face axis composes identically over per-entry face counts. Finite factors give naturals; an infinite factor gives an ordinal -- Cantor normal form at base $\omega$, weight on the left, multiplication no longer commuting. An entry's rank equals its value only when the factors are uniquely decodable: concatenation is not injective (`{a,ab}{c,bc}` spells `abc` twice, and the union no-op keeps the lower-valued one), yet the denotation stays faithful either way.
 - Bounded transfinitude -- order types are the ordinals below $\omega^\omega$, closed under every constructor (product multiplies, union adds, fold and subtraction shrink) and never reaching it, since every expression is finite. Union alone gives $\omega$ plus a finite tail; product reaches higher -- `{b,c}{a..}` is $\omega \cdot 2$, `{a..}{a..}` is $\omega^2$. (The matching consequence, decidability over finite text, is L1.5.)
 - Compression, not capability -- these notations denote only what the constructors already reach, adding no power:
   - Bounded range -- `{a..z}` = `{a.., !{s..}}`, with `s` the successor of `z`.
