@@ -15,11 +15,13 @@ The axiomatic floor: the one object, the constructors that build it, and the the
 
 Five, all total; they build every universe.
 
-- Union `,` -- append an entry not yet present; a claimed spelling is a no-op. Idempotent, associative, not commutative.
-- Subtraction `!{...}` -- remove a present entry and renumber; removing an absent one is a no-op. Dual to union over the same membership test.
+- Union `,` -- append a universe's entries, in its order, skipping any already present; a lone spelling is the singleton case. Idempotent, associative, not commutative.
+- Subtraction `!{...}` -- remove a universe's entries where present and renumber; an absent entry is a no-op. Dual to union over the same membership test.
 - Fold `{...}` as member -- quotient several faces onto one entry; a claimed spelling drops. Depth flattens: `{a,{b,{c,C}}}` = `{a,{b,c,C}}`.
 - Final segment `{a..}` -- every spelling from `a` onward in spelling order, by the union rule. Unary: one cut, no right endpoint, no infinity token. Unboundedness is the missing second cut.
 - Product `{cat}{dog}` -- entries are tuples, one per factor, spelled by concatenation, ordered by positional value. Total (empty factor gives the empty universe). Finite factors flatten (compression); an infinite factor does not, so product is a constructor, not notation.
+
+The universe operand on union and subtraction is axiomatic: an entry-wise step adds or removes finitely many entries, while `{a.., !{ {a..}{b}{a..} }}` -- every spelling with no interior `b`-seam -- needs infinitely many removals and is unreachable by any finite iteration of entry-wise steps.
 
 ## The theorems
 
@@ -30,11 +32,11 @@ Forced by the object, never postulated.
 - Compression, not capability -- these notations denote only what the constructors already reach, adding no power:
   - Bounded range -- `{a..z}` = `{a.., !{s..}}`, with `s` the successor of `z`.
   - Finite adjacency -- `{cat}{dog}` = `{catdog}`.
-  - Splice -- spread a named universe's entries into a `,` or `!{...}` slot.
+  - Splice -- spread a named universe's entries into a `,` or `!{...}` slot: the operand rule by name, no new notation.
   - Difference -- $A \setminus B$ = subtraction over a universe operand: `{ ...A..., !{...B...} }`.
   - Intersection -- $A \cap B$ = $A \setminus (A \setminus B)$, two subtractions.
 
-The re-admission test: any construct enters as compression (above) or as a new axiom in this floor -- never a special case. Final segment and product are the only axioms; everything else compresses.
+The re-admission test: any construct enters as compression (above) or as a new axiom in this floor -- never a special case. The five constructors are the axioms; final segment and product are the two that earned admission by refusing to compress, and everything above compresses into the five.
 
 ## North-star
 
