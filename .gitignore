@@ -22,6 +22,9 @@ __pycache__/
 # Generated ANTLR parser (regenerate with `Himark gen-parser`)
 Himark/adapters/_gen/
 
+# Coq/dune build artifacts (static/formal/)
+static/formal/_build/
+
 # Local environment
 .env
 
