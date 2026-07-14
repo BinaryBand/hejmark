@@ -9,15 +9,15 @@
 ## Layer 1.5 -- Language Surface (interpretation)
 
 - Matching -- query and capture, text membership, maximal munch, decidability.
-- Universe Transformations -- the modifier pipeline (`where`, `pad`, ...).
+- Transformation primitives -- set filtering (`less`/`only`), product/exponent, aggregate-by-union-or-fold, and the modifier pipeline that hosts them. Not `where`/`pad` themselves -- those are L2 definitions built from these.
 - Registers -- L1's positional index made addressable.
 
-> Finish Line: When Himark can build `where` and `pad` with algebra alone.
+> Finish Line: When L1.5's primitives suffice to define `where` and `pad` in L2 -- algebra alone, no built-in named modifiers.
 
 ## Layer 2 -- In-Language Rewrites And Variables
 
 - Variables -- (`uni foo = {...}`)
-- Functions -- (`{...}[bar ... baz ...]`)
+- Functions -- (`{...}[bar ... baz ...]`); where `where` and `pad` are defined, over L1.5's primitives.
 
 | Expression | Denotes |
 | --- | --- |
