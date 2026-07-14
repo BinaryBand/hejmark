@@ -1,17 +1,15 @@
-"""Integration tests for the final segment (`{a..}`) and the transfinite engine.
+"""Integration tests for the final segment (`{a..}`) and infinite universes.
 
 These drive the public API end to end: parsing a final segment, denoting an
-infinite universe symbolically, and matching it against finite text with ordinal
-values. FOUNDATION's worked cases are pinned here.
+infinite universe symbolically, matching it against finite text, and streaming
+its entries lazily. No entry is ever materialized wholesale.
 """
 
 from __future__ import annotations
 
-import pytest
+from itertools import islice
 
 from Himark import match, parse
-from Himark.core.ordinal import OMEGA
-from Himark.core.universe import HimarkInfiniteError
 
 
 def test_final_segment_matches_the_longest_prefix() -> None:
@@ -21,48 +19,40 @@ def test_final_segment_matches_the_longest_prefix() -> None:
     assert found.span == (0, 11)
 
 
-def test_final_segment_is_an_infinite_universe() -> None:
-    """The universe has omega entries and refuses to materialize them."""
+def test_final_segment_streams_without_materializing() -> None:
+    """The universe is infinite; the lazy iterator walks it in spelling order."""
     universe = parse("{a..}").universes[0]
-    assert universe.entry_count == OMEGA
-    assert not universe.is_finite
-    with pytest.raises(HimarkInfiniteError):
-        _ = universe.entries
+    assert [e.faces for e in islice(universe.entries(), 3)] == [("a",), ("b",), ("c",)]
+    assert universe.contains("zzzz")
+    assert not universe.contains("")
 
 
 def test_bounded_range_is_the_difference_of_two_final_segments() -> None:
     """``{a..,!{b..}}`` denotes the bounded interval ``[a, b)`` -- just ``a``."""
     universe = parse("{a..,!{b..}}").universes[0]
-    assert universe.entry_count == 1
+    assert [e.faces for e in universe.entries()] == [("a",)]
     assert match("{a..,!{b..}}", "a") is not None
     assert match("{a..,!{b..}}", "b") is None
 
 
-def test_union_after_a_final_segment_lands_at_omega() -> None:
-    """``{b..,a}``: the run holds omega entries, so ``a`` follows at value omega."""
+def test_union_after_a_final_segment_is_claimed_away() -> None:
+    """``{b..,a}``: the run leaves ``a`` unclaimed, so it follows the whole run."""
     universe = parse("{b..,a}").universes[0]
-    assert universe.entry_count == OMEGA + 1
+    assert universe.contains("a")
+    assert [e.faces for e in islice(universe.entries(), 2)] == [("b",), ("c",)]
     found = match("{b..,a}", "a")
     assert found is not None
-    assert found.value == OMEGA
+    assert found.span == (0, 1)
 
 
-def test_fold_over_a_final_segment_is_one_entry() -> None:
-    """``{{a..}}`` folds unboundedly many faces into a single entry."""
+def test_fold_over_a_final_segment_answers_membership() -> None:
+    """``{{a..}}`` is one entry with unboundedly many faces; membership stays cheap."""
     universe = parse("{{a..}}").universes[0]
-    assert universe.entry_count == 1
-    assert not universe.is_finite
-
-
-def test_product_with_a_final_segment_yields_an_ordinal_value() -> None:
-    """``{x,y}{a..}`` places a match at ``omega*m + n`` (base omega on the left)."""
-    found = match("{x,y}{a..}", "yc")
-    assert found is not None
-    # y is entry 1 of {x,y}; c is at rank 2 in [a..) -> omega*1 + 2.
-    assert found.value == OMEGA + 2
+    assert universe.contains("hello")
+    assert not universe.contains("\x00")
 
 
 def test_reversed_range_stays_empty() -> None:
     """``{z..a}`` is the standard empty interval; emptiness never means unbounded."""
-    assert parse("{z..a}").universes[0].entry_count == 0
+    assert [e.faces for e in parse("{z..a}").universes[0].entries()] == []
     assert match("{z..a}", "abc") is None

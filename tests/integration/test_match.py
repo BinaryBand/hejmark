@@ -1,17 +1,17 @@
-"""Tests for the leftmost-greedy matcher with canonical-parse backtracking.
+"""Tests for the leftmost-greedy matcher, end to end through the parser.
 
-These verify :func:`Himark.match` and :func:`Himark.finditer` scanning behaviour,
-face identification, value computation on both axes, and edge cases around empty
-universes in products.
+These verify :func:`Himark.match` and :func:`Himark.finditer` scanning
+behaviour: leftmost position, maximal munch, backtracking to the canonical
+parse, matching by any face, and the closure scope (guarded bodies match;
+unsettled ones raise instead of guessing).
 """
 
 from __future__ import annotations
 
-from Himark import finditer, match
+import pytest
 
-# ---------------------------------------------------------------------------
-# Leftmost match
-# ---------------------------------------------------------------------------
+from Himark import finditer, match
+from Himark.core.universe import HimarkUnsettledError
 
 
 def test_leftmost_single_face_match() -> None:
@@ -23,16 +23,10 @@ def test_leftmost_single_face_match() -> None:
 
 
 def test_greedy_prefers_longest_face() -> None:
-    """``{a,ab}`` on ``"abc"`` matches ``"ab"`` (entry 1, i.e. the second entry)."""
+    """``{a,ab}`` on ``"abc"`` matches ``"ab"`` -- declaration order never selects."""
     result = match("{a,ab}", "abc")
     assert result is not None
     assert result.parts[0].face == "ab"
-    assert result.parts[0].value == 1
-
-
-# ---------------------------------------------------------------------------
-# Backtracking (Stage 3 acceptance pair)
-# ---------------------------------------------------------------------------
 
 
 def test_backtracking_ab() -> None:
@@ -49,82 +43,54 @@ def test_greedy_abc() -> None:
     assert tuple(p.face for p in result.parts) == ("ab", "c")
 
 
-# ---------------------------------------------------------------------------
-# Empty universe in product
-# ---------------------------------------------------------------------------
-
-
 def test_empty_universe_alone_matches_nothing() -> None:
-    """An empty-entries universe alone matches nothing."""
-    result = match("{a,!{a}}", "xyz")
-    assert result is None
+    """Emptiness is meaningless, not invalid: the query runs and finds nothing."""
+    assert match("{a,!{a}}", "xyz") is None
 
 
 def test_empty_factor_in_product_matches_nothing() -> None:
     """``{x}{a,!{a}}`` matches nothing because the trailing factor is empty."""
-    result = match("{x}{a,!{a}}", "xyz")
-    assert result is None
+    assert match("{x}{a,!{a}}", "xyz") is None
 
 
-# ---------------------------------------------------------------------------
-# Face identification
-# ---------------------------------------------------------------------------
-
-
-def test_face_identification_by_alternate_spelling() -> None:
-    """``{x,{b,B}}`` on ``"B"`` gives value 1, face_index 1."""
+def test_matching_is_by_any_face() -> None:
+    """``{x,{b,B}}`` on ``"B"`` hits the fold through its alternate spelling."""
     result = match("{x,{b,B}}", "B")
     assert result is not None
-    assert result.value == 1
-    assert result.parts[0].face_index == 1
     assert result.parts[0].face == "B"
 
 
-# ---------------------------------------------------------------------------
-# Face-axis value
-# ---------------------------------------------------------------------------
-
-
-def test_face_axis_value() -> None:
-    """``{a,{b,B}}{c}`` on ``"Bc"`` gives value 1, face_value 1."""
-    result = match("{a,{b,B}}{c}", "Bc")
+def test_stripped_face_no_longer_matches() -> None:
+    """``{{cat,feline},!{feline}}`` keeps the entry but not the spelling."""
+    assert match("{{cat,feline},!{feline}}", "a feline") is None
+    result = match("{{cat,feline},!{feline}}", "the cat")
     assert result is not None
-    assert result.value == 1
-    assert result.face_value == 1
+    assert result.parts[0].face == "cat"
 
 
-def test_face_axis_value_both_positions() -> None:
-    """Face axis sums correctly across all product positions."""
-    # {a,{b,B}}{c,{d,D}} on "B D" -- each position picks the second face
-    result = match("{a,{b,B}}{c,{d,D}}", "BD")
+def test_guarded_closure_matches_arbitrarily_deep() -> None:
+    """``{ab,{a}&{b}}`` tiles a^n b^n -- beyond any regular face set."""
+    result = match("{ab,{a}&{b}}", "xx" + "a" * 6 + "b" * 6 + "yy")
     assert result is not None
-    # value: entry 1 at each of 2 positions, base is 2, 2 at each position
-    # entry axis: 1*2 + 1 = 3
-    assert result.value == 3
-    assert result.face_value == 3
+    assert result.span == (2, 14)
 
 
-# ---------------------------------------------------------------------------
-# finditer non-overlapping
-# ---------------------------------------------------------------------------
+def test_unsettled_closure_is_out_of_matching_scope() -> None:
+    """An unguarded body still denotes, but the matcher cannot decide absence."""
+    with pytest.raises(HimarkUnsettledError):
+        match("{a,{{{},0}}&}", "zzz")
 
 
 def test_finditer_non_overlapping() -> None:
     """``{a}{a}`` on ``"aaaa"`` gives spans ``(0, 2)`` and ``(2, 4)``."""
-    results = list(finditer("{a}{a}", "aaaa"))
-    assert len(results) == 2
-    assert results[0].span == (0, 2)
-    assert results[1].span == (2, 4)
+    assert [r.span for r in finditer("{a}{a}", "aaaa")] == [(0, 2), (2, 4)]
 
 
 def test_finditer_no_match() -> None:
     """finditer on a text with no matches yields nothing."""
-    results = list(finditer("{z}", "abc"))
-    assert len(results) == 0
+    assert list(finditer("{z}", "abc")) == []
 
 
 def test_finditer_resumes_past_match() -> None:
-    """finditer does not overlap: ``{a}`` on ``"aaa"`` yields three single-char matches."""
-    results = list(finditer("{a}", "aaa"))
-    assert len(results) == 3
-    assert [r.span for r in results] == [(0, 1), (1, 2), (2, 3)]
+    """finditer does not overlap: ``{a}`` on ``"aaa"`` yields three matches."""
+    assert [r.span for r in finditer("{a}", "aaa")] == [(0, 1), (1, 2), (2, 3)]

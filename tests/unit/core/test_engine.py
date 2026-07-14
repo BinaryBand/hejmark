@@ -8,11 +8,7 @@ from __future__ import annotations
 
 from Himark.adapters.parser import to_ast
 from Himark.core.engine import finditer, match, parse
-from Himark.core.order import IntervalSet
-from Himark.core.universe import Entry, Query
-
-# A materialized face piece is always a one-point interval set.
-_P = IntervalSet.point
+from Himark.core.universe import Query
 
 
 def test_parse_denotes_source_to_a_query() -> None:
@@ -20,15 +16,15 @@ def test_parse_denotes_source_to_a_query() -> None:
 
     assert isinstance(query, Query)
     assert query.source == "{a,b}"
-    assert query.universes[0].entries == (Entry((_P("a"),), 0), Entry((_P("b"),), 1))
+    assert [e.faces for e in query.universes[0].entries()] == [("a",), ("b",)]
 
 
 def test_parse_keeps_universes_most_significant_first() -> None:
     query = parse(to_ast, "{a,b}{x,y}")
 
     assert len(query.universes) == 2
-    assert query.universes[0].entries[0] == Entry((_P("a"),), 0)
-    assert query.universes[1].entries[0] == Entry((_P("x"),), 0)
+    assert next(iter(query.universes[0].entries())).faces == ("a",)
+    assert next(iter(query.universes[1].entries())).faces == ("x",)
 
 
 def test_match_accepts_raw_source() -> None:

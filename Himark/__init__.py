@@ -12,7 +12,7 @@ from Himark.core.engine import match as _match
 from Himark.core.engine import parse as _parse
 from Himark.core.match import Match, MatchPart
 from Himark.core.syntax import HimarkSyntaxError
-from Himark.core.universe import Entry, Query, Universe
+from Himark.core.universe import Entry, HimarkUnsettledError, Query, Universe
 
 
 def parse(source: str) -> Query:
@@ -33,6 +33,7 @@ def finditer(query: Query | str, text: str):  # noqa: ANN201
 __all__ = [
     "Entry",
     "HimarkSyntaxError",
+    "HimarkUnsettledError",
     "Match",
     "MatchPart",
     "Query",

@@ -23,6 +23,10 @@ CASES: dict[str, dict[str, str | None]] = {
     "{a..z,!{a,e,i,o,u}}": {"aegis": "g", "aeiou": None},
     "{0..9,a..f}": {"code 3f2": "c", "3f2": "3"},
     "{a,!{a}}": {"xyz": None, "aaa": None},
+    "{{cat,feline},!{feline}}": {"a feline appeared": None, "the cat sat": "cat"},
+    "{a,&{b}}": {"xabbby": "abbb", "ba": "a"},
+    "{ab,{a}&{b}}": {"aaabbbb": "aaabbb", "ab": "ab"},
+    "{0,{1..9,&{0..9}}}": {"a1024z": "1024", "zero 0": "0"},
 }
 
 

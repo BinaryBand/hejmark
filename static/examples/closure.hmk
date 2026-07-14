@@ -1,0 +1,2 @@
+// closure: a, ab, abb, ... -- the self-reference & reads the previous stage
+{a,&{b}}

@@ -1,155 +1,90 @@
-"""Tests for denotation: the constructor algebra in :mod:`Himark.core.universe`.
+"""The north-star table, executable: L1_TEMP.md's denotation rows, end to end.
 
-These verify that :func:`Himark.parse` and :func:`Himark.core.universe.denote`
-correctly apply union, subtraction, fold flattening, and range expansion to
-produce flat, valued universes.
+Each row parses real source and asserts the denoted entries as face tuples --
+the whole universe for finite rows, a prefix through the lazy iterator for
+infinite ones. A row written as a top-level product is wrapped in one more
+brace pair so it denotes as a product member (where the collision rule lives).
+This file is the lockstep bridge between the spec's table and the code; a row
+changed there should change here in the same commit.
 """
 
 from __future__ import annotations
 
-from Himark import Entry, match, parse
-from Himark.core.order import IntervalSet
+from itertools import islice
 
-# A materialized face piece is always a one-point interval set.
-_P = IntervalSet.point
+import pytest
 
-# ---------------------------------------------------------------------------
-# Smoke denotations (Stage 3 acceptance)
-# ---------------------------------------------------------------------------
+from Himark import parse
 
+Faces = list[tuple[str, ...]]
 
-def test_fold_flatten_merges_faces() -> None:
-    """``{a,{a,A}}`` -> one universe, entries ``[("a",), ("A",)]``."""
-    result = parse("{a,{a,A}}")
-    assert len(result.universes) == 1
-    entries = result.universes[0].entries
-    assert entries == (
-        Entry((_P("a"),), 0),
-        Entry((_P("A"),), 1),
-    )
+# Finite rows: expression -> every entry, as its full face tuple in order.
+FINITE: dict[str, Faces] = {
+    "{a,b,c}": [("a",), ("b",), ("c",)],
+    "{a..z}": [(c,) for c in "abcdefghijklmnopqrstuvwxyz"],
+    "{{cat,feline}}": [("cat", "feline")],
+    "{a..z,!{a,e,i,o,u}}": [(c,) for c in "bcdfghjklmnpqrstvwxyz"],
+    "{{cat,feline},!{feline}}": [("cat",)],
+    "{cat}{dog}": [("catdog",)],
+    "{{a,ab}{b,c}}": [("ab",), ("ac",), ("abb",), ("abc",)],
+    "{{a,ab}{c,bc}}": [("ac",), ("abc",), ("abbc",)],
+    "{a,!{a}}": [],
+    "{z..a}": [],
+    "{{}}": [("",)],
+    "{{{},0}}": [("", "0")],
+    "{{{},0}}{{{},0}}": [("", "0", "00")],
+    "{{{},0}}{0..9}": [(d, "0" + d) for d in "0123456789"],
+    "{{{},0}}{0,00}": [("0", "00"), ("000",)],
+    "{&}": [],
+    "{a,&}": [("a",)],
+}
 
-
-def test_deep_fold_flattens_fully() -> None:
-    """``{a,{b,{c,d},e,{f,g}}}`` -> entries ``[("a",), ("b","c","d","e","f","g")]``."""
-    result = parse("{a,{b,{c,d},e,{f,g}}}")
-    entries = result.universes[0].entries
-    assert len(entries) == 2
-    assert entries[0] == Entry((_P("a"),), 0)
-    assert entries[1] == Entry((_P("b"), _P("c"), _P("d"), _P("e"), _P("f"), _P("g")), 1)
-
-
-def test_subtraction_of_only_entry_makes_empty() -> None:
-    """``{a,!{a}}`` -> zero entries."""
-    result = parse("{a,!{a}}")
-    assert len(result.universes[0].entries) == 0
-
-
-def test_stage3_match_smoke_by_value() -> None:
-    """``match("{a,b}{x,y}", "zzby")`` -> span ``(2, 4)``, value ``3``."""
-    result = match("{a,b}{x,y}", "zzby")
-    assert result is not None
-    assert result.span == (2, 4)
-    assert result.value == 3
-
-
-def test_stage3_match_backtracking_ab() -> None:
-    """On ``"ab"``, ``{a,ab}{b,c}`` spells ``a`` then ``b`` (backtrack)."""
-    result = match("{a,ab}{b,c}", "ab")
-    assert result is not None
-    assert tuple(p.face for p in result.parts) == ("a", "b")
+# Infinite rows: expression -> a prefix of the entries, in declaration order.
+PREFIX: dict[str, Faces] = {
+    "{a..}": [("a",), ("b",), ("c",), ("d",)],
+    "{a..}{b}": [("ab",), ("bb",), ("cb",)],
+    "{b,c}{a..}": [("ba",), ("bb",), ("bc",)],
+    "{b}{a..}{b}{a..}": [("baba",), ("babb",), ("babc",)],
+    "{a,&{b}}": [("a",), ("ab",), ("abb",), ("abbb",)],
+    "{ab,{a}&{b}}": [("ab",), ("aabb",), ("aaabbb",)],
+    "{0,{1..9,&{0..9}}}": [(str(n),) for n in range(14)],
+    "{a..,!{&}}": [("a",), ("b",), ("c",)],
+    "{a,{{{},0}}&}": [("a",), ("0a",), ("00a",), ("000a",)],
+    "{ab,&&}": [("ab",), ("abab",), ("ababab",)],
+    "{{(}{b}{a..}{)},{(}&&{)}}": [("(ba)",), ("(bb)",), ("(bc)",)],
+}
 
 
-def test_stage3_match_greedy_abc() -> None:
-    """On ``"abc"``, ``{a,ab}{b,c}`` spells ``ab`` then ``c`` (greedy)."""
-    result = match("{a,ab}{b,c}", "abc")
-    assert result is not None
-    assert tuple(p.face for p in result.parts) == ("ab", "c")
+def _entry_faces(source: str):
+    """Denote *source* as one universe, wrapping a top-level product as a member."""
+    if len(parse(source).universes) > 1:
+        source = "{" + source + "}"
+    universe = parse(source).universes[0]
+    return (entry.faces for entry in universe.entries())
 
 
-# ---------------------------------------------------------------------------
-# Fold-flatten equivalence
-# ---------------------------------------------------------------------------
+@pytest.mark.parametrize(("source", "expected"), FINITE.items(), ids=FINITE)
+def test_finite_row_denotes_exactly(source: str, expected: Faces) -> None:
+    """A finite north-star row denotes to exactly its listed entries."""
+    assert list(_entry_faces(source)) == expected
 
 
-def test_fold_flatten_equivalence() -> None:
-    """``parse("{a,{b,{c,C}}}").universes == parse("{a,{b,c,C}}").universes``."""
-    left = parse("{a,{b,{c,C}}}").universes
-    right = parse("{a,{b,c,C}}").universes
-    assert left == right
+@pytest.mark.parametrize(("source", "expected"), PREFIX.items(), ids=PREFIX)
+def test_infinite_row_denotes_lazily(source: str, expected: Faces) -> None:
+    """An infinite north-star row streams its listed prefix in order."""
+    assert list(islice(_entry_faces(source), len(expected))) == expected
 
 
-# ---------------------------------------------------------------------------
-# Ranges
-# ---------------------------------------------------------------------------
+def test_spelling_order_is_generated_not_postulated() -> None:
+    """`{{{}},&C}` over a tiny C yields every spelling in shortlex."""
+    universe = parse("{{{}},&{a..b}}").universes[0]
+    prefix = [entry.faces[0] for entry in islice(universe.entries(), 7)]
+    assert prefix == ["", "a", "b", "aa", "ab", "ba", "bb"]
 
 
-def test_range_five_entries() -> None:
-    """``{a..e}`` has five entries (a, b, c, d, e)."""
-    result = parse("{a..e}")
-    entries = result.universes[0].entries
-    assert len(entries) == 5
-    faces = [e.faces[0] for e in entries]
-    assert faces == [_P(c) for c in "abcde"]
-
-
-def test_range_single_entry() -> None:
-    """``{a..a}`` has one entry."""
-    result = parse("{a..a}")
-    assert len(result.universes[0].entries) == 1
-    assert result.universes[0].entries[0].faces == (_P("a"),)
-
-
-def test_range_reversed_is_empty() -> None:
-    """``{e..a}`` has zero entries (lo > hi)."""
-    result = parse("{e..a}")
-    assert len(result.universes[0].entries) == 0
-
-
-# ---------------------------------------------------------------------------
-# Subtraction
-# ---------------------------------------------------------------------------
-
-
-def test_subtraction_renumbers() -> None:
-    """``{a,b,c,!{b}}`` gives ``a`` value 0 and ``c`` value 1."""
-    result = parse("{a,b,c,!{b}}")
-    entries = result.universes[0].entries
-    assert len(entries) == 2
-    assert entries[0] == Entry((_P("a"),), 0)
-    assert entries[1] == Entry((_P("c"),), 1)
-
-
-def test_reunion_after_subtraction() -> None:
-    """``{a,!{a},a}`` has one entry (the second ``a`` re-claims)."""
-    result = parse("{a,!{a},a}")
-    entries = result.universes[0].entries
-    assert len(entries) == 1
-    assert entries[0] == Entry((_P("a"),), 0)
-
-
-def test_any_face_subtraction() -> None:
-    """``{{a,A},!{A}}`` is empty (subtraction matches by any face)."""
-    result = parse("{{a,A},!{A}}")
-    assert len(result.universes[0].entries) == 0
-
-
-# ---------------------------------------------------------------------------
-# Compression equivalence / positional value
-# ---------------------------------------------------------------------------
-
-
-def test_compression_equivalence_by_value() -> None:
-    """``{a,b}{x,y}`` and ``{ax,ay,bx,by}`` give the same value for ``"by"``."""
-    product_val = match("{a,b}{x,y}", "by")
-    compressed_val = match("{ax,ay,bx,by}", "by")
-    assert product_val is not None
-    assert compressed_val is not None
-    assert product_val.value == 3
-    assert product_val.value == compressed_val.value
-
-
-def test_positional_value_mixed_radix() -> None:
-    """``{a,b,c}{a,b,c}`` on ``"cb"`` gives value 7."""
-    result = match("{a,b,c}{a,b,c}", "cb")
-    assert result is not None
-    assert result.value == 7
+def test_closure_admission_witness_is_not_regular() -> None:
+    """`{ab,{a}&{b}}` decides a^n b^n exactly -- membership, not enumeration."""
+    universe = parse("{ab,{a}&{b}}").universes[0]
+    assert universe.contains("a" * 7 + "b" * 7)
+    assert not universe.contains("a" * 7 + "b" * 6)
+    assert not universe.contains("ba")

@@ -10,7 +10,16 @@ from __future__ import annotations
 import pytest
 
 from Himark.adapters.parser import to_ast
-from Himark.core.syntax import Face, Final, Fold, HimarkSyntaxError, Range
+from Himark.core.syntax import (
+    Closure,
+    Face,
+    Final,
+    Fold,
+    HimarkSyntaxError,
+    Product,
+    Range,
+    UniverseNode,
+)
 
 
 def test_faithful_ast_preserves_nested_fold() -> None:
@@ -164,3 +173,41 @@ def test_empty_universe_within_braces_parses() -> None:
     assert len(ast.universes[0].members) == 2
     assert isinstance(ast.universes[0].members[0], Face)
     assert isinstance(ast.universes[0].members[1], Fold)
+
+
+def test_bare_ampersand_is_a_closure_member() -> None:
+    """``{a,&}`` parses the lone ``&`` to a :class:`Closure` mark."""
+    ast = to_ast("{a,&}")
+    assert ast.universes[0].members == (Face("a"), Closure())
+
+
+def test_factor_sequence_is_a_product_member() -> None:
+    """``{ab,{a}&{b}}`` keeps the factor order: brace, ``&``, brace."""
+    ast = to_ast("{ab,{a}&{b}}")
+    expected = Product((UniverseNode((Face("a"),)), Closure(), UniverseNode((Face("b"),))))
+    assert ast.universes[0].members == (Face("ab"), expected)
+
+
+def test_adjacent_brace_groups_are_a_product_member() -> None:
+    """``{{a}{b}}`` is a two-factor product, not a fold of a fold."""
+    ast = to_ast("{{a}{b}}")
+    expected = Product((UniverseNode((Face("a"),)), UniverseNode((Face("b"),))))
+    assert ast.universes[0].members == (expected,)
+
+
+def test_single_brace_group_stays_a_fold() -> None:
+    """One factor is no product: ``{{a}}`` remains the quotient member."""
+    ast = to_ast("{{a}}")
+    assert ast.universes[0].members == (Fold(UniverseNode((Face("a"),))),)
+
+
+def test_escaped_ampersand_is_a_literal_face_character() -> None:
+    r"""``{a\&b}`` is one face spelled ``a&b`` -- the token needs the escape."""
+    ast = to_ast("{a\\&b}")
+    assert ast.universes[0].members == (Face("a&b"),)
+
+
+def test_bare_ampersand_outside_braces_is_a_syntax_error() -> None:
+    """``&`` is a member or factor, never a whole query."""
+    with pytest.raises(HimarkSyntaxError):
+        to_ast("&")

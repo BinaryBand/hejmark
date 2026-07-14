@@ -2,7 +2,8 @@
 
 These nodes mirror the parse exactly: nothing is normalized, deduplicated, or
 rewritten here. All constructor semantics (union no-ops, fold flattening,
-subtraction) happen later at denotation time in :mod:`Himark.core.universe`.
+subtraction, closure binding) happen later at denotation time in
+:mod:`Himark.core.universe`.
 """
 
 from __future__ import annotations
@@ -37,6 +38,11 @@ class Final:
 
 
 @dataclass(frozen=True)
+class Closure:
+    """The self-reference token `&`: it reads the binder's previous stage."""
+
+
+@dataclass(frozen=True)
 class Fold:
     """A nested universe used as a member -- the quotient constructor."""
 
@@ -45,16 +51,26 @@ class Fold:
 
 @dataclass(frozen=True)
 class Subtract:
-    """A `!{...}` member removing entries named by its inner universe."""
+    """A `!{...}` member stripping the faces its inner universe spells."""
 
     universe: UniverseNode
+
+
+@dataclass(frozen=True)
+class Product:
+    """Adjacent factors as one member: tuples of entries, spelled by concatenation."""
+
+    factors: tuple[UniverseNode | Closure, ...]
+
+
+Member = Face | Range | Final | Fold | Subtract | Product | Closure
 
 
 @dataclass(frozen=True)
 class UniverseNode:
     """A brace group `{...}` with its members in declaration order."""
 
-    members: tuple[Face | Range | Final | Fold | Subtract, ...]
+    members: tuple[Member, ...]
 
 
 @dataclass(frozen=True)

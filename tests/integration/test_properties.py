@@ -2,21 +2,25 @@
 
 Properties verified:
 1. Union idempotence: a face list concatenated with itself denotes the same
-   universe as the list alone.
-2. Product index bounds: :math:`0 \\le \\mathrm{value} < \\prod_i b_i` for a
-   text built by concatenating one chosen face per universe.
+   entries as the list alone.
+2. Product tiling: a text built by concatenating one surviving face per
+   universe matches at position 0.
 3. Range cardinality: :math:`\\max(0, \\mathrm{ord}(hi) - \\mathrm{ord}(lo) + 1)`.
+4. The settlement theorem as an oracle: membership in a guarded closure agrees
+   with its stage-:math:`(L + 1)` truncation, presence and absence alike.
 """
 
 from __future__ import annotations
 
-from hypothesis import assume, given
+from hypothesis import assume, given, settings
 from hypothesis.strategies import integers, lists, text
 
-from Himark import match, parse
+from Himark import match as match_source
+from Himark import parse
+from Himark.core.universe import Universe
 
 # Buildable face characters: alphanumerics are unambiguous and free of reserved
-# chars ('{,}',!.\\). We exclude them so the constructed source round-trips
+# chars ('{,}',!.\\&). We exclude them so the constructed source round-trips
 # without needing escape machinery.
 _FACE = text(
     alphabet="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
@@ -25,93 +29,57 @@ _FACE = text(
 )
 
 
+def _faces_of(source: str) -> list[tuple[str, ...]]:
+    """Denote *source* and materialize its (finite) entries as face tuples."""
+    return [entry.faces for entry in parse(source).universes[0].entries()]
+
+
 @given(faces=lists(_FACE, min_size=0, max_size=10))
 def test_union_idempotence(faces: list[str]) -> None:
-    """Denoting a face list concatenated with itself yields the same universe."""
-    source_one = "{" + ",".join(faces) + "}"
-    source_double = "{" + ",".join(faces + faces) + "}"
-    left = parse(source_one).universes
-    right = parse(source_double).universes
-    assert left == right
+    """Denoting a face list concatenated with itself yields the same entries."""
+    once = _faces_of("{" + ",".join(faces) + "}")
+    twice = _faces_of("{" + ",".join(faces + faces) + "}")
+    assert once == twice
 
 
-# ---------------------------------------------------------------------------
-# Product index bounds
-# ---------------------------------------------------------------------------
+@given(faces_per_universe=lists(lists(_FACE, min_size=1, max_size=4), min_size=1, max_size=3))
+def test_product_tiling_matches_at_zero(faces_per_universe: list[list[str]]) -> None:
+    """Concatenating one face per universe builds a text the product matches at 0.
 
-
-@given(faces_per_universe=lists(lists(_FACE, min_size=1, max_size=5), min_size=1, max_size=4))
-def test_product_index_bounds(faces_per_universe: list[list[str]]) -> None:
-    """Building a text by concatenating one chosen face per universe places the
-    match value in :math:`[0, \\prod_i b_i)`.
-
-    We do NOT assert the value equals the chosen-entry product index because
-    non-uniquely-decodable face sets may canonically parse differently, which is
-    correct.
+    The matched span need not be the whole text (a canonical parse may tile it
+    differently), but a match must exist and must start at position 0.
     """
-    # Build source: one universe per group, join as product (adjacent braces).
-    universe_sources = ["{" + ",".join(faces) + "}" for faces in faces_per_universe]
-    source = "".join(universe_sources)
+    source = "".join("{" + ",".join(faces) + "}" for faces in faces_per_universe)
+    built = "".join(faces[0] for faces in faces_per_universe)
 
-    query = parse(source)
-    product = 1
-    for u in query.universes:
-        product *= len(u.entries)
-
-    if product == 0:
-        # Empty universe anywhere -> nothing to match.
-        return
-
-    # Build a text by picking one face from each universe.
-    chosen_faces: list[str] = []
-    for faces, universe in zip(faces_per_universe, query.universes, strict=True):
-        # Pick the first generated face that actually survives in the denoted universe.
-        found = False
-        for face in faces:
-            if any(piece.contains(face) for entry in universe.entries for piece in entry.faces):
-                chosen_faces.append(face)
-                found = True
-                break
-        if not found:
-            # None of the generated faces survived denotation (e.g. all duplicates).
-            # Fall back to any face from the first entry (materialized faces are one-point sets).
-            fallback = universe.entries[0].faces[0]
-            chosen_faces.append(next(iter(fallback)))
-
-    text = "".join(chosen_faces)
-
-    result = match(source, text)
-    assert result is not None
-    assert 0 <= result.value < product
-
-
-# ---------------------------------------------------------------------------
-# Range cardinality
-# ---------------------------------------------------------------------------
+    found = match_source(source, built)
+    assert found is not None
+    assert found.span[0] == 0
 
 
 @given(lo=integers(min_value=0x21, max_value=0x7A), hi=integers(min_value=0x21, max_value=0x7A))
 def test_range_cardinality(lo: int, hi: int) -> None:
     """A range ``{lo..hi}`` has ``max(0, ord(hi) - ord(lo) + 1)`` entries."""
-    # Convert to characters; skip chars that are reserved in the grammar.
-    reserved = set("\\{},!.")
+    reserved = set("\\{},!.&")
     assume(chr(lo) not in reserved)
     assume(chr(hi) not in reserved)
 
     source = "{" + chr(lo) + ".." + chr(hi) + "}"
-    result = parse(source)
-    expected = max(0, hi - lo + 1)
-    assert len(result.universes[0].entries) == expected
+    assert len(_faces_of(source)) == max(0, hi - lo + 1)
 
 
-@given(lo=integers(min_value=0x7B, max_value=0x7E), hi=integers(min_value=0x7B, max_value=0x7E))
-def test_range_cardinality_high_ascii(lo: int, hi: int) -> None:
-    """Range cardinality for code points above the reserved set."""
-    reserved = set("\\{},!.")
-    assume(chr(lo) not in reserved)
-    assume(chr(hi) not in reserved)
+@settings(deadline=None)  # a cold memo makes the first deep unfolding slow, later runs instant
+@given(seed=_FACE, step=_FACE, depth=integers(min_value=0, max_value=4))
+def test_settlement_theorem_is_the_membership_oracle(seed: str, step: str, depth: int) -> None:
+    """For the guarded closure ``{seed,&{step}}``, full membership equals the
+    stage-``len + 1`` truncation -- the fixpoint theorem, executable."""
+    universe = parse("{" + seed + ",&{" + step + "}}").universes[0]
+    inside = seed + step * depth
+    outside = inside + "#"
 
-    source = "{" + chr(lo) + ".." + chr(hi) + "}"
-    result = parse(source)
-    expected = max(0, hi - lo + 1)
-    assert len(result.universes[0].entries) == expected
+    truncated = Universe(universe.node, universe.amp, len(inside) + 1)
+    assert universe.contains(inside)
+    assert truncated.contains(inside)
+    assert universe.contains(outside) == Universe(
+        universe.node, universe.amp, len(outside) + 1
+    ).contains(outside)

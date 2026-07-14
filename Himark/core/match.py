@@ -1,12 +1,12 @@
-"""Leftmost-greedy matcher with canonical-parse backtracking.
+"""Leftmost-greedy matcher: set membership over spellings, nothing else.
 
 A query is a product of universes. At each product position the matcher probes
-prefixes of the remaining text longest-first: every viable face is a prefix of
-``text[pos:]``, so there are at most ``len(text) - pos`` candidates. Claims are
-unique, so each prefix belongs to at most one entry -- a single ``lookup``
-either identifies it or rejects it, and the old candidate-sort collapses to
-longest-first probing. The first length that lets the rest of the product match
-wins, which is the canonical parse for non-uniquely-decodable face sets.
+prefixes of the remaining text longest-first (maximal munch): a candidate face
+is a prefix of ``text[pos:]``, so there are at most ``len(text) - pos`` of
+them, and a single ``contains`` accepts or rejects each. The first length that
+lets the rest of the product match wins -- the canonical parse. The matcher
+knows only spellings: no value or ordinal semantics leak in, and the empty
+spelling is never accepted (no zero-width match).
 """
 
 from __future__ import annotations
@@ -14,67 +14,26 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from Himark.core.ordinal import horner
-
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-    from Himark.core.ordinal import Ordinal
     from Himark.core.universe import Query, Universe
 
 
 @dataclass(frozen=True)
 class MatchPart:
-    """What matched at one product position: its span, face, and derived axes.
-
-    ``face`` is a plain attribute now that entries are derived rather than
-    stored: ``value`` and ``face_index`` are the position's coordinates on the
-    two axes, and ``face_count`` is its entry's face-axis base for folding.
-    """
+    """What matched at one product position: its span and the face that hit."""
 
     span: tuple[int, int]
     face: str
-    value: int | Ordinal
-    face_index: int | Ordinal
-    face_count: int | Ordinal
-
-
-@dataclass(frozen=True)
-class Capture:
-    """One numbered span a match decomposes into -- derivation metadata.
-
-    Number 0 is the whole match (the product entry); numbers 1..k are the
-    product's operand positions, most-significant-first. A capture is derived,
-    never stored: the operand universe and position already name the entry, so
-    only the span -- where that entry landed in the text -- is recorded here.
-    """
-
-    number: int
-    span: tuple[int, int]
 
 
 @dataclass(frozen=True)
 class Match:
-    """A whole match: overall span, per-position parts, and both axis values."""
+    """A whole match: its overall span and one part per product position."""
 
     span: tuple[int, int]
     parts: tuple[MatchPart, ...]
-    value: int | Ordinal
-    face_value: int | Ordinal
-
-    @property
-    def captures(self) -> tuple[Capture, ...]:
-        """Number every span: index 0 the whole match, then each position in order."""
-        positions = (Capture(i + 1, part.span) for i, part in enumerate(self.parts))
-        return (Capture(0, self.span), *positions)
-
-    def capture(self, number: int) -> Capture:
-        """Return the capture numbered ``number`` (0 is the whole match)."""
-        captures = self.captures
-        if not 0 <= number < len(captures):
-            msg = f"no capture numbered {number}: match has {len(captures)}"
-            raise IndexError(msg)
-        return captures[number]
 
 
 def _try_product(
@@ -89,24 +48,13 @@ def _try_product(
     universe = universes[depth]
     for length in range(len(text) - pos, 0, -1):
         face = text[pos : pos + length]
-        hit = universe.lookup(face)
-        if hit is None:
+        if not universe.contains(face):
             continue
-        value, face_index, face_count = hit
         end = pos + length
         tail = _try_product(universes, text, end, depth + 1)
         if tail is not None:
-            part = MatchPart((pos, end), face, value, face_index, face_count)
-            return [part, *tail]
+            return [MatchPart((pos, end), face), *tail]
     return None
-
-
-def _build_match(universes: tuple[Universe, ...], parts: list[MatchPart], start: int) -> Match:
-    """Assemble a :class:`Match`, folding both axes as ordinal mixed radix."""
-    value = horner([u.entry_count for u in universes], [p.value for p in parts])
-    face_value = horner([p.face_count for p in parts], [p.face_index for p in parts])
-    end = parts[-1].span[1] if parts else start
-    return Match((start, end), tuple(parts), value, face_value)
 
 
 def match(query: Query, text: str, start: int = 0) -> Match | None:
@@ -114,7 +62,8 @@ def match(query: Query, text: str, start: int = 0) -> Match | None:
     for pos in range(start, len(text) + 1):
         parts = _try_product(query.universes, text, pos, 0)
         if parts is not None:
-            return _build_match(query.universes, parts, pos)
+            end = parts[-1].span[1] if parts else pos
+            return Match((pos, end), tuple(parts))
     return None
 
 

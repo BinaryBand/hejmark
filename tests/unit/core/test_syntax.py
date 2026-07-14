@@ -7,9 +7,11 @@ import dataclasses
 import pytest
 
 from Himark.core.syntax import (
+    Closure,
     Face,
     Fold,
     HimarkSyntaxError,
+    Product,
     QueryNode,
     Range,
     Subtract,
@@ -45,3 +47,13 @@ def test_nodes_nest_without_normalizing() -> None:
     assert members[2] == Subtract(inner)
     # The duplicate face survives: deduplication is denotation's job, not the AST's.
     assert inner.members == (Face("a"), Face("a"))
+
+
+def test_product_holds_factors_in_order() -> None:
+    """A product member keeps its factor sequence verbatim, `&` marks included."""
+    left = UniverseNode((Face("a"),))
+    right = UniverseNode((Face("b"),))
+    product = Product((left, Closure(), right))
+
+    assert product.factors == (left, Closure(), right)
+    assert Closure() == Closure()

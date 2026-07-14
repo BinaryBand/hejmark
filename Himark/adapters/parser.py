@@ -3,7 +3,10 @@ r"""ANTLR binding: turn Himark source into a faithful :mod:`Himark.core.syntax` 
 This adapter owns the generated lexer/parser (under ``_gen``) and the ANTLR
 runtime. It installs an error listener that raises :class:`HimarkSyntaxError`
 instead of printing to stderr, then walks the parse tree into frozen AST nodes.
-Escapes are resolved here (``\x`` -> ``x``); no other normalization happens.
+Escapes are resolved here (``\x`` -> ``x``); no other normalization happens --
+except the one syntactic classification the grammar leaves to arity: a factor
+sequence of one brace group is a fold, a lone ``&`` is the bare self-reference,
+and two or more factors are a product.
 """
 
 from __future__ import annotations
@@ -14,10 +17,13 @@ from antlr4 import CommonTokenStream, InputStream
 from antlr4.error.ErrorListener import ErrorListener
 
 from Himark.core.syntax import (
+    Closure,
     Face,
     Final,
     Fold,
     HimarkSyntaxError,
+    Member,
+    Product,
     QueryNode,
     Range,
     Subtract,
@@ -60,7 +66,22 @@ def _build_face(ctx: HimarkParser.FaceContext) -> Face:
     return Face("".join(_token_char(child.getText()) for child in ctx.children or ()))
 
 
-def _build_member(ctx: HimarkParser.MemberContext) -> Face | Range | Final | Fold | Subtract:
+def _build_factor(ctx: HimarkParser.FactorContext) -> UniverseNode | Closure:
+    """Dispatch one factor: a brace group or the ``&`` token."""
+    inner = ctx.universe()
+    return Closure() if inner is None else _build_universe(inner)
+
+
+def _build_factors(ctx: HimarkParser.FactorsMemberContext) -> Fold | Product | Closure:
+    """Classify a factor sequence by arity: fold, bare ``&``, or product."""
+    factors = tuple(_build_factor(factor) for factor in ctx.factor())
+    if len(factors) == 1:
+        only = factors[0]
+        return Fold(only) if isinstance(only, UniverseNode) else only
+    return Product(factors)
+
+
+def _build_member(ctx: HimarkParser.MemberContext) -> Member:
     """Dispatch one member context to its faithful AST node."""
     if isinstance(ctx, HimarkParser.RangeMemberContext):
         return Range(ctx.CHAR(0).getText(), ctx.CHAR(1).getText())
@@ -68,8 +89,8 @@ def _build_member(ctx: HimarkParser.MemberContext) -> Face | Range | Final | Fol
         return Final(_build_face(ctx.face()).text)
     if isinstance(ctx, HimarkParser.SubtractMemberContext):
         return Subtract(_build_universe(ctx.universe()))
-    if isinstance(ctx, HimarkParser.FoldMemberContext):
-        return Fold(_build_universe(ctx.universe()))
+    if isinstance(ctx, HimarkParser.FactorsMemberContext):
+        return _build_factors(ctx)
     if isinstance(ctx, HimarkParser.FaceMemberContext):
         return _build_face(ctx.face())
     unreachable = "unknown member alternative"

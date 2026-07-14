@@ -1,69 +1,166 @@
-"""Tests for core.universe: denoting a faithful AST to flat, valued universes.
+"""Tests for core.universe: denoting a faithful AST to lazy universes.
 
 These drive `denote` on hand-built AST nodes, so the parser is not in the loop.
+Entries are asserted as tuples of face tuples; infinite universes are sampled
+through the lazy iterator.
 """
 
 from __future__ import annotations
 
-from Himark.core.order import IntervalSet
-from Himark.core.syntax import Face, Fold, Range, Subtract, UniverseNode
-from Himark.core.universe import Entry, denote
+from itertools import islice
 
-# A materialized face piece is always a one-point interval set.
-_P = IntervalSet.point
+import pytest
+
+from Himark.core.syntax import (
+    Closure,
+    Face,
+    Final,
+    Fold,
+    Product,
+    Range,
+    Subtract,
+    UniverseNode,
+)
+from Himark.core.universe import HimarkUnsettledError, denote
+
+
+def _faces(node: UniverseNode, limit: int | None = None) -> list[tuple[str, ...]]:
+    """Materialize the denoted entries as face tuples (the first `limit` if given)."""
+    entries = denote(node).entries()
+    if limit is not None:
+        entries = islice(entries, limit)
+    return [entry.faces for entry in entries]
 
 
 def test_union_is_ordered_and_deduplicates() -> None:
-    universe = denote(UniverseNode((Face("a"), Face("b"), Face("a"))))
+    node = UniverseNode((Face("a"), Face("b"), Face("a")))
 
-    assert universe.entries == (Entry((_P("a"),), 0), Entry((_P("b"),), 1))
+    assert _faces(node) == [("a",), ("b",)]
 
 
 def test_range_expands_inclusively() -> None:
-    universe = denote(UniverseNode((Range("a", "e"),)))
-
-    assert [entry.faces[0] for entry in universe.entries] == [_P(c) for c in "abcde"]
-    assert [entry.value for entry in universe.entries] == [0, 1, 2, 3, 4]
+    assert _faces(UniverseNode((Range("a", "e"),))) == [(c,) for c in "abcde"]
 
 
 def test_reversed_range_is_empty() -> None:
-    assert denote(UniverseNode((Range("e", "a"),))).entries == ()
+    assert _faces(UniverseNode((Range("e", "a"),))) == []
+
+
+def test_final_segment_streams_lazily_in_spelling_order() -> None:
+    node = UniverseNode((Final("a"),))
+
+    assert _faces(node, 3) == [("a",), ("b",), ("c",)]
+    assert denote(node).contains("zzzz")
 
 
 def test_fold_collapses_a_nested_universe_into_one_entry() -> None:
     inner = UniverseNode((Face("x"), Face("y")))
-    universe = denote(UniverseNode((Face("a"), Fold(inner))))
+    node = UniverseNode((Face("a"), Fold(inner)))
 
-    assert universe.entries == (Entry((_P("a"),), 0), Entry((_P("x"), _P("y")), 1))
+    assert _faces(node) == [("a",), ("x", "y")]
+
+
+def test_fold_of_the_empty_universe_is_the_unit() -> None:
+    """Zero declared faces is one empty face: `{{}}` wears the empty spelling."""
+    node = UniverseNode((Fold(UniverseNode(())),))
+
+    assert _faces(node) == [("",)]
+    assert denote(node).contains("")
 
 
 def test_fold_drops_faces_already_claimed() -> None:
     """A fold only keeps faces no live entry has claimed -- union no-ops win."""
     inner = UniverseNode((Face("a"), Face("x")))
-    universe = denote(UniverseNode((Face("a"), Fold(inner))))
+    node = UniverseNode((Face("a"), Fold(inner)))
 
-    assert universe.entries == (Entry((_P("a"),), 0), Entry((_P("x"),), 1))
-
-
-def test_subtraction_removes_entries_and_renumbers() -> None:
-    """Values are assigned by final index, so subtraction renumbers what remains."""
-    universe = denote(
-        UniverseNode((Face("a"), Face("b"), Face("c"), Subtract(UniverseNode((Face("b"),)))))
-    )
-
-    assert universe.entries == (Entry((_P("a"),), 0), Entry((_P("c"),), 1))
+    assert _faces(node) == [("a",), ("x",)]
 
 
-def test_subtraction_removes_every_entry_sharing_a_face() -> None:
-    """Naming any face of a folded entry removes the whole entry."""
-    folded = UniverseNode((Face("x"), Face("y")))
-    universe = denote(UniverseNode((Face("a"), Fold(folded), Subtract(UniverseNode((Face("y"),))))))
+def test_subtraction_strips_the_named_spelling_and_renumbers() -> None:
+    node = UniverseNode((Face("a"), Face("b"), Face("c"), Subtract(UniverseNode((Face("b"),)))))
 
-    assert universe.entries == (Entry((_P("a"),), 0),)
+    assert _faces(node) == [("a",), ("c",)]
+
+
+def test_subtraction_of_one_face_leaves_the_entry_on_its_others() -> None:
+    """`{{cat,feline},!{feline}}` is one entry spelled only `cat` -- a face cut."""
+    folded = Fold(UniverseNode((Face("cat"), Face("feline"))))
+    node = UniverseNode((folded, Subtract(UniverseNode((Face("feline"),)))))
+
+    assert _faces(node) == [("cat",)]
+
+
+def test_entry_that_loses_every_face_drops() -> None:
+    folded = Fold(UniverseNode((Face("x"), Face("y"))))
+    node = UniverseNode((Face("a"), folded, Subtract(UniverseNode((Face("x"), Face("y"))))))
+
+    assert _faces(node) == [("a",)]
 
 
 def test_face_can_be_reclaimed_after_subtraction() -> None:
     """Subtraction releases the claim, so a later union may re-add the spelling."""
-    universe = denote(UniverseNode((Face("a"), Subtract(UniverseNode((Face("a"),))), Face("a"))))
+    node = UniverseNode((Face("a"), Subtract(UniverseNode((Face("a"),))), Face("a")))
 
-    assert universe.entries == (Entry((_P("a"),), 0),)
+    assert _faces(node) == [("a",)]
+
+
+def test_product_member_collides_on_the_least_value() -> None:
+    """`{a,ab}{c,bc}` spells `abc` twice; the lower value keeps it, the other drops."""
+    left = UniverseNode((Face("a"), Face("ab")))
+    right = UniverseNode((Face("c"), Face("bc")))
+    node = UniverseNode((Product((left, right)),))
+
+    assert _faces(node) == [("ac",), ("abc",), ("abbc",)]
+
+
+def test_cross_axis_collision_can_cost_a_canonical_face() -> None:
+    """`{{{},0}}{0,00}`: the value-1 entry loses `00` to value 0 and renumbers."""
+    fill = UniverseNode((Fold(UniverseNode((Fold(UniverseNode(())), Face("0")))),))
+    right = UniverseNode((Face("0"), Face("00")))
+    node = UniverseNode((Product((fill, right)),))
+
+    assert _faces(node) == [("0", "00"), ("000",)]
+
+
+def test_closure_unfolds_stage_major() -> None:
+    """`{a,&{b}}` denotes a, ab, abb, ... in first-appearance order."""
+    node = UniverseNode((Face("a"), Product((Closure(), UniverseNode((Face("b"),))))))
+
+    assert _faces(node, 4) == [("a",), ("ab",), ("abb",), ("abbb",)]
+    assert denote(node).contains("abbbb")
+    assert not denote(node).contains("ba")
+
+
+def test_binder_braces_splice_rather_than_fold() -> None:
+    """A braced member that binds `&` contributes its entries -- the union rule."""
+    body = UniverseNode((Face("a"), Product((Closure(), UniverseNode((Face("b"),))))))
+    node = UniverseNode((Face("z"), Fold(body)))
+
+    assert _faces(node, 3) == [("z",), ("a",), ("ab",)]
+
+
+def test_bare_self_reference_is_the_union_no_op() -> None:
+    assert _faces(UniverseNode((Face("a"), Closure()))) == [("a",)]
+
+
+def test_closure_of_nothing_is_empty() -> None:
+    assert _faces(UniverseNode((Closure(),))) == []
+
+
+def test_unguarded_closure_still_enumerates_but_membership_raises() -> None:
+    """Totality is denotation's; the missing absence bound is the decision's."""
+    fill = UniverseNode((Fold(UniverseNode((Fold(UniverseNode(())), Face("0")))),))
+    node = UniverseNode((Face("a"), Product((fill, Closure()))))
+    universe = denote(node)
+
+    assert _faces(node, 3) == [("a",), ("0a",), ("00a",)]
+    assert universe.contains("00a")
+    with pytest.raises(HimarkUnsettledError):
+        universe.contains("xyz")
+
+
+def test_subtracted_self_reference_settles_at_stage_one() -> None:
+    """`{a..,!{&}}` places everything at stage 1; every later body is empty."""
+    node = UniverseNode((Final("a"), Subtract(UniverseNode((Closure(),)))))
+
+    assert _faces(node, 3) == [("a",), ("b",), ("c",)]

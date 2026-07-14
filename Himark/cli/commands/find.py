@@ -31,8 +31,8 @@ def find(
 ) -> None:
     """Run the query in QUERY_FILE against TARGET_FILE and print each match.
 
-    Each line reports the match span, the matched substring, and both axis
-    values (entry ``value`` and ``face``). A trailing line reports the count.
+    Each line reports the match span and the matched substring. A trailing
+    line reports the count.
     """
     # Strip the query: the grammar treats whitespace as a CHAR and the engine
     # does not normalize, so a file's trailing newline would fail to parse.
@@ -43,7 +43,7 @@ def find(
     try:
         for m in finditer(to_ast, query_source, text):
             start, end = m.span
-            print(f"{start}:{end}\t{text[start:end]!r}\tvalue={m.value} face={m.face_value}")
+            print(f"{start}:{end}\t{text[start:end]!r}")
             count += 1
     except ValueError as err:  # HimarkSyntaxError subclasses ValueError (core stays unimported).
         msg = f"invalid query: {err}"
