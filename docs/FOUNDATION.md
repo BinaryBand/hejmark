@@ -35,3 +35,20 @@ These follow from the object and are never postulated separately:
 - **Bounded transfinitude.** The floor cannot outrun $\omega$: once a final segment enters, every later member contributes finitely many entries (each spelling below a cut has finitely many predecessors), so a universe's order type is at most $\omega$ plus a finite tail, never $\omega \cdot 2$. Matching stays decidable by the same fact read the other way: text is finite, so at any position only the finitely many faces no longer than the remaining text are candidates.
 - **Compression, not capability.** Ranges (`{a..z}`), adjacency (`{cat}{dog}` = `{catdog}`), products, and splice (a spread form contributing a named universe's entries member by member) are notation for universes the floor already denotes. A bounded range is the difference of two final segments -- `{a..z}` is `{a..,!{s..}}` with `s` the successor of `z` in spelling order -- so ranges stay compression even with multi-spelling endpoints, and the interval is derived from the cut, never the reverse. They compress the spelling; they add nothing to what a query can denote. Fold and final segment are not on this list: no arrangement of flat members makes two spellings share one value, and no finite arrangement contributes unboundedly many entries -- which is why each is a constructor and splice is not.
 The re-admission test for any stripped or future construct: it enters either as **compression** (notation for a universe the floor already denotes) or as a **new axiom recorded below** -- never as a special case. Final segment is the first construct admitted on the axiom side (recorded in the floor above); bounded ranges moved to the compression side in the same stroke.
+
+## North-star examples
+
+Canonical floor denotations, kept in one place so every governed document stays consistent with them. Each row is illustration, not new axiom. The layer above extends this table in [L1_5.md](L1_5.md).
+
+| Expression | Denotes |
+| --- | --- |
+| `{a,b,c}` | a, b, c |
+| `{a..z}` | a, b, c, ..., z  (26 entries) |
+| `{{cat,feline}}` | one entry, faces `cat` and `feline` |
+| `{a..z,!{a,e,i,o,u}}` | b, c, d, f, ..., z  (21 consonants) |
+| `{a..}` | a, b, c, ...  (final segment, order type $\omega$) |
+| `{cat}{dog}` = `{catdog}` | catdog  (adjacency, one entry) |
+| `{a,ab}{b,c}` | ab, ac, abb, abc  (product, 4 entries) |
+| `{a,b,ab}` | a, b, ab  (three entries; values 0, 1, 2) |
+| `{a,!{a}}` | {}  (empty universe) |
+| `{z..a}` | {}  (reversed range = empty) |
