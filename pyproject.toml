@@ -90,18 +90,16 @@ root_package = "Himark"
 
 [[tool.importlinter.contracts]]
 # The one standard layout, enforced everywhere. `exhaustive = true` means any
-# top-level package that is NOT one of these five is a contract violation, so
+# top-level package that is NOT one of these three is a contract violation, so
 # the directory structure is mandatory rather than merely conventional. Imports
-# may only point downward: cli -> app -> adapters -> core -> utils.
+# may only point downward: cli -> adapters -> core.
 name = "Standard layered layout"
 type = "layers"
 containers = ["Himark"]
 layers = [
     "cli",
-    "app",
     "adapters",
     "core",
-    "utils",
 ]
 exhaustive = true
 exhaustive_ignores = ["__main__"]

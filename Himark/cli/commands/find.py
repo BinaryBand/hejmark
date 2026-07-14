@@ -7,8 +7,9 @@ from pathlib import Path  # noqa: TC003 -- Typer resolves this annotation at run
 import click
 import typer
 
-from Himark.app.engine import finditer
+from Himark.adapters.parser import to_ast
 from Himark.cli.registry import command
+from Himark.core.engine import finditer
 
 
 @command("find")
@@ -40,7 +41,7 @@ def find(
 
     count = 0
     try:
-        for m in finditer(query_source, text):
+        for m in finditer(to_ast, query_source, text):
             start, end = m.span
             print(f"{start}:{end}\t{text[start:end]!r}\tvalue={m.value} face={m.face_value}")
             count += 1

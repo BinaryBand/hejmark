@@ -20,8 +20,9 @@ UNIT_TESTS = TESTS / "unit"
 MAX_MODULE_LINES = 400
 
 # Source modules that never need a dedicated mirror test: the package/CLI entry
-# shims and the pure Protocol interface module.
-MIRROR_EXEMPT = {"__main__.py", "ports.py"}
+# shims, the pure Protocol interface module, and package ``__init__`` files
+# (which serve as re-export / composition-root surfaces, not logic modules).
+MIRROR_EXEMPT = {"__init__.py", "__main__.py", "ports.py"}
 
 # The ANTLR-generated parser package: a build artifact, exempt from the source
 # rules below just as it is from ruff, ty, vulture, and ast-grep.
