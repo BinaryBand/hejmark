@@ -5,6 +5,7 @@ universe : LBRACE (member (COMMA member)*)? RBRACE ;
 
 member
     : CHAR RANGE CHAR   # RangeMember
+    | face RANGE        # FinalMember
     | BANG universe     # SubtractMember
     | universe          # FoldMember
     | face              # FaceMember

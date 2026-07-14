@@ -15,6 +15,7 @@ from antlr4.error.ErrorListener import ErrorListener
 
 from Himark.core.syntax import (
     Face,
+    Final,
     Fold,
     HimarkSyntaxError,
     QueryNode,
@@ -59,10 +60,12 @@ def _build_face(ctx: HimarkParser.FaceContext) -> Face:
     return Face("".join(_token_char(child.getText()) for child in ctx.children or ()))
 
 
-def _build_member(ctx: HimarkParser.MemberContext) -> Face | Range | Fold | Subtract:
+def _build_member(ctx: HimarkParser.MemberContext) -> Face | Range | Final | Fold | Subtract:
     """Dispatch one member context to its faithful AST node."""
     if isinstance(ctx, HimarkParser.RangeMemberContext):
         return Range(ctx.CHAR(0).getText(), ctx.CHAR(1).getText())
+    if isinstance(ctx, HimarkParser.FinalMemberContext):
+        return Final(_build_face(ctx.face()).text)
     if isinstance(ctx, HimarkParser.SubtractMemberContext):
         return Subtract(_build_universe(ctx.universe()))
     if isinstance(ctx, HimarkParser.FoldMemberContext):

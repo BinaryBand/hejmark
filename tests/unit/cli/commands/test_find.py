@@ -41,6 +41,20 @@ def test_find_strips_trailing_newline(tmp_path: Path, capsys: pytest.CaptureFixt
     assert "1 match(es)." in out
 
 
+def test_find_prints_ordinal_values(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """A transfinite match prints its ordinal value in ASCII (``value=w``)."""
+    query_file = tmp_path / "q.hmk"
+    query_file.write_text("{b..,a}", encoding="utf-8")
+    target_file = tmp_path / "target.txt"
+    target_file.write_text("a", encoding="utf-8")
+
+    find(query_file=query_file, target_file=target_file)
+
+    out = capsys.readouterr().out
+    assert "value=w" in out
+    assert "1 match(es)." in out
+
+
 def test_find_no_matches(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """A query that matches nothing reports zero matches."""
     query_file = tmp_path / "q.hmk"

@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 
 from Himark.adapters.parser import to_ast
-from Himark.core.syntax import Face, Fold, HimarkSyntaxError, Range
+from Himark.core.syntax import Face, Final, Fold, HimarkSyntaxError, Range
 
 
 def test_faithful_ast_preserves_nested_fold() -> None:
@@ -53,6 +53,49 @@ def test_range_with_multi_char_endpoint_is_syntax_error() -> None:
     single characters."""
     with pytest.raises(HimarkSyntaxError):
         to_ast("{ab..z}")
+
+
+def test_final_segment_single_char_cut() -> None:
+    """``{a..}`` is a final segment with a one-character cut, not a range."""
+    ast = to_ast("{a..}")
+    members = ast.universes[0].members
+    assert members == (Final("a"),)
+
+
+def test_final_segment_multi_char_cut() -> None:
+    """The cut is a spelling, so ``{ab..}`` cuts at the multi-character spelling ``ab``."""
+    ast = to_ast("{ab..}")
+    assert ast.universes[0].members == (Final("ab"),)
+
+
+def test_final_segment_escaped_cut() -> None:
+    r"""``{\{..}`` cuts at the literal brace spelling ``{``."""
+    ast = to_ast("{\\{..}")
+    assert ast.universes[0].members == (Final("{"),)
+
+
+def test_final_segment_beside_a_face() -> None:
+    """A final segment coexists with union members: ``{a,b..}``."""
+    ast = to_ast("{a,b..}")
+    assert ast.universes[0].members == (Face("a"), Final("b"))
+
+
+def test_bounded_range_still_wins_over_final_segment() -> None:
+    """``{a..z}`` stays a :class:`Range`; the ``RangeMember`` alternative is tried first."""
+    ast = to_ast("{a..z}")
+    assert ast.universes[0].members == (Range("a", "z"),)
+
+
+def test_triple_dot_is_a_syntax_error() -> None:
+    """``{a...}`` lexes ``..`` then ``.``; the trailing ``DOT`` has no home."""
+    with pytest.raises(HimarkSyntaxError):
+        to_ast("{a...}")
+
+
+def test_bare_range_token_is_a_syntax_error() -> None:
+    """``{..}`` has no cut spelling: the empty spelling is not a face."""
+    with pytest.raises(HimarkSyntaxError):
+        to_ast("{..}")
 
 
 def test_bare_bang_outside_brace_is_syntax_error() -> None:

@@ -27,7 +27,7 @@ def test_greedy_prefers_longest_face() -> None:
     result = match("{a,ab}", "abc")
     assert result is not None
     assert result.parts[0].face == "ab"
-    assert result.parts[0].entry.value == 1
+    assert result.parts[0].value == 1
 
 
 # ---------------------------------------------------------------------------

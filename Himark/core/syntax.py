@@ -30,6 +30,13 @@ class Range:
 
 
 @dataclass(frozen=True)
+class Final:
+    """A final segment `{a..}`: every spelling from `lo` onward in spelling order."""
+
+    lo: str
+
+
+@dataclass(frozen=True)
 class Fold:
     """A nested universe used as a member -- the quotient constructor."""
 
@@ -47,7 +54,7 @@ class Subtract:
 class UniverseNode:
     """A brace group `{...}` with its members in declaration order."""
 
-    members: tuple[Face | Range | Fold | Subtract, ...]
+    members: tuple[Face | Range | Final | Fold | Subtract, ...]
 
 
 @dataclass(frozen=True)

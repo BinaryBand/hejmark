@@ -26,6 +26,7 @@ EXPECTATIONS: dict[str, tuple[str, str | None, str]] = {
     "consonant.hmk": ("aegis", "g", "subtraction of vowels"),
     "synonym.hmk": ("a feline appeared", "feline", "fold: two faces, one entry"),
     "letter-pair.hmk": ("go", "go", "product (adjacency)"),
+    "final-segment.hmk": ("hello", "hello", "final segment a.."),
     "empty.hmk": ("anything", None, "empty universe matches nothing"),
 }
 

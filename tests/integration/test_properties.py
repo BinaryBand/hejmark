@@ -74,8 +74,9 @@ def test_product_index_bounds(faces_per_universe: list[list[str]]) -> None:
                 break
         if not found:
             # None of the generated faces survived denotation (e.g. all duplicates).
-            # Fall back to any face from the first entry.
-            chosen_faces.append(universe.entries[0].faces[0])
+            # Fall back to any face from the first entry (materialized faces are spellings).
+            fallback = universe.entries[0].faces[0]
+            chosen_faces.append(fallback if isinstance(fallback, str) else next(iter(fallback)))
 
     text = "".join(chosen_faces)
 
