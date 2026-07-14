@@ -27,8 +27,8 @@ The universe operand on union and subtraction is axiomatic: an entry-wise step a
 
 Forced by the object, never postulated.
 
-- Positional value -- a tuple $p_0 \ldots p_{k-1}$ over factor order types $b_i$ sits at $\sum_i W_i \cdot \mathrm{value}(p_i)$, where $W_i = b_{k-1} \cdot b_{k-2} \cdots b_{i+1}$ and the sum runs most-significant term first: mixed radix, weight on the left of its digit. The face axis composes identically over per-entry face counts. Finite factors give naturals and the order of multiplication is invisible; an infinite factor gives an ordinal -- Cantor normal form at base $\omega$ -- and the order becomes load-bearing, since $n \cdot \omega = \omega$ collapses any digit placed on the left. An entry's rank equals its value only when the factors are uniquely decodable: concatenation is not injective (`{a,ab}{c,bc}` spells `abc` twice, and the union no-op keeps the lower-valued one), yet the denotation stays faithful either way.
-- Bounded transfinitude -- order types are the ordinals below $\omega^\omega$, closed under every constructor (product multiplies, union adds, fold and subtraction shrink) and never reaching it, since every expression is finite. Union alone gives $\omega$ plus a finite tail; product reaches higher -- `{b,c}{a..}` is $\omega \cdot 2$, `{a..}{a..}` is $\omega^2$. (The matching consequence, decidability over finite text, is L1.5.)
+- Positional value -- a tuple $p_0 \ldots p_{k-1}$ over factor order types $b_i$ sits at $\sum_i W_i \cdot \mathrm{value}(p_i)$, where $W_i = b_{k-1} \cdot b_{k-2} \cdots b_{i+1}$ and the sum runs most-significant term first: mixed radix, weight on the left of its digit. The face axis composes identically over per-entry face counts. Finite factors give naturals and the order of multiplication is invisible; an infinite factor gives an ordinal -- Cantor normal form at base $\omega$ -- and the order becomes load-bearing, since $n \cdot \omega = \omega$ collapses any digit placed on the left. An entry's rank equals its value only when the factors are uniquely decodable: concatenation is not injective (`{a,ab}{c,bc}` spells `abc` twice, and the union no-op keeps the lower-valued one); membership survives the drop, rank and order type do not.
+- Bounded transfinitude -- order types are the ordinals below $\omega^\omega$, closed under every constructor (product multiplies where every seam decodes uniquely, union adds, fold and subtraction shrink) and never reaching it, since every expression is finite. Union alone gives $\omega$ plus a finite tail; product reaches higher -- `{b,c}{a..}` is $\omega \cdot 2$, `{b}{a..}{b}{a..}` is $\omega^2$. Cofinite factors collide instead: `{a..}{a..}` re-splits every long spelling at a prefix of length at most 2, and its blocks collapse to $\omega \cdot k$, $k$ finite. (The matching consequence, decidability over finite text, is L1.5.)
 - Compression, not capability -- these notations denote only what the constructors already reach, adding no power:
   - Bounded range -- `{a..z}` = `{a.., !{s..}}`, with `s` the successor of `z`.
   - Finite adjacency -- `{cat}{dog}` = `{catdog}`.
@@ -52,6 +52,7 @@ The re-admission test: any construct enters as compression (above) or as a new a
 | `{a,ab}{c,bc}` | ac, abc, abbc  (`(ab,c)` re-spells `abc` at value 2, drops) |
 | `{a..}{b}` | ab, bb, cb, ...  (order type $\omega$; not a spelling interval) |
 | `{b,c}{a..}` | ba, bb, ...; ca, cb, ...  (order type $\omega \cdot 2$) |
-| `{a..}{a..}` | aa, ab, ...; ba, bb, ...  (order type $\omega^2$) |
+| `{b}{a..}{b}{a..}` | baba, babb, ...; bbba, bbbb, ...  (order type $\omega^2$; `b` marks each seam) |
+| `{a..}{a..}` | aa, ab, ...; ba, bb, ...  (order type $\omega \cdot k$, not $\omega^2$: cofinite factors collide) |
 | `{a,!{a}}` | {}  (empty universe) |
 | `{z..a}` | {}  (reversed range) |
