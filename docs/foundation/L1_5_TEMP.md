@@ -22,7 +22,7 @@ L1 fixes the object as `<alphabet, value, face>` (denotation); this is the shape
 ## Registers
 
 - Every entry's L1 `value` (and its face index) made addressable -- a handle on a matched position. A capture is a register read; nothing is stored.
-- Radix -- a universe carries its factor structure, so it also carries the digit alphabet those factors are drawn from. `@0` reads the digit alphabet's value-0 entry: the **zero digit**. For a flat universe the digit alphabet is the universe itself, so `{8,9,10,11,12}@0` is `8`; for a numeral universe over `{0..9}` it is `0`. Nothing else in L1.5 needs to know a value's magnitude -- only which entry sits at zero.
+- Radix -- a universe carries its factor structure, so it also carries the alphabets those factors are drawn from: the radix is the **vector** of factor alphabets that positional value already reads, one per place, not a single alphabet. For a flat universe the vector has one entry, the universe itself, so `{8,9,10,11,12}@0` is `8`; for a numeral universe over `{0..9}` every place is `{0..9}` and it is `0`. `@0` reads the value-0 entry of the place it lands in -- the **zero digit** -- so a heterogeneous product (`{b,c}{a..}`) has a zero digit per place (`b`, then `a`) and no single one. Nothing else in L1.5 needs a value's magnitude, only which entry sits at zero.
 
 ## Transformation primitives
 
@@ -41,7 +41,7 @@ Widths need no numeric type either. All one-character spellings precede all long
 
 ## Worked derivations
 
-The L2 targets, defined over the primitives above -- algebra alone, no built-in named modifiers. `A` is the operand, `D` its radix, `Z` the **fill factor** `{{{}, D@0}}` (a fold of L1's unit with the zero digit: one entry, order type $1$, wearing the empty face and the zero face, so `Z A` re-faces every entry of `A` with a zero-padded spelling without touching a single value).
+The L2 targets, defined over the primitives above -- algebra alone, no built-in named modifiers. `A` is the operand, `D` its radix, `Z` the **fill factor** `{{{}, D@0}}` -- a fold of L1's unit with the zero digit of the place `Z` prefixes (the most significant one). One entry, order type $1$, wearing the empty face and the zero face, so `Z A` re-faces every entry of `A` with a zero-padded spelling without touching a single value. In `Z^n` the same fill spelling arises from more than one factor; L1's face-axis no-op keeps the lower-valued one, so `Z^2` wears exactly ``, `0`, `00` rather than four faces.
 
 - `where lo..hi` := `[span {lo,hi}]`. The `..` is the argument pair, not a spelling range.
 - `pad w..w'` := `(Z^{w'-1} A)[faces {C^w, ..., C^{w'}}]`. Multiply on the padded faces, then keep the spellings of admissible character width.

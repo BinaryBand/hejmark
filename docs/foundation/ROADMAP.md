@@ -9,7 +9,7 @@
 ## Layer 1.5 -- Language Surface (interpretation)
 
 - Matching -- query and capture, text membership, maximal munch, decidability.
-- Transformation primitives -- set filtering, product/exponent, aggregate-by-union-or-fold, and the modifier pipeline that hosts them.
+- Transformation primitives -- one per field of the object: `keep`/`drop` (alphabet), `span` (value), `faces` (face); all taking a universe argument, hosted by the modifier pipeline.
 - Registers -- L1's positional index made addressable.
 
 > Finish Line: When L1.5's primitives suffice to define `where` and `pad` in L2 -- algebra alone, no built-in named modifiers.
