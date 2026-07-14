@@ -1,1 +1,2 @@
+// subtraction: a lowercase consonant (letters minus vowels)
 {a..z,!{a,e,i,o,u}}

@@ -1,1 +1,2 @@
+// product (adjacency): any two lowercase letters
 {a..z}{a..z}

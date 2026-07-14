@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 
 from Himark.adapters.parser import to_ast
-from Himark.core.syntax import Face, Fold, HimarkSyntaxError
+from Himark.core.syntax import Face, Fold, HimarkSyntaxError, Range
 
 
 def test_faithful_ast_preserves_nested_fold() -> None:
@@ -65,6 +65,47 @@ def test_bare_bang_outside_brace_is_syntax_error() -> None:
 
     with pytest.raises(HimarkSyntaxError):
         to_ast("{a}!{b}")
+
+
+def test_line_comment_above_query_is_skipped() -> None:
+    """A ``//`` comment on its own line (newline included) leaves only the query."""
+    ast = to_ast("// a lowercase range\n{a..z}")
+    members = ast.universes[0].members
+    assert len(members) == 1
+    assert isinstance(members[0], Range)
+
+
+def test_glued_trailing_comment_is_skipped() -> None:
+    """A comment abutting the query (no whitespace) is dropped, query intact."""
+    ast = to_ast("{a}// trailing note")
+    members = ast.universes[0].members
+    assert len(members) == 1
+    assert isinstance(members[0], Face)
+    assert members[0].text == "a"
+
+
+def test_single_slash_stays_a_face_character() -> None:
+    """Only the ``//`` pair opens a comment; a lone ``/`` is a literal face char."""
+    ast = to_ast("{a/b}")
+    members = ast.universes[0].members
+    assert len(members) == 1
+    assert isinstance(members[0], Face)
+    assert members[0].text == "a/b"
+
+
+def test_hash_remains_a_literal_face_character() -> None:
+    """``//`` was chosen over ``#`` precisely so ``#`` needs no escaping."""
+    ast = to_ast("{a#b}")
+    members = ast.universes[0].members
+    assert len(members) == 1
+    assert isinstance(members[0], Face)
+    assert members[0].text == "a#b"
+
+
+def test_double_slash_opens_a_comment_inside_a_face() -> None:
+    """``{a//b}``: the ``//`` opens a comment, so the brace never closes -- an error."""
+    with pytest.raises(HimarkSyntaxError):
+        to_ast("{a//b}")
 
 
 def test_empty_braces_parse() -> None:

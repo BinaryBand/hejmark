@@ -1,1 +1,2 @@
+// union of two ranges: a hexadecimal digit
 {0..9,a..f}

@@ -18,5 +18,7 @@ COMMA  : ',' ;
 BANG   : '!' ;
 RANGE  : '..' ;
 DOT    : '.' ;
+// A `//` line comment runs to end of line
+COMMENT : '//' ~[\r\n]* ('\r'? '\n')? -> skip ;
 ESC    : '\\' . ;
 CHAR   : ~[{},!.\\] ;
