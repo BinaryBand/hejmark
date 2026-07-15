@@ -1,12 +1,18 @@
 # Lean 4 mechanization (membership axis)
 
-A full Lean 4 + Mathlib port of the L1 membership axis, mirroring `static/formal/` (Coq) module for module. Phase 2 of `docs/.MIGRATE.md` moved the whole membership floor across; the Coq tree stays alongside as a reference until the Phase 3 purge.
+The formal mechanization of the L1 floor (`docs/foundation/L1_TEMP.md`), kept in lockstep with `Himark/core/`. This tree started as a Coq port target and is now the sole formal-verification tree; the original Coq development under `static/formal/` was purged once every membership-axis module had a passing Lean twin.
 
 Build with `lake build` from this directory. Lean/Lake come from an `elan`-managed toolchain (pinned via `lean-toolchain`); the pytest gate in `tests/infrastructure/test_lean.py` runs the build when the toolchain is on PATH and skips otherwise, always enforces that no `.lean` file contains `sorry` or `axiom`, and checks every headline theorem's `#print axioms` stays within the trusted kernel base (`propext`, `Classical.choice`, `Quot.sound`).
 
+## Scope: the membership axis
+
+L1 has two axes. The **membership axis** -- which spellings a universe wears (`Universe.contains`) -- is pure structural set algebra, because collision moves ownership but never membership. That axis is mechanized here, completely and without user-declared axioms (see the trust note below for what "axiom-free" means in Lean).
+
+The **order axis** is deferred: entry order and first-appearance enumeration (`Universe.entries`), collision ownership and the least `<value, face>` claim rule, positional value, order types below $\varepsilon_0$, and the claim that shortlex is a well-order of type $\omega$. `L1/Spelling.lean` already carries the shortlex order theory needed by the membership axis (`singleton_shortlexLt_iff`); the well-order-of-type-$\omega$ claim and everything built on it remain future work, now targeting Mathlib's `Ordinal` and `WellFounded` machinery rather than a hand-built epsilon-naught construction.
+
 ## Files
 
-Each `L1/*.lean` mirrors the same-named `static/formal/L1/*.v`.
+Each `L1/*.lean` is a from-scratch Lean mechanization of the corresponding piece of the membership axis (the doc comment atop each file notes the Coq module it was originally ported from, for history).
 
 - `lakefile.lean` -- package/library definition (`L1`).
 - `L1.lean` -- root import module.
@@ -16,6 +22,13 @@ Each `L1/*.lean` mirrors the same-named `static/formal/L1/*.v`.
 - `L1/Laws.lean` -- the compression laws (union idempotence/commutativity, difference, intersection, range compression, adjacency, fold flattening, bare-`&` no-ops).
 - `L1/Evaluator.lean` -- the Bool-valued mutual evaluator (`walkb`/`spellsb`/`fsplitb`/`stageb`, `containsb`) and its soundness headline `containsb_sound`: `containsb` true implies `denotes`.
 - `L1/NorthStar.lean` -- the `docs/foundation/L1_TEMP.md` north-star table at the membership level. Positive rows compute through `containsb_sound` and `native_decide` (the Lean analogue of Coq's `vm_compute`); negative and emptiness rows are proved at the Prop level, mostly as corollaries of `Laws`.
+
+## The evaluator's two documented approximations
+
+- **Unsettled closures**: the Python raises `HimarkUnsettledError` where `containsb` answers `false` at the stage bound, so the evaluator under-approximates on unsettled bodies. Exactness on settled bodies is the **deferred fixpoint theorem**: for positive, guarded bodies, `(exists k, stage n k s) <-> stage n (length s + 1) s`. It remains the one genuinely hard proof in the mechanization (it also justifies the Python bound and upgrades soundness to exactness on the settled fragment); it is re-targeted at Lean and Mathlib now rather than ported from a Coq attempt, since none was ever built.
+- **The fold unit**: denotational emptiness of a fold body is not boolean-decidable (with subtraction it is a language-difference emptiness problem), so `containsb` uses the sound surrogate "no adding member" (`addsb = false`). Divergence: `{{a, !{a}}}` is the unit in the Prop spec and in Python, but `containsb` misses its empty face. No north-star row is affected.
+
+Because a subtraction flips soundness into completeness on its operand, these two gaps shape the soundness side condition `sndb`: closures, folds, and products are fine anywhere positive, but every subtraction operand must sit in the exact fragment (`exactb`: faces, ranges, finals, products of those, nested subtraction -- no fold, no `&`), where the evaluator is proved two-sided (`exact_correct`). Every north-star row satisfies `sndb`.
 
 ## Trust note
 
