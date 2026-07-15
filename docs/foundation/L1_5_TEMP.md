@@ -55,12 +55,12 @@ pad w..w'       := {fill^{w'} _, !{shorter w}, !{longer w'}}
 
 `pad` is two face cuts: `fill^{w'}` gives every entry its faces from bare up to `w'` extra fills, and the subtractions strip every face too narrow or too wide, each entry surviving on whatever widths remain -- no arithmetic on `w'` needed, since the overshoot faces fall to `longer w'` regardless.
 
-| Expression | Denotes | Why |
-| --- | --- | --- |
-| `{0..9}[where 8..12]` | 8, 9, 10, 11, 12 | `numerals` cut by `{8..12}`: width-1 digits from 8, width-2 canonicals to 12 |
-| `{a..z}[where aa..cc]` | a, ..., z, ba, ..., cc  (55 entries) | `aa` binds canonical as `a`, so the width-1 numerals enter the range |
-| `{8,9,10,11,12}[pad 2]` | 88, 89, 10, 11, 12 | `@0` is `8`; `shorter 2` strips the bare `8`, `9`; `longer 2` strips `810`, `888`, ... |
-| `{0..9}[where 8..12 pad 1..2]` | {8,08}, {9,09}, 10, 11, 12 | head fills `0`; widths 1-2 both legal, so `8` keeps both faces; `010` is stripped |
+| Expression                     | Denotes                             | Why                                                                                    |
+| ------------------------------ | ----------------------------------- | -------------------------------------------------------------------------------------- |
+| `{0..9}[where 8..12]`          | 8, 9, 10, 11, 12                    | `numerals` cut by `{8..12}`: width-1 digits from 8, width-2 canonicals to 12           |
+| `{a..z}[where aa..cc]`         | a, ..., z, ba, ..., cc (55 entries) | `aa` binds canonical as `a`, so the width-1 numerals enter the range                   |
+| `{8,9,10,11,12}[pad 2]`        | 88, 89, 10, 11, 12                  | `@0` is `8`; `shorter 2` strips the bare `8`, `9`; `longer 2` strips `810`, `888`, ... |
+| `{0..9}[where 8..12 pad 1..2]` | {8,08}, {9,09}, 10, 11, 12          | head fills `0`; widths 1-2 both legal, so `8` keeps both faces; `010` is stripped      |
 
 ## Diagnostics
 

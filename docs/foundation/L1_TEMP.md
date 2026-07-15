@@ -18,7 +18,7 @@ Six, all total; they build every universe. Totality is the floor's one manner: n
 
 - Union `,` -- append a universe's entries, in its order, skipping any already present; a lone spelling is the singleton case. Idempotent, associative, not commutative.
 - Subtraction `!{...}` -- remove a universe's spellings where claimed, and renumber: each spelling of the operand strips the one face that claims it, an entry that loses every face drops with them, and a spelling naming nothing removes nothing (the no-op). Dual to union in exactly the sense the collision rule fixes: union settles a contested spelling by dropping it from the later claimant, subtraction removes a named spelling from its claimant -- both act on spellings, and entries enter or leave only as their faces do. On single-faced entries this is the familiar entry removal (`{a..z, !{a,e,i,o,u}}`); on a fold it is a face cut (`{{cat,feline}, !{feline}}` is one entry spelled only `cat`), so the face axis has a constructor after all -- subtraction's other blade. Renumbering runs on both axes: surviving entries recompact their values, surviving faces their indices, so canonical stays index 0.
-- Fold `{...}` as member -- quotient several faces onto one entry; a claimed spelling drops. Depth flattens: `{a,{b,{c,C}}}` = `{a,{b,c,C}}`, and a nested `{}` flattens to the unit's one face, the empty spelling -- which is what gives `{{{},0}}` its two faces, `` and `0`. Total: over a denotationally empty universe it yields the unit -- `{{}}` is the canonical case, but `{{z..a}}` and `{{a,!{a}}}` are the unit by the same rule, since totality reads the operand's denotation, not its spelling on the page.
+- Fold `{...}` as member -- quotient several faces onto one entry; a claimed spelling drops. Depth flattens: `{a,{b,{c,C}}}` = `{a,{b,c,C}}`, and a nested `{}` flattens to the unit's one face, the empty spelling -- which is what gives `{{{},0}}` its two faces, \`\` and `0`. Total: over a denotationally empty universe it yields the unit -- `{{}}` is the canonical case, but `{{z..a}}` and `{{a,!{a}}}` are the unit by the same rule, since totality reads the operand's denotation, not its spelling on the page.
 - Final segment `{a..}` -- every spelling from `a` onward in spelling order, by the union rule. Unary: one cut, no right endpoint, no infinity token. Unboundedness is the missing second cut.
 - Product `{cat}{dog}` -- entries are tuples, one per factor, spelled by concatenation, ordered by positional value. Total (empty factor gives the empty universe). Identity: the unit -- a factor of order type $1$ wearing one empty face contributes no weight on the value axis and a factor of $1$ on the face axis, so `{{}}A` = `A` on both, and exponent `A^n` is well-formed down to `A^0`. Finite factors flatten (compression); an infinite factor does not, so product is a constructor, not notation.
 - Closure `&` -- the self-reference token, legal wherever a member or factor stands. It binds to the innermost enclosing brace expression other than a subtraction operand (`!{...}`'s braces are the subtraction's own, never a binder site), and that expression denotes the **closure at $\omega$** of its body: stages $X_0$ the empty universe, $X_{k+1}$ = $X_k$ union the body with `&` read as $X_k$, entries ordered by first appearance -- stage-major, body order within a stage. A binder's braces are the closure's, not a fold's: used as a member the expression splices its entries, exactly because closure is the union rule and union appends entry-wise -- to fold a closure, brace it once more. This is the union rule read at $\omega$: accumulation never retracts, so every body denotes. A subtracted `&` cannot oscillate (`{a.., !{&}}` places everything at stage 1, and every later body is empty); a bare `&` is the union no-op (`{a, &}` is `{a}`, `{&}` is empty); an unguarded fill converges because collision strips each re-spelled face (`{a, {{{},0}}&}` is a, 0a, 00a, ...). One limit and no continuation past it: a body still producing at $\omega$ is cut there -- the same missing second cut as every other unbounded construct. No new collision clause either: a spelling re-derived at a later stage no-ops, a face claimed earlier drops, stage by stage.
@@ -44,35 +44,35 @@ The re-admission test: any construct enters as compression (above) or as a new a
 
 ## North-star
 
-| Expression | Denotes |
-| --- | --- |
-| `{a,b,c}` | a, b, c |
-| `{a..z}` | a, b, ..., z  (26 entries) |
-| `{{cat,feline}}` | one entry, faces `cat` and `feline` |
-| `{a..z, !{a,e,i,o,u}}` | 21 consonants  (difference = subtraction) |
-| `{{cat,feline}, !{feline}}` | one entry, spelled only `cat`  (subtraction strips a face; the entry survives on its last spelling) |
-| `{a..}` | a, b, c, ...  (order type $\omega$) |
-| `{cat}{dog}` = `{catdog}` | catdog  (finite adjacency, compression) |
-| `{a,ab}{b,c}` | ab, ac, abb, abc  (values 0-3) |
-| `{a,ab}{c,bc}` | ac, abc, abbc  (`(ab,c)` re-spells `abc` at value 2, drops) |
-| `{a..}{b}` | ab, bb, cb, ...  (order type $\omega$; not a spelling interval) |
-| `{b,c}{a..}` | ba, bb, ...; ca, cb, ...  (order type $\omega \cdot 2$) |
-| `{b}{a..}{b}{a..}` | baba, babb, ...; bbba, bbbb, ...  (order type $\omega^2$; seams collide, yet the type survives) |
-| `{a..}{a..}` | aa, ab, ...; ba, bb, ...  (order type $\omega \cdot k$, not $\omega^2$: cofinite factors collide) |
-| `{a,!{a}}` | {}  (empty universe) |
-| `{z..a}` | {}  (reversed range) |
-| `{{}}` | one entry, one face: the empty spelling  (unit; `{{}}{cat}` = `{cat}`) |
-| `{{{},0}}` | one entry, faces `` and `0`  (the fill factor: fold of the unit with a spelling) |
-| `{{{},0}}{{{},0}}` | one entry, faces ``, `0`, `00`  (`Z^2`; the two ways to spell `0` collide, the lower survives) |
-| `{{{},0}}{0..9}` | 0, 1, ..., 9, each also faced `00`, `01`, ..., `09`  (values unchanged; a face axis, not an entry axis) |
-| `{{{},0}}{0,00}` | one entry faced `0`, `00`; one faced `000`  (cross-axis collision: `00` is claimed by the lower value, so the higher entry loses its *canonical* face and renumbers) |
-| `{a, &{b}}` | a, ab, abb, abbb, ...  (closure, type $\omega$) |
-| `{ab, {a}&{b}}` | ab, aabb, aaabbb, ...  ($a^n b^n$: no regular face set -- closure's admission witness) |
-| `{0, {1..9, &{0..9}}}` | 0, 1, ..., 9, 10, ..., 99, 100, ...  (canonical numerals: first-appearance order is value order) |
-| `{{{}}, &C}` | ``, a, b, ..., aa, ab, ...  (every spelling, in shortlex; `C` the code-point set -- final segment's demotion) |
-| `{&}` | {}  (a bare self-reference builds nothing) |
-| `{a, &}` | a  (self-union no-ops, as union always has) |
-| `{a.., !{&}}` | a, b, c, ...  (negative `&`: stage 1 places everything, every later body is empty -- no oscillation) |
-| `{a, {{{},0}}&}` | a, 0a, 00a, ...  (unguarded fill: each pass re-spells, collision strips the claimed face, one new face survives) |
-| `{ab, &&}` | ab, abab, ababab, ...  (nonlinear, still type $\omega$) |
-| `{ {(}{b}{a..}{)}, {(}&&{)} }` | (ba), (bb), ..., ((ba)(ba)), ...  (binary trees; type $\omega^\omega$ -- nonlinear closure spends the raised bound) |
+| Expression                     | Denotes                                                                                                                                                             |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `{a,b,c}`                      | a, b, c                                                                                                                                                             |
+| `{a..z}`                       | a, b, ..., z (26 entries)                                                                                                                                           |
+| `{{cat,feline}}`               | one entry, faces `cat` and `feline`                                                                                                                                 |
+| `{a..z, !{a,e,i,o,u}}`         | 21 consonants (difference = subtraction)                                                                                                                            |
+| `{{cat,feline}, !{feline}}`    | one entry, spelled only `cat` (subtraction strips a face; the entry survives on its last spelling)                                                                  |
+| `{a..}`                        | a, b, c, ... (order type $\omega$)                                                                                                                                  |
+| `{cat}{dog}` = `{catdog}`      | catdog (finite adjacency, compression)                                                                                                                              |
+| `{a,ab}{b,c}`                  | ab, ac, abb, abc (values 0-3)                                                                                                                                       |
+| `{a,ab}{c,bc}`                 | ac, abc, abbc (`(ab,c)` re-spells `abc` at value 2, drops)                                                                                                          |
+| `{a..}{b}`                     | ab, bb, cb, ... (order type $\omega$; not a spelling interval)                                                                                                      |
+| `{b,c}{a..}`                   | ba, bb, ...; ca, cb, ... (order type $\omega \cdot 2$)                                                                                                              |
+| `{b}{a..}{b}{a..}`             | baba, babb, ...; bbba, bbbb, ... (order type $\omega^2$; seams collide, yet the type survives)                                                                      |
+| `{a..}{a..}`                   | aa, ab, ...; ba, bb, ... (order type $\omega \cdot k$, not $\omega^2$: cofinite factors collide)                                                                    |
+| `{a,!{a}}`                     | {} (empty universe)                                                                                                                                                 |
+| `{z..a}`                       | {} (reversed range)                                                                                                                                                 |
+| `{{}}`                         | one entry, one face: the empty spelling (unit; `{{}}{cat}` = `{cat}`)                                                                                               |
+| `{{{},0}}`                     | one entry, faces \`\` and `0` (the fill factor: fold of the unit with a spelling)                                                                                   |
+| `{{{},0}}{{{},0}}`             | one entry, faces \`\`, `0`, `00` (`Z^2`; the two ways to spell `0` collide, the lower survives)                                                                     |
+| `{{{},0}}{0..9}`               | 0, 1, ..., 9, each also faced `00`, `01`, ..., `09` (values unchanged; a face axis, not an entry axis)                                                              |
+| `{{{},0}}{0,00}`               | one entry faced `0`, `00`; one faced `000` (cross-axis collision: `00` is claimed by the lower value, so the higher entry loses its *canonical* face and renumbers) |
+| `{a, &{b}}`                    | a, ab, abb, abbb, ... (closure, type $\omega$)                                                                                                                      |
+| `{ab, {a}&{b}}`                | ab, aabb, aaabbb, ... ($a^n b^n$: no regular face set -- closure's admission witness)                                                                               |
+| `{0, {1..9, &{0..9}}}`         | 0, 1, ..., 9, 10, ..., 99, 100, ... (canonical numerals: first-appearance order is value order)                                                                     |
+| `{{{}}, &C}`                   | \`\`, a, b, ..., aa, ab, ... (every spelling, in shortlex; `C` the code-point set -- final segment's demotion)                                                      |
+| `{&}`                          | {} (a bare self-reference builds nothing)                                                                                                                           |
+| `{a, &}`                       | a (self-union no-ops, as union always has)                                                                                                                          |
+| `{a.., !{&}}`                  | a, b, c, ... (negative `&`: stage 1 places everything, every later body is empty -- no oscillation)                                                                 |
+| `{a, {{{},0}}&}`               | a, 0a, 00a, ... (unguarded fill: each pass re-spells, collision strips the claimed face, one new face survives)                                                     |
+| `{ab, &&}`                     | ab, abab, ababab, ... (nonlinear, still type $\omega$)                                                                                                              |
+| `{ {(}{b}{a..}{)}, {(}&&{)} }` | (ba), (bb), ..., ((ba)(ba)), ... (binary trees; type $\omega^\omega$ -- nonlinear closure spends the raised bound)                                                  |

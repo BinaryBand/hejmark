@@ -24,12 +24,12 @@ Everything the host implements beyond denotation; the one layer allowed to rejec
 
 Nothing but in-language declarations over the L1.5 surface: `uni` universes and `:=` definitions. No new denotation, no host code -- every entry must compile away through L1.5's expansion into the six constructors, which is the re-admission test in operational form.
 
-| Expression | Denotes |
-| --- | --- |
-| `{0..9}[where 8..12]` | 8, 9, 10, 11, 12 |
-| `{a..z}[where aa..cc]` | a, b, ..., z, ba, ..., cc (55 entries; aa = a = 0) |
-| `{8,9,10,11,12}[pad 2]` | 88, 89, 10, 11, 12 |
-| `{0..9}[where 8..12 pad 1..2]` | {8,08}, {9,09}, 10, 11, 12 |
+| Expression                     | Denotes                                            |
+| ------------------------------ | -------------------------------------------------- |
+| `{0..9}[where 8..12]`          | 8, 9, 10, 11, 12                                   |
+| `{a..z}[where aa..cc]`         | a, b, ..., z, ba, ..., cc (55 entries; aa = a = 0) |
+| `{8,9,10,11,12}[pad 2]`        | 88, 89, 10, 11, 12                                 |
+| `{0..9}[where 8..12 pad 1..2]` | {8,08}, {9,09}, 10, 11, 12                         |
 
 ## Layer 3 -- Presentation
 
