@@ -3,8 +3,13 @@
 Port of `static/formal/L1/NorthStar.v`. Positive rows compute through
 `containsb_sound`: `sndNodeb` and `containsb` are both closed booleans, so
 `native_decide` (compiled) settles them -- the Lean analogue of Coq's
-`vm_compute`. Negative and emptiness rows are proved at the Prop level (the
-evaluator is sound, not complete), mostly as corollaries of `Laws`.
+`vm_compute`. Trust base: `native_decide` puts the Lean compiler in the
+trusted base for these rows (kernel `decide` cannot replace it -- the
+evaluator is well-founded recursion, which does not reduce in the kernel).
+The soundness spine (`containsb_sound` and below) and every hand-proved row
+here depend on `propext`/`Quot.sound` only. Negative and emptiness rows are
+proved at the Prop level (the evaluator is sound, not complete), mostly as
+corollaries of `Laws`.
 
 Out of scope here, with the rest of the order axis: every claim about entry
 order, values, collision ownership, and order types.

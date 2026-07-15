@@ -7,6 +7,9 @@ length class is already infinite); the type-omega claim needs the finite
 code-point set and is deferred with the rest of the order axis. One
 consequence is exact successors: the successor of the singleton `[z]` is
 `[z+1]`, with no rollover case, which is all the range constructor needs.
+Finitizing the alphabet will change exactly this: `rangeWindow`'s `[hi + 1]`
+bound has no code successor at the greatest code point, where the shortlex
+successor of `[max]` is the least length-2 spelling instead.
 
 Where Coq wrote its own `spelling_eqb`, Lean reuses the `LawfulBEq (List Nat)`
 instance: `s == t` decides `s = t`, so `beq_iff_eq` replaces the hand-rolled

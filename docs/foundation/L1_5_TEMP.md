@@ -41,7 +41,7 @@ The old surface shipped three transformation primitives -- `keep`/`drop` (alphab
 
 The std that the finish line asks for, written over this surface -- `C` is the code-point set as a bounded range, the one `uni` the spec seeds:
 
-```
+```text
 uni spellings   = {{{}}, &C}                                  -- every spelling, in shortlex
 fill            := {{{}, @0}}                                 -- one entry, faced empty and zero
 nonzero         := {_, !{@0}}

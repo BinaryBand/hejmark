@@ -75,12 +75,11 @@ theorem difference (A B : Node) (amp : Spelling → Prop) (P : Prop) (s : Spelli
   rw [walk_app, walk_single_sub]
 
 /- ---------------------------------------------------------------- -/
-/- 4. Intersection: A ∧ B = A \ (A \ B), with an explicit             -/
-/-    decidability hypothesis on B's membership.                     -/
+/- 4. Intersection: A ∧ B = A \ (A \ B). Classical (tauto uses em     -/
+/-    on B's membership); the development is classical throughout.   -/
 /- ---------------------------------------------------------------- -/
 
-theorem intersection (A B : Node) (amp : Spelling → Prop) (s : Spelling)
-    (hdec : walk B amp False s ∨ ¬ walk B amp False s) :
+theorem intersection (A B : Node) (amp : Spelling → Prop) (s : Spelling) :
     walk (napp A (nsingle (.sub (napp A (nsingle (.sub B)))))) amp False s
       ↔ (walk A amp False s ∧ walk B amp False s) := by
   rw [difference, difference]
@@ -203,7 +202,10 @@ theorem fold_membership (inner : Node) (amp : Spelling → Prop) (s : Spelling)
       ↔ (walk inner amp False s ∨ (s = [] ∧ ∀ t, ¬ walk inner amp False t)) := by
   rw [spells_fold, hb]; simp
 
-/-- A fold of a fold splices: `{{X}}` wears what `{X}` wears, for non-binder X. -/
+/-- A fold of a fold splices: `{{X}}` wears what `{X}` wears, for non-binder X.
+Scope note: this is the singleton shape only; the doc's full depth-flattening
+claim (`{a,{b,{c,C}}}` = `{a,{b,c,C}}`, flattening inside a larger member
+list) is not yet mechanized. -/
 theorem fold_flatten (inner : Node) (amp : Spelling → Prop) (s : Spelling)
     (hb : bindsb inner = false) :
     spells (.fold (nsingle (.fold inner))) amp s ↔ spells (.fold inner) amp s := by

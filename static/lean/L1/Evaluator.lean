@@ -442,15 +442,19 @@ theorem containsb_sound (n : Node) (s : Spelling)
         (by simp) (by simp) h'
 
 /- ---------------------------------------------------------------- -/
-/- Settledness, mirroring _settled: every free `&` is guarded by a    -/
-/- factor with no empty face. Defined only to state the deferred      -/
-/- fixpoint theorem (see the migration note).                         -/
+/- Settledness, mirroring _settled: every free `&` is guarded by an   -/
+/- `&`-free factor with no empty face. The `!(bindsb n)` conjunct is  -/
+/- load-bearing twice over: it matches the doc's "`&`-free" clause,   -/
+/- and it keeps `containsb n []` in the non-binder branch, where the  -/
+/- evaluator is a plain walk rather than a stage-bounded (incomplete) -/
+/- closure search. Defined only to state the deferred fixpoint        -/
+/- theorem (see the migration note).                                  -/
 /- ---------------------------------------------------------------- -/
 
 def guardedFactorb : Factors → Bool
   | .nil => false
   | .amp rest => guardedFactorb rest
-  | .node n rest => !(containsb n []) || guardedFactorb rest
+  | .node n rest => (!(bindsb n) && !(containsb n [])) || guardedFactorb rest
 
 mutual
 def settledMemberb : Member → Bool
