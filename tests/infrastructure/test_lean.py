@@ -49,6 +49,9 @@ HEADLINE_THEOREMS = (
     "L1.abab_not_aba",
     "L1.btrees_not_lparen",
     "L1.z2_not_000",
+    # Order axis, phase A: shortlex over a finite alphabet is a well-order of
+    # type omega (docs/foundation/L1.md, Spelling order).
+    "L1.finShortlex_type_omega0",
 )
 
 # "Axiom-free" does not port from Coq to Lean literally: every Lean/Mathlib
