@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+import os
 import re
-import shutil
 import subprocess
 from pathlib import Path
 
@@ -24,11 +24,12 @@ FORBIDDEN = re.compile(
 def test_formal_proofs_build() -> None:
     """dune build must succeed, so every proof checks end to end.
 
-    Coq and dune are opam-installed system tools (like the ``antlr4`` binary),
-    so contributors without the toolchain skip rather than fail.
+    Coq and dune are opam-installed system tools. A missing toolchain fails
+    this test loudly rather than silently skipping it, so contributors must
+    set ``HIMARK_SKIP_FORMAL=1`` explicitly to opt out.
     """
-    if shutil.which("dune") is None or shutil.which("coqc") is None:
-        pytest.skip("Coq toolchain (dune + coqc) not on PATH; formal proofs not checked")
+    if os.environ.get("HIMARK_SKIP_FORMAL") == "1":
+        pytest.skip("HIMARK_SKIP_FORMAL=1 set; formal proofs not checked")
     result = subprocess.run(
         ["dune", "build"], capture_output=True, text=True, cwd=FORMAL, check=False
     )

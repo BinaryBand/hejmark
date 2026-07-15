@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import os
 import re
-import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -17,22 +18,69 @@ LEAN = ROOT / "static" / "lean"
 # scans anywhere on the line rather than anchoring to the start.
 FORBIDDEN = re.compile(r"\bsorry\b|\baxiom\b")
 
+# Every headline theorem ported so far. Extend this tuple as Phase 2 ports
+# more modules; each entry is checked with `#print axioms` below.
+HEADLINE_THEOREMS = ("L1.singleton_shortlexLt_iff",)
+
+# "Axiom-free" does not port from Coq to Lean literally: every Lean/Mathlib
+# proof rests on the trusted kernel base below. The honest gate is that a
+# theorem's axiom set is a subset of these, not that it is empty.
+TRUSTED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}
+
 
 def test_lean_proofs_build() -> None:
     """lake build must succeed, so every module checks end to end.
 
-    Lean and Lake are elan-managed toolchains (like the Coq/dune pair in
-    static/formal/), so contributors without the toolchain skip rather than
-    fail.
+    Lean and Lake are elan-managed toolchains. A missing toolchain fails this
+    test loudly rather than silently skipping it, so contributors must set
+    ``HIMARK_SKIP_LEAN=1`` explicitly to opt out.
     """
-    if shutil.which("lake") is None:
-        pytest.skip("Lean toolchain (lake) not on PATH; Lean scaffold not checked")
+    if os.environ.get("HIMARK_SKIP_LEAN") == "1":
+        pytest.skip("HIMARK_SKIP_LEAN=1 set; Lean scaffold not checked")
     result = subprocess.run(
         ["lake", "build"], capture_output=True, text=True, cwd=LEAN, check=False
     )
     assert result.returncode == 0, (
         f"lake build failed (exit {result.returncode}):\n\n{result.stdout}\n{result.stderr}"
     )
+
+
+def test_lean_headline_theorems_are_honestly_axiom_free() -> None:
+    """`#print axioms` on every headline theorem must not exceed the trusted kernel base.
+
+    Coq's "Closed under the global context" (zero axioms) is structurally
+    unreachable in Lean, since every proof rests on `propext`,
+    `Classical.choice`, and `Quot.sound`. This is the Lean-correct
+    replacement: each headline theorem's axiom set must be a subset of that
+    trusted base, and nothing else.
+    """
+    if os.environ.get("HIMARK_SKIP_LEAN") == "1":
+        pytest.skip("HIMARK_SKIP_LEAN=1 set; Lean scaffold not checked")
+    script = "import L1\n" + "\n".join(f"#print axioms {name}" for name in HEADLINE_THEOREMS)
+    with tempfile.NamedTemporaryFile("w", suffix=".lean", delete=False) as handle:
+        handle.write(script)
+        script_path = Path(handle.name)
+    try:
+        result = subprocess.run(
+            ["lake", "env", "lean", str(script_path)],
+            capture_output=True,
+            text=True,
+            cwd=LEAN,
+            check=False,
+        )
+    finally:
+        script_path.unlink()
+    assert result.returncode == 0, (
+        f"#print axioms run failed (exit {result.returncode}):\n\n{result.stdout}\n{result.stderr}"
+    )
+    for name, line in zip(HEADLINE_THEOREMS, result.stdout.splitlines(), strict=True):
+        if "does not depend on any axioms" in line:
+            continue
+        match = re.search(r"depends on axioms: \[(.*)\]", line)
+        assert match, f"unexpected #print axioms output for {name}: {line!r}"
+        axioms = {item.strip() for item in match.group(1).split(",") if item.strip()}
+        extra = axioms - TRUSTED_AXIOMS
+        assert not extra, f"{name} depends on untrusted axioms: {extra}"
 
 
 def test_lean_proofs_are_complete() -> None:
