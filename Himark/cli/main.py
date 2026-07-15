@@ -9,6 +9,7 @@ app presents a numbered picker so the user can select a command.
 from __future__ import annotations
 
 import sys
+from typing import cast
 
 import click
 import typer
@@ -40,10 +41,12 @@ def _main_callback(ctx: typer.Context) -> None:
     if not isinstance(group, click.Group):
         raise click.UsageError(_NO_COMMAND_MSG)
 
-    commands_list = group.list_commands(ctx)
+    click_ctx = cast("click.Context", ctx)
+
+    commands_list = group.list_commands(click_ctx)
     print("\n  Himark \u2014 a query language over pointed alphabets\n")
     for idx, name in enumerate(commands_list, 1):
-        cmd_obj = group.get_command(ctx, name)
+        cmd_obj = group.get_command(click_ctx, name)
         help_text = cmd_obj.get_short_help_str() if cmd_obj else ""
         print(f"  {idx}. {name:20s} {help_text}")
     print()
@@ -58,7 +61,7 @@ def _main_callback(ctx: typer.Context) -> None:
         raise SystemExit(_INVALID_SELECTION_MSG)
     selected = commands_list[choice]
 
-    cmd_obj = group.get_command(ctx, selected)
+    cmd_obj = group.get_command(click_ctx, selected)
     if cmd_obj is None:
         raise SystemExit(_INVALID_SELECTION_MSG)
     ctx.invoke(cmd_obj)
