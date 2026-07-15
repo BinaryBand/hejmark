@@ -68,6 +68,8 @@ def denotes (n : Node) (s : Spelling) : Prop := ndenote n (fun _ => False) s
 /- Unfolding equations that go through the equation lemmas.         -/
 /- ---------------------------------------------------------------- -/
 
+theorem walk_nil (amp P s) : walk .nil amp P s = P := by simp only [walk]
+
 theorem walk_cons (m rest amp P s) :
     walk (.cons m rest) amp P s = walk rest amp (walk (nsingle m) amp P s) s := by
   cases m <;> simp [walk, nsingle]

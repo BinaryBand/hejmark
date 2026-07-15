@@ -57,7 +57,7 @@ theorem abc_has_b : denotes abc [lb] := by north_star
 theorem abc_not_d : ¬ denotes abc [ld] := by
   intro h
   rw [denotes, ndenote_nonbinder _ _ _ (by decide)] at h
-  simp only [abc, nlist, walk_cons, walk_single_face, walk, nsingle] at h
+  simp only [abc, nlist, walk_cons, walk_single_face, walk_nil] at h
   rcases h with ((h | h) | h) | h <;> simp_all
 
 /- ---------------------------------------------------------------- -/
@@ -72,13 +72,13 @@ theorem a_to_z_has_z : denotes a_to_z [lz] := by north_star
 theorem a_to_z_not_empty_spelling : ¬ denotes a_to_z [] := by
   intro h
   rw [denotes, ndenote_nonbinder _ _ _ (by decide)] at h
-  simp only [a_to_z, nlist, walk_cons, walk_single_range, walk, nsingle] at h
+  simp only [a_to_z, nlist, walk_cons, walk_single_range, walk_nil] at h
   rcases h with h | h <;> simp_all [winb, shortlexLe, shortlexLt, lexLt, rangeWindow]
 
 theorem a_to_z_not_aa : ¬ denotes a_to_z [la, la] := by
   intro h
   rw [denotes, ndenote_nonbinder _ _ _ (by decide)] at h
-  simp only [a_to_z, nlist, walk_cons, walk_single_range, walk, nsingle] at h
+  simp only [a_to_z, nlist, walk_cons, walk_single_range, walk_nil] at h
   rcases h with h | h <;> simp_all [winb, shortlexLt, rangeWindow]
 
 /- ---------------------------------------------------------------- -/
@@ -98,11 +98,10 @@ theorem cat_feline_not_unit : ¬ denotes cat_feline [] := by
   · exact h.elim
   · rw [fold_membership _ _ _ (by decide)] at h
     rcases h with h | ⟨_, hempty⟩
-    · simp only [nlist, walk_cons, walk_single_face, walk, nsingle] at h
+    · simp only [nlist, walk_cons, walk_single_face, walk_nil] at h
       rcases h with (h | h) | h <;> simp_all
     · exact (hempty cat) (by
-        simp only [nlist, walk_cons, walk_single_face, walk, nsingle]
-        left; right; rfl)
+        simp [nlist, walk_cons, walk_single_face, walk_nil])
 
 /- ---------------------------------------------------------------- -/
 /- {a..z, !{a,e,i,o,u}}: difference = subtraction.                  -/
@@ -117,11 +116,10 @@ theorem consonants_has_b : denotes consonants [lb] := by north_star
 theorem consonants_not_a : ¬ denotes consonants [la] := by
   intro h
   rw [denotes, ndenote_nonbinder _ _ _ (by decide)] at h
-  rw [consonants, nlist, nlist, walk_cons, walk_cons, walk, walk_single_sub,
-    walk_single_range] at h
+  simp only [consonants, nlist, walk_cons, walk_single_sub, walk_single_range,
+    walk_single_face, walk_nil] at h
   refine h.2 ?_
-  simp only [nlist, walk_cons, walk_single_face, walk, nsingle]
-  left; left; left; left; right; rfl
+  tauto
 
 /- ---------------------------------------------------------------- -/
 /- {{cat,feline}, !{feline}}: subtraction strips a face.            -/
@@ -135,10 +133,10 @@ theorem cat_only_has_cat : denotes cat_only cat := by north_star
 theorem cat_only_not_feline : ¬ denotes cat_only feline := by
   intro h
   rw [denotes, ndenote_nonbinder _ _ _ (by decide)] at h
-  rw [cat_only, nlist, nlist, walk_cons, walk_cons, walk, walk_single_sub] at h
+  simp only [cat_only, nlist, walk_cons, walk_single_sub, walk_single_fold,
+    walk_single_face, walk_nil] at h
   refine h.2 ?_
-  simp only [nlist, walk_cons, walk_single_face, walk, nsingle]
-  right; rfl
+  tauto
 
 /- ---------------------------------------------------------------- -/
 /- {a..}: a final segment, unbounded above.                        -/
@@ -152,8 +150,8 @@ theorem a_final_has_aa : denotes a_final [la, la] := by north_star
 theorem a_final_not_empty_spelling : ¬ denotes a_final [] := by
   intro h
   rw [denotes, ndenote_nonbinder _ _ _ (by decide)] at h
-  simp only [a_final, nlist, walk_cons, walk_single_final, walk, nsingle] at h
-  rcases h with h | h <;> simp_all [winb, shortlexLe, shortlexLt, lexLt, finalWindow]
+  simp only [a_final, nlist, walk_cons, walk_single_final, walk_nil] at h
+  rcases h with h | h <;> simp_all [winb, shortlexLe, shortlexLt, finalWindow]
 
 /- ---------------------------------------------------------------- -/
 /- {cat}{dog} = {catdog}: finite adjacency is compression.          -/
@@ -201,14 +199,9 @@ def a_minus_a : Node := nlist [.face [la], .sub (nlist [.face [la]])]
 theorem a_minus_a_empty (s : Spelling) : ¬ denotes a_minus_a s := by
   intro h
   rw [denotes, ndenote_nonbinder _ _ _ (by decide)] at h
-  rw [a_minus_a, nlist, nlist, walk_cons, walk_cons, walk, walk_single_sub,
-    walk_single_face] at h
-  obtain ⟨h1, h2⟩ := h
-  refine h2 ?_
-  simp only [nlist, walk_cons, walk_single_face, walk, nsingle]
-  rcases h1 with h1 | h1
-  · exact h1.elim
-  · left; right; exact h1
+  simp only [a_minus_a, nlist, walk_cons, walk_single_face, walk_single_sub,
+    walk_nil] at h
+  exact h.2 h.1
 
 /- ---------------------------------------------------------------- -/
 /- {z..a}: a reversed range is empty.                              -/
@@ -219,10 +212,10 @@ def z_to_a : Node := nlist [.range lz la]
 theorem z_to_a_empty (s : Spelling) : ¬ denotes z_to_a s := by
   intro h
   rw [denotes, ndenote_nonbinder _ _ _ (by decide)] at h
-  simp only [z_to_a, nlist, walk_cons, walk_single_range, walk, nsingle] at h
+  simp only [z_to_a, nlist, walk_cons, walk_single_range, walk_nil] at h
   rcases h with h | h
   · exact h.elim
-  · exact range_reversed_empty lz la (fun _ => False) s (by decide) h
+  · exact range_reversed_empty lz la (fun _ => False) s (by decide) (by rw [spells]; exact h)
 
 /- ---------------------------------------------------------------- -/
 /- {{}}: the unit -- one entry, one face, the empty spelling.       -/
@@ -276,14 +269,14 @@ theorem amp_b_stage_headed : ∀ k s, stage amp_b k s → ∃ r, s = la :: r := 
       rw [stage_succ] at h
       rcases h with h | h
       · exact ih s h
-      · rw [amp_b, nlist, nlist, walk_cons, walk_cons, walk, walk_single_prod,
-          walk_single_face] at h
+      · simp only [amp_b, nlist, walk_cons, walk_single_prod, walk_single_face,
+          walk_nil] at h
         rcases h with (h | h) | h
         · exact h.elim
         · exact ⟨[], h⟩
         · rw [fsplit_famp] at h
           obtain ⟨p, q, rfl, hp, hq⟩ := h
-          rw [fsplit_fnode, fsplit_fnil] at hq
+          simp only [fsplit_fnode, fsplit_fnil] at hq
           obtain ⟨p', q', rfl, _, rfl⟩ := hq
           obtain ⟨r, rfl⟩ := ih p hp
           exact ⟨r ++ p' ++ [], by simp⟩
@@ -306,7 +299,7 @@ def anbn : Node :=
 theorem anbn_has_ab : denotes anbn [la, lb] := by north_star
 theorem anbn_has_aabb : denotes anbn [la, la, lb, lb] := by north_star
 
-theorem anbn_stage_even : ∀ k s, stage anbn k s → Nat.even s.length := by
+theorem anbn_stage_even : ∀ k s, stage anbn k s → s.length % 2 = 0 := by
   intro k
   induction k with
   | zero => intro s h; rw [stage_zero] at h; exact h.elim
@@ -315,21 +308,23 @@ theorem anbn_stage_even : ∀ k s, stage anbn k s → Nat.even s.length := by
       rw [stage_succ] at h
       rcases h with h | h
       · exact ih s h
-      · rw [anbn, nlist, nlist, walk_cons, walk_cons, walk, walk_single_prod,
-          walk_single_face] at h
+      · simp only [anbn, nlist, walk_cons, walk_single_prod, walk_single_face,
+          walk_nil] at h
         rcases h with (h | h) | h
         · exact h.elim
         · subst h; decide
-        · rw [fsplit_fnode, fsplit_fnil] at h
+        · simp only [fsplit_fnode] at h
           obtain ⟨p, q, rfl, hp, hq⟩ := h
-          rw [ndenote_nonbinder _ _ _ (by decide), walk_single_face] at hp
+          rw [ndenote_nonbinder _ _ _ (by decide), walk_cons, walk_single_face,
+            walk_nil] at hp
           rcases hp with hp | rfl
           · exact hp.elim
           rw [fsplit_famp] at hq
           obtain ⟨p2, q2, rfl, hamp, hq2⟩ := hq
-          rw [fsplit_fnode, fsplit_fnil] at hq2
+          simp only [fsplit_fnode, fsplit_fnil] at hq2
           obtain ⟨p3, q3, rfl, hp3, rfl⟩ := hq2
-          rw [ndenote_nonbinder _ _ _ (by decide), walk_single_face] at hp3
+          rw [ndenote_nonbinder _ _ _ (by decide), walk_cons, walk_single_face,
+            walk_nil] at hp3
           rcases hp3 with hp3 | rfl
           · exact hp3.elim
           have := ih p2 hamp

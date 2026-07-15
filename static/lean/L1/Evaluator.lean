@@ -360,11 +360,12 @@ theorem snd_member : ∀ (m : Member), sndMemberb m = true →
         · have hb : bindsb inner = false := Bool.eq_false_iff.mpr hbi
           rw [fold_membership inner amp s hb]
           rw [spellsb_fold_nonbinder inner ampb s hb, Bool.or_eq_true,
-            Bool.and_eq_true, Bool.not_eq_true] at h
+            Bool.and_eq_true] at h
           rcases h with h | ⟨h1, h2⟩
           · exact Or.inl (snd_node inner hx ampb amp false False s hamp (by simp) h)
           · rw [isNilb_true_iff] at h1
-            exact Or.inr ⟨h1, fun t ht => subs_only_walk inner amp t False h2 ht⟩
+            have h2' : addsb inner = false := by simpa using h2
+            exact Or.inr ⟨h1, fun t ht => subs_only_walk inner amp t False h2' ht⟩
   | .sub op, hx, ampb, amp, Pb, P, s, _, hacc, h => by
       simp only [sndMemberb] at hx
       rw [walkb_single_sub, Bool.and_eq_true] at h

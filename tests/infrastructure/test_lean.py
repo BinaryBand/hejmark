@@ -18,9 +18,22 @@ LEAN = ROOT / "static" / "lean"
 # scans anywhere on the line rather than anchoring to the start.
 FORBIDDEN = re.compile(r"\bsorry\b|\baxiom\b")
 
-# Every headline theorem ported so far. Extend this tuple as Phase 2 ports
-# more modules; each entry is checked with `#print axioms` below.
-HEADLINE_THEOREMS = ("L1.singleton_shortlexLt_iff",)
+# Every headline theorem ported so far. Extend this tuple as later phases port
+# more modules; each entry is checked with `#print axioms` below. Only proofs
+# that live inside the trusted kernel base belong here: the `native_decide`
+# positive north-star rows rest on the extra compiled-reduction axiom
+# (`Lean.ofReduceBool`), a different trust basis, so they are deliberately
+# excluded from the honesty gate.
+HEADLINE_THEOREMS = (
+    "L1.singleton_shortlexLt_iff",
+    "L1.containsb_sound",
+    "L1.anbn_not_aab",
+    "L1.cat_only_not_feline",
+    "L1.a_minus_a_empty",
+    "L1.consonants_not_a",
+    "L1.z_to_a_empty",
+    "L1.bare_amp_row",
+)
 
 # "Axiom-free" does not port from Coq to Lean literally: every Lean/Mathlib
 # proof rests on the trusted kernel base below. The honest gate is that a
@@ -73,12 +86,20 @@ def test_lean_headline_theorems_are_honestly_axiom_free() -> None:
     assert result.returncode == 0, (
         f"#print axioms run failed (exit {result.returncode}):\n\n{result.stdout}\n{result.stderr}"
     )
-    for name, line in zip(HEADLINE_THEOREMS, result.stdout.splitlines(), strict=True):
-        if "does not depend on any axioms" in line:
+    # `#print axioms` emits one record per theorem, but a long axiom list wraps
+    # over several lines; each record opens with `'Name' ...`, so regroup the
+    # raw output into whole records before matching rather than zipping by line.
+    records = re.findall(
+        r"'([^']+)' (does not depend on any axioms|depends on axioms: \[([^\]]*)\])",
+        result.stdout,
+    )
+    reported = {name for name, _, _ in records}
+    missing = set(HEADLINE_THEOREMS) - reported
+    assert not missing, f"no #print axioms output for: {missing}"
+    for name, verdict, listed in records:
+        if verdict == "does not depend on any axioms":
             continue
-        match = re.search(r"depends on axioms: \[(.*)\]", line)
-        assert match, f"unexpected #print axioms output for {name}: {line!r}"
-        axioms = {item.strip() for item in match.group(1).split(",") if item.strip()}
+        axioms = {item.strip() for item in listed.split(",") if item.strip()}
         extra = axioms - TRUSTED_AXIOMS
         assert not extra, f"{name} depends on untrusted axioms: {extra}"
 
