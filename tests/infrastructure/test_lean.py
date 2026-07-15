@@ -35,6 +35,8 @@ HEADLINE_THEOREMS = (
     "L1.bare_amp_row",
     "L1.guarded_settles",
     "L1.settled_binder_bound",
+    "L1.semSettled_of_settledExactb",
+    "L1.containsb_exact",
 )
 
 # "Axiom-free" does not port from Coq to Lean literally: every Lean/Mathlib
