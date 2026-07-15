@@ -52,6 +52,10 @@ HEADLINE_THEOREMS = (
     # Order axis, phase A: shortlex over a finite alphabet is a well-order of
     # type omega (docs/foundation/L1.md, Spelling order).
     "L1.finShortlex_type_omega0",
+    # Order axis, phase B: positional value is mixed radix over a product of
+    # finite factors, so the product's order type is the natural product of the
+    # factor order types (docs/foundation/L1.md, Positional value).
+    "L1.positional_value_type",
 )
 
 # "Axiom-free" does not port from Coq to Lean literally: every Lean/Mathlib
