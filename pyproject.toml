@@ -132,10 +132,5 @@ dev = [
     "pytest==9.1.*",
     "hypothesis==6.156.*",
     "import-linter==2.13.*",
-    "vulture==2.16.*",
-    "ast-grep-cli==0.44.*",
-    "mdformat>=1.0.0",
-    "mdformat-myst>=0.3.0",
-    "pymarkdownlnt>=0.9.39",
-    "emoji>=2.15.0",
+    "vulture==2.16.*"
 ]

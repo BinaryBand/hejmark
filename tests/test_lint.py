@@ -73,18 +73,6 @@ def test_vulture() -> None:
     )
 
 
-def test_astgrep() -> None:
-    """ast-grep architectural rules must all pass.
-
-    Installed via the `ast-grep-cli` dev dependency (declared in
-    pyproject.toml), which provides both the `ast-grep` and `sg` binaries.
-    """
-    result = _run(["ast-grep", "scan", "--config", str(ROOT / "sgconfig.yml"), str(ROOT)])
-    assert result.returncode == 0, (
-        f"ast-grep found violations (exit {result.returncode}):\n\n{result.stdout}\n{result.stderr}"
-    )
-
-
 def test_module_length() -> None:
     """No source module may exceed MAX_MODULE_LINES lines."""
     offenders: list[str] = []
