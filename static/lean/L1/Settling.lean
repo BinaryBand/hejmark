@@ -373,4 +373,98 @@ theorem settled_binder_bound (n : Node) (hs : SemSettled n) (s : Spelling)
   rw [ndenote_binder n _ s hb]
   exact ⟨guarded_settles n hs s, fun h => ⟨s.length + 1, h⟩⟩
 
+/- ---------------------------------------------------------------- -/
+/- The boolean bridge: `settledExactb` implies `SemSettled`.          -/
+/-                                                                    -/
+/- The evaluator's own `settledb` (Evaluator.lean) does NOT imply     -/
+/- `SemSettled`: its guard test `!(containsb n [])` rides the sound    -/
+/- fold-unit surrogate (`addsb = false`), so `containsb` misses a      -/
+/- fold's empty face where the Prop spec wears it -- e.g. the guard    -/
+/- `{{a,!{a}}}` reads as nonempty to `containsb` yet is denotationally -/
+/- the unit, so `guardedFactorb` accepts an unguarded body.            -/
+/-                                                                     -/
+/- The honest bridge strengthens the guard witness to the exact       -/
+/- fragment (`exactNodeb`), where the evaluator is two-sided           -/
+/- (`exact_node`), so `containsb n [] = false` genuinely certifies no  -/
+/- empty face. This is the checker `guarded_settles` actually applies  -/
+/- to; connecting it to the evaluator's `settledb` proper would need   -/
+/- the fold-unit surrogate closed, which the doc keeps open.           -/
+/- ---------------------------------------------------------------- -/
+
+/-- A guarded factor list, with each guard witness pinned to the exact fragment
+so its empty-face test is decidable. Mirrors `guardedFactorb` but replaces
+`!(bindsb n)` with the stronger `exactNodeb n`. -/
+def guardedExactFactorb : Factors → Bool
+  | .nil => false
+  | .amp rest => guardedExactFactorb rest
+  | .node n rest =>
+      (exactNodeb n && !(bindsb n) && !(containsb n [])) || guardedExactFactorb rest
+
+mutual
+/-- Settledness with exact guards. Mirrors `settledMemberb`, guard test
+strengthened to `guardedExactFactorb`. -/
+def settledExactMemberb : Member → Bool
+  | .amp => false
+  | .prod fs => if hasAmpb fs then guardedExactFactorb fs else true
+  | .sub inner => settledExactb inner
+  | _ => true
+def settledExactb : Node → Bool
+  | .nil => true
+  | .cons m rest => settledExactMemberb m && settledExactb rest
+end
+
+/-- The factor-level bridge: an exact-guarded factor list is semantically
+guarded. The exact guard witness `n` reads `containsb n [] = false`, which
+`exact_node` turns into `¬ walk n _ False []` -- a genuine empty-face absence. -/
+theorem semGuarded_of_guardedExactFactorb :
+    ∀ (fs : Factors), guardedExactFactorb fs = true → SemGuarded fs
+  | .nil, h => by simp [guardedExactFactorb] at h
+  | .amp rest, h => by
+      simp only [guardedExactFactorb] at h
+      exact semGuarded_of_guardedExactFactorb rest h
+  | .node n rest, h => by
+      simp only [guardedExactFactorb, Bool.or_eq_true, Bool.and_eq_true] at h
+      rcases h with ⟨⟨hx, hnb⟩, hc⟩ | hrest
+      · refine Or.inl ?_
+        have hb : bindsb n = false := by simpa using hnb
+        refine ⟨hb, ?_⟩
+        have hcw : walkb n (fun _ => false) false [] = false := by
+          have := hc; simp only [containsb, hb, Bool.false_eq_true, if_false] at this
+          simpa using this
+        have hiff := exact_node n hx (fun _ => false) (fun _ => False) false False []
+          (by simp)
+        intro hw
+        rw [hiff.mpr hw] at hcw
+        simp at hcw
+      · exact Or.inr (semGuarded_of_guardedExactFactorb rest hrest)
+
+mutual
+/-- The member-level bridge. -/
+theorem semSettledMember_of_settledExactMemberb :
+    ∀ (m : Member), settledExactMemberb m = true → SemSettledMember m
+  | .amp, h => by simp [settledExactMemberb] at h
+  | .prod fs, h => by
+      simp only [SemSettledMember]
+      intro hA
+      simp only [settledExactMemberb, hA, if_true] at h
+      exact semGuarded_of_guardedExactFactorb fs h
+  | .sub inner, h => by
+      simp only [settledExactMemberb] at h
+      exact semSettled_of_settledExactb inner h
+  | .face _, _ => by simp only [SemSettledMember]
+  | .range _ _, _ => by simp only [SemSettledMember]
+  | .final _, _ => by simp only [SemSettledMember]
+  | .fold _, _ => by simp only [SemSettledMember]
+/-- The node-level bridge, headline: the exact-guarded checker certifies
+semantic settledness, so `guarded_settles` applies to a boolean-checkable
+fragment of bodies. -/
+theorem semSettled_of_settledExactb :
+    ∀ (n : Node), settledExactb n = true → SemSettled n
+  | .nil, _ => by simp only [SemSettled]
+  | .cons m rest, h => by
+      simp only [settledExactb, Bool.and_eq_true] at h
+      exact ⟨semSettledMember_of_settledExactMemberb m h.1,
+        semSettled_of_settledExactb rest h.2⟩
+end
+
 end L1
