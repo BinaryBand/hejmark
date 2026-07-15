@@ -224,6 +224,18 @@ theorem winb_range_empty (lo hi : Code) (s : Spelling) (hrev : hi < lo) :
   refine winb_empty [lo] [hi + 1] s ?_
   exact singleton_shortlexLe (by omega)
 
+/-- A final window's members are at least as long as its cut: shortlex never
+puts a shorter spelling at or above a longer one. -/
+theorem winb_final_length {lo s : Spelling} (h : winb (finalWindow lo) s = true) :
+    lo.length ≤ s.length := by
+  simp only [winb, finalWindow, Bool.and_true] at h
+  simp only [shortlexLe, shortlexLt, Bool.or_eq_true, Bool.and_eq_true,
+    decide_eq_true_eq, beq_iff_eq] at h
+  rcases h with (h | ⟨h, _⟩) | rfl
+  · omega
+  · omega
+  · exact Nat.le_refl _
+
 /-- The range window `[ [lo], [hi+1] )` holds exactly the singletons of the
 inclusive code interval: every longer spelling sits above the bound by length
 dominance. -/

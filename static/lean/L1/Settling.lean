@@ -1,6 +1,6 @@
 /- L1 guarded settling: the keystone bound behind the evaluator.
 
-The doc (`docs/foundation/L1_TEMP.md`, "Fixpoint on settled bodies") claims a
+The doc (`docs/foundation/L1.md`, "Fixpoint on settled bodies") claims a
 guarded body lengthens every spelling each pass, so a spelling of length `L`
 settles -- present or absent -- by stage `L + 1`. That length-bounded stage is
 exactly the `s.length + 1` bound `containsb` computes at, so this file is the

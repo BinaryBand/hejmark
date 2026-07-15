@@ -1,5 +1,5 @@
 /- L1 membership laws: the compression laws and constructor identities of
-`docs/foundation/L1_TEMP.md`, proved at the membership level.
+`docs/foundation/L1.md`, proved at the membership level.
 
 Port of `static/formal/L1/Laws.v`. Everything here is about which spellings a
 universe wears; the order axis (entry order, positional value) is out of scope.
@@ -192,6 +192,12 @@ theorem product_unit_r (A : Node) (amp : Spelling → Prop) (s : Spelling)
     rw [fsplit_fnode]
     exact ⟨[], [], by simp, by rw [unit_ndenote], by rw [fsplit_fnil]⟩
 
+/-- Exponent down to `A^0`: the empty factor run is the unit -- it wears
+exactly the empty spelling, so `A^0` is well-formed and contributes nothing. -/
+theorem exponent_zero (amp : Spelling → Prop) (s : Spelling) :
+    spells (.prod .nil) amp s ↔ s = [] := by
+  rw [spells_prod, fsplit_fnil]
+
 /- ---------------------------------------------------------------- -/
 /- 8. Fold membership, and depth flattening on the doc's shapes.      -/
 /- ---------------------------------------------------------------- -/
@@ -203,9 +209,8 @@ theorem fold_membership (inner : Node) (amp : Spelling → Prop) (s : Spelling)
   rw [spells_fold, hb]; simp
 
 /-- A fold of a fold splices: `{{X}}` wears what `{X}` wears, for non-binder X.
-Scope note: this is the singleton shape only; the doc's full depth-flattening
-claim (`{a,{b,{c,C}}}` = `{a,{b,c,C}}`, flattening inside a larger member
-list) is not yet mechanized. -/
+The doc's depth-flattening shape inside a larger member list
+(`{a,{b,{c,C}}}` = `{a,{b,c,C}}`) is `fold_flatten_nested` below. -/
 theorem fold_flatten (inner : Node) (amp : Spelling → Prop) (s : Spelling)
     (hb : bindsb inner = false) :
     spells (.fold (nsingle (.fold inner))) amp s ↔ spells (.fold inner) amp s := by
@@ -230,6 +235,73 @@ theorem fold_flatten (inner : Node) (amp : Spelling → Prop) (s : Spelling)
       exact Or.inl ht
   · intro h
     left; rw [walk_single_fold]; right; exact h
+
+/-- Depth flattening on the doc's exact shape: `{a,{b,{c,C}}}` = `{a,{b,c,C}}`.
+Both sides wear exactly the four faces: the inner folds are nonempty, so the
+fold-to-unit branch never fires, and a nested fold splices its universe's
+spellings into the enclosing member list. -/
+theorem fold_flatten_nested (t1 t2 t3 t4 s : Spelling) :
+    denotes (.cons (.face t1) (nsingle (.fold
+        (.cons (.face t2) (nsingle (.fold
+          (.cons (.face t3) (nsingle (.face t4))))))))) s
+      ↔ denotes (.cons (.face t1) (nsingle (.fold
+          (.cons (.face t2) (.cons (.face t3) (nsingle (.face t4))))))) s := by
+  have hw2 : ∀ (amp : Spelling → Prop) (u : Spelling),
+      walk (.cons (.face t3) (nsingle (.face t4))) amp False u ↔ (u = t3 ∨ u = t4) := by
+    intro amp u
+    simp only [walk_cons, walk_single_face]
+    tauto
+  have hs2 : ∀ (amp : Spelling → Prop) (u : Spelling),
+      spells (.fold (.cons (.face t3) (nsingle (.face t4)))) amp u
+        ↔ (u = t3 ∨ u = t4) := by
+    intro amp u
+    rw [fold_membership _ _ _ (by simp [bindsb, freeAmpb, nsingle])]
+    constructor
+    · rintro (h | ⟨rfl, hall⟩)
+      · exact (hw2 amp u).mp h
+      · exact absurd ((hw2 amp t3).mpr (Or.inl rfl)) (hall t3)
+    · intro h
+      exact Or.inl ((hw2 amp u).mpr h)
+  have hw3L : ∀ (amp : Spelling → Prop) (u : Spelling),
+      walk (.cons (.face t2) (nsingle (.fold
+        (.cons (.face t3) (nsingle (.face t4)))))) amp False u
+        ↔ (u = t2 ∨ u = t3 ∨ u = t4) := by
+    intro amp u
+    simp only [walk_cons, walk_single_fold, walk_single_face, hs2 amp u]
+    tauto
+  have hw3R : ∀ (amp : Spelling → Prop) (u : Spelling),
+      walk (.cons (.face t2) (.cons (.face t3) (nsingle (.face t4)))) amp False u
+        ↔ (u = t2 ∨ u = t3 ∨ u = t4) := by
+    intro amp u
+    simp only [walk_cons, walk_single_face]
+    tauto
+  have hsL : ∀ (amp : Spelling → Prop) (u : Spelling),
+      spells (.fold (.cons (.face t2) (nsingle (.fold
+        (.cons (.face t3) (nsingle (.face t4))))))) amp u
+        ↔ (u = t2 ∨ u = t3 ∨ u = t4) := by
+    intro amp u
+    rw [fold_membership _ _ _ (by simp [bindsb, freeAmpb, nsingle])]
+    constructor
+    · rintro (h | ⟨rfl, hall⟩)
+      · exact (hw3L amp u).mp h
+      · exact absurd ((hw3L amp t2).mpr (Or.inl rfl)) (hall t2)
+    · intro h
+      exact Or.inl ((hw3L amp u).mpr h)
+  have hsR : ∀ (amp : Spelling → Prop) (u : Spelling),
+      spells (.fold (.cons (.face t2) (.cons (.face t3) (nsingle (.face t4))))) amp u
+        ↔ (u = t2 ∨ u = t3 ∨ u = t4) := by
+    intro amp u
+    rw [fold_membership _ _ _ (by simp [bindsb, freeAmpb, nsingle])]
+    constructor
+    · rintro (h | ⟨rfl, hall⟩)
+      · exact (hw3R amp u).mp h
+      · exact absurd ((hw3R amp t2).mpr (Or.inl rfl)) (hall t2)
+    · intro h
+      exact Or.inl ((hw3R amp u).mpr h)
+  rw [denotes, denotes,
+    ndenote_nonbinder _ _ _ (by simp [bindsb, freeAmpb, nsingle]),
+    ndenote_nonbinder _ _ _ (by simp [bindsb, freeAmpb, nsingle])]
+  simp only [walk_cons, walk_single_fold, walk_single_face, hsL _ s, hsR _ s]
 
 /- ---------------------------------------------------------------- -/
 /- 10. Bare-`&` no-ops, as general equivalences.                      -/
@@ -316,5 +388,111 @@ theorem negative_amp_noop (lo : Spelling) (s : Spelling) :
     refine Or.inr ⟨Or.inr h, ?_⟩
     rw [walk_single_amp]
     simp [stage_zero]
+
+/- ---------------------------------------------------------------- -/
+/- 11. Final segment demotion: the closure of the unit under a       -/
+/-     literal code-point range wears exactly the spellings over     -/
+/-     that range -- the doc's `{{{}}, &C}`, with `C = {lo..hi}`.    -/
+/-     "The spelling order is generated, not postulated", at the     -/
+/-     membership level.                                              -/
+/- ---------------------------------------------------------------- -/
+
+/-- `{{{}}, &{lo..hi}}`: the unit seeds the empty spelling, and each closure
+pass appends one code of `C = {lo..hi}` on the right. -/
+def unitClosure (lo hi : Code) : Node :=
+  .cons (.fold .nil)
+    (.cons (.prod (.amp (.node (.cons (.range lo hi) .nil) .nil))) .nil)
+
+theorem unitClosure_bindsb (lo hi : Code) : bindsb (unitClosure lo hi) = true := by
+  simp [unitClosure, bindsb, freeAmpb, hasAmpb]
+
+/-- One closure pass of the body: the unit's empty spelling, or an ambient
+spelling extended by one in-range code on the right. -/
+theorem unitClosure_walk (lo hi : Code) (amp : Spelling → Prop) (s : Spelling) :
+    walk (unitClosure lo hi) amp False s
+      ↔ s = [] ∨ ∃ p c, s = p ++ [c] ∧ amp p ∧ lo ≤ c ∧ c ≤ hi := by
+  rw [unitClosure, walk_cons, walk_cons, walk_nil, walk_single_prod,
+    walk_single_fold, unit_spells, fsplit_famp]
+  constructor
+  · rintro ((h | h) | ⟨p, q, rfl, hp, hq⟩)
+    · exact h.elim
+    · exact Or.inl h
+    · right
+      rw [fsplit_fnode] at hq
+      obtain ⟨p2, q2, rfl, hp2, hq2⟩ := hq
+      rw [fsplit_fnil] at hq2
+      subst hq2
+      rw [ndenote_nonbinder _ _ _ (by simp [bindsb, freeAmpb]),
+        walk_cons, walk_nil, walk_single_range] at hp2
+      rcases hp2 with h | h
+      · exact h.elim
+      · rw [winb_range_singleton] at h
+        obtain ⟨c, rfl, hc1, hc2⟩ := h
+        exact ⟨p, c, by simp, hp, hc1, hc2⟩
+  · rintro (rfl | ⟨p, c, rfl, hp, hc1, hc2⟩)
+    · exact Or.inl (Or.inr rfl)
+    · refine Or.inr ⟨p, [c], rfl, hp, ?_⟩
+      rw [fsplit_fnode]
+      refine ⟨[c], [], by simp, ?_, by rw [fsplit_fnil]⟩
+      rw [ndenote_nonbinder _ _ _ (by simp [bindsb, freeAmpb]),
+        walk_cons, walk_nil, walk_single_range]
+      right
+      rw [winb_range_singleton]
+      exact ⟨c, rfl, hc1, hc2⟩
+
+/-- Soundness: every closure stage stays over `C`. -/
+theorem unitClosure_stage_sound (lo hi : Code) :
+    ∀ k s, stage (unitClosure lo hi) k s → ∀ c ∈ s, lo ≤ c ∧ c ≤ hi := by
+  intro k
+  induction k with
+  | zero => intro s h; rw [stage_zero] at h; exact h.elim
+  | succ k ih =>
+      intro s h
+      rw [stage_succ] at h
+      rcases h with h | h
+      · exact ih s h
+      · rw [unitClosure_walk] at h
+        rcases h with rfl | ⟨p, c, rfl, hp, hc1, hc2⟩
+        · intro c hc; simp at hc
+        · intro x hx
+          rw [List.mem_append] at hx
+          rcases hx with hx | hx
+          · exact ih p hp x hx
+          · simp only [List.mem_singleton] at hx
+            subst hx
+            exact ⟨hc1, hc2⟩
+
+/-- Completeness: a spelling of length `L` over `C` is present by stage
+`L + 1` -- each pass appends one code, seeded by the unit's empty face. -/
+theorem unitClosure_stage_complete (lo hi : Code) :
+    ∀ s : Spelling, (∀ c ∈ s, lo ≤ c ∧ c ≤ hi) →
+      stage (unitClosure lo hi) (s.length + 1) s := by
+  intro s
+  induction s using List.reverseRecOn with
+  | nil =>
+      intro _
+      rw [stage_succ]
+      exact Or.inr ((unitClosure_walk lo hi _ []).mpr (Or.inl rfl))
+  | append_singleton p c ih =>
+      intro h
+      rw [stage_succ]
+      right
+      rw [unitClosure_walk]
+      refine Or.inr ⟨p, c, rfl, ?_, (h c (by simp)).1, (h c (by simp)).2⟩
+      have hp := ih (fun x hx => h x (by simp [hx]))
+      simpa using hp
+
+/-- The demotion law, two-sided: `{{{}}, &{lo..hi}}` denotes exactly the
+spellings whose every code sits in `[lo, hi]`, the empty spelling included.
+This is the membership content of re-admitting the final segment as
+compression: the closure generates every spelling over the code-point set. -/
+theorem unitClosure_generates (lo hi : Code) (s : Spelling) :
+    denotes (unitClosure lo hi) s ↔ ∀ c ∈ s, lo ≤ c ∧ c ≤ hi := by
+  rw [denotes, ndenote_binder _ _ _ (unitClosure_bindsb lo hi)]
+  constructor
+  · rintro ⟨k, hk⟩
+    exact unitClosure_stage_sound lo hi k s hk
+  · intro h
+    exact ⟨s.length + 1, unitClosure_stage_complete lo hi s h⟩
 
 end L1

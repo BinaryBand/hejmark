@@ -1,4 +1,4 @@
-/- L1 north-star table (`docs/foundation/L1_TEMP.md`), at the membership level.
+/- L1 north-star table (`docs/foundation/L1.md`), at the membership level.
 
 Port of `static/formal/L1/NorthStar.v`. Positive rows compute through
 `containsb_sound`: `sndNodeb` and `containsb` are both closed booleans, so
@@ -14,7 +14,8 @@ corollaries of `Laws`.
 Out of scope here, with the rest of the order axis: every claim about entry
 order, values, collision ownership, and order types.
 
-Toy code assignment: letters a..z are 0..25, digits 0..9 are 100..109. -/
+Toy code assignment: letters a..z are 0..25, digits 0..9 are 100..109, and
+the parentheses of the binary-trees row are 40 and 41. -/
 import L1.Evaluator
 
 namespace L1
@@ -37,6 +38,8 @@ abbrev d0 : Code := 100
 abbrev d1 : Code := 101
 abbrev d5 : Code := 105
 abbrev d9 : Code := 109
+abbrev lpar : Code := 40
+abbrev rpar : Code := 41
 
 abbrev cat : Spelling := [lc, la, lt]
 abbrev dog : Spelling := [ld, lo, lg]
@@ -181,19 +184,168 @@ def prod_row : Node :=
     (.node (nlist [.face [lb], .face [lc]]) .nil))]
 
 theorem prod_row_has_ab : denotes prod_row [la, lb] := by north_star
+theorem prod_row_has_ac : denotes prod_row [la, lc] := by north_star
+theorem prod_row_has_abb : denotes prod_row [la, lb, lb] := by north_star
 theorem prod_row_has_abc : denotes prod_row [la, lb, lc] := by north_star
+
+theorem prod_row_not_abbc : ¬ denotes prod_row [la, lb, lb, lc] := by
+  intro h
+  rw [denotes, ndenote_nonbinder _ _ _ (by decide)] at h
+  simp only [prod_row, nlist, walk_cons, walk_single_prod, walk_nil, false_or] at h
+  rw [fsplit_fnode] at h
+  obtain ⟨p, q, hs, hp, hq⟩ := h
+  rw [fsplit_fnode] at hq
+  obtain ⟨p2, q2, rfl, hp2, hq2⟩ := hq
+  rw [fsplit_fnil] at hq2
+  subst hq2
+  rw [ndenote_nonbinder _ _ _ (by decide)] at hp
+  rw [ndenote_nonbinder _ _ _ (by decide)] at hp2
+  simp only [walk_cons, walk_single_face, walk_nil, false_or] at hp hp2
+  rcases hp with rfl | rfl <;> rcases hp2 with rfl | rfl <;> simp_all
+
+/- {a,ab}{c,bc}: the full membership set ac, abc, abbc -- the doc's
+"(ab,c) re-spells abc" is an ownership drop, and membership survives it. -/
 
 def collision_row : Node :=
   nlist [.prod (.node (nlist [.face [la], .face [la, lb]])
     (.node (nlist [.face [lc], .face [lb, lc]]) .nil))]
 
+theorem collision_row_has_ac : denotes collision_row [la, lc] := by north_star
 theorem collision_row_has_abc : denotes collision_row [la, lb, lc] := by north_star
+theorem collision_row_has_abbc : denotes collision_row [la, lb, lb, lc] := by north_star
+
+theorem collision_row_not_abbbc : ¬ denotes collision_row [la, lb, lb, lb, lc] := by
+  intro h
+  rw [denotes, ndenote_nonbinder _ _ _ (by decide)] at h
+  simp only [collision_row, nlist, walk_cons, walk_single_prod, walk_nil,
+    false_or] at h
+  rw [fsplit_fnode] at h
+  obtain ⟨p, q, hs, hp, hq⟩ := h
+  rw [fsplit_fnode] at hq
+  obtain ⟨p2, q2, rfl, hp2, hq2⟩ := hq
+  rw [fsplit_fnil] at hq2
+  subst hq2
+  rw [ndenote_nonbinder _ _ _ (by decide)] at hp
+  rw [ndenote_nonbinder _ _ _ (by decide)] at hp2
+  simp only [walk_cons, walk_single_face, walk_nil, false_or] at hp hp2
+  rcases hp with rfl | rfl <;> rcases hp2 with rfl | rfl <;> simp_all
 
 def final_times_b : Node :=
   nlist [.prod (.node (nlist [.final [la]]) (.node (nlist [.face [lb]]) .nil))]
 
 theorem final_times_b_has_ab : denotes final_times_b [la, lb] := by north_star
 theorem final_times_b_has_zb : denotes final_times_b [lz, lb] := by north_star
+
+theorem final_times_b_not_ba : ¬ denotes final_times_b [lb, la] := by
+  intro h
+  rw [denotes, ndenote_nonbinder _ _ _ (by decide)] at h
+  simp only [final_times_b, nlist, walk_cons, walk_single_prod, walk_nil,
+    false_or] at h
+  rw [fsplit_fnode] at h
+  obtain ⟨p, q, hs, hp, hq⟩ := h
+  rw [fsplit_fnode] at hq
+  obtain ⟨p2, q2, rfl, hp2, hq2⟩ := hq
+  rw [fsplit_fnil] at hq2
+  subst hq2
+  rw [ndenote_nonbinder _ _ _ (by decide)] at hp2
+  simp only [walk_cons, walk_single_face, walk_nil, false_or] at hp2
+  subst hp2
+  rcases p with _ | ⟨x, _ | ⟨y, p⟩⟩ <;> simp_all
+
+/- ---------------------------------------------------------------- -/
+/- {b,c}{a..}: order type omega*2 -- membership samples.            -/
+/- ---------------------------------------------------------------- -/
+
+def bc_final : Node :=
+  nlist [.prod (.node (nlist [.face [lb], .face [lc]])
+    (.node (nlist [.final [la]]) .nil))]
+
+theorem bc_final_has_ba : denotes bc_final [lb, la] := by north_star
+theorem bc_final_has_ca : denotes bc_final [lc, la] := by north_star
+
+theorem bc_final_not_a : ¬ denotes bc_final [la] := by
+  intro h
+  rw [denotes, ndenote_nonbinder _ _ _ (by decide)] at h
+  simp only [bc_final, nlist, walk_cons, walk_single_prod, walk_nil, false_or] at h
+  rw [fsplit_fnode] at h
+  obtain ⟨p, q, hs, hp, hq⟩ := h
+  rw [ndenote_nonbinder _ _ _ (by decide)] at hp
+  simp only [walk_cons, walk_single_face, walk_nil, false_or] at hp
+  rcases hp with rfl | rfl <;> simp_all
+
+/- ---------------------------------------------------------------- -/
+/- {b}{a..}{b}{a..}: order type omega^2 -- membership samples.       -/
+/- ---------------------------------------------------------------- -/
+
+def b_final_b_final : Node :=
+  nlist [.prod (.node (nlist [.face [lb]])
+    (.node (nlist [.final [la]])
+    (.node (nlist [.face [lb]])
+    (.node (nlist [.final [la]]) .nil))))]
+
+theorem b_final_b_final_has_baba : denotes b_final_b_final [lb, la, lb, la] := by
+  north_star
+theorem b_final_b_final_has_babb : denotes b_final_b_final [lb, la, lb, lb] := by
+  north_star
+
+theorem b_final_b_final_not_bab : ¬ denotes b_final_b_final [lb, la, lb] := by
+  intro h
+  rw [denotes, ndenote_nonbinder _ _ _ (by decide)] at h
+  simp only [b_final_b_final, nlist, walk_cons, walk_single_prod, walk_nil,
+    false_or] at h
+  rw [fsplit_fnode] at h
+  obtain ⟨p1, q1, hs, hp1, hq1⟩ := h
+  rw [fsplit_fnode] at hq1
+  obtain ⟨p2, q2, rfl, hp2, hq2⟩ := hq1
+  rw [fsplit_fnode] at hq2
+  obtain ⟨p3, q3, rfl, hp3, hq3⟩ := hq2
+  rw [fsplit_fnode] at hq3
+  obtain ⟨p4, q4, rfl, hp4, hq4⟩ := hq3
+  rw [fsplit_fnil] at hq4
+  subst hq4
+  rw [ndenote_nonbinder _ _ _ (by decide)] at hp1
+  rw [ndenote_nonbinder _ _ _ (by decide)] at hp2
+  rw [ndenote_nonbinder _ _ _ (by decide)] at hp3
+  rw [ndenote_nonbinder _ _ _ (by decide)] at hp4
+  simp only [walk_cons, walk_single_face, walk_single_final, walk_nil,
+    false_or] at hp1 hp2 hp3 hp4
+  subst hp1
+  subst hp3
+  have l2 := winb_final_length hp2
+  have l4 := winb_final_length hp4
+  have hlen := congrArg List.length hs
+  simp only [List.length_cons, List.length_append, List.length_nil] at hlen l2 l4
+  omega
+
+/- ---------------------------------------------------------------- -/
+/- {a..}{a..}: cofinite factors collide, membership stands.          -/
+/- ---------------------------------------------------------------- -/
+
+def final_final : Node :=
+  nlist [.prod (.node (nlist [.final [la]]) (.node (nlist [.final [la]]) .nil))]
+
+theorem final_final_has_aa : denotes final_final [la, la] := by north_star
+theorem final_final_has_ab : denotes final_final [la, lb] := by north_star
+
+theorem final_final_not_a : ¬ denotes final_final [la] := by
+  intro h
+  rw [denotes, ndenote_nonbinder _ _ _ (by decide)] at h
+  simp only [final_final, nlist, walk_cons, walk_single_prod, walk_nil,
+    false_or] at h
+  rw [fsplit_fnode] at h
+  obtain ⟨p, q, hs, hp, hq⟩ := h
+  rw [fsplit_fnode] at hq
+  obtain ⟨p2, q2, rfl, hp2, hq2⟩ := hq
+  rw [fsplit_fnil] at hq2
+  subst hq2
+  rw [ndenote_nonbinder _ _ _ (by decide)] at hp
+  rw [ndenote_nonbinder _ _ _ (by decide)] at hp2
+  simp only [walk_cons, walk_single_final, walk_nil, false_or] at hp hp2
+  have l1 := winb_final_length hp
+  have l2 := winb_final_length hp2
+  have hlen := congrArg List.length hs
+  simp only [List.length_cons, List.length_append, List.length_nil] at hlen l1 l2
+  omega
 
 /- ---------------------------------------------------------------- -/
 /- {a,!{a}}: the empty universe.                                    -/
@@ -239,6 +391,61 @@ theorem unit_row_not_a : ¬ denotes unit_row [la] := by
   · rw [unit_spells] at h; simp_all
 
 /- ---------------------------------------------------------------- -/
+/- Fold totality reads the denotation, not the page: {{z..a}} and    -/
+/- {{a,!{a}}} are the unit. The evaluator's fold-unit surrogate      -/
+/- misses both (the documented divergence), so these rows are        -/
+/- Prop-level only, never `north_star`.                              -/
+/- ---------------------------------------------------------------- -/
+
+def fold_reversed : Node := nlist [.fold (nlist [.range lz la])]
+
+theorem fold_reversed_is_unit : denotes fold_reversed [] := by
+  rw [denotes, ndenote_nonbinder _ _ _ (by decide)]
+  simp only [fold_reversed, nlist, walk_cons, walk_single_fold, walk_nil, false_or]
+  rw [fold_membership _ _ _ (by decide)]
+  refine Or.inr ⟨rfl, ?_⟩
+  intro t ht
+  simp only [walk_cons, walk_single_range, walk_nil, false_or] at ht
+  rw [winb_range_empty lz la t (by decide)] at ht
+  simp at ht
+
+theorem fold_reversed_not_a : ¬ denotes fold_reversed [la] := by
+  intro h
+  rw [denotes, ndenote_nonbinder _ _ _ (by decide)] at h
+  simp only [fold_reversed, nlist, walk_cons, walk_single_fold, walk_nil,
+    false_or] at h
+  rw [fold_membership _ _ _ (by decide)] at h
+  rcases h with h | ⟨h, _⟩
+  · simp only [walk_cons, walk_single_range, walk_nil, false_or] at h
+    rw [winb_range_empty lz la _ (by decide)] at h
+    simp at h
+  · simp at h
+
+def fold_sub : Node := nlist [.fold a_minus_a]
+
+theorem fold_sub_is_unit : denotes fold_sub [] := by
+  rw [denotes, ndenote_nonbinder _ _ _ (by decide)]
+  simp only [fold_sub, nlist, walk_cons, walk_single_fold, walk_nil, false_or]
+  rw [fold_membership _ _ _ (by decide)]
+  refine Or.inr ⟨rfl, ?_⟩
+  intro t ht
+  simp only [a_minus_a, nlist, walk_cons, walk_single_face, walk_single_sub,
+    walk_nil] at ht
+  exact ht.2 ht.1
+
+theorem fold_sub_not_a : ¬ denotes fold_sub [la] := by
+  intro h
+  rw [denotes, ndenote_nonbinder _ _ _ (by decide)] at h
+  simp only [fold_sub, nlist, walk_cons, walk_single_fold, walk_nil,
+    false_or] at h
+  rw [fold_membership _ _ _ (by decide)] at h
+  rcases h with h | ⟨h, _⟩
+  · simp only [a_minus_a, nlist, walk_cons, walk_single_face, walk_single_sub,
+      walk_nil] at h
+    exact h.2 h.1
+  · simp at h
+
+/- ---------------------------------------------------------------- -/
 /- {{{},0}}: the fill factor -- faces `` and `0`.                   -/
 /- ---------------------------------------------------------------- -/
 
@@ -248,11 +455,113 @@ def fill : Node := nlist [.fold fill_body]
 theorem fill_has_empty_spelling : denotes fill [] := by north_star
 theorem fill_has_0 : denotes fill [d0] := by north_star
 
+/-- The fill factor's exact membership, as a reusable factor lemma: `{{{},0}}`
+wears the empty spelling and `0`, whatever the ambient amp. -/
+theorem fill_ndenote (amp : Spelling → Prop) (p : Spelling) :
+    ndenote fill amp p ↔ (p = [] ∨ p = [d0]) := by
+  have hw : ∀ t, walk fill_body amp False t ↔ (t = [] ∨ t = [d0]) := by
+    intro t
+    simp only [fill_body, nlist, walk_cons, walk_single_fold, walk_single_face,
+      walk_nil, unit_spells]
+    tauto
+  rw [ndenote_nonbinder _ _ _ (by decide)]
+  simp only [fill, nlist, walk_cons, walk_single_fold, walk_nil, false_or]
+  rw [fold_membership _ _ _ (by decide)]
+  constructor
+  · rintro (h | ⟨rfl, _⟩)
+    · exact (hw p).mp h
+    · exact Or.inl rfl
+  · intro h
+    exact Or.inl ((hw p).mpr h)
+
+/- ---------------------------------------------------------------- -/
+/- {{{},0}}{{{},0}}: Z^2 -- faces ``, 0, 00 and nothing longer. The  -/
+/- doc's "two ways to spell 0 collide" is ownership, out of scope.   -/
+/- ---------------------------------------------------------------- -/
+
+def z2 : Node := nlist [.prod (.node fill (.node fill .nil))]
+
+theorem z2_has_empty_spelling : denotes z2 [] := by north_star
+theorem z2_has_0 : denotes z2 [d0] := by north_star
+theorem z2_has_00 : denotes z2 [d0, d0] := by north_star
+
+theorem z2_not_000 : ¬ denotes z2 [d0, d0, d0] := by
+  intro h
+  rw [denotes, ndenote_nonbinder _ _ _ (by decide)] at h
+  simp only [z2, nlist, walk_cons, walk_single_prod, walk_nil, false_or] at h
+  rw [fsplit_fnode] at h
+  obtain ⟨p, q, hs, hp, hq⟩ := h
+  rw [fsplit_fnode] at hq
+  obtain ⟨p2, q2, rfl, hp2, hq2⟩ := hq
+  rw [fsplit_fnil] at hq2
+  subst hq2
+  rcases (fill_ndenote _ _).mp hp with rfl | rfl <;>
+    rcases (fill_ndenote _ _).mp hp2 with rfl | rfl <;> simp_all
+
 def fill_digits : Node :=
   nlist [.prod (.node fill (.node (nlist [.range d0 d9]) .nil))]
 
 theorem fill_digits_has_5 : denotes fill_digits [d5] := by north_star
 theorem fill_digits_has_05 : denotes fill_digits [d0, d5] := by north_star
+
+theorem fill_digits_not_005 : ¬ denotes fill_digits [d0, d0, d5] := by
+  intro h
+  rw [denotes, ndenote_nonbinder _ _ _ (by decide)] at h
+  simp only [fill_digits, nlist, walk_cons, walk_single_prod, walk_nil,
+    false_or] at h
+  rw [fsplit_fnode] at h
+  obtain ⟨p, q, hs, hp, hq⟩ := h
+  rw [fsplit_fnode] at hq
+  obtain ⟨p2, q2, rfl, hp2, hq2⟩ := hq
+  rw [fsplit_fnil] at hq2
+  subst hq2
+  rw [ndenote_nonbinder _ _ _ (by decide)] at hp2
+  simp only [walk_cons, walk_single_range, walk_nil, false_or] at hp2
+  rw [winb_range_singleton] at hp2
+  obtain ⟨c, rfl, _, _⟩ := hp2
+  rcases (fill_ndenote _ _).mp hp with rfl | rfl <;> simp_all
+
+/- ---------------------------------------------------------------- -/
+/- {{{},0}}{0,00}: cross-axis collision -- membership 0, 00, 000.    -/
+/- The canonical-face drop and renumbering are ownership claims,     -/
+/- out of scope with the rest of the order axis.                     -/
+/- ---------------------------------------------------------------- -/
+
+def z_cross : Node :=
+  nlist [.prod (.node fill (.node (nlist [.face [d0], .face [d0, d0]]) .nil))]
+
+theorem z_cross_has_0 : denotes z_cross [d0] := by north_star
+theorem z_cross_has_00 : denotes z_cross [d0, d0] := by north_star
+theorem z_cross_has_000 : denotes z_cross [d0, d0, d0] := by north_star
+
+theorem z_cross_not_empty_spelling : ¬ denotes z_cross [] := by
+  intro h
+  rw [denotes, ndenote_nonbinder _ _ _ (by decide)] at h
+  simp only [z_cross, nlist, walk_cons, walk_single_prod, walk_nil, false_or] at h
+  rw [fsplit_fnode] at h
+  obtain ⟨p, q, hs, hp, hq⟩ := h
+  rw [fsplit_fnode] at hq
+  obtain ⟨p2, q2, rfl, hp2, hq2⟩ := hq
+  rw [fsplit_fnil] at hq2
+  subst hq2
+  rw [ndenote_nonbinder _ _ _ (by decide)] at hp2
+  simp only [walk_cons, walk_single_face, walk_nil, false_or] at hp2
+  rcases hp2 with rfl | rfl <;> simp_all
+
+theorem z_cross_not_0000 : ¬ denotes z_cross [d0, d0, d0, d0] := by
+  intro h
+  rw [denotes, ndenote_nonbinder _ _ _ (by decide)] at h
+  simp only [z_cross, nlist, walk_cons, walk_single_prod, walk_nil, false_or] at h
+  rw [fsplit_fnode] at h
+  obtain ⟨p, q, hs, hp, hq⟩ := h
+  rw [fsplit_fnode] at hq
+  obtain ⟨p2, q2, rfl, hp2, hq2⟩ := hq
+  rw [fsplit_fnil] at hq2
+  subst hq2
+  rw [ndenote_nonbinder _ _ _ (by decide)] at hp2
+  simp only [walk_cons, walk_single_face, walk_nil, false_or] at hp2
+  rcases (fill_ndenote _ _).mp hp with rfl | rfl <;>
+    rcases hp2 with rfl | rfl <;> simp_all
 
 /- ---------------------------------------------------------------- -/
 /- {a, &{b}}: closure -- a, ab, abb, ...; nothing else.             -/
@@ -347,14 +656,81 @@ theorem anbn_not_aab : ¬ denotes anbn [la, la, lb] := by
 /- {0, {1..9, &{0..9}}}: canonical numerals -- membership samples.  -/
 /- ---------------------------------------------------------------- -/
 
-def numerals : Node :=
-  nlist [.face [d0],
-    .fold (nlist [.range d1 d9, .prod (.amp (.node (nlist [.range d0 d9]) .nil))])]
+def numerals_body : Node :=
+  nlist [.range d1 d9, .prod (.amp (.node (nlist [.range d0 d9]) .nil))]
+
+def numerals : Node := nlist [.face [d0], .fold numerals_body]
 
 theorem numerals_has_0 : denotes numerals [d0] := by north_star
 theorem numerals_has_1 : denotes numerals [d1] := by north_star
 theorem numerals_has_10 : denotes numerals [d1, d0] := by north_star
 theorem numerals_has_950 : denotes numerals [d9, d5, d0] := by north_star
+
+/-- Every closure stage of the numeral body heads with a nonzero digit: the
+seed is `{1..9}` and each pass only appends digits on the right. -/
+theorem numerals_body_headed :
+    ∀ k s, stage numerals_body k s → ∃ c r, s = c :: r ∧ d1 ≤ c ∧ c ≤ d9 := by
+  intro k
+  induction k with
+  | zero => intro s h; rw [stage_zero] at h; exact h.elim
+  | succ k ih =>
+      intro s h
+      rw [stage_succ] at h
+      rcases h with h | h
+      · exact ih s h
+      · simp only [numerals_body, nlist, walk_cons, walk_single_range,
+          walk_single_prod, walk_nil, false_or] at h
+        rcases h with h | h
+        · rw [winb_range_singleton] at h
+          obtain ⟨c, rfl, h1, h2⟩ := h
+          exact ⟨c, [], rfl, h1, h2⟩
+        · rw [fsplit_famp] at h
+          obtain ⟨p, q, rfl, hp, hq⟩ := h
+          rw [fsplit_fnode] at hq
+          obtain ⟨p2, q2, rfl, hp2, hq2⟩ := hq
+          rw [fsplit_fnil] at hq2
+          subst hq2
+          obtain ⟨c, r, rfl, h1, h2⟩ := ih p hp
+          exact ⟨c, r ++ (p2 ++ []), by simp, h1, h2⟩
+
+/-- The doc's "first-appearance order is value order" needs the order axis;
+what membership can say is that a leading zero never appears. -/
+theorem numerals_not_01 : ¬ denotes numerals [d0, d1] := by
+  intro h
+  rw [denotes, ndenote_nonbinder _ _ _ (by decide)] at h
+  simp only [numerals, nlist, walk_cons, walk_single_face, walk_single_fold,
+    walk_nil, false_or] at h
+  rcases h with h | h
+  · simp at h
+  · rw [spells_fold_binder _ _ _ (by decide)] at h
+    obtain ⟨k, hk⟩ := h
+    obtain ⟨c, r, hcr, h1, _⟩ := numerals_body_headed k _ hk
+    simp only [List.cons.injEq] at hcr
+    obtain ⟨rfl, _⟩ := hcr
+    exact absurd h1 (by decide)
+
+/- ---------------------------------------------------------------- -/
+/- {{{}}, &C}: final segment's demotion -- with `C = {a..z}`, the    -/
+/- closure of the unit wears every spelling over the letters, the    -/
+/- empty spelling included. The two-sided law is                     -/
+/- `unitClosure_generates` in `Laws`; these are its samples.         -/
+/- ---------------------------------------------------------------- -/
+
+def all_letters : Node := unitClosure la lz
+
+theorem all_letters_has_empty_spelling : denotes all_letters [] :=
+  (unitClosure_generates la lz []).mpr (by simp)
+
+theorem all_letters_has_a : denotes all_letters [la] :=
+  (unitClosure_generates la lz [la]).mpr (by decide)
+
+theorem all_letters_has_ba : denotes all_letters [lb, la] :=
+  (unitClosure_generates la lz [lb, la]).mpr (by decide)
+
+theorem all_letters_not_digit : ¬ denotes all_letters [d0] := by
+  intro h
+  have hd := (unitClosure_generates la lz [d0]).mp h d0 (by simp)
+  exact absurd hd.2 (by decide)
 
 /- ---------------------------------------------------------------- -/
 /- {&} empty; {a, &} is {a}; {a.., !{&}} is {a..}: bare-`&` no-ops. -/
@@ -387,6 +763,38 @@ theorem unguarded_fill_has_a : denotes unguarded_fill [la] := by north_star
 theorem unguarded_fill_has_0a : denotes unguarded_fill [d0, la] := by north_star
 theorem unguarded_fill_has_00a : denotes unguarded_fill [d0, d0, la] := by north_star
 
+/-- Every stage spelling of the unguarded fill ends in `a`: the fill factor
+only ever prepends. -/
+theorem unguarded_fill_stage_tailed :
+    ∀ k s, stage unguarded_fill k s → ∃ r, s = r ++ [la] := by
+  intro k
+  induction k with
+  | zero => intro s h; rw [stage_zero] at h; exact h.elim
+  | succ k ih =>
+      intro s h
+      rw [stage_succ] at h
+      rcases h with h | h
+      · exact ih s h
+      · simp only [unguarded_fill, nlist, walk_cons, walk_single_face,
+          walk_single_prod, walk_nil, false_or] at h
+        rcases h with rfl | h
+        · exact ⟨[], rfl⟩
+        · rw [fsplit_fnode] at h
+          obtain ⟨p, q, rfl, _, hq⟩ := h
+          rw [fsplit_famp] at hq
+          obtain ⟨p2, q2, rfl, hp2, hq2⟩ := hq
+          rw [fsplit_fnil] at hq2
+          subst hq2
+          obtain ⟨r, rfl⟩ := ih p2 hp2
+          exact ⟨p ++ r, by simp⟩
+
+theorem unguarded_fill_not_0 : ¬ denotes unguarded_fill [d0] := by
+  intro h
+  rw [denotes, ndenote_binder _ _ _ (by decide)] at h
+  obtain ⟨k, hk⟩ := h
+  obtain ⟨r, hr⟩ := unguarded_fill_stage_tailed k [d0] hk
+  rcases r with _ | ⟨x, r⟩ <;> simp_all
+
 /- ---------------------------------------------------------------- -/
 /- {ab, &&}: nonlinear closure -- ab, abab, ababab, ...             -/
 /- ---------------------------------------------------------------- -/
@@ -395,5 +803,105 @@ def abab : Node := nlist [.face [la, lb], .prod (.amp (.amp .nil))]
 
 theorem abab_has_ab : denotes abab [la, lb] := by north_star
 theorem abab_has_abab : denotes abab [la, lb, la, lb] := by north_star
+
+theorem abab_stage_even : ∀ k s, stage abab k s → s.length % 2 = 0 := by
+  intro k
+  induction k with
+  | zero => intro s h; rw [stage_zero] at h; exact h.elim
+  | succ k ih =>
+      intro s h
+      rw [stage_succ] at h
+      rcases h with h | h
+      · exact ih s h
+      · simp only [abab, nlist, walk_cons, walk_single_face, walk_single_prod,
+          walk_nil, false_or] at h
+        rcases h with rfl | h
+        · decide
+        · rw [fsplit_famp] at h
+          obtain ⟨p, q, rfl, hp, hq⟩ := h
+          rw [fsplit_famp] at hq
+          obtain ⟨p2, q2, rfl, hp2, hq2⟩ := hq
+          rw [fsplit_fnil] at hq2
+          subst hq2
+          have h1 := ih p hp
+          have h2 := ih p2 hp2
+          simp only [List.length_append, List.length_nil]
+          omega
+
+theorem abab_not_aba : ¬ denotes abab [la, lb, la] := by
+  intro h
+  rw [denotes, ndenote_binder _ _ _ (by decide)] at h
+  obtain ⟨k, hk⟩ := h
+  have := abab_stage_even k _ hk
+  simp at this
+
+/- ---------------------------------------------------------------- -/
+/- { {(}{b}{a..}{)}, {(}&&{)} }: binary trees -- membership samples. -/
+/- The omega^omega order type is the order axis, out of scope.       -/
+/- ---------------------------------------------------------------- -/
+
+def btrees : Node :=
+  nlist [.prod (.node (nlist [.face [lpar]])
+           (.node (nlist [.face [lb]])
+           (.node (nlist [.final [la]])
+           (.node (nlist [.face [rpar]]) .nil)))),
+         .prod (.node (nlist [.face [lpar]])
+           (.amp (.amp (.node (nlist [.face [rpar]]) .nil))))]
+
+theorem btrees_has_leaf : denotes btrees [lpar, lb, la, rpar] := by north_star
+theorem btrees_has_pair :
+    denotes btrees [lpar, lpar, lb, la, rpar, lpar, lb, lb, rpar, rpar] := by
+  north_star
+
+/-- Every stage spelling closes on `)`: both bodies end their products with
+the literal `{)}` factor. -/
+theorem btrees_stage_closed :
+    ∀ k s, stage btrees k s → ∃ r, s = r ++ [rpar] := by
+  intro k
+  induction k with
+  | zero => intro s h; rw [stage_zero] at h; exact h.elim
+  | succ k ih =>
+      intro s h
+      rw [stage_succ] at h
+      rcases h with h | h
+      · exact ih s h
+      · simp only [btrees, nlist, walk_cons, walk_single_prod, walk_nil,
+          false_or] at h
+        rcases h with h | h
+        · rw [fsplit_fnode] at h
+          obtain ⟨p1, q1, rfl, _, hq1⟩ := h
+          rw [fsplit_fnode] at hq1
+          obtain ⟨p2, q2, rfl, _, hq2⟩ := hq1
+          rw [fsplit_fnode] at hq2
+          obtain ⟨p3, q3, rfl, _, hq3⟩ := hq2
+          rw [fsplit_fnode] at hq3
+          obtain ⟨p4, q4, rfl, hp4, hq4⟩ := hq3
+          rw [fsplit_fnil] at hq4
+          subst hq4
+          rw [ndenote_nonbinder _ _ _ (by decide)] at hp4
+          simp only [walk_cons, walk_single_face, walk_nil, false_or] at hp4
+          subst hp4
+          exact ⟨p1 ++ (p2 ++ (p3 ++ [])), by simp⟩
+        · rw [fsplit_fnode] at h
+          obtain ⟨p1, q1, rfl, _, hq1⟩ := h
+          rw [fsplit_famp] at hq1
+          obtain ⟨p2, q2, rfl, _, hq2⟩ := hq1
+          rw [fsplit_famp] at hq2
+          obtain ⟨p3, q3, rfl, _, hq3⟩ := hq2
+          rw [fsplit_fnode] at hq3
+          obtain ⟨p4, q4, rfl, hp4, hq4⟩ := hq3
+          rw [fsplit_fnil] at hq4
+          subst hq4
+          rw [ndenote_nonbinder _ _ _ (by decide)] at hp4
+          simp only [walk_cons, walk_single_face, walk_nil, false_or] at hp4
+          subst hp4
+          exact ⟨p1 ++ (p2 ++ (p3 ++ [])), by simp⟩
+
+theorem btrees_not_lparen : ¬ denotes btrees [lpar] := by
+  intro h
+  rw [denotes, ndenote_binder _ _ _ (by decide)] at h
+  obtain ⟨k, hk⟩ := h
+  obtain ⟨r, hr⟩ := btrees_stage_closed k [lpar] hk
+  rcases r with _ | ⟨x, r⟩ <;> simp_all
 
 end L1

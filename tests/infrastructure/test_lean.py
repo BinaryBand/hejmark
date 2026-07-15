@@ -37,6 +37,18 @@ HEADLINE_THEOREMS = (
     "L1.settled_binder_bound",
     "L1.semSettled_of_settledExactb",
     "L1.containsb_exact",
+    # North-star completion pass: the final-segment demotion law, the
+    # doc-shape fold flattening, the fold-totality unit rows (where the
+    # evaluator diverges by design), and the hand-proved non-membership rows.
+    "L1.unitClosure_generates",
+    "L1.fold_flatten_nested",
+    "L1.fold_reversed_is_unit",
+    "L1.fold_sub_is_unit",
+    "L1.numerals_not_01",
+    "L1.unguarded_fill_not_0",
+    "L1.abab_not_aba",
+    "L1.btrees_not_lparen",
+    "L1.z2_not_000",
 )
 
 # "Axiom-free" does not port from Coq to Lean literally: every Lean/Mathlib
