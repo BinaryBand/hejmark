@@ -25,6 +25,10 @@ Himark/adapters/_gen/
 # Coq/dune build artifacts (static/formal/)
 static/formal/_build/
 
+# Lean/Lake build artifacts (static/lean/)
+static/lean/.lake/
+static/lean/build/
+
 # Local environment
 .env
 
