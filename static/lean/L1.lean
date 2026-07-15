@@ -1,1 +1,4 @@
 import L1.Spelling
+import L1.Syntax
+import L1.Semantics
+import L1.Laws
