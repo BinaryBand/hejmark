@@ -4,7 +4,7 @@ query    : universe+ EOF ;
 universe : LBRACE (member (COMMA member)*)? RBRACE ;
 
 member
-    : CHAR RANGE CHAR   # RangeMember
+    : face RANGE face   # RangeMember
     | face RANGE        # FinalMember
     | BANG universe     # SubtractMember
     | factor+           # FactorsMember
@@ -26,5 +26,7 @@ RANGE  : '..' ;
 DOT    : '.' ;
 // A `//` line comment runs to end of line
 COMMENT : '//' ~[\r\n]* ('\r'? '\n')? -> skip ;
+// Whitespace is insignificant between tokens; a literal space in a face is escaped (`\ `)
+WS      : [ \t\r\n]+ -> skip ;
 ESC    : '\\' . ;
 CHAR   : ~[{},!.\\&] ;
