@@ -132,5 +132,11 @@ dev = [
     "pytest==9.1.*",
     "hypothesis==6.156.*",
     "import-linter==2.13.*",
-    "vulture==2.16.*"
+    "vulture==2.16.*",
+    # Installs the `antlr4` console script used by `Himark gen-parser` /
+    # tests/infrastructure/test_antlr.py. It's a code-generation-time tool
+    # (wraps the Java antlr4 jar, auto-downloading it and a JRE if needed),
+    # not something the shipped package imports, so it lives in dev rather
+    # than [project.dependencies].
+    "antlr4-tools==0.2.*"
 ]

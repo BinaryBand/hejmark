@@ -12,16 +12,42 @@ command, Typer runs it directly (invoke the app as `Himark`, not
 from __future__ import annotations
 
 from importlib.metadata import version
+from pathlib import Path
+from typing import Annotated
 
 import typer
 
+from Himark.adapters.antlr import AntlrGenerationError, AntlrGenerator, AntlrToolNotFoundError
+
 app = typer.Typer(add_completion=False, no_args_is_help=True)
+
+DEFAULT_GRAMMAR = Path("static/grammar/Himark.g4")
+DEFAULT_OUTPUT_DIR = Path("Himark/adapters/_gen")
 
 
 @app.command()
 def status() -> None:
     """Print the installed package name and version -- minimal runnable seed."""
     typer.echo(f"Himark {version('Himark')}")
+
+
+@app.command("gen-parser")
+def gen_parser(
+    grammar: Annotated[Path, typer.Option(help="Path to the .g4 grammar file.")] = DEFAULT_GRAMMAR,
+    output_dir: Annotated[
+        Path, typer.Option(help="Directory to write generated parser sources into.")
+    ] = DEFAULT_OUTPUT_DIR,
+    language: Annotated[str, typer.Option(help="Target language for antlr4 -Dlanguage=.")] = (
+        "Python3"
+    ),
+) -> None:
+    """Regenerate the parser from the ANTLR grammar via the external antlr4 tool."""
+    try:
+        AntlrGenerator().generate(grammar, output_dir, language=language)
+    except (AntlrToolNotFoundError, AntlrGenerationError) as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(f"Generated {language} parser for {grammar} into {output_dir}")
 
 
 def main() -> None:
