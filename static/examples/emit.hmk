@@ -1,0 +1,3 @@
+// emit: the fold carries the transformation -- match a later face, write face 0
+uni synonym = {{cat,feline}}
+{@synonym} => "{{$0}}"

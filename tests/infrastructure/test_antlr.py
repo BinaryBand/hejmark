@@ -19,7 +19,10 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
 
 ROOT = Path(__file__).resolve().parents[2]
-GRAMMAR = ROOT / "static" / "grammar" / "Himark.g4"
+GRAMMARS = (
+    ROOT / "static" / "grammar" / "HimarkLexer.g4",
+    ROOT / "static" / "grammar" / "HimarkParser.g4",
+)
 EXAMPLES = ROOT / "static" / "examples"
 
 # ANTLR reports hard failures as `error(NNN):` lines and ambiguity/left-recursion
@@ -48,13 +51,33 @@ NORTH_STAR_ROWS = (
     "{ {(}{b}{a..}{)}, {(}&&{)} }",  # nonlinear closure, heavily spaced
 )
 
+# Representative L1.5 surface shapes from docs/foundation/L1_5.md: the
+# declaration forms, the std derivations' register/exponent/operand spellings,
+# the modifier pipeline, and each emit-statement shape from the north-star
+# table (an empty input is likewise a legal, empty script).
+L1_5_ROWS = (
+    "uni d = {0..9}",  # declaration
+    "uni spellings = {{{}}, &@C}",  # the seeded std universe
+    "fill := {{{}, @0}}",  # zero-parameter definition over a register
+    "nonzero := {@, !{@0}}",  # bare head register
+    "where lo..hi := {@numerals, !{@numerals, !{ {lo..hi} }}}",  # pair parameter
+    "pad w..w' := {@fill^{w'} _, !{@shorter w}, !{@longer w'}}",  # exponent + operand token
+    "{0..9}[where 8..12 pad 1..2]",  # modifier pipeline
+    '{{cat,feline}} => "{{$0}}"',  # emit: canonical-face rewrite
+    '{a,e,i,o,u} => ""',  # emit: deletion
+    '{@spellings} => "<b>{{$}}</b>"',  # emit: whole-document idiom
+    '"seed" => {e} => "E"',  # emit: detached string chain
+    'uni d = {0..9}\n{a} => {b}\n  => "x"',  # line discipline + arrow continuation
+    "",  # the empty script
+)
+
 # Shapes the grammar must reject: a parser that accepts everything is no gate.
 MALFORMED = (
     "{a",  # unbalanced brace
     "{a,}",  # trailing comma
     "{,a}",  # leading comma
     "a,b",  # bare members outside a universe
-    "",  # empty input -- `query` needs at least one universe
+    "{a} =>",  # dangling arrow -- a step must follow
 )
 
 
@@ -88,9 +111,10 @@ def antlr_build() -> Iterator[tuple[subprocess.CompletedProcess[str], Path]]:
         pytest.fail("antlr4 not found on PATH; set HIMARK_SKIP_ANTLR=1 to opt out")
     with tempfile.TemporaryDirectory() as tmp:
         workdir = Path(tmp)
-        shutil.copy(GRAMMAR, workdir / GRAMMAR.name)
+        for grammar in GRAMMARS:
+            shutil.copy(grammar, workdir / grammar.name)
         result = subprocess.run(
-            [tool, "-Dlanguage=Python3", GRAMMAR.name],
+            [tool, "-Dlanguage=Python3", *(grammar.name for grammar in GRAMMARS)],
             capture_output=True,
             text=True,
             cwd=workdir,
@@ -125,13 +149,13 @@ def parse(
             parser = HimarkParser(CommonTokenStream(lexer))
             parser.removeErrorListeners()
             parser.addErrorListener(listener)
-            parser.query()
+            parser.script()
             return listener.errors
 
         yield _parse
     finally:
         sys.path.remove(str(workdir))
-        for module in ("HimarkLexer", "HimarkParser", "HimarkListener"):
+        for module in ("HimarkLexer", "HimarkParser", "HimarkParserListener"):
             sys.modules.pop(module, None)
 
 
@@ -157,6 +181,12 @@ def test_antlr_grammar_parses_north_star(parse: Callable[[str], list[str]]) -> N
     """Every north-star row from L1.md must parse under the surface grammar."""
     failures = {row: errors for row in NORTH_STAR_ROWS if (errors := parse(row))}
     assert not failures, f"north-star rows failed to parse: {failures}"
+
+
+def test_antlr_grammar_parses_l1_5_surface(parse: Callable[[str], list[str]]) -> None:
+    """Every L1.5 surface row from L1_5.md must parse under the surface grammar."""
+    failures = {row: errors for row in L1_5_ROWS if (errors := parse(row))}
+    assert not failures, f"L1.5 surface rows failed to parse: {failures}"
 
 
 def test_antlr_grammar_parses_examples(parse: Callable[[str], list[str]]) -> None:

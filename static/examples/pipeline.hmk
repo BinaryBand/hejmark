@@ -1,0 +1,2 @@
+// modifier pipeline: the value line of {0..9} cut to 8..12, then padded to widths 1-2
+{0..9}[where 8..12 pad 1..2]

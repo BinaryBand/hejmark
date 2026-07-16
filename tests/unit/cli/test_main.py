@@ -25,16 +25,25 @@ def test_status_runs() -> None:
 
 
 def test_gen_parser_runs_generator(tmp_path: Path) -> None:
-    grammar = tmp_path / "Grammar.g4"
+    lexer = tmp_path / "GrammarLexer.g4"
+    parser = tmp_path / "GrammarParser.g4"
     output_dir = tmp_path / "out"
     with patch("Himark.cli.main.AntlrGenerator") as generator_cls:
         result = runner.invoke(
             app,
-            ["gen-parser", "--grammar", str(grammar), "--output-dir", str(output_dir)],
+            [
+                "gen-parser",
+                "--grammar",
+                str(lexer),
+                "--grammar",
+                str(parser),
+                "--output-dir",
+                str(output_dir),
+            ],
         )
     assert result.exit_code == 0
     generator_cls.return_value.generate.assert_called_once_with(
-        grammar, output_dir, language="Python3"
+        [lexer, parser], output_dir, language="Python3"
     )
 
 

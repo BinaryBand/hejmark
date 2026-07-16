@@ -54,7 +54,7 @@ class AntlrParser:
         parser = parser_module.HimarkParser(CommonTokenStream(lexer))
         parser.removeErrorListeners()
         parser.addErrorListener(listener)
-        tree = parser.query()
+        tree = parser.script()
         return tree, listener.errors, parser
 
     def parse(self, source: str) -> list[str]:

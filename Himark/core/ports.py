@@ -10,14 +10,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
     from pathlib import Path
 
 
 class ParserGenerator(Protocol):
-    """Generates a parser from an ANTLR grammar file."""
+    """Generates a parser from ANTLR grammar files."""
 
-    def generate(self, grammar: Path, output_dir: Path, *, language: str) -> None:
-        """Generate *language* parser sources for *grammar* into *output_dir*."""
+    def generate(self, grammars: Sequence[Path], output_dir: Path, *, language: str) -> None:
+        """Generate *language* parser sources for *grammars* into *output_dir*."""
         ...
 
 

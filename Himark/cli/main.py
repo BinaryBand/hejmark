@@ -22,7 +22,10 @@ from Himark.adapters.parser import AntlrParser, GeneratedParserMissingError
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
 
-DEFAULT_GRAMMAR = Path("static/grammar/Himark.g4")
+DEFAULT_GRAMMARS = (
+    Path("static/grammar/HimarkLexer.g4"),
+    Path("static/grammar/HimarkParser.g4"),
+)
 DEFAULT_OUTPUT_DIR = Path("Himark/adapters/_gen")
 
 
@@ -34,7 +37,10 @@ def status() -> None:
 
 @app.command("gen-parser")
 def gen_parser(
-    grammar: Annotated[Path, typer.Option(help="Path to the .g4 grammar file.")] = DEFAULT_GRAMMAR,
+    grammar: Annotated[
+        list[Path] | None,
+        typer.Option(help="Path to a .g4 grammar file; repeat for a lexer/parser pair."),
+    ] = None,
     output_dir: Annotated[
         Path, typer.Option(help="Directory to write generated parser sources into.")
     ] = DEFAULT_OUTPUT_DIR,
@@ -42,13 +48,15 @@ def gen_parser(
         "Python3"
     ),
 ) -> None:
-    """Regenerate the parser from the ANTLR grammar via the external antlr4 tool."""
+    """Regenerate the parser from the ANTLR grammars via the external antlr4 tool."""
+    grammars = list(DEFAULT_GRAMMARS) if grammar is None else grammar
     try:
-        AntlrGenerator().generate(grammar, output_dir, language=language)
+        AntlrGenerator().generate(grammars, output_dir, language=language)
     except (AntlrToolNotFoundError, AntlrGenerationError) as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
-    typer.echo(f"Generated {language} parser for {grammar} into {output_dir}")
+    names = ", ".join(str(path) for path in grammars)
+    typer.echo(f"Generated {language} parser for {names} into {output_dir}")
 
 
 @app.command("parse-file")

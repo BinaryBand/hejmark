@@ -14,7 +14,10 @@ from Himark.adapters.antlr import AntlrGenerator
 from Himark.adapters.parser import AntlrParser, GeneratedParserMissingError
 
 ROOT = Path(__file__).resolve().parents[3]
-GRAMMAR = ROOT / "static" / "grammar" / "Himark.g4"
+GRAMMARS = (
+    ROOT / "static" / "grammar" / "HimarkLexer.g4",
+    ROOT / "static" / "grammar" / "HimarkParser.g4",
+)
 GEN_DIR = ROOT / "Himark" / "adapters" / "_gen"
 
 
@@ -30,7 +33,7 @@ def _generated() -> Iterator[None]:
     """
     already_present = GEN_DIR.exists()
     if not already_present:
-        AntlrGenerator().generate(GRAMMAR, GEN_DIR, language="Python3")
+        AntlrGenerator().generate(GRAMMARS, GEN_DIR, language="Python3")
     try:
         yield
     finally:
