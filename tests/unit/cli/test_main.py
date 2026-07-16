@@ -46,15 +46,31 @@ def test_gen_parser_reports_missing_tool(tmp_path: Path) -> None:
     assert "no antlr4" in result.output
 
 
-def test_parse_file_reports_clean_parse(tmp_path: Path) -> None:
+def test_parse_file_prints_tree_to_console_by_default(tmp_path: Path) -> None:
     source = tmp_path / "example.hmk"
     source.write_text("{a,b,c}")
     with patch("Himark.cli.main.AntlrParser") as parser_cls:
         parser_cls.return_value.parse.return_value = []
+        parser_cls.return_value.parse_tree.return_value = "(query (set a b c))"
         result = runner.invoke(app, ["parse-file", str(source)])
     assert result.exit_code == 0
-    assert "OK" in result.output
+    assert "(query (set a b c))" in result.output
     parser_cls.return_value.parse.assert_called_once_with("{a,b,c}")
+    parser_cls.return_value.parse_tree.assert_called_once_with("{a,b,c}")
+
+
+def test_parse_file_writes_tree_to_out_file(tmp_path: Path) -> None:
+    source = tmp_path / "example.hmk"
+    source.write_text("{a,b,c}")
+    out = tmp_path / "example.tree"
+    with patch("Himark.cli.main.AntlrParser") as parser_cls:
+        parser_cls.return_value.parse.return_value = []
+        parser_cls.return_value.parse_tree.return_value = "(query (set a b c))"
+        result = runner.invoke(app, ["parse-file", str(source), "--out", str(out)])
+    assert result.exit_code == 0
+    assert out.read_text() == "(query (set a b c))"
+    assert "(query (set a b c))" not in result.output
+    assert "OK" in result.output
 
 
 def test_parse_file_reports_syntax_errors(tmp_path: Path) -> None:

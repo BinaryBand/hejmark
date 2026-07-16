@@ -9,6 +9,7 @@ domain error rather than a bare `ModuleNotFoundError` reaching the CLI.
 from __future__ import annotations
 
 import importlib
+from typing import Any
 
 from antlr4 import CommonTokenStream, InputStream
 from antlr4.error.ErrorListener import ErrorListener
@@ -34,25 +35,40 @@ class _CollectingErrorListener(ErrorListener):
 class AntlrParser:
     """Concrete `core.ports.SurfaceParser` backed by the generated ANTLR parser."""
 
+    def _run(self, source: str) -> tuple[Any, list[str], Any]:
+        """Parse *source* and return `(tree, errors, parser)`.
+
+        Raises:
+            GeneratedParserMissingError: `Himark.adapters._gen` doesn't exist.
+        """
+        listener = _CollectingErrorListener()
+        lexer = HimarkLexer(InputStream(source))
+        lexer.removeErrorListeners()
+        lexer.addErrorListener(listener)
+        parser = HimarkParser(CommonTokenStream(lexer))
+        parser.removeErrorListeners()
+        parser.addErrorListener(listener)
+        tree = parser.query()
+        return tree, listener.errors, parser
+
     def parse(self, source: str) -> list[str]:
         """Return syntax error messages for *source*; empty means it parsed cleanly.
 
         Raises:
             GeneratedParserMissingError: `Himark.adapters._gen` doesn't exist.
         """
-        try:
-            lexer_module = importlib.import_module("Himark.adapters._gen.HimarkLexer")
-            parser_module = importlib.import_module("Himark.adapters._gen.HimarkParser")
-        except ModuleNotFoundError as exc:
-            msg = "generated parser not found; run `Himark gen-parser` first"
-            raise GeneratedParserMissingError(msg) from exc
+        _tree, errors, _parser = self._run(source)
+        return errors
 
-        listener = _CollectingErrorListener()
-        lexer = lexer_module.HimarkLexer(InputStream(source))
-        lexer.removeErrorListeners()
-        lexer.addErrorListener(listener)
-        parser = parser_module.HimarkParser(CommonTokenStream(lexer))
-        parser.removeErrorListeners()
-        parser.addErrorListener(listener)
-        parser.query()
-        return listener.errors
+    def parse_tree(self, source: str) -> str:
+        """Return a LISP-style s-expression dump of *source*'s parse tree.
+
+        Testing/inspection helper, not part of `core.ports.SurfaceParser` -- core
+        has no evaluator yet to consume a real AST, so this only formats ANTLR's
+        own tree for a human to read.
+
+        Raises:
+            GeneratedParserMissingError: `Himark.adapters._gen` doesn't exist.
+        """
+        tree, _errors, parser = self._run(source)
+        return tree.toStringTree(recog=parser)

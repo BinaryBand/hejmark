@@ -54,10 +54,16 @@ def gen_parser(
 @app.command("parse-file")
 def parse_file(
     path: Annotated[Path, typer.Argument(help="Path to a .hmk source file to parse.")],
+    out: Annotated[
+        Path | None,
+        typer.Option("--out", "-o", help="Write the parse tree here instead of the console."),
+    ] = None,
 ) -> None:
-    """Parse a Himark source file and report syntax errors, if any."""
+    """Parse a Himark source file, reporting syntax errors or dumping its parse tree."""
+    source = path.read_text()
+    parser = AntlrParser()
     try:
-        errors = AntlrParser().parse(path.read_text())
+        errors = parser.parse(source)
     except GeneratedParserMissingError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
@@ -65,7 +71,12 @@ def parse_file(
         for error in errors:
             typer.echo(f"{path}: {error}", err=True)
         raise typer.Exit(1)
-    typer.echo(f"{path}: OK")
+    tree = parser.parse_tree(source)
+    if out is None:
+        typer.echo(tree)
+    else:
+        out.write_text(tree)
+        typer.echo(f"{path}: OK, parse tree written to {out}")
 
 
 def main() -> None:

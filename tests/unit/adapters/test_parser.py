@@ -1,4 +1,4 @@
-"""Tests for the antlr_parser adapter."""
+"""Tests for the parser adapter."""
 
 from __future__ import annotations
 
@@ -57,3 +57,18 @@ def test_parse_raises_when_generated_parser_missing() -> None:
         pytest.raises(GeneratedParserMissingError),
     ):
         AntlrParser().parse("{a}")
+
+
+@pytest.mark.usefixtures("_generated")
+def test_parse_tree_dumps_an_s_expression_for_valid_source() -> None:
+    tree = AntlrParser().parse_tree("{a,b,c}")
+    assert tree.startswith("(")
+    assert tree.endswith(")")
+
+
+def test_parse_tree_raises_when_generated_parser_missing() -> None:
+    with (
+        patch("importlib.import_module", side_effect=ModuleNotFoundError),
+        pytest.raises(GeneratedParserMissingError),
+    ):
+        AntlrParser().parse_tree("{a}")
