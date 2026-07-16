@@ -38,7 +38,7 @@ order type is at most `ω`. (Past `ω` there is an element with `ω`-many predec
 theorem type_le_omega0_of_finite_predecessors (r : α → α → Prop) [IsWellOrder α r]
     (h : ∀ x, {y | r y x}.Finite) : Ordinal.type r ≤ ω := by
   by_contra hlt
-  push_neg at hlt
+  rw [not_le] at hlt
   obtain ⟨x, hx⟩ := typein_surj r hlt
   haveI : Finite (Subtype (r · x)) := (h x).to_subtype
   haveI : Fintype (Subtype (r · x)) := Fintype.ofFinite _
@@ -54,11 +54,13 @@ theorem type_eq_omega0_of_finite_predecessors (r : α → α → Prop) [IsWellOr
     (h : ∀ x, {y | r y x}.Finite) : Ordinal.type r = ω := by
   refine le_antisymm (type_le_omega0_of_finite_predecessors r h) ?_
   by_contra hlt
-  push_neg at hlt
+  rw [not_le] at hlt
   obtain ⟨n, hn⟩ := lt_omega0.1 hlt
-  rw [← type_fin n] at hn
-  obtain ⟨e⟩ := type_eq.1 hn
-  haveI : Finite α := Finite.intro e.toEquiv
+  have hcard : Cardinal.mk α = n := by
+    rw [← card_type r, hn]
+    simp
+  haveI : Finite α :=
+    Cardinal.mk_lt_aleph0_iff.1 (by rw [hcard]; exact Cardinal.natCast_lt_aleph0)
   exact not_finite α
 
 /- ---------------------------------------------------------------- -/
@@ -83,20 +85,18 @@ each contributes finitely many entries -- the structural reason the enumeration 
 theorem stageMajor_finite_predecessors (f : ℕ → ℕ) (x : Subtype (stageAddr f)) :
     {y | stageMajor f y x}.Finite := by
   obtain ⟨⟨k, i⟩, hx⟩ := x
-  set M := max ((Finset.range (k + 1)).sup f) i with hM
   have hsub : {y : Subtype (stageAddr f) | stageMajor f y ⟨(k, i), hx⟩} ⊆
-      Subtype.val ⁻¹' (Set.Iic k ×ˢ Set.Iio M) := by
+      Subtype.val ⁻¹' (Set.Iic k ×ˢ Set.Iio (max ((Finset.range (k + 1)).sup f) i)) := by
     rintro ⟨⟨a, b⟩, hab⟩ hy
-    simp only [stageMajor, subrel_val, Prod.lex_def] at hy
+    simp [stageMajor, subrel_val, Prod.lex_def] at hy
     have hb : b < f a := hab
     simp only [Set.mem_preimage, Set.mem_prod, Set.mem_Iic, Set.mem_Iio]
     rcases hy with h1 | ⟨h1, h2⟩
     · have hfa : f a ≤ (Finset.range (k + 1)).sup f :=
         Finset.le_sup (Finset.mem_range.2 (by omega))
-      exact ⟨by omega, by omega⟩
-    · have h1' : a = k := h1
-      exact ⟨by omega, by omega⟩
-  exact (((Set.finite_Iic k).prod (Set.finite_Iio M)).preimage
+      exact ⟨Nat.le_of_lt h1, lt_of_lt_of_le (lt_of_lt_of_le hb hfa) (le_max_left _ _)⟩
+    · exact ⟨le_of_eq h1, lt_of_lt_of_le h2 (le_max_right _ _)⟩
+  exact (((Set.finite_Iic k).prod (Set.finite_Iio _)).preimage
     Subtype.val_injective.injOn).subset hsub
 
 /-- Headline: first-appearance enumeration fits within the one limit -- stage-major order over

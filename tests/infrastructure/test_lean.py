@@ -62,6 +62,41 @@ HEADLINE_THEOREMS = (
     # well-order, so ownership is a well-defined unique function of the spelling
     # (docs/foundation/L1.md, Positional value -- the collision rule).
     "L1.collision_settled",
+    # Order axis, phase D: bounded transfinitude. The closure-free floor stays
+    # below omega^omega, linear closure caps at u * omega, nonlinear closure's
+    # squared stages sup to exactly omega^omega, and the full order-type
+    # calculus (sums, products, closure limits) never reaches epsilon_0
+    # (docs/foundation/L1.md, Bounded transfinitude).
+    "L1.floorType_lt_omega0_opow_omega0",
+    "L1.linear_closure_lt_omega0_opow_omega0",
+    "L1.nonlinear_closure_sup",
+    "L1.l1Type_lt_epsilon0",
+    # Order axis, phase E: first-appearance enumeration. Stage-major order over
+    # omega-many finite stages has type at most omega -- one limit, no
+    # continuation past it (docs/foundation/L1.md, Closure).
+    "L1.stageMajor_type_le_omega0",
+    "L1.stageMajor_type_eq_omega0",
+    # Order axis, phase F: collision alone does not decide the type. The
+    # {a..}{a..} survivors collapse to omega * (m+1) while the seam row's
+    # survivors keep omega * omega (docs/foundation/L1.md, Bounded
+    # transfinitude -- the collision examples).
+    "L1.cofinite_collision_collapses",
+    "L1.seam_collision_survives",
+    # Fixpoint on positive bodies: the closure at omega is the least fixpoint
+    # of a positive body, and the inflationary and bare stage ladders agree
+    # (docs/foundation/L1.md, Fixpoint on settled bodies -- the positive half;
+    # the guarded half is L1.guarded_settles above).
+    "L1.positive_fixpoint",
+    "L1.positive_least",
+    "L1.bare_stages_agree",
+    # The re-admission test: the universe operand is axiomatic (finitely many
+    # entry-wise steps cannot make infinitely many removals), and closure's
+    # admission witness {ab, {a}&{b}} denotes exactly a^n b^n, which is not a
+    # regular language (docs/foundation/L1.md, the constructors' closing
+    # paragraph and "Compression, not capability").
+    "L1.operand_needs_infinitely_many_removals",
+    "L1.anbn_exact",
+    "L1.closure_admission",
 )
 
 # "Axiom-free" does not port from Coq to Lean literally: every Lean/Mathlib
