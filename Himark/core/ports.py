@@ -19,3 +19,11 @@ class ParserGenerator(Protocol):
     def generate(self, grammar: Path, output_dir: Path, *, language: str) -> None:
         """Generate *language* parser sources for *grammar* into *output_dir*."""
         ...
+
+
+class SurfaceParser(Protocol):
+    """Parses Himark surface syntax."""
+
+    def parse(self, source: str) -> list[str]:
+        """Return syntax error messages for *source*; empty means it parsed cleanly."""
+        ...

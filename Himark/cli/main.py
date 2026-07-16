@@ -18,6 +18,7 @@ from typing import Annotated
 import typer
 
 from Himark.adapters.antlr import AntlrGenerationError, AntlrGenerator, AntlrToolNotFoundError
+from Himark.adapters.parser import AntlrParser, GeneratedParserMissingError
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
 
@@ -48,6 +49,23 @@ def gen_parser(
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
     typer.echo(f"Generated {language} parser for {grammar} into {output_dir}")
+
+
+@app.command("parse-file")
+def parse_file(
+    path: Annotated[Path, typer.Argument(help="Path to a .hmk source file to parse.")],
+) -> None:
+    """Parse a Himark source file and report syntax errors, if any."""
+    try:
+        errors = AntlrParser().parse(path.read_text())
+    except GeneratedParserMissingError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    if errors:
+        for error in errors:
+            typer.echo(f"{path}: {error}", err=True)
+        raise typer.Exit(1)
+    typer.echo(f"{path}: OK")
 
 
 def main() -> None:

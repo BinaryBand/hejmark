@@ -8,6 +8,7 @@ from unittest.mock import patch
 from typer.testing import CliRunner
 
 from Himark.adapters.antlr import AntlrToolNotFoundError
+from Himark.adapters.parser import GeneratedParserMissingError
 from Himark.cli.main import app
 
 if TYPE_CHECKING:
@@ -43,3 +44,34 @@ def test_gen_parser_reports_missing_tool(tmp_path: Path) -> None:
         result = runner.invoke(app, ["gen-parser", "--grammar", str(tmp_path / "g.g4")])
     assert result.exit_code == 1
     assert "no antlr4" in result.output
+
+
+def test_parse_file_reports_clean_parse(tmp_path: Path) -> None:
+    source = tmp_path / "example.hmk"
+    source.write_text("{a,b,c}")
+    with patch("Himark.cli.main.AntlrParser") as parser_cls:
+        parser_cls.return_value.parse.return_value = []
+        result = runner.invoke(app, ["parse-file", str(source)])
+    assert result.exit_code == 0
+    assert "OK" in result.output
+    parser_cls.return_value.parse.assert_called_once_with("{a,b,c}")
+
+
+def test_parse_file_reports_syntax_errors(tmp_path: Path) -> None:
+    source = tmp_path / "example.hmk"
+    source.write_text("{a")
+    with patch("Himark.cli.main.AntlrParser") as parser_cls:
+        parser_cls.return_value.parse.return_value = ["1:2 missing '}'"]
+        result = runner.invoke(app, ["parse-file", str(source)])
+    assert result.exit_code == 1
+    assert "missing '}'" in result.output
+
+
+def test_parse_file_reports_missing_generated_parser(tmp_path: Path) -> None:
+    source = tmp_path / "example.hmk"
+    source.write_text("{a,b,c}")
+    with patch("Himark.cli.main.AntlrParser") as parser_cls:
+        parser_cls.return_value.parse.side_effect = GeneratedParserMissingError("run gen-parser")
+        result = runner.invoke(app, ["parse-file", str(source)])
+    assert result.exit_code == 1
+    assert "run gen-parser" in result.output
