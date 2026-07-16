@@ -41,11 +41,17 @@ class AntlrParser:
         Raises:
             GeneratedParserMissingError: `Himark.adapters._gen` doesn't exist.
         """
+        try:
+            lexer_module = importlib.import_module("Himark.adapters._gen.HimarkLexer")
+            parser_module = importlib.import_module("Himark.adapters._gen.HimarkParser")
+        except ModuleNotFoundError as exc:
+            msg = "Himark.adapters._gen not found; run `Himark gen-parser` first"
+            raise GeneratedParserMissingError(msg) from exc
         listener = _CollectingErrorListener()
-        lexer = HimarkLexer(InputStream(source))
+        lexer = lexer_module.HimarkLexer(InputStream(source))
         lexer.removeErrorListeners()
         lexer.addErrorListener(listener)
-        parser = HimarkParser(CommonTokenStream(lexer))
+        parser = parser_module.HimarkParser(CommonTokenStream(lexer))
         parser.removeErrorListeners()
         parser.addErrorListener(listener)
         tree = parser.query()
