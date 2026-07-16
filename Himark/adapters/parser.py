@@ -1,4 +1,4 @@
-"""adapters.antlr_parser: parses Himark source using the generated ANTLR parser.
+"""adapters.parser: parses Himark source using the generated ANTLR parser.
 
 Imports `Himark.adapters._gen`, the build artifact `adapters.antlr.AntlrGenerator`
 writes (and `Himark gen-parser` triggers). It's gitignored and not present until
