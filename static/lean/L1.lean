@@ -8,3 +8,4 @@ import L1.Completeness
 import L1.NorthStar
 import L1.Order
 import L1.Positional
+import L1.Collision

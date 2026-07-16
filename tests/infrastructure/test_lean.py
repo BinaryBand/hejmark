@@ -56,6 +56,12 @@ HEADLINE_THEOREMS = (
     # finite factors, so the product's order type is the natural product of the
     # factor order types (docs/foundation/L1.md, Positional value).
     "L1.positional_value_type",
+    # Order axis, phase C: collision ownership. A spelling is claimed by the
+    # least <value, face> address that spells it (value first, face index breaks
+    # the tie) and every later claimant drops; the lex order on addresses is a
+    # well-order, so ownership is a well-defined unique function of the spelling
+    # (docs/foundation/L1.md, Positional value -- the collision rule).
+    "L1.collision_settled",
 )
 
 # "Axiom-free" does not port from Coq to Lean literally: every Lean/Mathlib
