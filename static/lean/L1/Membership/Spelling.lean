@@ -15,6 +15,7 @@ Where Coq wrote its own `spelling_eqb`, Lean reuses the `LawfulBEq (List Nat)`
 instance: `s == t` decides `s = t`, so `beq_iff_eq` replaces the hand-rolled
 `spelling_eqb_eq`. -/
 import Mathlib.Tactic
+import Mathlib.Data.List.Shortlex
 
 namespace L1
 
@@ -109,6 +110,42 @@ theorem shortlex_total (s t : Spelling) :
     · exact Or.inr (Or.inl hl)
     · exact Or.inr (Or.inr (by simp [shortlexLt, h, hl]))
   · exact Or.inr (Or.inr (by simp [shortlexLt, h]))
+
+/- ---------------------------------------------------------------- -/
+/- Bridge to Mathlib's `List.Shortlex`: the bespoke Bool-valued order -/
+/- here (infinite alphabet, feeds the evaluator) agrees with the      -/
+/- Prop-valued order the order axis uses (`Order.lean`'s `fshortlex`  -/
+/- is `List.Shortlex (· < ·)` over `Fin (m+1)`), certifying the two   -/
+/- shortlex theories cannot silently disagree on their shared domain. -/
+/- ---------------------------------------------------------------- -/
+
+/-- The Bool-valued dictionary order agrees with Mathlib's `List.Lex`. -/
+theorem lexLt_iff_lex : ∀ s t : Spelling, lexLt s t = true ↔ List.Lex (· < ·) s t
+  | _, [] => by
+      simp only [lexLt_nil_right, Bool.false_eq_true, false_iff]
+      intro h; cases h
+  | [], _ :: _ => by
+      simp only [lexLt]
+      exact iff_of_true trivial List.Lex.nil
+  | a :: s, b :: t => by
+      simp only [lexLt, Bool.or_eq_true, Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq]
+      rw [lexLt_iff_lex s t]
+      constructor
+      · rintro (hlt | ⟨rfl, hrec⟩)
+        · exact List.Lex.rel hlt
+        · exact List.Lex.cons hrec
+      · intro h
+        cases h with
+        | rel h => exact Or.inl h
+        | cons h => exact Or.inr ⟨rfl, h⟩
+
+/-- The bespoke `shortlexLt` decides exactly Mathlib's `List.Shortlex (· < ·)`, the relation
+`Order.lean`'s `fshortlex` is defined as. Neither order can silently drift from the other. -/
+theorem shortlexLt_iff_fshortlex (s t : Spelling) :
+    shortlexLt s t = true ↔ List.Shortlex (· < ·) s t := by
+  rw [List.shortlex_def]
+  simp only [shortlexLt, Bool.or_eq_true, Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq]
+  rw [lexLt_iff_lex s t]
 
 /-- The connective identity: strictly-below is exactly not-at-or-above. -/
 theorem shortlexLt_not_le (s t : Spelling) :

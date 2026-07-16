@@ -6,7 +6,7 @@ universe wears; the order axis (entry order, positional value) is out of scope.
 In particular the doc's "union is not commutative" is a statement about entry
 order; at the membership level union is a commutative, idempotent, associative
 join (items 2a-2c). -/
-import L1.Semantics
+import L1.Membership.Semantics
 
 namespace L1
 

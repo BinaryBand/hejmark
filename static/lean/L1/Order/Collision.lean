@@ -26,7 +26,7 @@ lower value keeps it (`{a,ab}{c,bc}`), within an entry the lower face keeps it (
 and cross-axis the lower value keeps it even against a lower face index (`{{{},0}}{0,00}`, where the
 value-0 entry keeps `00` though it wears the higher face index).
 
-Independent of the membership axis, exactly like `L1/Order.lean` and `L1/Positional.lean`; `Code`
+Independent of the membership axis, exactly like `L1/Order/Order.lean` and `L1/Order/Positional.lean`; `Code`
 stays `Nat` everywhere else. -/
 import Mathlib.Data.Prod.Lex
 import Mathlib.SetTheory.Ordinal.Basic

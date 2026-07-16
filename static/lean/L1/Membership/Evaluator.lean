@@ -16,7 +16,7 @@ exactly the Python bound. Two deliberate approximations against the Prop spec:
 The north-star positive rows all live inside `sndb`, so they compute by
 `native_decide` through `containsb_sound`. Completeness is deliberately not
 attempted. -/
-import L1.Laws
+import L1.Membership.Laws
 
 namespace L1
 

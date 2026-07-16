@@ -24,7 +24,7 @@ touches an inline stage form. The whole group is compiled by well-founded
 recursion (the `stage` argument decreases on `Nat` while `walk` decreases on
 the syntax), so unfolding goes through the generated equation lemmas via
 `simp` rather than `rfl`. -/
-import L1.Syntax
+import L1.Membership.Syntax
 
 namespace L1
 

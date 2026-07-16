@@ -8,7 +8,7 @@ code points; `face`/`final` carry whole spellings. `amp` is the closure token
 `&`; `sub` is the subtraction member `!{...}`; `fold` is a nested universe used
 as a member; `prod` is a run of adjacent factors, each either a brace
 expression (`Factors.node`) or a bare `&` (`Factors.amp`). -/
-import L1.Spelling
+import L1.Membership.Spelling
 
 namespace L1
 

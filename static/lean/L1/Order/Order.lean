@@ -221,6 +221,19 @@ noncomputable def valueRelIso : (fshortlex m) ≃r ((· < ·) : Nat → Nat → 
         omega
     · exact value_strictMono' m
 
+/-- Value order *is* shortlex order: the content of `valueRelIso.map_rel_iff`, stated directly so
+downstream order-axis files (e.g. `Collapse.lean`) read shortlex through `value` without unpacking
+the isomorphism. -/
+theorem fshortlex_iff_value_lt {l1 l2 : FSpelling m} :
+    fshortlex m l1 l2 ↔ value m l1 < value m l2 := by
+  constructor
+  · exact value_strictMono' m
+  · intro hv
+    rcases trichotomous_of (fshortlex m) l1 l2 with h | h | h
+    · exact h
+    · subst h; omega
+    · have := value_strictMono' m h; omega
+
 theorem finShortlex_type_omega0 : Ordinal.type (fshortlex m) = Ordinal.omega0 := by
   rw [Ordinal.type_eq.mpr ⟨valueRelIso m⟩]
   exact Ordinal.type_nat_lt

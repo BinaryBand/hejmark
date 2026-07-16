@@ -5,7 +5,7 @@ sits at sum_i W_i * value(p_i), summed most-significant term first with weight
 W_i = b_{k-1} * b_{k-2} * ... * b_{i+1} on the left of its digit: mixed radix. ... Finite factors
 give naturals, where the order of multiplication is invisible."
 
-Phase A (`L1/Order.lean`) proved the *uniform*-radix case: shortlex over a flat alphabet `Fin (m+1)`
+Phase A (`L1/Order/Order.lean`) proved the *uniform*-radix case: shortlex over a flat alphabet `Fin (m+1)`
 is a well-order of type omega, reading a spelling as a base-`(m+1)` numeral (`lexIndex`). This file
 generalizes that reading to a *product of finite factors* with per-factor radices `bs : List Nat`
 (each factor's order type, most-significant first). A tuple is a digit list `ds` with `ds[i] < bs[i]`
@@ -21,8 +21,8 @@ natural `bs.prod`. "The order of multiplication is invisible" is then immediate,
 a commutative `Nat` product. Read against Phase A, `lexIndex` is the special case
 `bs = List.replicate _ (m + 1)`, proved as `lexIndex_eq_mixedRadix`.
 
-Independent of the membership axis, exactly like `L1/Order.lean`; `Code` stays `Nat` everywhere else. -/
-import L1.Order
+Independent of the membership axis, exactly like `L1/Order/Order.lean`; `Code` stays `Nat` everywhere else. -/
+import L1.Order.Order
 import Mathlib.Data.List.Forall2
 import Mathlib.Data.List.Lex
 import Mathlib.Algebra.BigOperators.Group.List.Basic
@@ -189,7 +189,7 @@ theorem positional_value_type (bs : List Nat) :
 
 /-- Phase A's `lexIndex` is this phase's `mixedRadix` at the uniform radix `m + 1`: reading a
 spelling over `Fin (m + 1)` as a base-`(m+1)` numeral is exactly the mixed-radix reading against the
-constant radix list. This cashes `L1/Order.lean`'s header claim that `lexIndex` previews positional
+constant radix list. This cashes `L1/Order/Order.lean`'s header claim that `lexIndex` previews positional
 value. -/
 theorem lexIndex_eq_mixedRadix (m : Nat) (l : FSpelling m) :
     lexIndex m l = mixedRadix (List.replicate l.length (m + 1)) (l.map Fin.val) := by

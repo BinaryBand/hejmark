@@ -16,7 +16,7 @@ order, values, collision ownership, and order types.
 
 Toy code assignment: letters a..z are 0..25, digits 0..9 are 100..109, and
 the parentheses of the binary-trees row are 40 and 41. -/
-import L1.Evaluator
+import L1.Membership.Evaluator
 
 namespace L1
 
@@ -613,7 +613,16 @@ def anbn : Node :=
 theorem anbn_has_ab : denotes anbn [la, lb] := by north_star
 theorem anbn_has_aabb : denotes anbn [la, la, lb, lb] := by north_star
 
-theorem anbn_stage_even : ∀ k s, stage anbn k s → s.length % 2 = 0 := by
+/-- Appending one more copy is the same as prepending it: the snoc form of `replicate`. -/
+theorem replicate_snoc (n : ℕ) (a : Code) :
+    List.replicate n a ++ [a] = a :: List.replicate n a := by
+  rw [← List.replicate_succ', List.replicate_succ]
+
+/-- Every stage member is some `a^n b^n`, `1 ≤ n` -- the forward half of exactness, by stage
+induction carrying the full witness (evenness of the length is the immediate corollary, since
+`|a^n b^n| = 2n`). -/
+theorem anbn_stage_exact : ∀ k s, stage anbn k s →
+    ∃ n, 1 ≤ n ∧ s = List.replicate n la ++ List.replicate n lb := by
   intro k
   induction k with
   | zero => intro s h; rw [stage_zero] at h; exact h.elim
@@ -626,7 +635,7 @@ theorem anbn_stage_even : ∀ k s, stage anbn k s → s.length % 2 = 0 := by
           walk_nil] at h
         rcases h with (h | h) | h
         · exact h.elim
-        · subst h; decide
+        · exact ⟨1, le_refl 1, by simp [h]⟩
         · simp only [fsplit_fnode] at h
           obtain ⟨p, q, rfl, hp, hq⟩ := h
           rw [ndenote_nonbinder _ _ _ (by decide), walk_cons, walk_single_face,
@@ -641,16 +650,59 @@ theorem anbn_stage_even : ∀ k s, stage anbn k s → s.length % 2 = 0 := by
             walk_nil] at hp3
           rcases hp3 with hp3 | rfl
           · exact hp3.elim
-          have := ih p2 hamp
-          simp only [List.length_append, List.length_cons, List.length_nil] at this ⊢
-          omega
+          obtain ⟨n, hn, rfl⟩ := ih p2 hamp
+          refine ⟨n + 1, by omega, ?_⟩
+          simp [List.replicate_succ, replicate_snoc, List.append_assoc]
+
+/-- Every `a^n b^n` appears by stage `n` -- the backward half, building the walk stage by stage. -/
+theorem anbn_stage_build : ∀ n, 1 ≤ n →
+    stage anbn n (List.replicate n la ++ List.replicate n lb) := by
+  intro n
+  induction n with
+  | zero => omega
+  | succ n ih =>
+      intro _
+      rw [stage_succ]
+      right
+      simp only [anbn, nlist, walk_cons, walk_single_prod, walk_single_face, walk_nil]
+      rcases Nat.eq_or_lt_of_le (Nat.zero_le n) with hn0 | hn1
+      · -- n = 0: the base face `ab` itself.
+        left
+        right
+        simp [← hn0]
+      · -- n ≥ 1: split as `a · (a^n b^n) · b` with the middle at the previous stage.
+        right
+        rw [fsplit_fnode]
+        refine ⟨[la], List.replicate n la ++ List.replicate n lb ++ [lb], ?_, ?_, ?_⟩
+        · simp [List.replicate_succ, replicate_snoc, List.append_assoc]
+        · rw [ndenote_nonbinder _ _ _ (by decide), walk_cons, walk_single_face, walk_nil]
+          exact Or.inr rfl
+        · rw [fsplit_famp]
+          refine ⟨List.replicate n la ++ List.replicate n lb, [lb], by simp, ih hn1, ?_⟩
+          rw [fsplit_fnode]
+          refine ⟨[lb], [], by simp, ?_, by rw [fsplit_fnil]⟩
+          rw [ndenote_nonbinder _ _ _ (by decide), walk_cons, walk_single_face, walk_nil]
+          exact Or.inr rfl
+
+/-- The exact language of the admission witness: `{ab, {a}&{b}}` denotes precisely
+`a^n b^n`, `n ≥ 1` -- both directions, against the real staged semantics. -/
+theorem anbn_exact (s : Spelling) :
+    denotes anbn s ↔ ∃ n, 1 ≤ n ∧ s = List.replicate n la ++ List.replicate n lb := by
+  rw [denotes, ndenote_binder _ _ _ (by decide)]
+  constructor
+  · rintro ⟨k, hk⟩
+    exact anbn_stage_exact k s hk
+  · rintro ⟨n, hn, rfl⟩
+    exact ⟨n, anbn_stage_build n hn⟩
 
 theorem anbn_not_aab : ¬ denotes anbn [la, la, lb] := by
   intro h
   rw [denotes, ndenote_binder _ _ _ (by decide)] at h
   obtain ⟨k, hk⟩ := h
-  have := anbn_stage_even k [la, la, lb] hk
-  simp at this
+  obtain ⟨n, hn, heq⟩ := anbn_stage_exact k [la, la, lb] hk
+  have hlen := congrArg List.length heq
+  simp [List.length_append, List.length_replicate] at hlen
+  omega
 
 /- ---------------------------------------------------------------- -/
 /- {0, {1..9, &{0..9}}}: canonical numerals -- membership samples.  -/

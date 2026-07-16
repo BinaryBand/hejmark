@@ -18,7 +18,7 @@ The development is three layers:
 - stabilization: strong induction on `|s|` turns locality into "stages stop
   changing at short lengths by stage `|s| + 1`", whose corollary is that
   membership in the closure is settled at stage `|s| + 1`. -/
-import L1.Evaluator
+import L1.Membership.Evaluator
 
 namespace L1
 

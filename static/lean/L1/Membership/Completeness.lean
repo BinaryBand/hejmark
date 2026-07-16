@@ -20,7 +20,7 @@ two documented ways, and the fragment is exactly what rules those out:
 
 Subtraction operands stay in the exact fragment (`exactNodeb`), shared with
 soundness: under a subtraction each direction needs the other on the operand. -/
-import L1.Settling
+import L1.Membership.Settling
 
 namespace L1
 

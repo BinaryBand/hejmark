@@ -26,7 +26,7 @@ Three layers:
   `walk n (closureD n) False s <-> closureD n s`), `positive_least` (any prefixpoint of the body
   contains the closure), and `bare_stages_agree` (the inflationary stages
   `X_{k+1} = X_k union body(X_k)` and the bare ones `Y_{k+1} = body(Y_k)` have the same union). -/
-import L1.Settling
+import L1.Membership.Settling
 
 namespace L1
 

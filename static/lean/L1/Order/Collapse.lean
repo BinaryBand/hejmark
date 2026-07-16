@@ -6,11 +6,11 @@ seams collide ... yet every pair with a `b`-free first segment is its own least 
 many full ω-blocks survive, cofinally, so ω² stands. In `{a..}{a..}` the least split pins the
 prefix, only finitely many blocks survive, and the type collapses to ω·k, k finite."
 
-Over the finite alphabet of `L1/Order.lean` (`FCode m = Fin (m+1)`), a product entry of two
+Over the finite alphabet of `L1/Order/Order.lean` (`FCode m = Fin (m+1)`), a product entry of two
 final-segment factors is a pair of nonempty spellings ordered lexicographically by `(value, value)`
 (the positional-value order; value order is shortlex order by `valueRelIso`). Two pairs collide
 when they concatenate to the same spelling, and the collision rule keeps the lex-least pair
-(`L1/Collision.lean` is where least-claimant ownership itself is proved well-defined; here we
+(`L1/Order/Collision.lean` is where least-claimant ownership itself is proved well-defined; here we
 compute what the survivors' order type is).
 
 - `{a..}{a..}` (`splitSurvives_iff`, `cofinite_collision_collapses`): a pair survives iff its
@@ -23,9 +23,9 @@ compute what the survivors' order type is).
   so the survivor order embeds ω·ω and sits inside the pre-collision ω·ω: the type stands at
   `ω * ω` (the doc's ω²).
 
-Like the other order-axis phases this is an abstract mechanization over `L1/Order.lean`'s finite
+Like the other order-axis phases this is an abstract mechanization over `L1/Order/Order.lean`'s finite
 alphabet, not an enumeration of the real syntax. -/
-import L1.Order
+import L1.Order.Order
 
 namespace L1
 
@@ -44,18 +44,9 @@ the `<value, value>` reading, since value order is shortlex order (`valueRelIso`
 abbrev pairLt : NESp m × NESp m → NESp m × NESp m → Prop := Prod.Lex (neLt m) (neLt m)
 
 /- ---------------------------------------------------------------- -/
-/- Shortlex facts read through `value`.                              -/
+/- Shortlex facts read through `value` (`fshortlex_iff_value_lt`      -/
+/- lives with `valueRelIso` in `Order.lean`).                        -/
 /- ---------------------------------------------------------------- -/
-
-theorem fshortlex_iff_value_lt {l1 l2 : FSpelling m} :
-    fshortlex m l1 l2 ↔ value m l1 < value m l2 := by
-  constructor
-  · exact value_strictMono' m
-  · intro hv
-    rcases trichotomous_of (fshortlex m) l1 l2 with h | h | h
-    · exact h
-    · subst h; omega
-    · have := value_strictMono' m h; omega
 
 theorem value_nil : value m ([] : FSpelling m) = 0 := rfl
 
@@ -123,7 +114,7 @@ theorem pairLt_type : Ordinal.type (pairLt m) = ω * ω := by
 def spelled (x : NESp m × NESp m) : FSpelling m := x.1.1 ++ x.2.1
 
 /-- The survivor predicate for `{a..}{a..}`: a pair keeps its spelling iff it is the lex-least
-claimant -- the collision rule of `L1/Collision.lean`, specialized to this product. -/
+claimant -- the collision rule of `L1/Order/Collision.lean`, specialized to this product. -/
 def SplitSurvives (x : NESp m × NESp m) : Prop :=
   ∀ y, spelled m y = spelled m x → y = x ∨ pairLt m x y
 

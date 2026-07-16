@@ -13,16 +13,16 @@ family `a b a^(i+1)`.
 
 **Closure refuses by power** ("The re-admission test"): `{ab, {a}&{b}}` denotes `a^n b^n` -- "no
 regular face set, so no arrangement of the others reaches it." Mechanized against the *real*
-semantics: `anbn_exact` characterizes the closure's denotation exactly (a stage induction in both
-directions over `NorthStar.lean`'s `anbn` node), and `closure_admission` shows that face set is not
-a regular language, by Myhill-Nerode: the left quotients by `a^(i+1)` are pairwise distinct, so
+semantics: `NorthStar.lean`'s `anbn_exact` characterizes the closure's denotation exactly (a stage
+induction in both directions over its `anbn` node), and `closure_admission` here shows that face set
+is not a regular language, by Myhill-Nerode: the left quotients by `a^(i+1)` are pairwise distinct, so
 they cannot fit in the finitely many states of any DFA. This is the witness half of the
 re-admission test -- closure reaches past every finite-state face set, so it must stand as
 axiomatic. (The complementary half, that every closure-free universe *has* a regular face set, needs a
 DFA construction for shortlex windows over the code space and stays deferred with the rest of the
 `Universe.entries` integration; the witness half is the load-bearing direction, since it is what
 rules the compression route out.) -/
-import L1.NorthStar
+import L1.Membership.NorthStar
 import Mathlib.Computability.MyhillNerode
 
 namespace L1
@@ -77,91 +77,6 @@ theorem operand_needs_infinitely_many_removals :
     have := congrArg List.length hrep
     simp at this
   exact (Set.infinite_of_injective_forall_mem hinj hmem) hfin
-
-/- ---------------------------------------------------------------- -/
-/- The exact language of {ab, {a}&{b}}: a^n b^n, n >= 1.             -/
-/- ---------------------------------------------------------------- -/
-
-/-- Appending one more copy is the same as prepending it: the snoc form of `replicate`. -/
-theorem replicate_snoc (n : ℕ) (a : Code) :
-    List.replicate n a ++ [a] = a :: List.replicate n a := by
-  rw [← List.replicate_succ', List.replicate_succ]
-
-/-- Every stage member is some `a^n b^n`, `1 ≤ n` -- the forward half of exactness, by the same
-stage induction as `anbn_stage_even` but carrying the full witness. -/
-theorem anbn_stage_exact : ∀ k s, stage anbn k s →
-    ∃ n, 1 ≤ n ∧ s = List.replicate n la ++ List.replicate n lb := by
-  intro k
-  induction k with
-  | zero => intro s h; rw [stage_zero] at h; exact h.elim
-  | succ k ih =>
-      intro s h
-      rw [stage_succ] at h
-      rcases h with h | h
-      · exact ih s h
-      · simp only [anbn, nlist, walk_cons, walk_single_prod, walk_single_face,
-          walk_nil] at h
-        rcases h with (h | h) | h
-        · exact h.elim
-        · exact ⟨1, le_refl 1, by simp [h]⟩
-        · simp only [fsplit_fnode] at h
-          obtain ⟨p, q, rfl, hp, hq⟩ := h
-          rw [ndenote_nonbinder _ _ _ (by decide), walk_cons, walk_single_face,
-            walk_nil] at hp
-          rcases hp with hp | rfl
-          · exact hp.elim
-          rw [fsplit_famp] at hq
-          obtain ⟨p2, q2, rfl, hamp, hq2⟩ := hq
-          simp only [fsplit_fnode, fsplit_fnil] at hq2
-          obtain ⟨p3, q3, rfl, hp3, rfl⟩ := hq2
-          rw [ndenote_nonbinder _ _ _ (by decide), walk_cons, walk_single_face,
-            walk_nil] at hp3
-          rcases hp3 with hp3 | rfl
-          · exact hp3.elim
-          obtain ⟨n, hn, rfl⟩ := ih p2 hamp
-          refine ⟨n + 1, by omega, ?_⟩
-          simp [List.replicate_succ, replicate_snoc, List.append_assoc]
-
-/-- Every `a^n b^n` appears by stage `n` -- the backward half, building the walk stage by stage. -/
-theorem anbn_stage_build : ∀ n, 1 ≤ n →
-    stage anbn n (List.replicate n la ++ List.replicate n lb) := by
-  intro n
-  induction n with
-  | zero => omega
-  | succ n ih =>
-      intro _
-      rw [stage_succ]
-      right
-      simp only [anbn, nlist, walk_cons, walk_single_prod, walk_single_face, walk_nil]
-      rcases Nat.eq_or_lt_of_le (Nat.zero_le n) with hn0 | hn1
-      · -- n = 0: the base face `ab` itself.
-        left
-        right
-        simp [← hn0]
-      · -- n ≥ 1: split as `a · (a^n b^n) · b` with the middle at the previous stage.
-        right
-        rw [fsplit_fnode]
-        refine ⟨[la], List.replicate n la ++ List.replicate n lb ++ [lb], ?_, ?_, ?_⟩
-        · simp [List.replicate_succ, replicate_snoc, List.append_assoc]
-        · rw [ndenote_nonbinder _ _ _ (by decide), walk_cons, walk_single_face, walk_nil]
-          exact Or.inr rfl
-        · rw [fsplit_famp]
-          refine ⟨List.replicate n la ++ List.replicate n lb, [lb], by simp, ih hn1, ?_⟩
-          rw [fsplit_fnode]
-          refine ⟨[lb], [], by simp, ?_, by rw [fsplit_fnil]⟩
-          rw [ndenote_nonbinder _ _ _ (by decide), walk_cons, walk_single_face, walk_nil]
-          exact Or.inr rfl
-
-/-- The exact language of the admission witness: `{ab, {a}&{b}}` denotes precisely
-`a^n b^n`, `n ≥ 1` -- both directions, against the real staged semantics. -/
-theorem anbn_exact (s : Spelling) :
-    denotes anbn s ↔ ∃ n, 1 ≤ n ∧ s = List.replicate n la ++ List.replicate n lb := by
-  rw [denotes, ndenote_binder _ _ _ (by decide)]
-  constructor
-  · rintro ⟨k, hk⟩
-    exact anbn_stage_exact k s hk
-  · rintro ⟨n, hn, rfl⟩
-    exact ⟨n, anbn_stage_build n hn⟩
 
 /- ---------------------------------------------------------------- -/
 /- a^n b^n is not regular: Myhill-Nerode over the left quotients.    -/
