@@ -31,8 +31,12 @@ Leaves are where spelling order is already exactly right; the reordering constru
 -- leaf: range / face / final -- no reordering. Rank = shortlex position.
 entryRank (leaf) s = typein (entrySpellLt leaf) s          -- ordinal rank in shortlex
 
--- fold inner -- entries are the inner language; recurse.
-entryRank (fold inner) s = entryRank inner (s as inner-entry)
+-- fold inner -- branch on whether the inner universe binds (see the
+--   correction below). Only fold-of-a-NON-binder is inner's language:
+--     bindsb inner = false:  entryRank inner (s as inner-entry), modulo the
+--                            fold-to-unit empty face when inner is empty.
+--     bindsb inner = true:   this member IS a closure -- defer to the closure
+--                            fallback, `typein (entryLt (nsingle (fold inner)))`.
 
 -- union (cons m rest) -- body-major with first-owner collision.
 --   owned by m  (denotes (nsingle m) s):   entryRank (nsingle m) s
@@ -44,12 +48,21 @@ entryRank (fold inner) s = entryRank inner (s as inner-entry)
 --   the binary case in Product.lean's `leastSplit`):
 --   entryRank = sum_i  entryRank(factor_i)(piece_i) * weightOf(later factors)
 
--- closure (binder) -- stage-major:
---   entryRank = stageOffset(firstStage s) + withinStageRank s
---   withinStageRank recurses into the body's structure (the hard spot, below).
+-- closure (any binder node, AND a fold-of-binder) -- deferred stage-major:
+--   entryRank = typein (entryLt node) s
+--   `entryLt` (stage-major, shortlex within a stage) is already a proven well
+--   order in Entries.lean; its `typein` is an injective rank for free. The
+--   within-stage body-recursion is the follow-up increment that replaces this
+--   fallback; until then no closure case is stubbed.
 
 -- sub inner -- adds no entries; contributes no rank of its own, only filters.
 ```
+
+### Correction: fold-of-a-binder is a hidden closure
+
+`nsingle (fold inner)` is always classified a non-binder (`freeAmpb (.fold _) = false` -- the fold's own braces are the innermost binder site, so a fold never contributes a *free* `&` to the node that contains it). But `spells (.fold inner)` (Semantics.lean) reads `if bindsb inner then (exists k, stage inner k s) else ...` -- so when the inner universe binds, the fold's denotation is the closure of inner, even though the node is non-binder. The recursion therefore branches on `bindsb inner` at each fold member, not on `bindsb node`, and the binder branch routes into the closure fallback above. This is the one place the "non-binder skeleton" leaks a closure, and missing it would have put a `stage`-semantics set under a leaf rank.
+
+The upshot is a cleaner first increment: **every closure -- a top-level binder node and a fold-of-binder alike -- ranks by `typein (entryLt node)`**, so the body-recursion is confined to the genuine non-binder skeleton (union / product / leaf / fold-of-non-binder) and the deferred within-stage order is uniformly the existing, already-proven `entryLt`. No case is left as `sorry`.
 
 ### Breaking the rank/offset circularity
 
@@ -69,14 +82,15 @@ Each reordering constructor lands its sub-ranks in disjoint ordinal intervals, s
 
 - union: first-block ranks are `< entryBound (nsingle m)`; second-block ranks are `>= entryBound (nsingle m)`. Cross-block distinct automatically; within-block distinct by the sub-injectivity IH. First-owner ownership makes the m-vs-rest choice a function of the spelling, so no entry is ranked twice.
 - product: mixed radix `a * W + b` with `b < W` (the weight) is injective in `(a, b)` -- the ordinal `Ordinal.div_add_mod` fact -- and the least split is unique (`Product.leastSplit`, to be generalized n-ary), so the digit tuple is a function of the spelling.
-- fold: injective because `entryRank inner` is, by IH.
+- fold-of-non-binder: injective because `entryRank inner` is, by IH.
+- closure (binder node, fold-of-binder): injective because `typein (entryLt node)` is (`typein` of a well order).
 - leaf: `typein` of a well-order is injective by construction.
 
 ## The one genuinely hard spot: closure within-stage
 
 Stage-major ordering is settled (`firstStage` off the real `stage` ladder, already in `Entries.lean`). What is *not* settled is the order **within** a single stage: a closure's stage-`k` entries are body-applied-to-earlier-stages, a product-like shape whose faithful order recurses through both the body and the stage structure. This is the deepest sub-case and the real design risk.
 
-Recommended staging: land leaf + union + product + fold on `entryRecLt` first, and keep the closure's within-stage order at shortlex for the first increment (identical to what `entryLt` already does, and already faithful at *stage* granularity -- the demotion-row theorems in `Entries.lean` are proved at exactly that resolution). Promote the within-stage order to body-recursive as a dedicated follow-up once the non-binder cases are proven. This keeps every increment green and isolates the risk.
+Staging (revised): the first increment ranks *every* closure -- a top-level binder node and a fold-of-binder alike -- by `typein (entryLt node)`, the existing stage-major/shortlex-within-stage well order. That order is already proven (Entries.lean) and already faithful at *stage* granularity (the demotion-row theorems are at exactly that resolution), and its `typein` is an injective rank for free -- so the closure case is *complete*, not stubbed, from increment one. The body-recursion runs only on the genuine non-binder skeleton (leaf / union / product / fold-of-non-binder). Promoting the within-stage order from this `entryLt` fallback to a body-recursive order is the dedicated follow-up increment; until it lands, `entryRecLt` and `entryLt` agree on every closure by construction, so nothing regresses.
 
 ## Anti-divergence bridge lemma
 
