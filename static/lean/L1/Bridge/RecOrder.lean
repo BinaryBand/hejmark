@@ -751,4 +751,73 @@ theorem stageRank_isWellOrder {β : Type*} (st : β → ℕ) (W : ℕ → Ordina
 
 end RecOrder
 
+/- ================================================================ -/
+/- STEP 4b: the within-stage body-membership inversions -- the       -/
+/- general-amp generalization of the reinterpretation block above.   -/
+/- Within a closure's stage `k+1` a body-spelling lives in            -/
+/- `walk n (stage n k) False`, not in `denotes n = walk n ∅ False`,   -/
+/- so the union / fold / product reinterpretations the within-stage   -/
+/- rank recurses through are restated over an arbitrary amp-set       -/
+/- `amp` (the earlier stage). Their proofs are the amp-general core    -/
+/- the `denotes_*` versions already specialize -- `walk_adds`,         -/
+/- `walk_single_*`, `fsplit_fnode` are all amp-parametric -- so the    -/
+/- only change is dropping the `bindsb` guards `denotes` strips        -/
+/- through `ndenote_nonbinder`. The `.amp` leaf, vacuous at the floor  -/
+/- (`walk (nsingle .amp) ∅ False = ∅`), here wears the earlier stage:  -/
+/- it is the leaf the within-stage rank defers to a supplied           -/
+/- earlier-stage rank (slice 4c ties that knot).                       -/
+/- ================================================================ -/
+
+/-- The `.amp` leaf's within-stage membership: over amp-set `amp` it wears
+exactly `amp` (the earlier stage). Vacuous at the floor where `amp = ∅`; this
+is the leaf the within-stage rank ranks by the supplied earlier-stage rank. -/
+theorem walk_single_amp_false (amp : Spelling → Prop) (s : Spelling) :
+    walk (nsingle .amp) amp False s ↔ amp s := by
+  rw [walk_single_amp, false_or]
+
+/-- Union first-owner inversion over an arbitrary amp-set: a union walks
+exactly the two bodies' amp-memberships. The `denotes` version
+(`denotes_napp_iff`) is the `amp = ∅` case; over a general amp no `bindsb`
+guard is needed, since `walk` never consults it on the spine -- only the
+subtraction-free hypothesis on the second body survives. -/
+theorem walk_napp_iff (n1 n2 : Node) (amp : Spelling → Prop)
+    (hsf2 : subfreeb n2 = true) (s : Spelling) :
+    walk (napp n1 n2) amp False s ↔ walk n1 amp False s ∨ walk n2 amp False s := by
+  rw [walk_app, walk_adds n2 amp (walk n1 amp False s) s hsf2,
+    walk_adds n2 amp False s hsf2]
+  tauto
+
+/-- Fold-of-a-non-binder inversion over an arbitrary amp-set: the amp-general
+core of `denotes_fold_nonbinder`. A fold whose inner universe does not bind
+wears inner's amp-membership, plus the empty spelling when inner is empty. -/
+theorem walk_fold_nonbinder (inner : Node) (amp : Spelling → Prop) (s : Spelling)
+    (h : bindsb inner = false) :
+    walk (nsingle (.fold inner)) amp False s
+      ↔ walk inner amp False s ∨ (s = [] ∧ ∀ t, ¬ walk inner amp False t) := by
+  simp only [walk_single_fold, false_or, spells_fold, h, Bool.false_eq_true, if_false]
+
+/-- A product's within-stage membership is its factor split over the same
+amp-set -- `walk_single_prod` with the seed `False` collapsed. -/
+theorem walk_prodNode_fsplit (fs : Factors) (amp : Spelling → Prop) (s : Spelling) :
+    walk (prodNode fs) amp False s ↔ fsplit fs amp s := by
+  show walk (nsingle (.prod fs)) amp False s ↔ _
+  rw [walk_single_prod, false_or]
+
+/-- Head/tail split of a product with a non-binder head over an arbitrary
+amp-set: the amp-general `prodNode_node_split`. The head `n` is a non-binder
+(a literal `&` in the head would rebind, routing to the closure fallback), so
+its `ndenote` collapses to `walk n amp False`. -/
+theorem walk_prodNode_node_split (n : Node) (rest : Factors) (amp : Spelling → Prop)
+    (hbn : bindsb n = false) (s : Spelling) :
+    walk (prodNode (.node n rest)) amp False s
+      ↔ ∃ p q, s = p ++ q ∧ walk n amp False p ∧ walk (prodNode rest) amp False q := by
+  rw [walk_prodNode_fsplit, fsplit_fnode]
+  constructor
+  · rintro ⟨p, q, rfl, hp, hq⟩
+    exact ⟨p, q, rfl, (ndenote_nonbinder n amp p hbn).mp hp,
+      (walk_prodNode_fsplit rest amp q).mpr hq⟩
+  · rintro ⟨p, q, rfl, hp, hq⟩
+    exact ⟨p, q, rfl, (ndenote_nonbinder n amp p hbn).mpr hp,
+      (walk_prodNode_fsplit rest amp q).mp hq⟩
+
 end L1
