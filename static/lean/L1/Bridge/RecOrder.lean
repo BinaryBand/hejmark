@@ -1384,4 +1384,68 @@ read at the stage where it first appears. Stage-major by construction (the
 noncomputable def cRank (n : Node) (e : Entries n) : Ordinal :=
   csRank n (firstStage n e.1) e.1
 
+/- ================================================================ -/
+/- STEP 4d-i: per-stage closure faithfulness. At every stage index    -/
+/- `k`, the per-stage rank `csRank n k` (on the stage-`k` set) is an   -/
+/- injective rank bounded by `csBound n k` -- the union-block          -/
+/- disjoint-interval argument run along the stage ladder, feeding on   -/
+/- 4b's `wnFaithful`. This is the `hbound` / `hinj` per-stage input    -/
+/- that 4d-ii lifts to the entry-level total-bound closure rank.       -/
+/- ================================================================ -/
+
+/-- Per-stage closure faithfulness: at every stage index `k`, the per-stage rank
+`csRank n k` (restricted to the stage-`k` set) is an injective rank bounded by
+`csBound n k`. By induction on `k`: stage `0` is empty; stage `k+1` splits into the
+old block (carried at the stage-`k` rank, faithful by the IH, landing `< csBound n k`)
+and the fresh block (`walk n (stage n k) False`, ranked by 4b's `wnRank` off the IH
+as the amp-rank, landing in `[csBound n k, csBound n (k+1))` by `wnFaithful`). The two
+blocks live in disjoint ordinal intervals, so injectivity composes -- the union-block
+disjoint-interval argument run along the stage ladder. Needs `nSubfree n` (the
+subtraction-free skeleton `wnFaithful` requires). -/
+theorem csFaithful (n : Node) (hsub : nSubfree n = true) :
+    ∀ k, Faithful (fun e : {s : Spelling // stage n k s} => csRank n k e.1) (csBound n k)
+  | 0 =>
+      ⟨fun e => absurd e.2 (by rw [stage_zero]; exact not_false),
+       fun x _ _ => absurd x.2 (by rw [stage_zero]; exact not_false)⟩
+  | k + 1 => by
+      obtain ⟨hib, hii⟩ := csFaithful n hsub k
+      obtain ⟨hwb, hwi⟩ :=
+        wnFaithful (stage n k) (fun e => csRank n k e.1) (csBound n k)
+          (csFaithful n hsub k) n hsub
+      have hle : csBound n k ≤ csBound n (k + 1) := by rw [csBound_succ]; exact le_self_add
+      have hnew : ∀ z : {s : Spelling // stage n (k + 1) s},
+          ¬ stage n k z.1 → walk n (stage n k) False z.1 := by
+        intro z hz
+        have hz2 := z.2
+        rw [stage_succ] at hz2
+        exact hz2.resolve_left hz
+      constructor
+      · intro e
+        show csRank n (k + 1) e.1 < csBound n (k + 1)
+        by_cases h : stage n k e.1
+        · rw [csRank_succ_old n k e.1 h]
+          exact (hib ⟨e.1, h⟩).trans_le hle
+        · have h2 := hnew e h
+          rw [csRank_succ_new n k e.1 h h2, csBound_succ]
+          exact (add_lt_add_iff_left _).2 (hwb ⟨e.1, h2⟩)
+      · intro x y hxy
+        change csRank n (k + 1) x.1 = csRank n (k + 1) y.1 at hxy
+        by_cases hx : stage n k x.1 <;> by_cases hy : stage n k y.1
+        · rw [csRank_succ_old n k x.1 hx, csRank_succ_old n k y.1 hy] at hxy
+          have hval := congrArg Subtype.val (hii (a₁ := ⟨x.1, hx⟩) (a₂ := ⟨y.1, hy⟩) hxy)
+          exact Subtype.ext hval
+        · rw [csRank_succ_old n k x.1 hx, csRank_succ_new n k y.1 hy (hnew y hy)] at hxy
+          have hlt : csRank n k x.1 < csBound n k := hib ⟨x.1, hx⟩
+          rw [hxy] at hlt
+          exact absurd hlt (not_lt.2 le_self_add)
+        · rw [csRank_succ_new n k x.1 hx (hnew x hx), csRank_succ_old n k y.1 hy] at hxy
+          have hlt : csRank n k y.1 < csBound n k := hib ⟨y.1, hy⟩
+          rw [← hxy] at hlt
+          exact absurd hlt (not_lt.2 le_self_add)
+        · rw [csRank_succ_new n k x.1 hx (hnew x hx),
+              csRank_succ_new n k y.1 hy (hnew y hy)] at hxy
+          have heq := (add_left_cancel_iff).1 hxy
+          have hval := congrArg Subtype.val (hwi (a₁ := ⟨x.1, hnew x hx⟩) (a₂ := ⟨y.1, hnew y hy⟩) heq)
+          exact Subtype.ext hval
+
 end L1
