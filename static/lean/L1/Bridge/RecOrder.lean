@@ -1310,4 +1310,78 @@ end
 
 end WithinStageFaithful
 
+/- ================================================================ -/
+/- STEP 4c: tie the knot -- the closure rank by recursion on the      -/
+/- stage index. Stage `k+1`'s within-rank is 4b's body rank           -/
+/- (`wnRank`) over `walk n (stage n k) False`, with the amp-rank set   -/
+/- to the closure rank of the earlier stage `k` (its `stage n k`       -/
+/- entries) and amp-bound its per-stage bound `csBound n k`. The two   -/
+/- are defined together as one pair-valued structural recursion on the -/
+/- stage `k` -- the earlier-stage rank is literally the stage-`k` data, -/
+/- so the recursion is manifestly well-founded (structural on `ℕ`).    -/
+/- ================================================================ -/
+
+open Classical in
+/-- The tied knot: at each stage index `k`, the pair of (per-stage
+bound, per-stage rank on raw spellings). Stage `0` is empty (`stage n 0`
+is `False`), so its bound is `0` and its rank junk `0`. Stage `k+1`
+carries an old entry (already in `stage n k`) at its stage-`k` rank, and
+ranks a fresh body-spelling (`walk n (stage n k) False`) by 4b's body
+rank `wnRank` shifted past the earlier stages' width `csBound n k`, with
+the earlier stage's rank/bound supplied as the amp-rank/amp-bound. -/
+noncomputable def csData (n : Node) : ℕ → Ordinal × (Spelling → Ordinal)
+  | 0 => (0, fun _ => 0)
+  | k + 1 =>
+      ((csData n k).1
+          + wnBound (stage n k) (fun e => (csData n k).2 e.1) (csData n k).1 n,
+       fun s =>
+        if stage n k s then (csData n k).2 s
+        else if h : walk n (stage n k) False s then
+          (csData n k).1
+            + wnRank (stage n k) (fun e => (csData n k).2 e.1) (csData n k).1 n ⟨s, h⟩
+        else 0)
+
+/-- The per-stage closure bound: the total width of all entries first
+appearing at stage `< k`. -/
+noncomputable def csBound (n : Node) (k : ℕ) : Ordinal := (csData n k).1
+
+/-- The per-stage closure rank on raw spellings (junk `0` off `stage n k`). -/
+noncomputable def csRank (n : Node) (k : ℕ) (s : Spelling) : Ordinal := (csData n k).2 s
+
+/- ---- One-step unfolding equations. ---- -/
+
+theorem csBound_zero (n : Node) : csBound n 0 = 0 := rfl
+
+theorem csRank_zero (n : Node) (s : Spelling) : csRank n 0 s = 0 := rfl
+
+theorem csBound_succ (n : Node) (k : ℕ) :
+    csBound n (k + 1)
+      = csBound n k + wnBound (stage n k) (fun e => csRank n k e.1) (csBound n k) n := rfl
+
+theorem csRank_succ_old (n : Node) (k : ℕ) (s : Spelling) (h : stage n k s) :
+    csRank n (k + 1) s = csRank n k s := by
+  simp only [csRank, csData, if_pos h]
+
+theorem csRank_succ_new (n : Node) (k : ℕ) (s : Spelling)
+    (h1 : ¬ stage n k s) (h2 : walk n (stage n k) False s) :
+    csRank n (k + 1) s
+      = csBound n k
+        + wnRank (stage n k) (fun e => csRank n k e.1) (csBound n k) n ⟨s, h2⟩ := by
+  simp only [csRank, csBound, csData, if_neg h1, dif_pos h2]
+
+theorem csRank_succ_none (n : Node) (k : ℕ) (s : Spelling)
+    (h1 : ¬ stage n k s) (h2 : ¬ walk n (stage n k) False s) :
+    csRank n (k + 1) s = 0 := by
+  simp only [csRank, csData, if_neg h1, dif_neg h2]
+
+/- ---- The closure rank on a binder node's entries. ---- -/
+
+/-- The body-recursive closure rank: an entry's rank is its per-stage rank
+read at the stage where it first appears. Stage-major by construction (the
+`csBound n k` offset separates stages), body-recursive within a stage (4b's
+`wnRank`). Defined on every node, meant for binder nodes (where an entry's
+`firstStage` is genuine). -/
+noncomputable def cRank (n : Node) (e : Entries n) : Ordinal :=
+  csRank n (firstStage n e.1) e.1
+
 end L1
