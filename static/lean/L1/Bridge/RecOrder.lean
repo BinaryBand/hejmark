@@ -671,4 +671,84 @@ theorem entryRecLt_final (lo : Spelling) :
   entryRecLt_leaf (.final lo) (by simp [nsingle, bindsb, freeAmpb])
     (fun e => by simp only [mRank])
 
+/- ================================================================ -/
+/- STEP 4: the closure within-stage order -- the stage-structure     -/
+/- backbone. A closure enumerates its entries stage-major (its        -/
+/- `firstStage`), and within a single stage `k+1` an entry is a       -/
+/- body-spelling `walk n (stage n k) False s` whose `&`-leaves are    -/
+/- filled from strictly earlier stages -- a body-recursive shape (the -/
+/- body half, a later slice). This section is the stage half: given   -/
+/- ANY within-stage rank that is bounded by and injective within each -/
+/- stage, the stage-major assembly (ladder offset plus within-stage   -/
+/- rank) is an injective rank, hence a well order. The offset is a    -/
+/- FINITE sum -- `firstStage` is a `ℕ` -- so it is iterated ordinal   -/
+/- addition: the union-block disjoint-interval argument run along the -/
+/- stage ladder rather than the member spine. It is to the ladder     -/
+/- what `mixmul_lt`/`mixmul_inj` are to the product.                  -/
+/- ================================================================ -/
+
+namespace RecOrder
+
+/-- The ladder offset: the ordinal width of every stage strictly below `k`,
+a finite sum since `k : ℕ`. Stage `k`'s rank block starts here. -/
+noncomputable def stageOffset (W : ℕ → Ordinal) : ℕ → Ordinal
+  | 0 => 0
+  | k + 1 => stageOffset W k + W k
+
+theorem stageOffset_le_succ (W : ℕ → Ordinal) (k : ℕ) :
+    stageOffset W k ≤ stageOffset W (k + 1) := by
+  rw [stageOffset]; exact le_self_add
+
+theorem stageOffset_mono (W : ℕ → Ordinal) {k k' : ℕ} (h : k ≤ k') :
+    stageOffset W k ≤ stageOffset W k' := by
+  induction h with
+  | refl => exact le_refl _
+  | step _ ih => exact ih.trans (stageOffset_le_succ W _)
+
+/-- The stage-major rank: the ladder offset of the entry's stage plus its
+within-stage rank. -/
+noncomputable def stageRank {β : Type*} (st : β → ℕ) (W : ℕ → Ordinal)
+    (w : β → Ordinal) (e : β) : Ordinal :=
+  stageOffset W (st e) + w e
+
+/-- A strictly earlier stage's whole block sits below the next ladder offset,
+so its every rank is strictly below every rank of a later stage. This is the
+cross-stage disjointness that makes the assembly injective. -/
+theorem stageRank_lt_of_stage_lt {β : Type*} (st : β → ℕ) (W : ℕ → Ordinal)
+    (w : β → Ordinal) (hbound : ∀ e, w e < W (st e)) {x y : β} (h : st x < st y) :
+    stageRank st W w x < stageRank st W w y := by
+  have h1 : stageRank st W w x < stageOffset W (st x + 1) := by
+    rw [stageRank, stageOffset]; exact (add_lt_add_iff_left _).2 (hbound x)
+  have h2 : stageOffset W (st x + 1) ≤ stageOffset W (st y) := stageOffset_mono W h
+  have h3 : stageOffset W (st y) ≤ stageRank st W w y := by
+    rw [stageRank]; exact le_self_add
+  exact h1.trans_le (h2.trans h3)
+
+/-- The stage-major rank is injective given a within-stage rank that stays
+below its stage's bound and is injective within each stage. Cross-stage
+distinctness is the block disjointness above; within a stage the shared offset
+cancels on the left and the per-stage injectivity finishes. -/
+theorem stageRank_injective {β : Type*} (st : β → ℕ) (W : ℕ → Ordinal)
+    (w : β → Ordinal) (hbound : ∀ e, w e < W (st e))
+    (hinj : ∀ x y, st x = st y → w x = w y → x = y) :
+    Function.Injective (stageRank st W w) := by
+  intro x y hxy
+  rcases lt_trichotomy (st x) (st y) with hlt | heq | hgt
+  · exact absurd hxy (ne_of_lt (stageRank_lt_of_stage_lt st W w hbound hlt))
+  · simp only [stageRank, heq] at hxy
+    exact hinj x y heq ((add_left_cancel_iff).1 hxy)
+  · exact absurd hxy.symm (ne_of_lt (stageRank_lt_of_stage_lt st W w hbound hgt))
+
+/-- The payoff of the stage half: the stage-major assembly is a well order --
+its rank is injective, so `rankLt` inherits the ordinals' well-order. The body
+half (a bounded, per-stage-injective within-stage rank on real closures) plugs
+into `hbound`/`hinj` in the follow-up slice. -/
+theorem stageRank_isWellOrder {β : Type*} (st : β → ℕ) (W : ℕ → Ordinal)
+    (w : β → Ordinal) (hbound : ∀ e, w e < W (st e))
+    (hinj : ∀ x y, st x = st y → w x = w y → x = y) :
+    IsWellOrder β (rankLt (stageRank st W w)) :=
+  isWellOrder_of_injective _ (stageRank_injective st W w hbound hinj)
+
+end RecOrder
+
 end L1
