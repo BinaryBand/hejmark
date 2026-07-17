@@ -111,6 +111,24 @@ HEADLINE_THEOREMS = (
     "L1.unitClosure_entryLt_type",
     "L1.unitClosure_entryLt_iff",
     "L1.anbn_entriesType",
+    # The entries bridge, v2: past omega. Body order and collision ownership
+    # on real syntax -- every product spelling is claimed by a unique least
+    # split (the collision rule with real fsplit cuts for addresses), unique
+    # splits give the ordinal product (positional value on real terms), and
+    # the disjoint union enumerates at the ordinal sum (the doc's append rule)
+    # -- plus the transfinite rows: omega + 2 (union past the limit),
+    # omega * 2 (the {b,c}{a..} north-star row), omega^2 (the seam row,
+    # marker outside the range), omega (the total collision collapse), and
+    # omega * 2 again as the doc-literal nonempty-factor collapse, with k the
+    # alphabet size (cofinite_collision_collapses on real syntax).
+    "L1.prod2_collision_settled",
+    "L1.prodLt_type_of_unique_splits",
+    "L1.unionLt_type_disjoint",
+    "L1.unionRow_unionLt_type",
+    "L1.twoBlocks_prodLt_type",
+    "L1.seamRow_prodLt_type",
+    "L1.collapseRow_prodLt_type",
+    "L1.neCollapseRow_prodLt_type",
 )
 
 # "Axiom-free" does not port from Coq to Lean literally: every Lean/Mathlib

@@ -33,10 +33,12 @@ and the type-omega claims land as theorems about the finite fragment:
 - The admission witness `{ab, {a}&{b}}` (`anbn_entriesType`): type omega too.
 
 `entryLt` is stage-major with the spelling order within a stage; the doc's
-"body order within a stage" for general bodies (union/product body order,
-collision ownership of faces) and the transfinite entry types (the product
-rows at omega*k and omega^2) stay deferred -- the narrowed TODO in
-`docs/.TODO.md`. -/
+union/product body order and collision ownership of faces live in
+`L1/Bridge/Union.lean` and `L1/Bridge/Product.lean`, and the transfinite
+entry types (the product rows at omega*k and omega^2, the union row past
+the limit) in `L1/Bridge/Rows.lean`. What remains deferred -- n-ary factor
+machinery, the in-range seam survivors, the body-recursive within-body
+order -- is the narrowed TODO in `docs/.TODO.md`. -/
 import L1.Membership.Laws
 import L1.Membership.NorthStar
 import L1.Order.Enumeration

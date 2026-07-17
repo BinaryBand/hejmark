@@ -15,3 +15,6 @@ import L1.Order.Collapse
 import L1.Membership.Fixpoint
 import L1.Membership.Admission
 import L1.Bridge.Entries
+import L1.Bridge.Product
+import L1.Bridge.Union
+import L1.Bridge.Rows
