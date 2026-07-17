@@ -10,9 +10,10 @@ is value order).
 
 Like the other order-axis phases this is an abstract mechanization: stages are modeled by their
 new-entry counts (`f : Nat -> Nat`) and the enumeration by the lexicographic order on
-`(stage, in-stage index)` addresses, not by an enumeration of the real syntax (`Universe.entries`
-over `Syntax.lean` remains the deferred integration; `Settling.lean`'s stage semantics is where the
-real stages live). The engine is a general fact worth stating on its own: a well order in which
+`(stage, in-stage index)` addresses, not by an enumeration of the real syntax (that integration's
+v1 lives in `L1/Bridge/Entries.lean`, whose `entryLt` reads first appearance off `Semantics.lean`'s
+real stage ladder and feeds it through this file's engine). The engine is a general fact worth
+stating on its own: a well order in which
 every element has finitely many predecessors has type at most omega
 (`type_le_omega0_of_finite_predecessors`) -- "finitely many predecessors" is exactly what
 stage-major order over finite stages guarantees, and exactly what fails past the first limit. -/

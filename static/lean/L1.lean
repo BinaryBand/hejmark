@@ -14,3 +14,4 @@ import L1.Order.Enumeration
 import L1.Order.Collapse
 import L1.Membership.Fixpoint
 import L1.Membership.Admission
+import L1.Bridge.Entries

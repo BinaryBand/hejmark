@@ -97,6 +97,20 @@ HEADLINE_THEOREMS = (
     "L1.operand_needs_infinitely_many_removals",
     "L1.anbn_exact",
     "L1.closure_admission",
+    # The entries bridge: order semantics over the real syntax, v1. The
+    # ordinal-valued entries enumeration (entriesType) is total on every Node;
+    # over a finite code range the spelling order stays within one limit
+    # (phase A on real syntax), finite stages keep the first-appearance order
+    # within it too (phase E fed by the real stage ladder), and on the
+    # demotion row {{{}}, &C} the generated first-appearance order coincides
+    # with the spelling order (docs/foundation/L1.md, "Compression, not
+    # capability" -- the order-level half of L1.unitClosure_generates above).
+    "L1.entriesType_le_omega0",
+    "L1.entryLt_type_le_omega0",
+    "L1.unitClosure_entriesType",
+    "L1.unitClosure_entryLt_type",
+    "L1.unitClosure_entryLt_iff",
+    "L1.anbn_entriesType",
 )
 
 # "Axiom-free" does not port from Coq to Lean literally: every Lean/Mathlib
