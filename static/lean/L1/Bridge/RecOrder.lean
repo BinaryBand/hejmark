@@ -820,4 +820,494 @@ theorem walk_prodNode_node_split (n : Node) (rest : Factors) (amp : Spelling →
     exact ⟨p, q, rfl, (ndenote_nonbinder n amp p hbn).mpr hp,
       (walk_prodNode_fsplit rest amp q).mp hq⟩
 
+/- ================================================================ -/
+/- STEP 4b-ii-a: the within-stage body recursion -- DEFINITIONS.     -/
+/- A parallel copy of the step-2 recursion (`mRank`/`nRank`/`fRank`)  -/
+/- over `walk n amp False` membership instead of `denotes n`,         -/
+/- parameterized by a supplied earlier-stage rank `(ampRank,          -/
+/- ampBound)`. The `.amp` leaf ranks by `ampRank` (via 4b-i's          -/
+/- `walk_single_amp_false`); an amp-consuming factor (`.amp rest`, or  -/
+/- a `.node n rest` head that meets `amp`) recurses rather than         -/
+/- falling back; a nested closure -- a fold-of-binder or a binder head -/
+/- -- is amp-independent and keeps the `typein (entryLt ·)` fallback.  -/
+/- Faithfulness (the `hbound`/`hinj` input to 4a) is the next slice.   -/
+/- ================================================================ -/
+
+/- ---- Carrier coercions: an amp-independent leaf/closure entry is a `denotes` entry. ---- -/
+
+theorem walk_face_denotes (t : Spelling) (amp : Spelling → Prop) (s : Spelling)
+    (h : walk (nsingle (.face t)) amp False s) : denotes (nsingle (.face t)) s := by
+  rw [walk_single_face] at h
+  show ndenote (nsingle (.face t)) (fun _ => False) s
+  exact (ndenote_face t _ s).mpr (h.resolve_left not_false)
+
+theorem walk_range_denotes (lo hi : Code) (amp : Spelling → Prop) (s : Spelling)
+    (h : walk (nsingle (.range lo hi)) amp False s) : denotes (nsingle (.range lo hi)) s := by
+  rw [walk_single_range] at h
+  show ndenote (nsingle (.range lo hi)) (fun _ => False) s
+  rw [ndenote_nonbinder _ _ _ (by simp [nsingle, bindsb, freeAmpb]), walk_single_range]
+  exact h
+
+theorem walk_final_denotes (lo : Spelling) (amp : Spelling → Prop) (s : Spelling)
+    (h : walk (nsingle (.final lo)) amp False s) : denotes (nsingle (.final lo)) s := by
+  rw [walk_single_final] at h
+  show ndenote (nsingle (.final lo)) (fun _ => False) s
+  rw [ndenote_nonbinder _ _ _ (by simp [nsingle, bindsb, freeAmpb]), walk_single_final]
+  exact h
+
+theorem walk_prodnil_denotes (amp : Spelling → Prop) (s : Spelling)
+    (h : walk (nsingle (.prod .nil)) amp False s) : denotes (nsingle (.prod .nil)) s := by
+  have h2 : fsplit .nil amp s := (walk_prodNode_fsplit .nil amp s).mp h
+  rw [fsplit_fnil] at h2
+  show ndenote (nsingle (.prod .nil)) (fun _ => False) s
+  rw [ndenote_nonbinder _ _ _ (by simp [nsingle, bindsb, freeAmpb, hasAmpb])]
+  exact (walk_prodNode_fsplit .nil (fun _ => False) s).mpr (by rw [fsplit_fnil]; exact h2)
+
+theorem walk_fold_binder_denotes (inner : Node) (amp : Spelling → Prop) (s : Spelling)
+    (hb : bindsb inner = true) (h : walk (nsingle (.fold inner)) amp False s) :
+    denotes (nsingle (.fold inner)) s := by
+  rw [walk_single_fold, false_or, spells_fold, if_pos hb] at h
+  show ndenote (nsingle (.fold inner)) (fun _ => False) s
+  rw [ndenote_nonbinder _ _ _ (by simp [nsingle, bindsb, freeAmpb]),
+    walk_single_fold, false_or, spells_fold, if_pos hb]
+  exact h
+
+theorem ndenote_binder_denotes (n : Node) (amp : Spelling → Prop) (s : Spelling)
+    (hb : bindsb n = true) (h : ndenote n amp s) : denotes n s := by
+  rw [ndenote_binder n amp s hb] at h
+  rw [denotes, ndenote_binder n _ s hb]
+  exact h
+
+/- ---- The generic least head/tail split over two predicates. ---- -/
+
+open Classical in
+/-- The least split of `s` into `p ++ q` with `headP p` and `tailP q`, junk
+`([], [])` when none. Generalizes `someSplit` off the `denotes`-specific `IsHT`
+to any pair of piece predicates -- the within-stage product recursion splits on
+`walk`/`amp` predicates, not `denotes`. -/
+noncomputable def someSplitP (headP tailP : Spelling → Prop) (s : Spelling) :
+    Spelling × Spelling :=
+  if h : ∃ pq : Spelling × Spelling, s = pq.1 ++ pq.2 ∧ headP pq.1 ∧ tailP pq.2
+  then (IsWellFounded.wf (r := splitLt)).min _ h
+  else ([], [])
+
+/- ---- The within-stage recursion. ---- -/
+
+section WithinStage
+
+variable (amp : Spelling → Prop) (ampRank : {s : Spelling // amp s} → Ordinal)
+  (ampBound : Ordinal)
+
+open Classical in
+mutual
+
+/-- Within-stage rank of a one-member node's entry. -/
+noncomputable def wmRank :
+    (m : Member) → {s : Spelling // walk (nsingle m) amp False s} → Ordinal
+  | .face t, e => typein (entrySpellLt (nsingle (.face t))) ⟨e.1, walk_face_denotes t amp e.1 e.2⟩
+  | .range lo hi, e =>
+      typein (entrySpellLt (nsingle (.range lo hi))) ⟨e.1, walk_range_denotes lo hi amp e.1 e.2⟩
+  | .final lo, e =>
+      typein (entrySpellLt (nsingle (.final lo))) ⟨e.1, walk_final_denotes lo amp e.1 e.2⟩
+  | .amp, e => ampRank ⟨e.1, (walk_single_amp_false amp e.1).mp e.2⟩
+  | .sub _, _ => 0
+  | .fold inner, e =>
+      if hb : bindsb inner = true then
+        typein (entryLt (nsingle (.fold inner)))
+          ⟨e.1, walk_fold_binder_denotes inner amp e.1 hb e.2⟩
+      else if h : walk inner amp False e.1 then wnRank inner ⟨e.1, h⟩ else 0
+  | .prod fs, e => wfRank fs ⟨e.1, e.2⟩
+
+/-- Within-stage rank of a node's entry (union spine): first-owner, no closure
+fallback -- a bare `&` member consults `amp` and is ranked recursively. -/
+noncomputable def wnRank : (n : Node) → {s : Spelling // walk n amp False s} → Ordinal
+  | .nil, _ => 0
+  | .cons m rest, e =>
+      if h : walk (nsingle m) amp False e.1 then wmRank m ⟨e.1, h⟩
+      else if h2 : walk rest amp False e.1 then wmBound m + wnRank rest ⟨e.1, h2⟩ else 0
+
+/-- Within-stage rank of a product's entry, positional (mixed radix) over the
+factor pieces its least split carves. -/
+noncomputable def wfRank :
+    (fs : Factors) → {s : Spelling // walk (nsingle (.prod fs)) amp False s} → Ordinal
+  | .nil, e =>
+      typein (entrySpellLt (nsingle (.prod .nil))) ⟨e.1, walk_prodnil_denotes amp e.1 e.2⟩
+  | .amp rest, e =>
+      wfBound rest * (if h : amp (someSplitP amp (fun q => fsplit rest amp q) e.1).1
+          then ampRank ⟨_, h⟩ else 0)
+        + (if h : walk (nsingle (.prod rest)) amp False
+              (someSplitP amp (fun q => fsplit rest amp q) e.1).2
+            then wfRank rest ⟨_, h⟩ else 0)
+  | .node n rest, e =>
+      wfBound rest * (if bindsb n then
+            (if h : denotes n (someSplitP (fun p => ndenote n amp p)
+                (fun q => fsplit rest amp q) e.1).1
+              then typein (entryLt n) ⟨_, h⟩ else 0)
+          else
+            (if h : walk n amp False (someSplitP (fun p => ndenote n amp p)
+                (fun q => fsplit rest amp q) e.1).1
+              then wnRank n ⟨_, h⟩ else 0))
+        + (if h : walk (nsingle (.prod rest)) amp False
+              (someSplitP (fun p => ndenote n amp p) (fun q => fsplit rest amp q) e.1).2
+            then wfRank rest ⟨_, h⟩ else 0)
+
+/-- Within-stage bound contributed by a one-member node. -/
+noncomputable def wmBound : Member → Ordinal
+  | .face t => entriesType (nsingle (.face t))
+  | .range lo hi => entriesType (nsingle (.range lo hi))
+  | .final lo => entriesType (nsingle (.final lo))
+  | .amp => ampBound
+  | .sub _ => 0
+  | .fold inner =>
+      if bindsb inner then closureBound (nsingle (.fold inner)) else wnBound inner + 1
+  | .prod fs => wfBound fs
+
+/-- Within-stage bound contributed by a node: sum of members' block widths (no
+closure fallback -- a bare `&` block has width `ampBound`, not its own order type). -/
+noncomputable def wnBound : Node → Ordinal
+  | .nil => 0
+  | .cons m rest => wmBound m + wnBound rest
+
+/-- Within-stage bound contributed by a factor list: the mixed-radix width, tail
+base times head count, with an amp head counting `ampBound` and a binder head its
+own closure order type. -/
+noncomputable def wfBound : Factors → Ordinal
+  | .nil => entriesType (nsingle (.prod .nil))
+  | .amp rest => wfBound rest * ampBound
+  | .node n rest => wfBound rest * (if bindsb n then closureBound n else wnBound n)
+
+end
+
+/- ---- One-step unfolding lemmas for the recursive branches. ---- -/
+
+theorem wnBound_cons (m : Member) (rest : Node) :
+    wnBound amp ampRank ampBound (.cons m rest)
+      = wmBound amp ampRank ampBound m + wnBound amp ampRank ampBound rest := by
+  simp only [wnBound]
+
+theorem wnRank_cons_first (m : Member) (rest : Node)
+    (e : {s : Spelling // walk (.cons m rest) amp False s})
+    (hd : walk (nsingle m) amp False e.1) :
+    wnRank amp ampRank ampBound (.cons m rest) e = wmRank amp ampRank ampBound m ⟨e.1, hd⟩ := by
+  simp only [wnRank, dif_pos hd]
+
+theorem wnRank_cons_rest (m : Member) (rest : Node)
+    (e : {s : Spelling // walk (.cons m rest) amp False s})
+    (h1 : ¬ walk (nsingle m) amp False e.1) (hd : walk rest amp False e.1) :
+    wnRank amp ampRank ampBound (.cons m rest) e
+      = wmBound amp ampRank ampBound m + wnRank amp ampRank ampBound rest ⟨e.1, hd⟩ := by
+  simp only [wnRank, dif_neg h1, dif_pos hd]
+
+theorem wfBound_amp (rest : Factors) :
+    wfBound amp ampRank ampBound (.amp rest) = wfBound amp ampRank ampBound rest * ampBound := by
+  simp only [wfBound]
+
+theorem wfBound_node (n : Node) (rest : Factors) :
+    wfBound amp ampRank ampBound (.node n rest)
+      = wfBound amp ampRank ampBound rest
+        * (if bindsb n then closureBound n else wnBound amp ampRank ampBound n) := by
+  simp only [wfBound]
+
+end WithinStage
+
+/- ================================================================ -/
+/- STEP 4b-ii-b: within-stage faithfulness -- the composition proof   -/
+/- of step 2 with `amp` threaded through. Given a faithful supplied   -/
+/- amp-rank (`Faithful ampRank ampBound`), the within-stage recursion  -/
+/- is faithful (injective + bounded) on the subtraction-free           -/
+/- skeleton: the `.amp` leaf is discharged by the supplied amp-rank,    -/
+/- the amp-factor / binder-head product cases by the mixed-radix        -/
+/- arithmetic (`mixmul_lt`/`mixmul_inj`), and every union/fold/product  -/
+/- routing by the 4b-i `walk_*` inversions. `wnFaithful` is the per-     -/
+/- stage `hbound`/`hinj` input to 4a's `stageRank_isWellOrder`; slice   -/
+/- 4c feeds it with the real body at each stage. -/
+/- ================================================================ -/
+
+/- Helper: the least split's spec, generic over the two piece predicates. -/
+theorem someSplitP_spec (headP tailP : Spelling → Prop) (s : Spelling)
+    (h : ∃ pq : Spelling × Spelling, s = pq.1 ++ pq.2 ∧ headP pq.1 ∧ tailP pq.2) :
+    s = (someSplitP headP tailP s).1 ++ (someSplitP headP tailP s).2
+      ∧ headP (someSplitP headP tailP s).1 ∧ tailP (someSplitP headP tailP s).2 := by
+  rw [someSplitP, dif_pos h]
+  exact WellFounded.min_mem _ _ h
+
+/-- Two entries of a `walk`-carrier subtype are equal once their images under a
+value-preserving coercion into another subtype agree -- the coercion only ever
+changes the membership proof, never the spelling. -/
+theorem wentry_ext {P Q : Spelling → Prop} {x y : Subtype P}
+    {hx : Q x.1} {hy : Q y.1} (h : (⟨x.1, hx⟩ : Subtype Q) = ⟨y.1, hy⟩) : x = y := by
+  have hv := congrArg Subtype.val h
+  exact Subtype.ext hv
+
+section WithinStageFaithful
+
+variable (amp : Spelling → Prop) (ampRank : {s : Spelling // amp s} → Ordinal)
+  (ampBound : Ordinal) (hamp : Faithful ampRank ampBound)
+
+/- Reduced unfolding of the product recursion when its owning split is genuine. -/
+theorem wfRank_amp_pos (rest : Factors)
+    (e : {s : Spelling // walk (nsingle (.prod (.amp rest))) amp False s})
+    (hp : amp (someSplitP amp (fun q => fsplit rest amp q) e.1).1)
+    (hq : walk (nsingle (.prod rest)) amp False
+        (someSplitP amp (fun q => fsplit rest amp q) e.1).2) :
+    wfRank amp ampRank ampBound (.amp rest) e
+      = wfBound amp ampRank ampBound rest * ampRank ⟨_, hp⟩
+        + wfRank amp ampRank ampBound rest ⟨_, hq⟩ := by
+  simp only [wfRank, dif_pos hp, dif_pos hq]
+
+theorem wfRank_node_binder_pos (n : Node) (rest : Factors) (hb : bindsb n = true)
+    (e : {s : Spelling // walk (nsingle (.prod (.node n rest))) amp False s})
+    (hp : denotes n (someSplitP (fun p => ndenote n amp p) (fun q => fsplit rest amp q) e.1).1)
+    (hq : walk (nsingle (.prod rest)) amp False
+        (someSplitP (fun p => ndenote n amp p) (fun q => fsplit rest amp q) e.1).2) :
+    wfRank amp ampRank ampBound (.node n rest) e
+      = wfBound amp ampRank ampBound rest * typein (entryLt n) ⟨_, hp⟩
+        + wfRank amp ampRank ampBound rest ⟨_, hq⟩ := by
+  simp only [wfRank, if_pos hb, dif_pos hp, dif_pos hq]
+
+theorem wfRank_node_nonbinder_pos (n : Node) (rest : Factors) (hb : bindsb n = false)
+    (e : {s : Spelling // walk (nsingle (.prod (.node n rest))) amp False s})
+    (hp : walk n amp False (someSplitP (fun p => ndenote n amp p) (fun q => fsplit rest amp q) e.1).1)
+    (hq : walk (nsingle (.prod rest)) amp False
+        (someSplitP (fun p => ndenote n amp p) (fun q => fsplit rest amp q) e.1).2) :
+    wfRank amp ampRank ampBound (.node n rest) e
+      = wfBound amp ampRank ampBound rest * wnRank amp ampRank ampBound n ⟨_, hp⟩
+        + wfRank amp ampRank ampBound rest ⟨_, hq⟩ := by
+  simp only [wfRank, hb, Bool.false_eq_true, if_false, dif_pos hp, dif_pos hq]
+
+/- ---- The mutual within-stage faithfulness theorem. ---- -/
+
+include hamp
+
+set_option linter.unusedSectionVars false in
+mutual
+
+theorem wmFaithful : ∀ (m : Member), mSubfree m = true →
+    Faithful (wmRank amp ampRank ampBound m) (wmBound amp ampRank ampBound m)
+  | .face t, _ => by
+      refine ⟨fun e => ?_, fun x y hxy => ?_⟩
+      · simp only [wmRank, wmBound, entriesType]; exact typein_lt_type _ _
+      · simp only [wmRank] at hxy
+        have hinj := typein_injective _ hxy
+        exact wentry_ext hinj
+  | .range lo hi, _ => by
+      refine ⟨fun e => ?_, fun x y hxy => ?_⟩
+      · simp only [wmRank, wmBound, entriesType]; exact typein_lt_type _ _
+      · simp only [wmRank] at hxy
+        have hinj := typein_injective _ hxy
+        exact wentry_ext hinj
+  | .final lo, _ => by
+      refine ⟨fun e => ?_, fun x y hxy => ?_⟩
+      · simp only [wmRank, wmBound, entriesType]; exact typein_lt_type _ _
+      · simp only [wmRank] at hxy
+        have hinj := typein_injective _ hxy
+        exact wentry_ext hinj
+  | .amp, _ => by
+      refine ⟨fun e => ?_, fun x y hxy => ?_⟩
+      · simp only [wmRank, wmBound]; exact hamp.1 _
+      · simp only [wmRank] at hxy
+        have hinj := hamp.2 hxy
+        exact wentry_ext hinj
+  | .sub _, h => absurd h (by simp [mSubfree])
+  | .fold inner, h => by
+      by_cases hb : bindsb inner = true
+      · refine ⟨fun e => ?_, fun x y hxy => ?_⟩
+        · simp only [wmRank, wmBound, dif_pos hb, if_pos hb, closureBound]
+          exact typein_lt_type _ _
+        · simp only [wmRank, dif_pos hb] at hxy
+          have hinj := typein_injective _ hxy
+          exact wentry_ext hinj
+      · rw [Bool.not_eq_true] at hb
+        have hbf : ¬ (bindsb inner = true) := by simp [hb]
+        have hin : nSubfree inner = true := by simpa only [mSubfree] using h
+        obtain ⟨ib, ii⟩ := wnFaithful inner hin
+        refine ⟨fun e => ?_, fun x y hxy => ?_⟩
+        · simp only [wmRank, wmBound, dif_neg hbf, if_neg hbf]
+          by_cases hd : walk inner amp False e.1
+          · rw [dif_pos hd]; exact (ib ⟨e.1, hd⟩).trans_le le_self_add
+          · rw [dif_neg hd]; exact zero_lt_one.trans_le le_add_self
+        · simp only [wmRank, dif_neg hbf] at hxy
+          have hxc := (walk_fold_nonbinder inner amp x.1 hb).mp x.2
+          have hyc := (walk_fold_nonbinder inner amp y.1 hb).mp y.2
+          by_cases hdx : walk inner amp False x.1 <;> by_cases hdy : walk inner amp False y.1
+          · rw [dif_pos hdx, dif_pos hdy] at hxy
+            have hinj := ii hxy
+            exact wentry_ext hinj
+          · exact absurd hdx ((hyc.resolve_left hdy).2 x.1)
+          · exact absurd hdy ((hxc.resolve_left hdx).2 y.1)
+          · exact Subtype.ext (((hxc.resolve_left hdx).1).trans ((hyc.resolve_left hdy).1).symm)
+  | .prod fs, h => by
+      have hfs : fSubfree fs = true := by simpa only [mSubfree] using h
+      obtain ⟨fb, fi⟩ := wfFaithful fs hfs
+      refine ⟨fun e => ?_, fun x y hxy => ?_⟩
+      · simp only [wmRank, wmBound]; exact fb _
+      · simp only [wmRank] at hxy; exact fi hxy
+
+theorem wnFaithful : ∀ (n : Node), nSubfree n = true →
+    Faithful (wnRank amp ampRank ampBound n) (wnBound amp ampRank ampBound n)
+  | .nil, _ =>
+      ⟨fun e => absurd e.2 (by rw [walk_nil]; exact not_false),
+       fun x _ _ => absurd x.2 (by rw [walk_nil]; exact not_false)⟩
+  | .cons m rest, h => by
+      have hcomp : mSubfree m = true ∧ nSubfree rest = true := by
+        simpa only [nSubfree, Bool.and_eq_true] using h
+      have hm := hcomp.1
+      have hr := hcomp.2
+      have hsf : subfreeb rest = true := nSubfree_subfreeb rest hr
+      obtain ⟨mb, mi⟩ := wmFaithful m hm
+      obtain ⟨nb, ni⟩ := wnFaithful rest hr
+      have hcase : ∀ e : {s : Spelling // walk (.cons m rest) amp False s},
+          (∃ hd : walk (nsingle m) amp False e.1,
+              wnRank amp ampRank ampBound (.cons m rest) e = wmRank amp ampRank ampBound m ⟨e.1, hd⟩) ∨
+          (∃ hd : walk rest amp False e.1, ¬ walk (nsingle m) amp False e.1 ∧
+              wnRank amp ampRank ampBound (.cons m rest) e
+                = wmBound amp ampRank ampBound m + wnRank amp ampRank ampBound rest ⟨e.1, hd⟩) := by
+        intro e
+        rcases (walk_napp_iff (nsingle m) rest amp hsf e.1).mp e.2 with hA | hB
+        · exact Or.inl ⟨hA, wnRank_cons_first amp ampRank ampBound m rest e hA⟩
+        · by_cases hA : walk (nsingle m) amp False e.1
+          · exact Or.inl ⟨hA, wnRank_cons_first amp ampRank ampBound m rest e hA⟩
+          · exact Or.inr ⟨hB, hA, wnRank_cons_rest amp ampRank ampBound m rest e hA hB⟩
+      rw [wnBound_cons]
+      constructor
+      · intro e
+        rcases hcase e with ⟨hd, he⟩ | ⟨hd, _, he⟩
+        · rw [he]; exact (mb _).trans_le le_self_add
+        · rw [he]; exact (add_lt_add_iff_left _).2 (nb _)
+      · intro x y hxy
+        rcases hcase x with ⟨hdx, hex⟩ | ⟨hdx, hnx, hex⟩ <;>
+          rcases hcase y with ⟨hdy, hey⟩ | ⟨hdy, hny, hey⟩
+        · rw [hex, hey] at hxy
+          have hinj := mi hxy
+          exact wentry_ext hinj
+        · rw [hex, hey] at hxy
+          exact absurd hxy (ne_of_lt ((mb _).trans_le le_self_add))
+        · rw [hex, hey] at hxy
+          exact absurd hxy.symm (ne_of_lt ((mb _).trans_le le_self_add))
+        · rw [hex, hey] at hxy
+          have hinj := ni ((add_left_cancel_iff).1 hxy)
+          exact wentry_ext hinj
+
+theorem wfFaithful : ∀ (fs : Factors), fSubfree fs = true →
+    Faithful (wfRank amp ampRank ampBound fs) (wfBound amp ampRank ampBound fs)
+  | .nil, _ => by
+      refine ⟨fun e => ?_, fun x y hxy => ?_⟩
+      · simp only [wfRank, wfBound, entriesType]; exact typein_lt_type _ _
+      · simp only [wfRank] at hxy
+        have hinj := typein_injective _ hxy
+        exact wentry_ext hinj
+  | .amp rest, h => by
+      have hfr : fSubfree rest = true := by simpa only [fSubfree] using h
+      obtain ⟨fb, fi⟩ := wfFaithful rest hfr
+      rw [wfBound_amp]
+      have hspec : ∀ e : {s : Spelling // walk (nsingle (.prod (.amp rest))) amp False s},
+          e.1 = (someSplitP amp (fun q => fsplit rest amp q) e.1).1
+              ++ (someSplitP amp (fun q => fsplit rest amp q) e.1).2
+            ∧ amp (someSplitP amp (fun q => fsplit rest amp q) e.1).1
+            ∧ fsplit rest amp (someSplitP amp (fun q => fsplit rest amp q) e.1).2 := by
+        intro e
+        apply someSplitP_spec
+        have hf := (walk_prodNode_fsplit (.amp rest) amp e.1).mp e.2
+        rw [fsplit_famp] at hf
+        obtain ⟨p, q, hpq, hp, hq⟩ := hf
+        exact ⟨(p, q), hpq, hp, hq⟩
+      have hval : ∀ e : {s : Spelling // walk (nsingle (.prod (.amp rest))) amp False s},
+          wfRank amp ampRank ampBound (.amp rest) e
+            = wfBound amp ampRank ampBound rest * ampRank ⟨_, (hspec e).2.1⟩
+              + wfRank amp ampRank ampBound rest
+                  ⟨_, (walk_prodNode_fsplit rest amp _).mpr (hspec e).2.2⟩ :=
+        fun e => wfRank_amp_pos amp ampRank ampBound rest e (hspec e).2.1
+          ((walk_prodNode_fsplit rest amp _).mpr (hspec e).2.2)
+      constructor
+      · intro e; rw [hval e]; exact mixmul_lt (fb _) (hamp.1 _)
+      · intro x y hxy
+        rw [hval x, hval y] at hxy
+        have hWpos : (0 : Ordinal) < wfBound amp ampRank ampBound rest :=
+            zero_le.trans_lt (fb ⟨_, (walk_prodNode_fsplit rest amp _).mpr (hspec x).2.2⟩)
+        obtain ⟨hqe, hre⟩ := mixmul_inj hWpos.ne' (fb _) (fb _) hxy
+        have hhead : (someSplitP amp (fun q => fsplit rest amp q) x.1).1
+            = (someSplitP amp (fun q => fsplit rest amp q) y.1).1 :=
+          congrArg Subtype.val (hamp.2 hqe)
+        have htail : (someSplitP amp (fun q => fsplit rest amp q) x.1).2
+            = (someSplitP amp (fun q => fsplit rest amp q) y.1).2 :=
+          congrArg Subtype.val (fi hre)
+        apply Subtype.ext
+        rw [(hspec x).1, (hspec y).1, hhead, htail]
+  | .node n rest, h => by
+      have hcomp : nSubfree n = true ∧ fSubfree rest = true := by
+        simpa only [fSubfree, Bool.and_eq_true] using h
+      have hn := hcomp.1
+      have hfr := hcomp.2
+      obtain ⟨fb, fi⟩ := wfFaithful rest hfr
+      rw [wfBound_node]
+      have hspec : ∀ e : {s : Spelling // walk (nsingle (.prod (.node n rest))) amp False s},
+          e.1 = (someSplitP (fun p => ndenote n amp p) (fun q => fsplit rest amp q) e.1).1
+              ++ (someSplitP (fun p => ndenote n amp p) (fun q => fsplit rest amp q) e.1).2
+            ∧ ndenote n amp (someSplitP (fun p => ndenote n amp p) (fun q => fsplit rest amp q) e.1).1
+            ∧ fsplit rest amp (someSplitP (fun p => ndenote n amp p) (fun q => fsplit rest amp q) e.1).2 := by
+        intro e
+        apply someSplitP_spec
+        have hf := (walk_prodNode_fsplit (.node n rest) amp e.1).mp e.2
+        rw [fsplit_fnode] at hf
+        obtain ⟨p, q, hpq, hp, hq⟩ := hf
+        exact ⟨(p, q), hpq, hp, hq⟩
+      by_cases hb : bindsb n = true
+      · simp only [if_pos hb]
+        have hval : ∀ e : {s : Spelling // walk (nsingle (.prod (.node n rest))) amp False s},
+            wfRank amp ampRank ampBound (.node n rest) e
+              = wfBound amp ampRank ampBound rest
+                  * typein (entryLt n) ⟨_, ndenote_binder_denotes n amp _ hb (hspec e).2.1⟩
+                + wfRank amp ampRank ampBound rest
+                    ⟨_, (walk_prodNode_fsplit rest amp _).mpr (hspec e).2.2⟩ :=
+          fun e => wfRank_node_binder_pos amp ampRank ampBound n rest hb e
+            (ndenote_binder_denotes n amp _ hb (hspec e).2.1)
+            ((walk_prodNode_fsplit rest amp _).mpr (hspec e).2.2)
+        constructor
+        · intro e; rw [hval e]; exact mixmul_lt (fb _) (typein_lt_type _ _)
+        · intro x y hxy
+          rw [hval x, hval y] at hxy
+          have hWpos : (0 : Ordinal) < wfBound amp ampRank ampBound rest :=
+            zero_le.trans_lt (fb ⟨_, (walk_prodNode_fsplit rest amp _).mpr (hspec x).2.2⟩)
+          obtain ⟨hqe, hre⟩ := mixmul_inj hWpos.ne' (fb _) (fb _) hxy
+          have hhead : (someSplitP (fun p => ndenote n amp p) (fun q => fsplit rest amp q) x.1).1
+              = (someSplitP (fun p => ndenote n amp p) (fun q => fsplit rest amp q) y.1).1 :=
+            congrArg Subtype.val (typein_injective _ hqe)
+          have htail : (someSplitP (fun p => ndenote n amp p) (fun q => fsplit rest amp q) x.1).2
+              = (someSplitP (fun p => ndenote n amp p) (fun q => fsplit rest amp q) y.1).2 :=
+            congrArg Subtype.val (fi hre)
+          apply Subtype.ext
+          rw [(hspec x).1, (hspec y).1, hhead, htail]
+      · rw [Bool.not_eq_true] at hb
+        simp only [hb, Bool.false_eq_true, if_false]
+        obtain ⟨nb, ni⟩ := wnFaithful n hn
+        have hval : ∀ e : {s : Spelling // walk (nsingle (.prod (.node n rest))) amp False s},
+            wfRank amp ampRank ampBound (.node n rest) e
+              = wfBound amp ampRank ampBound rest
+                  * wnRank amp ampRank ampBound n
+                      ⟨_, (ndenote_nonbinder n amp _ hb).mp (hspec e).2.1⟩
+                + wfRank amp ampRank ampBound rest
+                    ⟨_, (walk_prodNode_fsplit rest amp _).mpr (hspec e).2.2⟩ :=
+          fun e => wfRank_node_nonbinder_pos amp ampRank ampBound n rest hb e
+            ((ndenote_nonbinder n amp _ hb).mp (hspec e).2.1)
+            ((walk_prodNode_fsplit rest amp _).mpr (hspec e).2.2)
+        constructor
+        · intro e; rw [hval e]; exact mixmul_lt (fb _) (nb _)
+        · intro x y hxy
+          rw [hval x, hval y] at hxy
+          have hWpos : (0 : Ordinal) < wfBound amp ampRank ampBound rest :=
+            zero_le.trans_lt (fb ⟨_, (walk_prodNode_fsplit rest amp _).mpr (hspec x).2.2⟩)
+          obtain ⟨hqe, hre⟩ := mixmul_inj hWpos.ne' (fb _) (fb _) hxy
+          have hhead : (someSplitP (fun p => ndenote n amp p) (fun q => fsplit rest amp q) x.1).1
+              = (someSplitP (fun p => ndenote n amp p) (fun q => fsplit rest amp q) y.1).1 :=
+            congrArg Subtype.val (ni hqe)
+          have htail : (someSplitP (fun p => ndenote n amp p) (fun q => fsplit rest amp q) x.1).2
+              = (someSplitP (fun p => ndenote n amp p) (fun q => fsplit rest amp q) y.1).2 :=
+            congrArg Subtype.val (fi hre)
+          apply Subtype.ext
+          rw [(hspec x).1, (hspec y).1, hhead, htail]
+
+end
+
+end WithinStageFaithful
+
 end L1
