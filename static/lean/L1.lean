@@ -18,3 +18,4 @@ import L1.Bridge.Entries
 import L1.Bridge.Product
 import L1.Bridge.Union
 import L1.Bridge.Rows
+import L1.Bridge.RecOrder

@@ -630,4 +630,45 @@ theorem entryRecLt_isWellOrder (n : Node) (h : nSubfree n = true) :
     IsWellOrder (Entries n) (entryRecLt n) :=
   RecOrder.isWellOrder_of_injective (entryRank n) (entryRank_injective n h)
 
+/- ---- Leaf agreement: on a leaf member the recursion bottoms out on the       -/
+/- shortlex order it replaces, so the new order restricts to the old on leaves. -/
+/- This is the compatibility hinge -- every constructor case ultimately reduces  -/
+/- through a leaf, so the recursion is a conservative extension of `entrySpellLt` -/
+/- rather than a different order on the base cases.                              -/
+
+/-- On a leaf member -- a single non-binding member whose rank is exactly the
+shortlex `typein` -- the body-recursive rank is that same `typein`. The union
+spine reduces `nsingle m = m :: nil` to its head, and the head is a bare leaf. -/
+theorem entryRank_leaf (m : Member) (hb : bindsb (nsingle m) = false)
+    (hm : ∀ e, mRank m e = Ordinal.typein (entrySpellLt (nsingle m)) e) :
+    entryRank (nsingle m) = Ordinal.typein (entrySpellLt (nsingle m)) := by
+  funext e
+  show nRank (Node.cons m Node.nil) e = _
+  rw [nRank_cons_first hb e e.2]
+  exact hm _
+
+/-- Leaf agreement: on a leaf member the recursive within-body order `entryRecLt`
+is definitionally the shortlex order `entrySpellLt` it extends. -/
+theorem entryRecLt_leaf (m : Member) (hb : bindsb (nsingle m) = false)
+    (hm : ∀ e, mRank m e = Ordinal.typein (entrySpellLt (nsingle m)) e) :
+    entryRecLt (nsingle m) = entrySpellLt (nsingle m) := by
+  show RecOrder.rankLt (entryRank (nsingle m)) = _
+  rw [entryRank_leaf m hb hm]
+  exact RecOrder.rankLt_typein_eq
+
+theorem entryRecLt_face (t : Spelling) :
+    entryRecLt (nsingle (.face t)) = entrySpellLt (nsingle (.face t)) :=
+  entryRecLt_leaf (.face t) (by simp [nsingle, bindsb, freeAmpb])
+    (fun e => by simp only [mRank])
+
+theorem entryRecLt_range (lo hi : Code) :
+    entryRecLt (nsingle (.range lo hi)) = entrySpellLt (nsingle (.range lo hi)) :=
+  entryRecLt_leaf (.range lo hi) (by simp [nsingle, bindsb, freeAmpb])
+    (fun e => by simp only [mRank])
+
+theorem entryRecLt_final (lo : Spelling) :
+    entryRecLt (nsingle (.final lo)) = entrySpellLt (nsingle (.final lo)) :=
+  entryRecLt_leaf (.final lo) (by simp [nsingle, bindsb, freeAmpb])
+    (fun e => by simp only [mRank])
+
 end L1

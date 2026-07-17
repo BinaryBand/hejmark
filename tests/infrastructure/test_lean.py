@@ -129,6 +129,16 @@ HEADLINE_THEOREMS = (
     "L1.seamRow_prodLt_type",
     "L1.collapseRow_prodLt_type",
     "L1.neCollapseRow_prodLt_type",
+    # The entries bridge, v3: the body-recursive within-body order. The order
+    # that recurses into each constructor's own structure (rather than the
+    # sanctioned raw-shortlex approximation entrySpellLt) is a well-order on
+    # every subtraction-free node -- its recursive rank is injective and stays
+    # below its recursive bound (union blocks disjoint, product mixed-radix,
+    # fold-of-non-binder routed into the inner body). On a leaf member it
+    # restricts back to the shortlex order it extends (docs/foundation/L1.md,
+    # "body order"; static/lean/L1/Bridge/RecOrder.design.md).
+    "L1.entryRecLt_isWellOrder",
+    "L1.entryRecLt_face",
 )
 
 # "Axiom-free" does not port from Coq to Lean literally: every Lean/Mathlib

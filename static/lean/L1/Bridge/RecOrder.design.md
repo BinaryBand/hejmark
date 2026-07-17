@@ -98,8 +98,8 @@ Mirroring `shortlexLt_iff_fshortlex`, prove that on any node with no reordering 
 
 ## Migration order (strangler-fig)
 
-1. Add `RecOrder.lean` with `entryRank` / `entryBound` / `entryRecLt` and the free instances. Not yet imported by `L1.lean`.
-2. Prove injectivity + the bound invariant -> `IsWellOrder (entryRecLt n)`, for leaf + union + product + fold.
-3. Prove the leaf agreement bridge lemma. Import `RecOrder.lean` into `L1.lean`; gate stays green.
+1. [landed] Add `RecOrder.lean` with `entryRank` / `entryBound` / `entryRecLt` and the free instances. Not yet imported by `L1.lean`.
+2. [landed] Prove injectivity + the bound invariant -> `IsWellOrder (entryRecLt n)`, for leaf + union + product + fold (`entryRecLt_isWellOrder`, over the deep subtraction-free skeleton `nSubfree`).
+3. [landed] Prove the leaf agreement bridge lemma (`entryRecLt_leaf`, specialized to `entryRecLt_face` / `_range` / `_final`). Import `RecOrder.lean` into `L1.lean`; gate stays green (`entryRecLt_isWellOrder` and `entryRecLt_face` added to `HEADLINE_THEOREMS`, axioms clean).
 4. Closure within-stage body-recursion (own increment).
 5. Migrate `entriesType` -> `prodLt` -> `unionLt` -> `Rows` onto `entryRecLt`, each a green build, deleting each approximation once its replacement is proved.
