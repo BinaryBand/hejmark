@@ -56,6 +56,34 @@ theorem isWellOrder_of_injective (hinj : Function.Injective rank) :
     IsWellOrder α (rankLt rank) :=
   (rankEmb rank hinj).isWellOrder
 
+/- ---------------------------------------------------------------- -/
+/- Every well order is already a rank order: its own `typein`.       -/
+/- This is the base of the recursion -- a leaf node's entries carry  -/
+/- no reordering, so their rank is exactly the ordinal position in   -/
+/- the shortlex (spelling) order, `typein (entrySpellLt n)`. The two -/
+/- facts below say that recovers the original order on the nose and  -/
+/- is injective, so every order the bridge already builds            -/
+/- (`entrySpellLt`, `entryLt`, `prodLt`, `unionLt`) is an instance of -/
+/- the rank framework, not a competitor to it.                       -/
+/- ---------------------------------------------------------------- -/
+
+section Typein
+
+variable {r : α → α → Prop} [IsWellOrder α r]
+
+/-- `typein` is injective on a well order: it is an order iso onto an initial
+segment, so distinct elements land at distinct ordinal positions. -/
+theorem typein_injective : Function.Injective (Ordinal.typein r) :=
+  Ordinal.typein_injective r
+
+/-- The rank order induced by `typein r` is `r` itself -- `typein` reflects and
+preserves the order, so nothing is reordered by passing through the ordinals. -/
+theorem rankLt_typein_eq : rankLt (Ordinal.typein r) = r := by
+  ext a b
+  exact Ordinal.typein_lt_typein r
+
+end Typein
+
 end RecOrder
 
 end L1
