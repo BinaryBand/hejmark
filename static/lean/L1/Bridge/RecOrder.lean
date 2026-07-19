@@ -1629,4 +1629,54 @@ theorem entryRecLt_final (lo : Spelling) :
   entryRecLt_leaf (.final lo) (by simp [nsingle, bindsb, freeAmpb])
     (fun e => by simp only [mRank])
 
+/- ---- The recursive entries enumeration (STEP 5a): the order type of the -/
+/- new order, the quantity the migrated row theorems compute.              -/
+
+/-- The body-recursive entries enumeration: the order type of `entryRecLt`,
+read on the subtraction-free skeleton where `entryRecLt_isWellOrder` makes it
+a well order (junk `0` off it). This is the enumeration that replaces the
+spelling-order `entriesType` in the migrated row theorems; on a leaf the two
+agree (`entryRecType_leaf`). -/
+noncomputable def entryRecType (n : Node) : Ordinal :=
+  if h : nSubfree n = true then
+    @Ordinal.type _ (entryRecLt n) (entryRecLt_isWellOrder n h)
+  else 0
+
+/-- Unfolding on the subtraction-free skeleton. -/
+theorem entryRecType_def (n : Node) (h : nSubfree n = true) :
+    entryRecType n
+      = @Ordinal.type _ (entryRecLt n) (entryRecLt_isWellOrder n h) :=
+  dif_pos h
+
+/-- Leaf agreement at the enumeration level: on a leaf member the recursive
+enumeration is the spelling enumeration -- `entryRecLt_leaf` read through a
+reflexive order isomorphism. -/
+theorem entryRecType_leaf (m : Member) (hb : bindsb (nsingle m) = false)
+    (hsub : mSubfree m = true)
+    (hm : ∀ e, mRank m e = Ordinal.typein (entrySpellLt (nsingle m)) e) :
+    entryRecType (nsingle m) = entriesType (nsingle m) := by
+  have hn : nSubfree (nsingle m) = true := by
+    simp [nsingle, nSubfree, hsub]
+  haveI := entryRecLt_isWellOrder (nsingle m) hn
+  rw [entryRecType_def (nsingle m) hn]
+  refine Ordinal.type_eq.mpr ⟨⟨Equiv.refl _, ?_⟩⟩
+  intro a b
+  exact iff_of_eq
+    (congrFun (congrFun (entryRecLt_leaf m hb hm) a) b).symm
+
+theorem entryRecType_face (t : Spelling) :
+    entryRecType (nsingle (.face t)) = entriesType (nsingle (.face t)) :=
+  entryRecType_leaf (.face t) (by simp [nsingle, bindsb, freeAmpb]) rfl
+    (fun e => by simp only [mRank])
+
+theorem entryRecType_range (lo hi : Code) :
+    entryRecType (nsingle (.range lo hi)) = entriesType (nsingle (.range lo hi)) :=
+  entryRecType_leaf (.range lo hi) (by simp [nsingle, bindsb, freeAmpb]) rfl
+    (fun e => by simp only [mRank])
+
+theorem entryRecType_final (lo : Spelling) :
+    entryRecType (nsingle (.final lo)) = entriesType (nsingle (.final lo)) :=
+  entryRecType_leaf (.final lo) (by simp [nsingle, bindsb, freeAmpb]) rfl
+    (fun e => by simp only [mRank])
+
 end L1
