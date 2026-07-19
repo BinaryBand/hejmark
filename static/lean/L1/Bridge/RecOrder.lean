@@ -2181,4 +2181,90 @@ theorem entryRecType_napp_disjoint (n1 n2 : Node) (hb1 : bindsb n1 = false)
   rw [entryRecType_napp n1 n2 hb1 hb2 hs1 hs2,
     entryRecRemType_disjoint n1 n2 hs2 hdisj]
 
+/- ================================================================ -/
+/- STEP 5d: closure enumeration types -- the Phase-E analogue over   -/
+/- the recursive order. On a binder node the entry rank IS the       -/
+/- closure rank (`entryRank_binder`), and stage-major disjointness   -/
+/- read backwards says an `entryRecLt`-predecessor appears no later  -/
+/- (the contrapositive of `cRank_lt_of_firstStage_lt`) -- so          -/
+/- predecessors live inside one finite stage, and finite stages cap  -/
+/- `entryRecType` at `ω`, exactly `ω` when the denotation is         -/
+/- infinite. Specialized to `entryRecType (unitClosure lo hi) = ω`,  -/
+/- what the migrated rows read where they now read                   -/
+/- `unitClosure_entriesType`.                                        -/
+/- ================================================================ -/
+
+/-- On a binder node the body-recursive entry rank is the closure rank: the
+union-spine recursion's binder branch, read at the top level. -/
+theorem entryRank_binder : ∀ (n : Node), bindsb n = true →
+    ∀ (e : Entries n), entryRank n e = cRank n e
+  | .nil, _, e => absurd e.2 (denotes_nnil e.1)
+  | .cons m rest, hb, e => by
+      show nRank (.cons m rest) e = cRank (.cons m rest) e
+      simp only [nRank, hb, if_true]
+
+/-- Below a fixed entry, the recursive order draws from one finite stage: a
+predecessor's closure rank is smaller, so by the contrapositive of stage-major
+disjointness (`cRank_lt_of_firstStage_lt`) it appears no later, and stage
+monotonicity puts it inside the fixed entry's own first stage -- the
+`entryLt_finite_predecessors` argument with the rank comparison in place of
+the address comparison. -/
+theorem entryRecLt_finite_predecessors (n : Node) (hb : bindsb n = true)
+    (hsub : nSubfree n = true) (hfin : ∀ k, {s | stage n k s}.Finite)
+    (x : Entries n) : {y | entryRecLt n y x}.Finite := by
+  have hstage : ∀ e : Entries n, stage n (firstStage n e.1) e.1 := fun e =>
+    firstStage_stage n e.1 ((ndenote_binder n (fun _ => False) e.1 hb).mp e.2)
+  have hpool : {y | entryRecLt n y x} ⊆
+      Subtype.val ⁻¹' {s | stage n (firstStage n x.1) s} := by
+    intro y hy
+    have hlt : cRank n y < cRank n x := by
+      have h0 : entryRank n y < entryRank n x := hy
+      rw [entryRank_binder n hb y, entryRank_binder n hb x] at h0
+      exact h0
+    have hle : firstStage n y.1 ≤ firstStage n x.1 := by
+      by_contra hgt
+      rw [not_le] at hgt
+      exact lt_asymm
+        (cRank_lt_of_firstStage_lt n hsub (hstage x) (hstage y) hgt) hlt
+    exact stage_mono_le n _ _ y.1 hle (hstage y)
+  exact ((hfin _).preimage Subtype.val_injective.injOn).subset hpool
+
+/-- Phase E on the recursive enumeration: a binder whose stages are all finite
+enumerates its entries within the one limit -- `entryRecType` at most `ω`, the
+`entryLt_type_le_omega0` claim transported to the body-recursive order. -/
+theorem entryRecType_le_omega0 (n : Node) (hb : bindsb n = true)
+    (hsub : nSubfree n = true) (hfin : ∀ k, {s | stage n k s}.Finite) :
+    entryRecType n ≤ ω := by
+  haveI := entryRecLt_isWellOrder n hsub
+  rw [entryRecType_def n hsub]
+  exact type_le_omega0_of_finite_predecessors _
+    (entryRecLt_finite_predecessors n hb hsub hfin)
+
+/-- The exact version: a binder with finite stages and infinitely many entries
+spends the limit on the nose -- the recursive-order face of
+`entryLt_type_eq_omega0`. -/
+theorem entryRecType_eq_omega0 (n : Node) (hb : bindsb n = true)
+    (hsub : nSubfree n = true) (hfin : ∀ k, {s | stage n k s}.Finite)
+    (hinf : {s | denotes n s}.Infinite) : entryRecType n = ω := by
+  haveI := entryRecLt_isWellOrder n hsub
+  haveI : Infinite (Entries n) := Set.infinite_coe_iff.2 hinf
+  rw [entryRecType_def n hsub]
+  exact type_eq_omega0_of_finite_predecessors _
+    (entryRecLt_finite_predecessors n hb hsub hfin)
+
+/-- The demotion row's universe is deeply subtraction-free: no subtraction
+anywhere in `{{{}}, &C}`. -/
+theorem unitClosure_nSubfree (lo hi : Code) :
+    nSubfree (unitClosure lo hi) = true := by
+  simp [unitClosure, nSubfree, mSubfree, fSubfree]
+
+/-- The demotion row on the recursive enumeration: `{{{}}, &C}` enumerates at
+exactly `ω` -- what the migrated rows read where they now read
+`unitClosure_entriesType`. -/
+theorem unitClosure_entryRecType (lo hi : Code) (h : lo ≤ hi) :
+    entryRecType (unitClosure lo hi) = ω :=
+  entryRecType_eq_omega0 _ (unitClosure_bindsb lo hi)
+    (unitClosure_nSubfree lo hi) (unitClosure_stage_finite lo hi)
+    (unitClosure_entries_infinite lo hi h)
+
 end L1
