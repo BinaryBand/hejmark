@@ -1911,4 +1911,274 @@ theorem entryRecType_prod2 (a b : Node) (hsa : nSubfree a = true)
   exact (Ordinal.type_eq.mpr ⟨prod2RecIso a b hsa hsb huniq⟩).trans
     (type_prod_lex (entryRecLt b) (entryRecLt a))
 
+/- ================================================================ -/
+/- STEP 5c: the union law on the recursive order. The cons-spine     -/
+/- block law -- first-owner ownership, `mBound` offset past the head -/
+/- block -- iterated along the first body's spine gives the two-block -/
+/- law for `napp n1 n2`: a first-body entry keeps its first-body     -/
+/- rank, an unclaimed second-body entry ranks at the first body's    -/
+/- bound plus its second-body rank. Assembled into an iso onto the   -/
+/- lex sum of the first body and the second body's unclaimed         -/
+/- remainder -- the recursive analogue of `unionSumIso` -- with the  -/
+/- ordinal-sum type theorem and its disjoint corollary, the          -/
+/- replacements for `unionLt_type` / `unionLt_type_disjoint`.        -/
+/- ================================================================ -/
+
+/-- The empty node denotes nothing -- the base of the spine induction. -/
+theorem denotes_nnil (s : Spelling) : ¬ denotes Node.nil s := by
+  simp only [denotes, ndenote, bindsb, Bool.false_eq_true, if_false, walk_nil]
+  exact not_false
+
+/-- Deep subtraction-freeness is closed under union: the appended spine is the
+two spines' members in sequence. -/
+theorem nSubfree_napp : ∀ (n1 n2 : Node), nSubfree n1 = true →
+    nSubfree n2 = true → nSubfree (napp n1 n2) = true
+  | .nil, _, _, h2 => h2
+  | .cons m rest, n2, h1, h2 => by
+      have hcomp : mSubfree m = true ∧ nSubfree rest = true := by
+        simpa only [nSubfree, Bool.and_eq_true] using h1
+      simpa only [napp, nSubfree, Bool.and_eq_true] using
+        ⟨hcomp.1, nSubfree_napp rest n2 hcomp.2 h2⟩
+
+/-- The first block of the union rank: an entry the first body claims ranks at
+its first-body rank -- `nRank_cons_first` iterated along the first body's
+spine (each unclaimed head member adds the same `mBound` offset on both
+sides). -/
+theorem nRank_napp_first : ∀ (n1 n2 : Node), bindsb n1 = false →
+    bindsb n2 = false → nSubfree n1 = true → nSubfree n2 = true →
+    ∀ (e : Entries (napp n1 n2)) (h1 : denotes n1 e.1),
+      nRank (napp n1 n2) e = nRank n1 ⟨e.1, h1⟩
+  | .nil, _, _, _, _, _, e, h1 => absurd h1 (denotes_nnil e.1)
+  | .cons m rest, n2, hb1, hb2, hs1, hs2, e, h1 => by
+      have hbcomp : freeAmpb m = false ∧ bindsb rest = false := by
+        rw [bindsb, Bool.or_eq_false_iff] at hb1
+        exact hb1
+      have hbm : bindsb (nsingle m) = false := by
+        simp only [nsingle, bindsb, Bool.or_false]
+        exact hbcomp.1
+      have hbr : bindsb rest = false := hbcomp.2
+      have hcomp : mSubfree m = true ∧ nSubfree rest = true := by
+        simpa only [nSubfree, Bool.and_eq_true] using hs1
+      have hban : bindsb (napp rest n2) = false := by
+        rw [bindsb_napp, hbr, hb2]
+        rfl
+      have hbc : bindsb (Node.cons m (napp rest n2)) = false := by
+        rw [bindsb, Bool.or_eq_false_iff]
+        exact ⟨hbcomp.1, hban⟩
+      by_cases hA : denotes (nsingle m) e.1
+      · have hL : nRank (napp (.cons m rest) n2) e = mRank m ⟨e.1, hA⟩ :=
+          nRank_cons_first hbc e hA
+        have hR : nRank (.cons m rest) ⟨e.1, h1⟩ = mRank m ⟨e.1, hA⟩ :=
+          nRank_cons_first hb1 ⟨e.1, h1⟩ hA
+        rw [hL, hR]
+      · have hrest2 : denotes (napp rest n2) e.1 :=
+          ((denotes_napp_iff (nsingle m) (napp rest n2) hbm hban
+            (subfreeb_napp rest n2 (nSubfree_subfreeb rest hcomp.2)
+              (nSubfree_subfreeb n2 hs2)) e.1).mp e.2).resolve_left hA
+        have hrest1 : denotes rest e.1 :=
+          ((denotes_napp_iff (nsingle m) rest hbm hbr
+            (nSubfree_subfreeb rest hcomp.2) e.1).mp h1).resolve_left hA
+        have hL : nRank (napp (.cons m rest) n2) e
+            = mBound m + nRank (napp rest n2) ⟨e.1, hrest2⟩ :=
+          nRank_cons_rest hbc e hA hrest2
+        have hR : nRank (.cons m rest) ⟨e.1, h1⟩
+            = mBound m + nRank rest ⟨e.1, hrest1⟩ :=
+          nRank_cons_rest hb1 ⟨e.1, h1⟩ hA hrest1
+        rw [hL, hR,
+          nRank_napp_first rest n2 hbr hb2 hcomp.2 hs2 ⟨e.1, hrest2⟩ hrest1]
+
+/-- The second block of the union rank: an entry the first body does not claim
+ranks past the whole first block -- the first body's bound plus its
+second-body rank, `nRank_cons_rest` iterated with the offsets reassociated
+into `nBound n1`. -/
+theorem nRank_napp_rest : ∀ (n1 n2 : Node), bindsb n1 = false →
+    bindsb n2 = false → nSubfree n1 = true → nSubfree n2 = true →
+    ∀ (e : Entries (napp n1 n2)), ¬ denotes n1 e.1 → ∀ (h2 : denotes n2 e.1),
+      nRank (napp n1 n2) e = nBound n1 + nRank n2 ⟨e.1, h2⟩
+  | .nil, n2, _, _, _, _, e, _, h2 => by
+      have hz : nBound Node.nil = 0 := by simp only [nBound]
+      show nRank n2 ⟨e.1, e.2⟩ = nBound Node.nil + nRank n2 ⟨e.1, h2⟩
+      rw [hz, zero_add]
+  | .cons m rest, n2, hb1, hb2, hs1, hs2, e, h1, h2 => by
+      have hbcomp : freeAmpb m = false ∧ bindsb rest = false := by
+        rw [bindsb, Bool.or_eq_false_iff] at hb1
+        exact hb1
+      have hbm : bindsb (nsingle m) = false := by
+        simp only [nsingle, bindsb, Bool.or_false]
+        exact hbcomp.1
+      have hbr : bindsb rest = false := hbcomp.2
+      have hcomp : mSubfree m = true ∧ nSubfree rest = true := by
+        simpa only [nSubfree, Bool.and_eq_true] using hs1
+      have hsfr : subfreeb rest = true := nSubfree_subfreeb rest hcomp.2
+      have hban : bindsb (napp rest n2) = false := by
+        rw [bindsb_napp, hbr, hb2]
+        rfl
+      have hbc : bindsb (Node.cons m (napp rest n2)) = false := by
+        rw [bindsb, Bool.or_eq_false_iff]
+        exact ⟨hbcomp.1, hban⟩
+      have hA : ¬ denotes (nsingle m) e.1 := fun hA =>
+        h1 ((denotes_napp_iff (nsingle m) rest hbm hbr hsfr e.1).mpr (Or.inl hA))
+      have hnr : ¬ denotes rest e.1 := fun hR =>
+        h1 ((denotes_napp_iff (nsingle m) rest hbm hbr hsfr e.1).mpr (Or.inr hR))
+      have hrest2 : denotes (napp rest n2) e.1 :=
+        ((denotes_napp_iff (nsingle m) (napp rest n2) hbm hban
+          (subfreeb_napp rest n2 hsfr (nSubfree_subfreeb n2 hs2)) e.1).mp
+            e.2).resolve_left hA
+      have hL : nRank (napp (.cons m rest) n2) e
+          = mBound m + nRank (napp rest n2) ⟨e.1, hrest2⟩ :=
+        nRank_cons_rest hbc e hA hrest2
+      rw [hL, nRank_napp_rest rest n2 hbr hb2 hcomp.2 hs2 ⟨e.1, hrest2⟩ hnr h2,
+        nBound_cons_nb hb1, add_assoc]
+
+/-- Restricting the recursive order to any predicate keeps it a well order --
+the instance the unclaimed remainder's order type reads. -/
+theorem entryRecLt_subrel_isWellOrder (n : Node) (h : nSubfree n = true)
+    (p : Entries n → Prop) : IsWellOrder (Subtype p) (Subrel (entryRecLt n) p) :=
+  haveI := entryRecLt_isWellOrder n h
+  inferInstance
+
+/-- The unclaimed remainder's enumeration: the second body's entries the first
+body does not claim, in the second body's own recursive order. Read on the
+subtraction-free skeleton (junk `0` off it), like `entryRecType`. -/
+noncomputable def entryRecRemType (n1 n2 : Node) : Ordinal :=
+  if h : nSubfree n2 = true then
+    @Ordinal.type _ (Subrel (entryRecLt n2) (fun e2 : Entries n2 => ¬ denotes n1 e2.1))
+      (entryRecLt_subrel_isWellOrder n2 h _)
+  else 0
+
+theorem entryRecRemType_def (n1 n2 : Node) (h : nSubfree n2 = true) :
+    entryRecRemType n1 n2
+      = @Ordinal.type _
+          (Subrel (entryRecLt n2) (fun e2 : Entries n2 => ¬ denotes n1 e2.1))
+          (entryRecLt_subrel_isWellOrder n2 h _) :=
+  dif_pos h
+
+open Classical in
+/-- Union first-owner pieces: route an entry of `napp n1 n2` to the first body
+when it claims the spelling, else to the second body's unclaimed remainder.
+Ownership is a function of the spelling (the `dif`), so the map is injective;
+unlike `unionReinterp` the second component carries its unclaimed-ness, which
+is what makes the map onto. -/
+noncomputable def unionRecPieces (n1 n2 : Node) (hb1 : bindsb n1 = false)
+    (hb2 : bindsb n2 = false) (hsf2 : subfreeb n2 = true)
+    (e : Entries (napp n1 n2)) :
+    Entries n1 ⊕ {e2 : Entries n2 // ¬ denotes n1 e2.1} :=
+  if h : denotes n1 e.1 then Sum.inl ⟨e.1, h⟩
+  else Sum.inr ⟨⟨e.1,
+    ((denotes_napp_iff n1 n2 hb1 hb2 hsf2 e.1).mp e.2).resolve_left h⟩, h⟩
+
+open Classical in
+/-- The recursive union enumeration is the appended enumeration: first body,
+then the unclaimed remainder, as a lex sum -- the recursive analogue of
+`unionSumIso`, with the block law supplying the order agreement in place of
+the body-major `(owner, spelling)` bookkeeping. -/
+noncomputable def unionRecIso (n1 n2 : Node) (hb1 : bindsb n1 = false)
+    (hb2 : bindsb n2 = false) (hs1 : nSubfree n1 = true)
+    (hs2 : nSubfree n2 = true) :
+    entryRecLt (napp n1 n2) ≃r
+      Sum.Lex (entryRecLt n1)
+        (Subrel (entryRecLt n2) (fun e2 : Entries n2 => ¬ denotes n1 e2.1)) where
+  toEquiv := Equiv.ofBijective
+    (unionRecPieces n1 n2 hb1 hb2 (nSubfree_subfreeb n2 hs2)) (by
+    constructor
+    · intro x y hxy
+      simp only [unionRecPieces] at hxy
+      by_cases hx : denotes n1 x.1 <;> by_cases hy : denotes n1 y.1
+      · rw [dif_pos hx, dif_pos hy] at hxy
+        simp only [Sum.inl.injEq, Subtype.mk.injEq] at hxy
+        exact Subtype.ext hxy
+      · rw [dif_pos hx, dif_neg hy] at hxy
+        exact absurd hxy Sum.inl_ne_inr
+      · rw [dif_neg hx, dif_pos hy] at hxy
+        exact absurd hxy Sum.inr_ne_inl
+      · rw [dif_neg hx, dif_neg hy] at hxy
+        simp only [Sum.inr.injEq, Subtype.mk.injEq] at hxy
+        exact Subtype.ext hxy
+    · rintro (⟨t, ht⟩ | ⟨⟨t, ht2⟩, ht1⟩)
+      · exact ⟨⟨t, (denotes_napp_iff n1 n2 hb1 hb2
+          (nSubfree_subfreeb n2 hs2) t).mpr (Or.inl ht)⟩, dif_pos ht⟩
+      · refine ⟨⟨t, (denotes_napp_iff n1 n2 hb1 hb2
+          (nSubfree_subfreeb n2 hs2) t).mpr (Or.inr ht2)⟩, ?_⟩
+        simp only [unionRecPieces]
+        rw [dif_neg ht1])
+  map_rel_iff' := by
+    intro x y
+    simp only [Equiv.ofBijective_apply, unionRecPieces]
+    by_cases hx : denotes n1 x.1 <;> by_cases hy : denotes n1 y.1
+    · rw [dif_pos hx, dif_pos hy, Sum.lex_inl_inl]
+      show (nRank n1 ⟨x.1, hx⟩ < nRank n1 ⟨y.1, hy⟩)
+        ↔ (nRank (napp n1 n2) x < nRank (napp n1 n2) y)
+      rw [nRank_napp_first n1 n2 hb1 hb2 hs1 hs2 x hx,
+        nRank_napp_first n1 n2 hb1 hb2 hs1 hs2 y hy]
+    · rw [dif_pos hx, dif_neg hy]
+      refine iff_of_true (Sum.Lex.sep _ _) ?_
+      have hy2 : denotes n2 y.1 :=
+        ((denotes_napp_iff n1 n2 hb1 hb2
+          (nSubfree_subfreeb n2 hs2) y.1).mp y.2).resolve_left hy
+      show nRank (napp n1 n2) x < nRank (napp n1 n2) y
+      rw [nRank_napp_first n1 n2 hb1 hb2 hs1 hs2 x hx,
+        nRank_napp_rest n1 n2 hb1 hb2 hs1 hs2 y hy hy2]
+      exact (entryRank_lt_entryBound n1 hs1 ⟨x.1, hx⟩).trans_le le_self_add
+    · rw [dif_neg hx, dif_pos hy]
+      refine iff_of_false Sum.lex_inr_inl ?_
+      have hx2 : denotes n2 x.1 :=
+        ((denotes_napp_iff n1 n2 hb1 hb2
+          (nSubfree_subfreeb n2 hs2) x.1).mp x.2).resolve_left hx
+      show ¬ (nRank (napp n1 n2) x < nRank (napp n1 n2) y)
+      rw [nRank_napp_rest n1 n2 hb1 hb2 hs1 hs2 x hx hx2,
+        nRank_napp_first n1 n2 hb1 hb2 hs1 hs2 y hy]
+      exact not_lt.2
+        ((entryRank_lt_entryBound n1 hs1 ⟨y.1, hy⟩).trans_le le_self_add).le
+    · rw [dif_neg hx, dif_neg hy, Sum.lex_inr_inr]
+      have hx2 : denotes n2 x.1 :=
+        ((denotes_napp_iff n1 n2 hb1 hb2
+          (nSubfree_subfreeb n2 hs2) x.1).mp x.2).resolve_left hx
+      have hy2 : denotes n2 y.1 :=
+        ((denotes_napp_iff n1 n2 hb1 hb2
+          (nSubfree_subfreeb n2 hs2) y.1).mp y.2).resolve_left hy
+      show (nRank n2 ⟨x.1, hx2⟩ < nRank n2 ⟨y.1, hy2⟩)
+        ↔ (nRank (napp n1 n2) x < nRank (napp n1 n2) y)
+      rw [nRank_napp_rest n1 n2 hb1 hb2 hs1 hs2 x hx hx2,
+        nRank_napp_rest n1 n2 hb1 hb2 hs1 hs2 y hy hy2]
+      exact (add_lt_add_iff_left (nBound n1)).symm
+
+/-- The union law on the recursive enumeration: the union enumerates as the
+ordinal sum of the first body and the second body's unclaimed remainder --
+the doc's append rule with the skip rule priced in, the migration replacement
+for `unionLt_type`. -/
+theorem entryRecType_napp (n1 n2 : Node) (hb1 : bindsb n1 = false)
+    (hb2 : bindsb n2 = false) (hs1 : nSubfree n1 = true)
+    (hs2 : nSubfree n2 = true) :
+    entryRecType (napp n1 n2) = entryRecType n1 + entryRecRemType n1 n2 := by
+  have hsub : nSubfree (napp n1 n2) = true := nSubfree_napp n1 n2 hs1 hs2
+  haveI := entryRecLt_isWellOrder n1 hs1
+  haveI := entryRecLt_isWellOrder n2 hs2
+  haveI := entryRecLt_isWellOrder (napp n1 n2) hsub
+  rw [entryRecType_def (napp n1 n2) hsub, entryRecType_def n1 hs1,
+    entryRecRemType_def n1 n2 hs2]
+  exact (Ordinal.type_eq.mpr ⟨unionRecIso n1 n2 hb1 hb2 hs1 hs2⟩).trans
+    (type_sum_lex (entryRecLt n1)
+      (Subrel (entryRecLt n2) (fun e2 : Entries n2 => ¬ denotes n1 e2.1)))
+
+/-- With disjoint bodies nothing is claimed: the remainder is the whole second
+body. -/
+theorem entryRecRemType_disjoint (n1 n2 : Node) (hs2 : nSubfree n2 = true)
+    (hdisj : ∀ s, denotes n1 s → ¬ denotes n2 s) :
+    entryRecRemType n1 n2 = entryRecType n2 := by
+  haveI := entryRecLt_isWellOrder n2 hs2
+  rw [entryRecRemType_def n1 n2 hs2, entryRecType_def n2 hs2]
+  exact Ordinal.type_eq.mpr
+    ⟨⟨Equiv.subtypeUnivEquiv (fun e2 h1 => hdisj e2.1 h1 e2.2), Iff.rfl⟩⟩
+
+/-- The disjoint corollary: nothing to skip, so the union enumerates at
+exactly the sum of the body enumerations -- the migration replacement for
+`unionLt_type_disjoint`. -/
+theorem entryRecType_napp_disjoint (n1 n2 : Node) (hb1 : bindsb n1 = false)
+    (hb2 : bindsb n2 = false) (hs1 : nSubfree n1 = true)
+    (hs2 : nSubfree n2 = true)
+    (hdisj : ∀ s, denotes n1 s → ¬ denotes n2 s) :
+    entryRecType (napp n1 n2) = entryRecType n1 + entryRecType n2 := by
+  rw [entryRecType_napp n1 n2 hb1 hb2 hs1 hs2,
+    entryRecRemType_disjoint n1 n2 hs2 hdisj]
+
 end L1
