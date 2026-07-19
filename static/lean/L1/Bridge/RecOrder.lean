@@ -1448,4 +1448,152 @@ theorem csFaithful (n : Node) (hsub : nSubfree n = true) :
           have hval := congrArg Subtype.val (hwi (a₁ := ⟨x.1, hnew x hx⟩) (a₂ := ⟨y.1, hnew y hy⟩) heq)
           exact Subtype.ext hval
 
+/- ================================================================ -/
+/- STEP 4d-ii: entry-level total-bound closure faithfulness. The     -/
+/- total bound `cBound` is the sup of the per-stage bounds; the       -/
+/- entry rank `cRank` (per-stage rank read at the first stage) is     -/
+/- faithful for a genuine binder node -- stage-major disjointness      -/
+/- (`cRank_lt_of_firstStage_lt`) across stages, 4d-i's `csFaithful`   -/
+/- within one. Plus the fold-of-binder reinterpretation routing an     -/
+/- `nsingle (.fold inner)` entry to `cRank inner`. Purely additive;    -/
+/- the swap into `mRank` / `nRank` / `fRank` is 4d-iii.                -/
+/- ================================================================ -/
+
+/-- The total closure bound: the sup over stages of the per-stage bounds
+`csBound n k` -- the closure's order type as seen by the recursive rank. -/
+noncomputable def cBound (n : Node) : Ordinal := ⨆ k, csBound n k
+
+theorem csBound_le_cBound (n : Node) (k : ℕ) : csBound n k ≤ cBound n :=
+  Ordinal.le_iSup (fun k => csBound n k) k
+
+/-- Per-stage bounds grow along the ladder: each successor adds the fresh
+block's width on the right (`csBound_succ`). -/
+theorem csBound_mono (n : Node) {j k : ℕ} (h : j ≤ k) :
+    csBound n j ≤ csBound n k := by
+  induction k, h using Nat.le_induction with
+  | base => exact le_rfl
+  | succ k hk ih => rw [csBound_succ]; exact ih.trans le_self_add
+
+/-- Cross-stage stabilization: once a spelling has appeared, every later
+stage carries it at the same rank (`csRank_succ_old` iterated). -/
+theorem csRank_stable (n : Node) {j k : ℕ} (h : j ≤ k) (s : Spelling)
+    (hs : stage n j s) : csRank n k s = csRank n j s := by
+  induction k, h using Nat.le_induction with
+  | base => rfl
+  | succ k hk ih => rw [csRank_succ_old n k s (stage_mono_le n j k s hk hs), ih]
+
+/-- Stabilization read at the first appearance: any stage that carries `s`
+carries it at its first-stage rank -- the per-stage rank IS the entry rank
+`cRank` wherever it is defined. -/
+theorem csRank_firstStage (n : Node) {k : ℕ} (s : Spelling) (h : stage n k s) :
+    csRank n k s = csRank n (firstStage n s) s :=
+  csRank_stable n (firstStage_le n s h) s (firstStage_stage n s ⟨k, h⟩)
+
+/-- A fresh entry ranks at or past the earlier stages' width: the fresh block
+starts at the offset `csBound n k` (`csRank_succ_new`). -/
+theorem csBound_le_csRank_fresh (n : Node) (k : ℕ) (s : Spelling)
+    (h1 : ¬ stage n k s) (h2 : walk n (stage n k) False s) :
+    csBound n k ≤ csRank n (k + 1) s := by
+  rw [csRank_succ_new n k s h1 h2]
+  exact le_self_add
+
+/-- Stage-major disjointness at the entry level: a strictly earlier first
+appearance is a strictly smaller entry rank. The earlier entry lands below its
+stage's bound (4d-i), the later entry's stage opens at or past that bound
+(`csBound_le_csRank_fresh` through `csBound_mono`) -- the disjoint-interval
+argument read across two different stages. -/
+theorem cRank_lt_of_firstStage_lt (n : Node) (hsub : nSubfree n = true)
+    {x y : Entries n} (hx : stage n (firstStage n x.1) x.1)
+    (hy : stage n (firstStage n y.1) y.1)
+    (hlt : firstStage n x.1 < firstStage n y.1) :
+    cRank n x < cRank n y := by
+  cases hjy : firstStage n y.1 with
+  | zero => omega
+  | succ m =>
+      have hnotm : ¬ stage n m y.1 := fun hm =>
+        absurd (firstStage_le n y.1 hm) (by omega)
+      have hy' : stage n (m + 1) y.1 := by rw [← hjy]; exact hy
+      rw [stage_succ] at hy'
+      have hw : walk n (stage n m) False y.1 := hy'.resolve_left hnotm
+      have h1 : cRank n x < csBound n (firstStage n x.1) :=
+        (csFaithful n hsub (firstStage n x.1)).1 ⟨x.1, hx⟩
+      have h2 : csBound n (firstStage n x.1) ≤ csBound n m :=
+        csBound_mono n (by omega)
+      have h3 : csBound n m ≤ csRank n (m + 1) y.1 :=
+        csBound_le_csRank_fresh n m y.1 hnotm hw
+      have h4 : csRank n (m + 1) y.1 = cRank n y := by
+        show csRank n (m + 1) y.1 = csRank n (firstStage n y.1) y.1
+        rw [hjy]
+      exact (h1.trans_le h2).trans_le (h3.trans_eq h4)
+
+/-- Entry-level closure faithfulness: on a genuine binder node (`bindsb`), the
+body-recursive closure rank `cRank` is injective and lands below the total
+bound `cBound`. Different first stages separate by stage-major disjointness
+(`cRank_lt_of_firstStage_lt`); a shared first stage reduces to 4d-i's
+within-stage faithfulness (`csFaithful`). This is what replaces
+`faithful_typein` on the closure fallbacks in 4d-iii. -/
+theorem cFaithful (n : Node) (hb : bindsb n = true) (hsub : nSubfree n = true) :
+    Faithful (cRank n) (cBound n) := by
+  have hstage : ∀ e : Entries n, stage n (firstStage n e.1) e.1 := fun e =>
+    firstStage_stage n e.1 ((ndenote_binder n (fun _ => False) e.1 hb).mp e.2)
+  constructor
+  · intro e
+    exact ((csFaithful n hsub (firstStage n e.1)).1 ⟨e.1, hstage e⟩).trans_le
+      (csBound_le_cBound n (firstStage n e.1))
+  · intro x y hxy
+    rcases lt_trichotomy (firstStage n x.1) (firstStage n y.1) with hlt | heq | hgt
+    · exact absurd hxy
+        (cRank_lt_of_firstStage_lt n hsub (hstage x) (hstage y) hlt).ne
+    · have hsy : stage n (firstStage n x.1) y.1 := by rw [heq]; exact hstage y
+      have hxy' : csRank n (firstStage n x.1) x.1
+          = csRank n (firstStage n x.1) y.1 := by
+        show cRank n x = csRank n (firstStage n x.1) y.1
+        rw [hxy]
+        show csRank n (firstStage n y.1) y.1 = csRank n (firstStage n x.1) y.1
+        rw [heq]
+      have hval := congrArg Subtype.val
+        ((csFaithful n hsub (firstStage n x.1)).2
+          (a₁ := ⟨x.1, hstage x⟩) (a₂ := ⟨y.1, hsy⟩) hxy')
+      exact Subtype.ext hval
+    · exact absurd hxy.symm
+        (cRank_lt_of_firstStage_lt n hsub (hstage y) (hstage x) hgt).ne
+
+/- ---- The fold-of-binder reinterpretation. ---- -/
+
+/-- A fold-of-binder entry is exactly an inner-closure entry: the fold node
+itself binds nothing (the fold captures the `&`), so its denotation is
+`spells_fold`'s closure branch, which is the binder's own denotation. -/
+theorem denotes_fold_binder (inner : Node) (hb : bindsb inner = true)
+    (s : Spelling) :
+    denotes (nsingle (.fold inner)) s ↔ denotes inner s := by
+  have hnode : bindsb (nsingle (.fold inner)) = false := by
+    simp [nsingle, bindsb, freeAmpb]
+  show ndenote (nsingle (.fold inner)) (fun _ => False) s
+    ↔ ndenote inner (fun _ => False) s
+  rw [ndenote_nonbinder _ _ _ hnode, ndenote_binder _ _ _ hb,
+    walk_single_fold, false_or, spells_fold, if_pos hb]
+
+/-- Route a fold-of-binder entry to the inner closure's carrier -- same
+spelling, membership carried across `denotes_fold_binder`. -/
+def foldBinderReinterp (inner : Node) (hb : bindsb inner = true)
+    (e : Entries (nsingle (.fold inner))) : Entries inner :=
+  ⟨e.1, (denotes_fold_binder inner hb e.1).mp e.2⟩
+
+theorem foldBinderReinterp_injective (inner : Node) (hb : bindsb inner = true) :
+    Function.Injective (foldBinderReinterp inner hb) := by
+  intro x y h
+  have hval := congrArg Subtype.val h
+  exact Subtype.ext hval
+
+/-- The routed rank is faithful: a fold-of-binder entry ranks at its inner
+closure's `cRank`, bounded by the inner closure's `cBound` -- the branch
+4d-iii installs on `mRank (.fold inner)` for a binder `inner`. -/
+theorem foldBinderFaithful (inner : Node) (hb : bindsb inner = true)
+    (hsub : nSubfree inner = true) :
+    Faithful (fun e => cRank inner (foldBinderReinterp inner hb e))
+      (cBound inner) :=
+  ⟨fun e => (cFaithful inner hb hsub).1 (foldBinderReinterp inner hb e),
+   fun _ _ h => foldBinderReinterp_injective inner hb
+     ((cFaithful inner hb hsub).2 h)⟩
+
 end L1
