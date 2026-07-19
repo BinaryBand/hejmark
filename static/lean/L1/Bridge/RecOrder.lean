@@ -310,6 +310,23 @@ theorem mixmul_inj {W a1 b1 a2 b2 : Ordinal} (hW : W ≠ 0)
   subst ha
   exact ⟨rfl, (add_left_cancel_iff).1 h⟩
 
+/-- Mixed-radix comparison: with both low digits below the base, positional
+comparison is lexicographic -- high digit first, low digit on a tie. The iff
+form of `mixmul_lt` / `mixmul_inj`, what turns the product rank's faithfulness
+into an order isomorphism. -/
+theorem mixmul_lt_iff {W a1 b1 a2 b2 : Ordinal} (hb1 : b1 < W) (hb2 : b2 < W) :
+    W * a1 + b1 < W * a2 + b2 ↔ a1 < a2 ∨ (a1 = a2 ∧ b1 < b2) := by
+  constructor
+  · intro h
+    rcases lt_trichotomy a1 a2 with hlt | heq | hgt
+    · exact Or.inl hlt
+    · subst heq
+      exact Or.inr ⟨rfl, (add_lt_add_iff_left _).1 h⟩
+    · exact absurd ((mixmul_lt hb2 hgt).trans_le le_self_add) (lt_asymm h)
+  · rintro (hlt | ⟨rfl, hb⟩)
+    · exact (mixmul_lt hb1 hlt).trans_le le_self_add
+    · exact (add_lt_add_iff_left _).2 hb
+
 /- ---- The deep subtraction-free skeleton. ---- -/
 
 /- No subtraction anywhere -- the scope of the first faithfulness increment
@@ -1678,5 +1695,220 @@ theorem entryRecType_final (lo : Spelling) :
     entryRecType (nsingle (.final lo)) = entriesType (nsingle (.final lo)) :=
   entryRecType_leaf (.final lo) (by simp [nsingle, bindsb, freeAmpb]) rfl
     (fun e => by simp only [mRank])
+
+/- ================================================================ -/
+/- STEP 5b: the product law on the recursive order. A binary product -/
+/- `prod2 a b` never binds and has no literal `&` factor, so `nRank`  -/
+/- runs the mixed-radix branch over `someSplit`; under unique splits   -/
+/- the split is pinned, the mixed-radix comparison (`mixmul_lt_iff`)   -/
+/- turns the rank arithmetic into a lex order, and the recursive       -/
+/- order is isomorphic to the lex product of the factors' recursive    -/
+/- orders. The enumeration corollary `entryRecType_prod2` is the       -/
+/- migration replacement for `prodLt_type_of_unique_splits`.           -/
+/- ================================================================ -/
+
+/-- The empty product denotes exactly the empty spelling -- the tail base
+case of the factor recursion (`fsplit_fnil` read at the `denotes` level). -/
+theorem prodNil_denotes_iff (s : Spelling) :
+    denotes (prodNode .nil) s ↔ s = [] := by
+  rw [denotes_prodNode_fsplit .nil rfl s, fsplit_fnil]
+
+theorem prodNil_denotes_nil : denotes (prodNode .nil) [] :=
+  (prodNil_denotes_iff []).mpr rfl
+
+/-- A singleton factor list wears exactly its factor's language: the tail
+piece of its split is forced empty, so the head piece is the whole entry. -/
+theorem prodTail_denotes_iff (b : Node) (q : Spelling) :
+    denotes (prodNode (.node b .nil)) q ↔ denotes b q := by
+  rw [prodNode_node_split b .nil rfl q]
+  constructor
+  · rintro ⟨q1, q2, rfl, hq1, hq2⟩
+    rw [prodNil_denotes_iff] at hq2
+    subst hq2
+    rwa [List.append_nil]
+  · intro hq
+    exact ⟨q, [], (List.append_nil q).symm, hq, prodNil_denotes_nil⟩
+
+/-- The recursion's split choice on a binary-product entry is a genuine
+head/tail split (`prodNode_node_split_exists` fed to `someSplit_isHT`). -/
+theorem prod2_someSplit_isHT (a b : Node) (e : Entries (prod2 a b)) :
+    IsHT a (prodNode (.node b .nil)) e.1
+      (someSplit a (prodNode (.node b .nil)) e.1) :=
+  someSplit_isHT a (prodNode (.node b .nil)) e.1
+    (prodNode_node_split_exists (rfl : hasAmpb (Factors.node b Factors.nil) = false) e)
+
+/-- The head/tail factor entries of a binary-product entry, carved by the
+recursion's own split choice `someSplit` -- the recursive-order analogue of
+`prodPieces`, whose `leastSplit` retires with the approximation in 5e. -/
+noncomputable def prod2RecPieces (a b : Node) (e : Entries (prod2 a b)) :
+    Entries a × Entries b :=
+  (⟨(someSplit a (prodNode (.node b .nil)) e.1).1, (prod2_someSplit_isHT a b e).2.1⟩,
+   ⟨(someSplit a (prodNode (.node b .nil)) e.1).2,
+     (prodTail_denotes_iff b _).mp (prod2_someSplit_isHT a b e).2.2⟩)
+
+/-- Injective with no uniqueness hypothesis -- the owning split reconstructs
+its entry (`e.1 = p ++ q`). -/
+theorem prod2RecPieces_injective (a b : Node) :
+    Function.Injective (prod2RecPieces a b) := by
+  intro x y hxy
+  simp only [prod2RecPieces, Prod.mk.injEq, Subtype.mk.injEq] at hxy
+  apply Subtype.ext
+  rw [(prod2_someSplit_isHT a b x).1, (prod2_someSplit_isHT a b y).1, hxy.1, hxy.2]
+
+/-- Under unique splits the recursion's split choice is the given split --
+the pinning that makes the pieces map surjective. -/
+theorem prod2_someSplit_eq (a b : Node)
+    (huniq : ∀ s pq pq', IsSplit a b s pq → IsSplit a b s pq' → pq = pq')
+    {s p q : Spelling} (hs : s = p ++ q) (hp : denotes a p) (hq : denotes b q) :
+    someSplit a (prodNode (.node b .nil)) s = (p, q) := by
+  have hex : ∃ pq, IsHT a (prodNode (.node b .nil)) s pq :=
+    ⟨(p, q), hs, hp, (prodTail_denotes_iff b q).mpr hq⟩
+  have hht := someSplit_isHT a (prodNode (.node b .nil)) s hex
+  exact huniq s _ (p, q)
+    ⟨hht.1, hht.2.1, (prodTail_denotes_iff b _).mp hht.2.2⟩ ⟨hs, hp, hq⟩
+
+/-- On the singleton tail the split choice is forced: the tail piece must be
+empty, so the head piece is the whole entry -- no uniqueness hypothesis. -/
+theorem someSplit_prodNil_eq (b : Node) {q : Spelling} (hbq : denotes b q) :
+    someSplit b (prodNode .nil) q = (q, []) := by
+  have hex : ∃ pq, IsHT b (prodNode .nil) q pq :=
+    ⟨(q, []), (List.append_nil q).symm, hbq, prodNil_denotes_nil⟩
+  have hht := someSplit_isHT b (prodNode .nil) q hex
+  have h2 : (someSplit b (prodNode .nil) q).2 = [] :=
+    (prodNil_denotes_iff _).mp hht.2.2
+  have h1 : (someSplit b (prodNode .nil) q).1 = q := by
+    have hq := hht.1
+    rw [h2, List.append_nil] at hq
+    exact hq.symm
+  exact Prod.ext h1 h2
+
+/-- The constant low-digit pad every binary-product rank carries: the rank of
+the forced-empty tail-of-tail piece in the empty product's spelling order. -/
+noncomputable def prodNilRank : Ordinal :=
+  typein (entrySpellLt (nsingle (.prod .nil))) ⟨[], prodNil_denotes_nil⟩
+
+theorem prodNilRank_lt : prodNilRank < fBound .nil := by
+  simp only [prodNilRank, fBound, entriesType]
+  exact typein_lt_type _ _
+
+/-- The singleton-tail rank collapses: the forced split `(q, [])` makes the
+rank the factor's own rank plus the constant pad. -/
+theorem fRank_node_nil (b : Node) (q : Spelling)
+    (hq : denotes (prodNode (.node b .nil)) q) (hbq : denotes b q) :
+    fRank (.node b .nil) ⟨q, hq⟩ = fBound .nil * nRank b ⟨q, hbq⟩ + prodNilRank := by
+  have hpin := someSplit_prodNil_eq b hbq
+  have h1 : denotes b (someSplit b (prodNode .nil) q).1 := by
+    rw [hpin]; exact hbq
+  have h2 : denotes (prodNode .nil) (someSplit b (prodNode .nil) q).2 := by
+    rw [hpin]; exact prodNil_denotes_nil
+  have hval : fRank (.node b .nil) ⟨q, hq⟩
+      = fBound .nil * nRank b ⟨(someSplit b (prodNode .nil) q).1, h1⟩
+        + fRank .nil ⟨(someSplit b (prodNode .nil) q).2, h2⟩ :=
+    fRank_node_nb rfl ⟨q, hq⟩ h1 h2
+  have e1 : (⟨(someSplit b (prodNode .nil) q).1, h1⟩ : Entries b) = ⟨q, hbq⟩ :=
+    Subtype.ext (congrArg Prod.fst hpin)
+  have e2 : (⟨(someSplit b (prodNode .nil) q).2, h2⟩ : Entries (nsingle (.prod .nil)))
+      = ⟨[], prodNil_denotes_nil⟩ :=
+    Subtype.ext (congrArg Prod.snd hpin)
+  rw [hval, e1, e2]
+  simp only [fRank, prodNilRank]
+
+/-- The binary-product rank in closed mixed-radix form: tail-width times the
+head factor's rank, plus the tail factor's rank scaled past the constant pad
+-- `fRank_node_nb` read twice through the recursion's split choice. -/
+theorem entryRank_prod2 (a b : Node) (e : Entries (prod2 a b)) :
+    entryRank (prod2 a b) e
+      = fBound (.node b .nil) * entryRank a (prod2RecPieces a b e).1
+        + (fBound .nil * entryRank b (prod2RecPieces a b e).2 + prodNilRank) := by
+  have hht := prod2_someSplit_isHT a b e
+  have h1 : entryRank (prod2 a b) e
+      = mRank (.prod (.node a (.node b .nil))) ⟨e.1, e.2⟩ :=
+    nRank_cons_first (prod2_bindsb a b) e e.2
+  have h2 : mRank (.prod (.node a (.node b .nil))) ⟨e.1, e.2⟩
+      = fRank (.node a (.node b .nil)) ⟨e.1, e.2⟩ := by
+    have hna : hasAmpb (Factors.node a (Factors.node b Factors.nil)) = false := rfl
+    rw [mRank]
+    simp only [hna, Bool.false_eq_true, if_false]
+  have h3 : fRank (.node a (.node b .nil)) ⟨e.1, e.2⟩
+      = fBound (.node b .nil)
+          * nRank a ⟨(someSplit a (prodNode (.node b .nil)) e.1).1, hht.2.1⟩
+        + fRank (.node b .nil)
+            ⟨(someSplit a (prodNode (.node b .nil)) e.1).2, hht.2.2⟩ :=
+    fRank_node_nb rfl ⟨e.1, e.2⟩ hht.2.1 hht.2.2
+  have h4 : fRank (.node b .nil)
+      ⟨(someSplit a (prodNode (.node b .nil)) e.1).2, hht.2.2⟩
+      = fBound .nil * nRank b ⟨(someSplit a (prodNode (.node b .nil)) e.1).2,
+            (prodTail_denotes_iff b _).mp hht.2.2⟩ + prodNilRank :=
+    fRank_node_nil b _ hht.2.2 ((prodTail_denotes_iff b _).mp hht.2.2)
+  rw [h1, h2, h3, h4]
+  rfl
+
+/-- The comparison law: the binary-product recursive order compares head
+ranks first, tail ranks on a tie -- the two mixed-radix layers read through
+`mixmul_lt_iff`, the constant pad cancelling on the low digit. -/
+theorem entryRecLt_prod2_iff (a b : Node) (hsb : nSubfree b = true)
+    (x y : Entries (prod2 a b)) :
+    entryRecLt (prod2 a b) x y
+      ↔ (entryRank a (prod2RecPieces a b x).1 < entryRank a (prod2RecPieces a b y).1
+        ∨ (entryRank a (prod2RecPieces a b x).1 = entryRank a (prod2RecPieces a b y).1
+            ∧ entryRank b (prod2RecPieces a b x).2 < entryRank b (prod2RecPieces a b y).2)) := by
+  have hT : ∀ e : Entries (prod2 a b),
+      fBound .nil * entryRank b (prod2RecPieces a b e).2 + prodNilRank
+        < fBound (.node b .nil) := by
+    intro e
+    rw [fBound_node_nb (rfl : hasAmpb Factors.nil = false)]
+    exact mixmul_lt prodNilRank_lt (entryRank_lt_entryBound b hsb (prod2RecPieces a b e).2)
+  show entryRank (prod2 a b) x < entryRank (prod2 a b) y ↔ _
+  rw [entryRank_prod2 a b x, entryRank_prod2 a b y, mixmul_lt_iff (hT x) (hT y),
+    mixmul_lt_iff prodNilRank_lt prodNilRank_lt]
+  simp only [lt_self_iff_false, and_false, or_false]
+
+/-- The product law: under unique splits the recursive order on a binary
+product is the lex product of the factors' recursive orders -- the recursive
+analogue of `prodSplitIso`, with the recursion's own split choice as the
+pieces map. -/
+noncomputable def prod2RecIso (a b : Node) (hsa : nSubfree a = true)
+    (hsb : nSubfree b = true)
+    (huniq : ∀ s pq pq', IsSplit a b s pq → IsSplit a b s pq' → pq = pq') :
+    entryRecLt (prod2 a b) ≃r Prod.Lex (entryRecLt a) (entryRecLt b) where
+  toEquiv := Equiv.ofBijective (prod2RecPieces a b) (by
+    refine ⟨prod2RecPieces_injective a b, ?_⟩
+    rintro ⟨⟨p, hp⟩, ⟨q, hq⟩⟩
+    have hd : denotes (prod2 a b) (p ++ q) :=
+      (prod2_denotes_iff a b _).mpr ⟨p, q, rfl, hp, hq⟩
+    have hpin : someSplit a (prodNode (.node b .nil)) (p ++ q) = (p, q) :=
+      prod2_someSplit_eq a b huniq rfl hp hq
+    refine ⟨⟨p ++ q, hd⟩, ?_⟩
+    simp only [prod2RecPieces]
+    exact Prod.ext (Subtype.ext (congrArg Prod.fst hpin))
+      (Subtype.ext (congrArg Prod.snd hpin)))
+  map_rel_iff' := by
+    intro x y
+    simp only [Equiv.ofBijective_apply, Prod.lex_def]
+    rw [entryRecLt_prod2_iff a b hsb x y]
+    constructor
+    · rintro (h | ⟨heq, h⟩)
+      · exact Or.inl h
+      · exact Or.inr ⟨congrArg (entryRank a) heq, h⟩
+    · rintro (h | ⟨heq, h⟩)
+      · exact Or.inl h
+      · exact Or.inr ⟨entryRank_injective a hsa heq, h⟩
+
+/-- The product law on the recursive enumeration: with unique splits a binary
+product enumerates as the ordinal product of its factors' recursive
+enumerations, most significant factor on the left of the syntax and the right
+of the `*` -- the migration replacement for `prodLt_type_of_unique_splits`. -/
+theorem entryRecType_prod2 (a b : Node) (hsa : nSubfree a = true)
+    (hsb : nSubfree b = true)
+    (huniq : ∀ s pq pq', IsSplit a b s pq → IsSplit a b s pq' → pq = pq') :
+    entryRecType (prod2 a b) = entryRecType b * entryRecType a := by
+  have hsub : nSubfree (prod2 a b) = true := by
+    simp [prod2, nsingle, nSubfree, mSubfree, fSubfree, hsa, hsb]
+  haveI := entryRecLt_isWellOrder a hsa
+  haveI := entryRecLt_isWellOrder b hsb
+  haveI := entryRecLt_isWellOrder (prod2 a b) hsub
+  rw [entryRecType_def (prod2 a b) hsub, entryRecType_def a hsa, entryRecType_def b hsb]
+  exact (Ordinal.type_eq.mpr ⟨prod2RecIso a b hsa hsb huniq⟩).trans
+    (type_prod_lex (entryRecLt b) (entryRecLt a))
 
 end L1
