@@ -119,3 +119,73 @@ Mirroring `shortlexLt_iff_fshortlex`, prove that on any node with no reordering 
    - 5c. [landed] The union law on the recursive order: the cons-spine block law (first-owner ownership, `mBound` offset past the head block, `nRank_cons_first` / `nRank_cons_rest` iterated along the first body's spine by structural induction -- `nRank_napp_first` keeps a claimed entry at its first-body rank, `nRank_napp_rest` reassociates the per-member offsets into `nBound n1`, over `denotes_nnil` / `nSubfree_napp`) assembled into an iso from `entryRecLt (napp n1 n2)` onto the lex sum of the first body and the second body's unclaimed remainder (`unionRecIso`, pieces map `unionRecPieces` -- `unionReinterp` with unclaimed-ness carried in the type, which is what makes it onto) -- the recursive analogue of `unionSumIso` -- with the ordinal-sum type theorem `entryRecType_napp` over the named remainder enumeration `entryRecRemType` (dite-guarded like `entryRecType`, instance via `entryRecLt_subrel_isWellOrder`) and its disjoint corollary `entryRecType_napp_disjoint` (via `entryRecRemType_disjoint`), the replacements for `unionLt_type` / `unionLt_type_disjoint`. Both bodies non-binder and deep subtraction-free.
    - 5d. [landed] Closure enumeration types: the Phase-E analogue over the recursive order. On a binder node the entry rank is the closure rank (`entryRank_binder`, the union-spine recursion's binder branch read at the top level), so an `entryRecLt`-predecessor's `cRank` is smaller and by the contrapositive of `cRank_lt_of_firstStage_lt` it appears no later -- predecessors live inside one finite stage (`entryRecLt_finite_predecessors`, the `entryLt_finite_predecessors` argument with the rank comparison in place of the address comparison). Finite stages therefore cap `entryRecType` at omega (`entryRecType_le_omega0`), exactly omega when the denotation is infinite (`entryRecType_eq_omega0`); specialized to `entryRecType (unitClosure lo hi) = omega` (`unitClosure_entryRecType`, over `unitClosure_nSubfree`), what the migrated rows read where they now read `unitClosure_entriesType`.
    - 5e. [landed] Rows migration and deletion: the five row theorems restated over `entryRecLt` / `entryRecType` -- `unionRow_entryRecType` ($\omega + 2$, via `entryRecType_napp_disjoint` + `entryRecType_fold_binder` on the braced closure), `twoBlocks_entryRecType` ($\omega \cdot 2$) and `seamRow_entryRecType` ($\omega^2$) both via `entryRecType_prod2` under unique splits, `collapseRow_entryRecType` ($\omega$, an explicit iso `collapseRowRecIso` onto the closure's own recursive order since collision defeats unique splits), and `neCollapseRow_entryRecType`. **The nonempty collapse is $\omega \cdot 4$, not $\omega \cdot 2$.** The recursion's least split still pins the prefix to one code, so exactly two head blocks survive; but under the recursive order each block is enumerated by the *tail* body's own recursive order, and `neBounded = prod2 rangeNode (unitClosure 0 1)` has unique splits, so its recursive type is the positional `entryRecType (unitClosure 0 1) * entryRecType rangeNode = \omega \cdot 2` (two lead blocks) where the spelling-order `prodLt` approximation interleaved them into one $\omega$. The row is `(\omega \cdot 2) \cdot 2 = \omega \cdot 4` (2 heads $\times$ 2 tail lead-blocks), a k-shift from the approximation's $\omega \cdot 2$; the doc's "collapses to $\omega \cdot k$, $k$ finite" stands with $k = 4$. The iso is `neCollapseRecIso : entryRecLt (prod2 neBounded neBounded) \simeq Prod.Lex (Fin 2) (entryRecLt neBounded)` (the head-code index over the whole tail order), via `neCollapse_someSplit` (the collision pin over `someSplit_eq`) and the singleton head-rank comparison `headRank_lt_iff` / `headRank_eq_iff`. Then delete the superseded approximations (`prodLt` / `prodAddrEmb` / `prodSplitIso` / `prodLt_type_of_unique_splits`; `unionLt` / `ownerRank` / `unionAddrEmb` / `unionSumIso` / `unionLt_type` / `unionLt_type_disjoint`; the old row statements and their spelling-order isos) and swap the corresponding `HEADLINE_THEOREMS` entries. This is the design's finish line; the remaining items (within-stage promotion for nested closures, n-ary `Factors`, in-range seam survivors, converse re-admission) are the deferrals in `docs/.TODO.md`.
+
+## WP1 -- one recursion, and the nested-closure promotion
+
+Step 4d-iii retired the *top-level* closure fallback (`mRank` / `nRank` / `fRank` route every closure to `cRank`), but the 4b within-stage recursion still ranks a closure occurring *inside* a stage body by `typein (entryLt _)` / `closureBound` -- the four sites in `wmRank` (fold-of-binder), `wfRank` (binder head), `wmBound`, `wfBound`. WP1 promotes those to the body-recursive `cRank` / `cBound`, making `entryRecLt` body-recursive at every depth, and in doing so merges the two six-way rank recursions the file carries (the `SIMPLIFY.md` S6 requirement: one parameterized definition, the top-level rank as its `amp := False` instance).
+
+Why the merge and the promotion are one increment: `cRank n` is built from the within-stage recursion applied to `n`'s body. Routing the nested-closure branch to `cRank n'` makes the closure data at `n` depend on the closure data at strict subterms `n'` -- so the two recursions stop being independent and have to be laid out together.
+
+### The shape: oracle parameterization, not a 7-way mutual
+
+The high-risk shape would be one `mutual` block spanning all six within-stage ways plus the stage-ladder knot. Instead the within-stage recursion stays **structural** and takes the closure rank as an abstract parameter:
+
+```
+section WithinStage
+variable (amp) (ampRank) (ampBound)
+  (clRank : (n' : Node) -> Entries n' -> Ordinal) (clBound : Node -> Ordinal)
+```
+
+The four fallback sites become `clRank` / `clBound` consultations (the fold site keyed on `inner` through `foldBinderReinterp`, matching how the top level routes it). Nothing about the recursion's structure changes -- `cl` is opaque to it -- so 4b-ii-a's definitions and 4b-ii-b's faithfulness keep their shape, the latter gaining one hypothesis `hcl : Faithful (clRank n') (clBound n')` at the subterms where the oracle is consulted, replacing the `typein_injective` / `typein_lt_type` discharges.
+
+### Locality: the oracle only matters where it is consulted
+
+A mutual predicate `mSites` / `nSites` / `fSites` says "`P` holds at every oracle-consultation site below this syntax" (`nSites P` at a fold-of-binder is `P inner`; at a binder factor head, `P n`; elsewhere structural). Against it, one mutual block of six congruence lemmas: oracles agreeing on all consultation sites give equal ranks and equal bounds. Six, not three, because rank-congruence needs bound-congruence (`wnRank (.cons m rest)` mentions `wmBound m`; `wfRank` mentions `wfBound rest`).
+
+Gating on an abstract `P` rather than on a size bound is what lets one block serve both consumers: the knot instantiates `P := (sizeOf . < sizeOf n)` to discharge its guards, and the agreement lemma instantiates `P := fun _ => False` (oracle never consulted, so *any* two oracles agree).
+
+### The knot: the file's only well-founded recursion
+
+Split 4c's `csData` in two. The stage-index recursion stays structural and becomes oracle-parametric:
+
+```
+csStep (n) (clR) (clB) : Nat -> Ordinal x (Spelling -> Ordinal)
+```
+
+with 4c's body verbatim, `clR` / `clB` threaded into `wnBound` / `wnRank`. Then one well-founded recursion supplies the promoted oracle, guarded so the recursive calls are visibly smaller:
+
+```
+csData (n : Node) : Nat -> Ordinal x (Spelling -> Ordinal) :=
+  csStep n
+    (fun n' e' => if h : sizeOf n' < sizeOf n then (csData n' (firstStage n' e'.1)).2 e'.1 else 0)
+    (fun n' => if h : sizeOf n' < sizeOf n then Sup j, (csData n' j).1 else 0)
+termination_by sizeOf n
+```
+
+Both guards are **dependent** `if h :` -- a non-dependent `ite` would leave the guard out of scope and the termination goal unprovable. The measure is a bare `Nat`, not a `Prod.lex` of `(sizeOf n, k)`: the stage index no longer needs to participate, because `csStep` already handles it structurally. Every termination goal is then discharged by the guard itself.
+
+The payoff is in the equation lemmas. `csBound_succ` and `csRank_succ_{old,new,none}` are restated about `csStep n cRank cBound`, which is structural, so they keep their existing `rfl` / `simp only [csStep, ...]` proofs and `csFaithful`'s sixteen uses of them are untouched. Exactly one propositional equation is well-founded-derived,
+
+```
+csData_eq_total (n) (k) : csData n k = csStep n cRank cBound k
+```
+
+proved from `csData.eq_def` plus the locality lemmas (the guards hold at every consultation site because those sites are strict subterms). Everything downstream reads the total `cRank` / `cBound`, never the guarded lambdas.
+
+`cRank` and `cBound` keep their 4c/4d-ii definitions unchanged in form.
+
+### Faithfulness
+
+4d-i's `csFaithful` and 4d-ii's `cFaithful` need the subterm instance of `cFaithful` to discharge `hcl`. Rather than nesting the five lemmas that sit between them (`csBound_mono`, `csRank_stable`, `csBound_le_csRank_fresh`, `cRank_lt_of_firstStage_lt`) inside a strong-induction block, the subterm hypothesis is threaded through them explicitly and the strong induction on `sizeOf n` is closed once, at `cFaithful`. This is the promotion's whole content at the proof level: where 4b-ii-b discharged a nested closure by `faithful_typein`, it now discharges by `cFaithful` at the subterm.
+
+### Retiring the top-level recursion
+
+With the within-stage recursion parameterized, the top-level `mRank` / `nRank` / `fRank` / `mBound` / `nBound` / `fBound` mutual and its faithfulness mutual are redundant: they are that recursion at `amp := fun _ => False`, `ampRank` vacuous, `ampBound := 0`, `clRank := cRank`, `clBound := cBound`. The six names survive as thin non-recursive wrappers that do the binder routing (`bindsb n` to `cRank n`, else into the parameterized body), so `entryRank` / `entryBound` / `entryRecLt` / `entryRecType` and the whole API surface (`nRank_cons_first` / `_rest`, `nBound_cons_nb`, `fRank_node_nb`, `fBound_node_nb`, the injectivity and leaf-agreement statements) keep byte-identical types.
+
+Three seams need care. The `.amp` branches of the old mutual were totality scaffolding -- a bare `&` forces `bindsb = true`, so the wrapper routes to `cBound` before `ampBound := 0` is ever reached (worth a proved side lemma, since it silently breaks if a constructor is added). The old `.sub` branches ranked into `entriesType (nsingle (.sub _))` where the merged recursion gives `0`; the carrier is empty, so they agree, but the bound changes for any node containing a `.sub`. And the product split changes carrier: the old branches split on `denotes`, the merged ones on `ndenote` / `fsplit`. Heads are definitionally equal; tails are not (`denotes (prodNode rest) q` unfolds to `False \/ fsplit rest False q`), so `Split.lean` gains a predicate congruence `someSplitP_congr` plus the transport that moves the dependent membership proofs across the resulting pair equality.
+
+### Anti-divergence
+
+The 4b fallback disappears, so the "`entryRecLt` and `entryLt` agree on every closure by construction" guarantee that covered the un-promoted order needs a replacement at the new resolution: on a node with no nested-closure site (`ncFreeb`, the boolean reflection of `nSites (fun _ => False)`), the shipped promoted rank equals the same recursion run at the old fallback oracle. It follows from the locality lemmas without touching either recursion's internals -- the oracle is never consulted, so the two instances cannot disagree. Together with a witness row that *does* nest a closure inside a stage body (no existing row does), this pins both sides of the promotion: where it was supposed to change nothing, it changes nothing; where it was supposed to bite, it is exercised.
+
+`closureBound` is then deleted and `entryLt` leaves `RecOrder.lean` entirely -- it survives in `Entries.lean` as the Phase-E stage-major order with its own headlines, no longer load-bearing for the recursive order.
