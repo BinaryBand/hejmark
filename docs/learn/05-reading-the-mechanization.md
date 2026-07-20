@@ -19,8 +19,8 @@ uv run pytest -k lean        # just the three Lean gate tests
 Those three gates (all in `tests/infrastructure/test_lean.py`) are:
 
 1. `test_lean_proofs_build` -- `lake build` exits clean.
-2. `test_lean_headline_theorems_are_honestly_axiom_free` -- every theorem in the `HEADLINE_THEOREMS` tuple has an axiom footprint within `{propext, Classical.choice, Quot.sound}` (lesson 4's honesty check).
-3. `test_lean_proofs_are_complete` -- no `.lean` file contains the tokens `sorry` or `axiom`.
+1. `test_lean_headline_theorems_are_honestly_axiom_free` -- every theorem in the `HEADLINE_THEOREMS` tuple has an axiom footprint within `{propext, Classical.choice, Quot.sound}` (lesson 4's honesty check).
+1. `test_lean_proofs_are_complete` -- no `.lean` file contains the tokens `sorry` or `axiom`.
 
 If the Lean toolchain is not installed the build gate fails *loudly* rather than skipping silently -- you must set `HIMARK_SKIP_LEAN=1` to opt out on purpose. The design principle, straight from the Zen file in this repo: errors should never pass silently.
 

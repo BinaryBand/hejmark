@@ -9,10 +9,10 @@ Reminder from lesson 4: these notes transliterate Lean's Unicode to ASCII. `->` 
 All three proofs run the *same play* you learned in lesson 4:
 
 1. Define an explicit *numbering* function from the ordered thing to a known model.
-2. Prove the numbering *preserves order* (`x < y` maps to `number x < number y`).
-3. Prove it is a *bijection* (injective + surjective).
-4. Package 1-3 as an order isomorphism (`~=r`).
-5. Read off the order type, because order type is invariant under `~=r` and the model's type is known.
+1. Prove the numbering *preserves order* (`x < y` maps to `number x < number y`).
+1. Prove it is a *bijection* (injective + surjective).
+1. Package 1-3 as an order isomorphism (`~=r`).
+1. Read off the order type, because order type is invariant under `~=r` and the model's type is known.
 
 `Order.lean` numbers into `Nat` (model for $\omega$). `Positional.lean` numbers into `Fin (bs.prod)` (model for a finite type). `Collision.lean` skips the isomorphism -- it only needs step 1's ordered model to be a *well-order*, then takes a minimum. Watch the play repeat and the files stop looking intimidating.
 

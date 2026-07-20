@@ -69,12 +69,12 @@ inductive Tree (A : Type) where
 
 | Form               | Meaning                                                     |
 | ------------------ | ----------------------------------------------------------- |
-| `fun x => e`       | anonymous function (lambda); also written as `λ x => e`     |
-| `∀ x : T, U`       | dependent function type (Pi); `→` is the non-dependent case |
-| `A → B`            | function type -- also implication                           |
+| `fun x => e`       | anonymous function (lambda); also written as `$\lambda$ x => e`     |
+| `$\forall$ x : T, U`       | dependent function type (Pi); `$\rightarrow$` is the non-dependent case |
+| `A $\rightarrow$ B`            | function type -- also implication                           |
 | `let x := e; body` | local binding                                               |
 | `match e with ...` | pattern match / case analysis                               |
-| `A × B`, `A ⊕ B`   | product, sum types                                          |
+| `A $\times$ B`, `A $\oplus$ B`   | product, sum types                                          |
 | `{ x : T // P x }` | subtype                                                     |
 | `@f`               | supply implicit args explicitly                             |
 
@@ -104,12 +104,12 @@ ______________________________________________________________________
 
 | Logic          | Lean             | Type-theoretic reading                         | Intro / elim tactics                                        |
 | -------------- | ---------------- | ---------------------------------------------- | ----------------------------------------------------------- |
-| implication    | `P → Q`          | function type                                  | `intro` / `apply`                                           |
-| conjunction    | `P ∧ Q`          | pair (`And`, ctor `And.intro`)                 | `constructor` or `⟨h1, h2⟩` / `rcases`, `cases`             |
-| disjunction    | `P ∨ Q`          | sum (`Or`, ctors `Or.inl`, `Or.inr`)           | `left`, `right` (or `Or.inl`, `Or.inr`) / `rcases`, `cases` |
-| negation       | `¬ P`            | `P → False`                                    | `intro` / `contradiction`                                   |
-| for all        | `∀ x, P`         | dependent function (Pi)                        | `intro` / `apply`, `specialize`                             |
-| exists         | `∃ x, P`         | dependent pair (`Exists`, ctor `Exists.intro`) | `use t` or `⟨t, h⟩` / `rcases`, `cases`                     |
+| implication    | `P $\rightarrow$ Q`          | function type                                  | `intro` / `apply`                                           |
+| conjunction    | `P $\land$ Q`          | pair (`And`, ctor `And.intro`)                 | `constructor` or `$\langle$h1, h2$\rangle$` / `rcases`, `cases`             |
+| disjunction    | `P $\lor$ Q`          | sum (`Or`, ctors `Or.inl`, `Or.inr`)           | `left`, `right` (or `Or.inl`, `Or.inr`) / `rcases`, `cases` |
+| negation       | `$\neg$ P`            | `P $\rightarrow$ False`                                    | `intro` / `contradiction`                                   |
+| for all        | `$\forall$ x, P`         | dependent function (Pi)                        | `intro` / `apply`, `specialize`                             |
+| exists         | `$\exists$ x, P`         | dependent pair (`Exists`, ctor `Exists.intro`) | `use t` or `$\langle$t, h$\rangle$` / `rcases`, `cases`                     |
 | equality       | `x = y`          | `Eq` inductive (`Eq.refl`)                     | `rfl` / `rw`, `subst`                                       |
 | truth / absurd | `True` / `False` | unit / empty type                              | `trivial` / `contradiction`, `exfalso`                      |
 
@@ -121,7 +121,7 @@ ______________________________________________________________________
 
 | Tactic               | Effect                                                    |
 | -------------------- | --------------------------------------------------------- |
-| `intro x` / `intros` | move `∀`/`→` premises into hypotheses                     |
+| `intro x` / `intros` | move `$\forall$`/`$\rightarrow$` premises into hypotheses                     |
 | `apply H`            | backward reasoning: match `H`'s conclusion to the goal    |
 | `exact t`            | give the proof term directly                              |
 | `assumption`         | goal is one of the hypotheses verbatim                    |
@@ -143,7 +143,7 @@ ______________________________________________________________________
 | Tactic                | Effect                                                   |
 | --------------------- | -------------------------------------------------------- |
 | `rfl`                 | prove `x = x` (up to conversion / definitional equality) |
-| `rw [H]` / `rw [← H]` | rewrite goal left-to-right / right-to-left with `H`      |
+| `rw [H]` / `rw [$\leftarrow$ H]` | rewrite goal left-to-right / right-to-left with `H`      |
 | `rw [H] at H2`        | rewrite inside a hypothesis                              |
 | `symm` / `trans`      | flip / chain an equality                                 |
 | `subst x`             | eliminate a variable given `x = e`                       |
@@ -154,7 +154,7 @@ ______________________________________________________________________
 
 #### Connective intro
 
-`constructor` (`∧`), `left` / `right` (`∨`), `use t` (existential).
+`constructor` (`$\land$`), `left` / `right` (`$\lor$`), `use t` (existential).
 
 #### Building forward
 
@@ -164,7 +164,7 @@ ______________________________________________________________________
 | `let x := e`           | define a local variable                                        |
 | `specialize H t`       | instantiate a hypothesis                                       |
 | `generalize h : e = x` | replace expression `e` with variable `x`                       |
-| `obtain ⟨h1, h2⟩ := H` | destructure a hypothesis forward (requires Mathlib)            |
+| `obtain $\langle$h1, h2$\rangle$ := H` | destructure a hypothesis forward (requires Mathlib)            |
 
 #### Automation
 

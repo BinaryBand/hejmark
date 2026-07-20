@@ -12,21 +12,21 @@ Lean 4 is both a programming language and this proof assistant. Mathlib is its e
 
 The real `.lean` files use Unicode. These ASCII notes transliterate. When you open the actual files you will see the pretty forms on the right.
 
-| ASCII here | Real Lean glyph | Means |
-| ---------- | --------------- | ----- |
-| `->` | the right arrow | function type, and logical "implies" |
-| `forall x, P x` | the upside-down A | "for all x, P x" |
-| `exists x, P x` | the backwards E | "there exists x with P x" |
-| `exists! x, P x` | backwards E with bang | "there exists a *unique* x with P x" |
-| `A /\ B` | the wedge | "A and B" |
-| `A \/ B` | the vee | "A or B" |
-| `<=`, `<` | the real symbols | order relations |
-| `x-lex` | the times-with-subscript-l | *lexicographic* product of two ordered types |
-| `~=r` | the tilde-equals-with-r | an *order isomorphism* between two relations |
-| `Nat` | (same) | the natural numbers $0, 1, 2, \ldots$ |
-| `Prop` | (same) | the type of *propositions* (statements that could be proved) |
-| `Type` | (same) | the type of ordinary data types |
-| the centered dot | the raised dot | a placeholder for an argument, as in `(. < .)` = "the less-than relation as a function" |
+| ASCII here       | Real Lean glyph            | Means                                                                                   |
+| ---------------- | -------------------------- | --------------------------------------------------------------------------------------- |
+| `->`             | the right arrow            | function type, and logical "implies"                                                    |
+| `forall x, P x`  | the upside-down A          | "for all x, P x"                                                                        |
+| `exists x, P x`  | the backwards E            | "there exists x with P x"                                                               |
+| `exists! x, P x` | backwards E with bang      | "there exists a *unique* x with P x"                                                    |
+| `A /\ B`         | the wedge                  | "A and B"                                                                               |
+| `A \/ B`         | the vee                    | "A or B"                                                                                |
+| `<=`, `<`        | the real symbols           | order relations                                                                         |
+| `x-lex`          | the times-with-subscript-l | *lexicographic* product of two ordered types                                            |
+| `~=r`            | the tilde-equals-with-r    | an *order isomorphism* between two relations                                            |
+| `Nat`            | (same)                     | the natural numbers $0, 1, 2, \ldots$                                                   |
+| `Prop`           | (same)                     | the type of *propositions* (statements that could be proved)                            |
+| `Type`           | (same)                     | the type of ordinary data types                                                         |
+| the centered dot | the raised dot             | a placeholder for an argument, as in `(. < .)` = "the less-than relation as a function" |
 
 ## Propositions as types: the one idea everything rests on
 

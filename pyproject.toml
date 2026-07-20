@@ -155,5 +155,9 @@ dev = [
     # (wraps the Java antlr4 jar, auto-downloading it and a JRE if needed),
     # not something the shipped package imports, so it lives in dev rather
     # than [project.dependencies].
-    "antlr4-tools==0.2.*"
+    "antlr4-tools==0.2.*",
+    "mdformat>=1.0.0",
+    "mdformat-myst>=0.3.0",
+    "pymarkdownlnt>=0.9.39",
+    "emoji>=2.15.0",
 ]

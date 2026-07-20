@@ -11,11 +11,11 @@ An ambitious junior programmer who is comfortable writing code but has never had
 Read these in order. Each one assumes the ones before it.
 
 1. [The universe: what Himark is about](01-the-universe.md) -- the single object the whole language is built on, and why it is a "pointed alphabet" rather than a set of strings. Start here even if you are impatient; nothing else makes sense without it.
-2. [The six constructors](02-the-six-constructors.md) -- the only six ways to build a universe, why there are exactly six, and the one rule they all obey (they never say no).
-3. [The theorems: what the object forces](03-the-theorems.md) -- positional value, transfinitude, fixpoints, and compression. These are not features somebody added; they are consequences nobody could avoid. This is the hardest math lesson and the most rewarding.
-4. [Lean in a hurry](04-lean-in-a-hurry.md) -- a from-zero crash course in the proof assistant: propositions as types, tactics, well-founded recursion, order isomorphisms, and what "axiom-free" actually means. No Himark here, just the tool.
-5. [Reading the mechanization](05-reading-the-mechanization.md) -- a guided tour of `static/lean/L1/`: which file proves what, the crucial split between the "membership axis" and the "order axis," and how the CI gates keep everyone honest.
-6. [The order-axis proofs, up close](06-the-order-axis-proofs.md) -- a line-by-line reading of the first three order-axis files (`Order.lean`, `Positional.lean`, `Collision.lean`), which are the most self-contained and the best first proofs to actually understand.
+1. [The six constructors](02-the-six-constructors.md) -- the only six ways to build a universe, why there are exactly six, and the one rule they all obey (they never say no).
+1. [The theorems: what the object forces](03-the-theorems.md) -- positional value, transfinitude, fixpoints, and compression. These are not features somebody added; they are consequences nobody could avoid. This is the hardest math lesson and the most rewarding.
+1. [Lean in a hurry](04-lean-in-a-hurry.md) -- a from-zero crash course in the proof assistant: propositions as types, tactics, well-founded recursion, order isomorphisms, and what "axiom-free" actually means. No Himark here, just the tool.
+1. [Reading the mechanization](05-reading-the-mechanization.md) -- a guided tour of `static/lean/L1/`: which file proves what, the crucial split between the "membership axis" and the "order axis," and how the CI gates keep everyone honest.
+1. [The order-axis proofs, up close](06-the-order-axis-proofs.md) -- a line-by-line reading of the first three order-axis files (`Order.lean`, `Positional.lean`, `Collision.lean`), which are the most self-contained and the best first proofs to actually understand.
 
 ## How to read a lesson
 
