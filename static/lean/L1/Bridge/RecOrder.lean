@@ -791,8 +791,10 @@ section WithinStageFaithful
 variable (amp : Spelling → Prop) (ampRank : {s : Spelling // amp s} → Ordinal)
   (ampBound : Ordinal)
   (clRank : (n' : Node) → Entries n' → Ordinal) (clBound : Node → Ordinal)
+  (Q : Node → Prop)
   (hamp : Faithful ampRank ampBound)
-  (hcl : ∀ n', bindsb n' = true → nSubfree n' = true → Faithful (clRank n') (clBound n'))
+  (hcl : ∀ n', Q n' → bindsb n' = true → nSubfree n' = true →
+    Faithful (clRank n') (clBound n'))
 
 /- Reduced unfolding of the product recursion when its owning split is genuine. -/
 theorem wfRank_amp_pos (rest : Factors)
@@ -832,46 +834,48 @@ include hamp hcl
 set_option linter.unusedSectionVars false in
 mutual
 
-theorem wmFaithful : ∀ (m : Member), mSubfree m = true →
+theorem wmFaithful : ∀ (m : Member), mSubfree m = true → mSites Q m →
     Faithful (wmRank amp ampRank ampBound clRank clBound m) (wmBound amp ampRank ampBound clRank clBound m)
-  | .face t, _ => by
+  | .face t, _, _ => by
       refine ⟨fun e => ?_, fun x y hxy => ?_⟩
       · simp only [wmRank, wmBound, entriesType]; exact typein_lt_type _ _
       · simp only [wmRank] at hxy
         have hinj := typein_injective _ hxy
         exact wentry_ext hinj
-  | .range lo hi, _ => by
+  | .range lo hi, _, _ => by
       refine ⟨fun e => ?_, fun x y hxy => ?_⟩
       · simp only [wmRank, wmBound, entriesType]; exact typein_lt_type _ _
       · simp only [wmRank] at hxy
         have hinj := typein_injective _ hxy
         exact wentry_ext hinj
-  | .final lo, _ => by
+  | .final lo, _, _ => by
       refine ⟨fun e => ?_, fun x y hxy => ?_⟩
       · simp only [wmRank, wmBound, entriesType]; exact typein_lt_type _ _
       · simp only [wmRank] at hxy
         have hinj := typein_injective _ hxy
         exact wentry_ext hinj
-  | .amp, _ => by
+  | .amp, _, _ => by
       refine ⟨fun e => ?_, fun x y hxy => ?_⟩
       · simp only [wmRank, wmBound]; exact hamp.1 _
       · simp only [wmRank] at hxy
         have hinj := hamp.2 hxy
         exact wentry_ext hinj
-  | .sub _, h => absurd h (by simp [mSubfree])
-  | .fold inner, h => by
+  | .sub _, h, _ => absurd h (by simp [mSubfree])
+  | .fold inner, h, hs => by
+      simp only [mSites] at hs
       have hin : nSubfree inner = true := by simpa only [mSubfree] using h
       by_cases hb : bindsb inner = true
       · refine ⟨fun e => ?_, fun x y hxy => ?_⟩
         · simp only [wmRank, wmBound, dif_pos hb, if_pos hb]
-          exact (hcl inner hb hin).1 _
+          exact (hcl inner (by simpa only [if_pos hb] using hs) hb hin).1 _
         · simp only [wmRank, dif_pos hb] at hxy
-          have hinj := foldBinderReinterp_injective inner hb ((hcl inner hb hin).2 hxy)
+          have hinj := foldBinderReinterp_injective inner hb
+            ((hcl inner (by simpa only [if_pos hb] using hs) hb hin).2 hxy)
           exact wentry_ext hinj
       · rw [Bool.not_eq_true] at hb
         have hbf : ¬ (bindsb inner = true) := by simp [hb]
         have hin : nSubfree inner = true := by simpa only [mSubfree] using h
-        obtain ⟨ib, ii⟩ := wnFaithful inner hin
+        obtain ⟨ib, ii⟩ := wnFaithful inner hin (by simpa only [if_neg hbf] using hs)
         refine ⟨fun e => ?_, fun x y hxy => ?_⟩
         · simp only [wmRank, wmBound, dif_neg hbf, if_neg hbf]
           by_cases hd : walk inner amp False e.1
@@ -887,26 +891,28 @@ theorem wmFaithful : ∀ (m : Member), mSubfree m = true →
           · exact absurd hdx ((hyc.resolve_left hdy).2 x.1)
           · exact absurd hdy ((hxc.resolve_left hdx).2 y.1)
           · exact Subtype.ext (((hxc.resolve_left hdx).1).trans ((hyc.resolve_left hdy).1).symm)
-  | .prod fs, h => by
+  | .prod fs, h, hs => by
+      simp only [mSites] at hs
       have hfs : fSubfree fs = true := by simpa only [mSubfree] using h
-      obtain ⟨fb, fi⟩ := wfFaithful fs hfs
+      obtain ⟨fb, fi⟩ := wfFaithful fs hfs hs
       refine ⟨fun e => ?_, fun x y hxy => ?_⟩
       · simp only [wmRank, wmBound]; exact fb _
       · simp only [wmRank] at hxy; exact fi hxy
 
-theorem wnFaithful : ∀ (n : Node), nSubfree n = true →
+theorem wnFaithful : ∀ (n : Node), nSubfree n = true → nSites Q n →
     Faithful (wnRank amp ampRank ampBound clRank clBound n) (wnBound amp ampRank ampBound clRank clBound n)
-  | .nil, _ =>
+  | .nil, _, _ =>
       ⟨fun e => absurd e.2 (by rw [walk_nil]; exact not_false),
        fun x _ _ => absurd x.2 (by rw [walk_nil]; exact not_false)⟩
-  | .cons m rest, h => by
+  | .cons m rest, h, hs => by
+      simp only [nSites] at hs
       have hcomp : mSubfree m = true ∧ nSubfree rest = true := by
         simpa only [nSubfree, Bool.and_eq_true] using h
       have hm := hcomp.1
       have hr := hcomp.2
       have hsf : subfreeb rest = true := nSubfree_subfreeb rest hr
-      obtain ⟨mb, mi⟩ := wmFaithful m hm
-      obtain ⟨nb, ni⟩ := wnFaithful rest hr
+      obtain ⟨mb, mi⟩ := wmFaithful m hm hs.1
+      obtain ⟨nb, ni⟩ := wnFaithful rest hr hs.2
       have hcase : ∀ e : {s : Spelling // walk (.cons m rest) amp False s},
           (∃ hd : walk (nsingle m) amp False e.1,
               wnRank amp ampRank ampBound clRank clBound (.cons m rest) e = wmRank amp ampRank ampBound clRank clBound m ⟨e.1, hd⟩) ∨
@@ -939,17 +945,18 @@ theorem wnFaithful : ∀ (n : Node), nSubfree n = true →
           have hinj := ni ((add_left_cancel_iff).1 hxy)
           exact wentry_ext hinj
 
-theorem wfFaithful : ∀ (fs : Factors), fSubfree fs = true →
+theorem wfFaithful : ∀ (fs : Factors), fSubfree fs = true → fSites Q fs →
     Faithful (wfRank amp ampRank ampBound clRank clBound fs) (wfBound amp ampRank ampBound clRank clBound fs)
-  | .nil, _ => by
+  | .nil, _, _ => by
       refine ⟨fun e => ?_, fun x y hxy => ?_⟩
       · simp only [wfRank, wfBound, entriesType]; exact typein_lt_type _ _
       · simp only [wfRank] at hxy
         have hinj := typein_injective _ hxy
         exact wentry_ext hinj
-  | .amp rest, h => by
+  | .amp rest, h, hs => by
+      simp only [fSites] at hs
       have hfr : fSubfree rest = true := by simpa only [fSubfree] using h
-      obtain ⟨fb, fi⟩ := wfFaithful rest hfr
+      obtain ⟨fb, fi⟩ := wfFaithful rest hfr hs
       rw [wfBound_amp]
       have hspec : ∀ e : {s : Spelling // walk (nsingle (.prod (.amp rest))) amp False s},
           e.1 = (someSplitP amp (fun q => fsplit rest amp q) e.1).1
@@ -984,12 +991,13 @@ theorem wfFaithful : ∀ (fs : Factors), fSubfree fs = true →
           congrArg Subtype.val (fi hre)
         apply Subtype.ext
         rw [(hspec x).1, (hspec y).1, hhead, htail]
-  | .node n rest, h => by
+  | .node n rest, h, hs => by
+      simp only [fSites] at hs
       have hcomp : nSubfree n = true ∧ fSubfree rest = true := by
         simpa only [fSubfree, Bool.and_eq_true] using h
       have hn := hcomp.1
       have hfr := hcomp.2
-      obtain ⟨fb, fi⟩ := wfFaithful rest hfr
+      obtain ⟨fb, fi⟩ := wfFaithful rest hfr hs.2
       rw [wfBound_node]
       have hspec : ∀ e : {s : Spelling // walk (nsingle (.prod (.node n rest))) amp False s},
           e.1 = (someSplitP (fun p => ndenote n amp p) (fun q => fsplit rest amp q) e.1).1
@@ -1014,7 +1022,7 @@ theorem wfFaithful : ∀ (fs : Factors), fSubfree fs = true →
             (ndenote_binder_denotes n amp _ hb (hspec e).2.1)
             ((walk_prodNode_fsplit rest amp _).mpr (hspec e).2.2)
         constructor
-        · intro e; rw [hval e]; exact mixmul_lt (fb _) ((hcl n hb hn).1 _)
+        · intro e; rw [hval e]; exact mixmul_lt (fb _) ((hcl n (by simpa only [if_pos hb] using hs.1) hb hn).1 _)
         · intro x y hxy
           rw [hval x, hval y] at hxy
           have hWpos : (0 : Ordinal) < wfBound amp ampRank ampBound clRank clBound rest :=
@@ -1022,15 +1030,16 @@ theorem wfFaithful : ∀ (fs : Factors), fSubfree fs = true →
           obtain ⟨hqe, hre⟩ := mixmul_inj hWpos.ne' (fb _) (fb _) hxy
           have hhead : (someSplitP (fun p => ndenote n amp p) (fun q => fsplit rest amp q) x.1).1
               = (someSplitP (fun p => ndenote n amp p) (fun q => fsplit rest amp q) y.1).1 :=
-            congrArg Subtype.val ((hcl n hb hn).2 hqe)
+            congrArg Subtype.val ((hcl n (by simpa only [if_pos hb] using hs.1) hb hn).2 hqe)
           have htail : (someSplitP (fun p => ndenote n amp p) (fun q => fsplit rest amp q) x.1).2
               = (someSplitP (fun p => ndenote n amp p) (fun q => fsplit rest amp q) y.1).2 :=
             congrArg Subtype.val (fi hre)
           apply Subtype.ext
           rw [(hspec x).1, (hspec y).1, hhead, htail]
       · rw [Bool.not_eq_true] at hb
+        have hbf : ¬ (bindsb n = true) := by simp [hb]
         simp only [hb, Bool.false_eq_true, if_false]
-        obtain ⟨nb, ni⟩ := wnFaithful n hn
+        obtain ⟨nb, ni⟩ := wnFaithful n hn (by simpa only [if_neg hbf] using hs.1)
         have hval : ∀ e : {s : Spelling // walk (nsingle (.prod (.node n rest))) amp False s},
             wfRank amp ampRank ampBound clRank clBound (.node n rest) e
               = wfBound amp ampRank ampBound clRank clBound rest
@@ -1068,24 +1077,46 @@ end WithinStageFaithful
 /- ---------------------------------------------------------------- -/
 
 open Classical in
-/-- The tied knot: at each stage index `k`, the pair of (per-stage
-bound, per-stage rank on raw spellings). Stage `0` is empty (`stage n 0`
-is `False`), so its bound is `0` and its rank junk `0`. Stage `k+1`
-carries an old entry (already in `stage n k`) at its stage-`k` rank, and
-ranks a fresh body-spelling (`walk n (stage n k) False`) by 4b's body
-rank `wnRank` shifted past the earlier stages' width `csBound n k`, with
-the earlier stage's rank/bound supplied as the amp-rank/amp-bound. -/
-noncomputable def csData (n : Node) : ℕ → Ordinal × (Spelling → Ordinal)
+/-- The stage-index recursion, parametric in the nested-closure oracle: at each
+stage index `k`, the pair of (per-stage bound, per-stage rank on raw spellings).
+Stage `0` is empty (`stage n 0` is `False`), so its bound is `0` and its rank
+junk `0`. Stage `k+1` carries an old entry (already in `stage n k`) at its
+stage-`k` rank, and ranks a fresh body-spelling (`walk n (stage n k) False`) by
+4b's body rank `wnRank` shifted past the earlier stages' width, with the earlier
+stage's rank/bound supplied as the amp-rank/amp-bound.
+
+Structural on `Nat` and oracle-agnostic, which is what keeps the unfolding
+equations below definitional: `csData` supplies the promoted oracle by the one
+well-founded recursion in the file. See design.md WP1. -/
+noncomputable def csStep (n : Node)
+    (clR : (n' : Node) → Entries n' → Ordinal) (clB : Node → Ordinal) :
+    ℕ → Ordinal × (Spelling → Ordinal)
   | 0 => (0, fun _ => 0)
   | k + 1 =>
-      ((csData n k).1
-          + wnBound (stage n k) (fun e => (csData n k).2 e.1) (csData n k).1 clFallbackRank clFallbackBound n,
+      ((csStep n clR clB k).1
+          + wnBound (stage n k) (fun e => (csStep n clR clB k).2 e.1)
+              (csStep n clR clB k).1 clR clB n,
        fun s =>
-        if stage n k s then (csData n k).2 s
+        if stage n k s then (csStep n clR clB k).2 s
         else if h : walk n (stage n k) False s then
-          (csData n k).1
-            + wnRank (stage n k) (fun e => (csData n k).2 e.1) (csData n k).1 clFallbackRank clFallbackBound n ⟨s, h⟩
+          (csStep n clR clB k).1
+            + wnRank (stage n k) (fun e => (csStep n clR clB k).2 e.1)
+                (csStep n clR clB k).1 clR clB n ⟨s, h⟩
         else 0)
+
+open Classical in
+/-- The tied knot, promoted: the nested-closure oracle is the closure rank of
+the nested closure itself, guarded by a size decrease so the recursion is
+manifestly well founded. The guards are dependent (`if h :`) precisely so the
+decrease is in scope for the termination proof; they are always satisfied at the
+sites the recursion actually consults (strict subterms), which
+`csData_eq_total` below discharges once and for all. -/
+noncomputable def csData (n : Node) : ℕ → Ordinal × (Spelling → Ordinal) :=
+  csStep n
+    (fun n' e' => if _h : sizeOf n' < sizeOf n then (csData n' (firstStage n' e'.1)).2 e'.1 else 0)
+    (fun n' => if _h : sizeOf n' < sizeOf n then ⨆ j, (csData n' j).1 else 0)
+termination_by sizeOf n
+decreasing_by all_goals assumption
 
 /-- The per-stage closure bound: the total width of all entries first
 appearing at stage `< k`. -/
@@ -1094,33 +1125,7 @@ noncomputable def csBound (n : Node) (k : ℕ) : Ordinal := (csData n k).1
 /-- The per-stage closure rank on raw spellings (junk `0` off `stage n k`). -/
 noncomputable def csRank (n : Node) (k : ℕ) (s : Spelling) : Ordinal := (csData n k).2 s
 
-/- ---- One-step unfolding equations. ---- -/
-
-theorem csBound_zero (n : Node) : csBound n 0 = 0 := rfl
-
-theorem csRank_zero (n : Node) (s : Spelling) : csRank n 0 s = 0 := rfl
-
-theorem csBound_succ (n : Node) (k : ℕ) :
-    csBound n (k + 1)
-      = csBound n k + wnBound (stage n k) (fun e => csRank n k e.1) (csBound n k) clFallbackRank clFallbackBound n := rfl
-
-theorem csRank_succ_old (n : Node) (k : ℕ) (s : Spelling) (h : stage n k s) :
-    csRank n (k + 1) s = csRank n k s := by
-  simp only [csRank, csData, if_pos h]
-
-theorem csRank_succ_new (n : Node) (k : ℕ) (s : Spelling)
-    (h1 : ¬ stage n k s) (h2 : walk n (stage n k) False s) :
-    csRank n (k + 1) s
-      = csBound n k
-        + wnRank (stage n k) (fun e => csRank n k e.1) (csBound n k) clFallbackRank clFallbackBound n ⟨s, h2⟩ := by
-  simp only [csRank, csBound, csData, if_neg h1, dif_pos h2]
-
-theorem csRank_succ_none (n : Node) (k : ℕ) (s : Spelling)
-    (h1 : ¬ stage n k s) (h2 : ¬ walk n (stage n k) False s) :
-    csRank n (k + 1) s = 0 := by
-  simp only [csRank, csData, if_neg h1, dif_neg h2]
-
-/- ---- The closure rank on a binder node's entries. ---- -/
+/- ---- The closure rank and bound on a node's entries. ---- -/
 
 /-- The body-recursive closure rank: an entry's rank is its per-stage rank
 read at the stage where it first appears. Stage-major by construction (the
@@ -1129,6 +1134,128 @@ read at the stage where it first appears. Stage-major by construction (the
 `firstStage` is genuine). -/
 noncomputable def cRank (n : Node) (e : Entries n) : Ordinal :=
   csRank n (firstStage n e.1) e.1
+
+/-- The closure's total width: the sup of the per-stage bounds. -/
+noncomputable def cBound (n : Node) : Ordinal := ⨆ k, csBound n k
+
+/- ---- Untangling the knot: the guarded oracle is the total one. ---- -/
+
+mutual
+
+/-- Every oracle-consultation site below a piece of syntax is a strict subterm
+of it, so a size bound on the whole descends to a strict bound at every site.
+This is what discharges the guards in `csData`'s oracle. -/
+theorem mSites_sizeOf : ∀ (m : Member) (B : ℕ), sizeOf m ≤ B →
+    mSites (fun n' => sizeOf n' < B) m
+  | .face _, _, _ => trivial
+  | .range _ _, _, _ => trivial
+  | .final _, _, _ => trivial
+  | .amp, _, _ => trivial
+  | .sub _, _, _ => trivial
+  | .fold inner, B, hB => by
+      have hlt : sizeOf inner < B := by simp only [Member.fold.sizeOf_spec] at hB; omega
+      simp only [mSites]
+      by_cases hb : bindsb inner = true
+      · simpa only [if_pos hb] using hlt
+      · rw [Bool.not_eq_true] at hb
+        have hbf : ¬ (bindsb inner = true) := by simp [hb]
+        simpa only [if_neg hbf] using nSites_sizeOf inner B hlt.le
+  | .prod fs, B, hB => by
+      have hle : sizeOf fs ≤ B := by simp only [Member.prod.sizeOf_spec] at hB; omega
+      simp only [mSites]
+      exact fSites_sizeOf fs B hle
+
+theorem nSites_sizeOf : ∀ (n : Node) (B : ℕ), sizeOf n ≤ B →
+    nSites (fun n' => sizeOf n' < B) n
+  | .nil, _, _ => trivial
+  | .cons m rest, B, hB => by
+      simp only [Node.cons.sizeOf_spec] at hB
+      exact ⟨mSites_sizeOf m B (by omega), nSites_sizeOf rest B (by omega)⟩
+
+theorem fSites_sizeOf : ∀ (fs : Factors) (B : ℕ), sizeOf fs ≤ B →
+    fSites (fun n' => sizeOf n' < B) fs
+  | .nil, _, _ => trivial
+  | .amp rest, B, hB => by
+      simp only [Factors.amp.sizeOf_spec] at hB
+      simp only [fSites]
+      exact fSites_sizeOf rest B (by omega)
+  | .node n rest, B, hB => by
+      simp only [Factors.node.sizeOf_spec] at hB
+      have hlt : sizeOf n < B := by omega
+      refine ⟨?_, fSites_sizeOf rest B (by omega)⟩
+      by_cases hb : bindsb n = true
+      · simpa only [if_pos hb] using hlt
+      · rw [Bool.not_eq_true] at hb
+        have hbf : ¬ (bindsb n = true) := by simp [hb]
+        simpa only [if_neg hbf] using nSites_sizeOf n B hlt.le
+
+end
+
+/-- The stage-index recursion depends on its oracle only through the sites the
+body recursion consults -- the stage ladder itself is oracle-blind. -/
+theorem csStep_cl_congr (n : Node) (P : Node → Prop) (hP : nSites P n)
+    (cl₁ cl₂ : (n' : Node) → Entries n' → Ordinal) (cb₁ cb₂ : Node → Ordinal)
+    (hR : ∀ n' e', P n' → cl₁ n' e' = cl₂ n' e')
+    (hB : ∀ n', P n' → cb₁ n' = cb₂ n') :
+    ∀ k, csStep n cl₁ cb₁ k = csStep n cl₂ cb₂ k
+  | 0 => rfl
+  | k + 1 => by
+      simp only [csStep, csStep_cl_congr n P hP cl₁ cl₂ cb₁ cb₂ hR hB k]
+      rw [wnBound_cl_congr (stage n k) _ _ P cl₁ cl₂ cb₁ cb₂ hB n hP]
+      congr 1
+      funext s
+      by_cases h1 : stage n k s
+      · simp only [if_pos h1]
+      · simp only [if_neg h1]
+        by_cases h2 : walk n (stage n k) False s
+        · simp only [dif_pos h2]
+          rw [wnRank_cl_congr (stage n k) _ _ P cl₁ cl₂ cb₁ cb₂ hR hB n hP]
+        · simp only [dif_neg h2]
+
+/-- The one well-founded unfolding: `csData` is the structural `csStep` run at
+the *total* promoted oracle. The guards hold at every site the body recursion
+reaches, so they can be discharged once, here, and never appear again --
+everything downstream reads this form. -/
+theorem csData_eq_total (n : Node) (k : ℕ) :
+    csData n k = csStep n cRank cBound k := by
+  rw [csData]
+  refine csStep_cl_congr n (fun n' => sizeOf n' < sizeOf n)
+    (nSites_sizeOf n (sizeOf n) le_rfl) _ _ _ _ ?_ ?_ k
+  · intro n' e' h
+    simp only [dif_pos h]
+    rfl
+  · intro n' h
+    simp only [dif_pos h]
+    rfl
+
+/- ---- One-step unfolding equations, over the total oracle. ---- -/
+
+theorem csBound_zero (n : Node) : csBound n 0 = 0 := by
+  simp only [csBound, csData_eq_total, csStep]
+
+theorem csRank_zero (n : Node) (s : Spelling) : csRank n 0 s = 0 := by
+  simp only [csRank, csData_eq_total, csStep]
+
+theorem csBound_succ (n : Node) (k : ℕ) :
+    csBound n (k + 1)
+      = csBound n k + wnBound (stage n k) (fun e => csRank n k e.1) (csBound n k) cRank cBound n := by
+  simp only [csBound, csRank, csData_eq_total, csStep]
+
+theorem csRank_succ_old (n : Node) (k : ℕ) (s : Spelling) (h : stage n k s) :
+    csRank n (k + 1) s = csRank n k s := by
+  simp only [csRank, csData_eq_total, csStep, if_pos h]
+
+theorem csRank_succ_new (n : Node) (k : ℕ) (s : Spelling)
+    (h1 : ¬ stage n k s) (h2 : walk n (stage n k) False s) :
+    csRank n (k + 1) s
+      = csBound n k
+        + wnRank (stage n k) (fun e => csRank n k e.1) (csBound n k) cRank cBound n ⟨s, h2⟩ := by
+  simp only [csRank, csBound, csData_eq_total, csStep, if_neg h1, dif_pos h2]
+
+theorem csRank_succ_none (n : Node) (k : ℕ) (s : Spelling)
+    (h1 : ¬ stage n k s) (h2 : ¬ walk n (stage n k) False s) :
+    csRank n (k + 1) s = 0 := by
+  simp only [csRank, csData_eq_total, csStep, if_neg h1, dif_neg h2]
 
 /- ---------------------------------------------------------------- -/
 /- STEP 4d-i: per-stage closure faithfulness -- the union-block     -/
@@ -1145,17 +1272,19 @@ as the amp-rank, landing in `[csBound n k, csBound n (k+1))` by `wnFaithful`). T
 blocks live in disjoint ordinal intervals, so injectivity composes -- the union-block
 disjoint-interval argument run along the stage ladder. Needs `nSubfree n` (the
 subtraction-free skeleton `wnFaithful` requires). -/
-theorem csFaithful (n : Node) (hsub : nSubfree n = true) :
+theorem csFaithful (n : Node) (hsub : nSubfree n = true)
+    (IH : ∀ n', sizeOf n' < sizeOf n → bindsb n' = true → nSubfree n' = true →
+      Faithful (cRank n') (cBound n')) :
     ∀ k, Faithful (fun e : {s : Spelling // stage n k s} => csRank n k e.1) (csBound n k)
   | 0 =>
       ⟨fun e => absurd e.2 (by rw [stage_zero]; exact not_false),
        fun x _ _ => absurd x.2 (by rw [stage_zero]; exact not_false)⟩
   | k + 1 => by
-      obtain ⟨hib, hii⟩ := csFaithful n hsub k
+      obtain ⟨hib, hii⟩ := csFaithful n hsub IH k
       obtain ⟨hwb, hwi⟩ :=
         wnFaithful (stage n k) (fun e => csRank n k e.1) (csBound n k)
-          clFallbackRank clFallbackBound
-          (csFaithful n hsub k) (fun n' _ _ => clFallbackFaithful n') n hsub
+          cRank cBound (fun n' => sizeOf n' < sizeOf n)
+          (csFaithful n hsub IH k) IH n hsub (nSites_sizeOf n (sizeOf n) le_rfl)
       have hle : csBound n k ≤ csBound n (k + 1) := by rw [csBound_succ]; exact le_self_add
       have hnew : ∀ z : {s : Spelling // stage n (k + 1) s},
           ¬ stage n k z.1 → walk n (stage n k) False z.1 := by
@@ -1198,10 +1327,6 @@ theorem csFaithful (n : Node) (hsub : nSubfree n = true) :
 /- into the rank recursion is 4d-iii. See design.md 4d-ii.          -/
 /- ---------------------------------------------------------------- -/
 
-/-- The total closure bound: the sup over stages of the per-stage bounds
-`csBound n k` -- the closure's order type as seen by the recursive rank. -/
-noncomputable def cBound (n : Node) : Ordinal := ⨆ k, csBound n k
-
 theorem csBound_le_cBound (n : Node) (k : ℕ) : csBound n k ≤ cBound n :=
   Ordinal.le_iSup (fun k => csBound n k) k
 
@@ -1241,7 +1366,9 @@ appearance is a strictly smaller entry rank. The earlier entry lands below its
 stage's bound (4d-i), the later entry's stage opens at or past that bound
 (`csBound_le_csRank_fresh` through `csBound_mono`) -- the disjoint-interval
 argument read across two different stages. -/
-theorem cRank_lt_of_firstStage_lt (n : Node) (hsub : nSubfree n = true)
+theorem cRank_lt_of_firstStage_lt_aux (n : Node) (hsub : nSubfree n = true)
+    (IH : ∀ n', sizeOf n' < sizeOf n → bindsb n' = true → nSubfree n' = true →
+      Faithful (cRank n') (cBound n'))
     {x y : Entries n} (hx : stage n (firstStage n x.1) x.1)
     (hy : stage n (firstStage n y.1) y.1)
     (hlt : firstStage n x.1 < firstStage n y.1) :
@@ -1255,7 +1382,7 @@ theorem cRank_lt_of_firstStage_lt (n : Node) (hsub : nSubfree n = true)
       rw [stage_succ] at hy'
       have hw : walk n (stage n m) False y.1 := hy'.resolve_left hnotm
       have h1 : cRank n x < csBound n (firstStage n x.1) :=
-        (csFaithful n hsub (firstStage n x.1)).1 ⟨x.1, hx⟩
+        (csFaithful n hsub IH (firstStage n x.1)).1 ⟨x.1, hx⟩
       have h2 : csBound n (firstStage n x.1) ≤ csBound n m :=
         csBound_mono n (by omega)
       have h3 : csBound n m ≤ csRank n (m + 1) y.1 :=
@@ -1273,16 +1400,19 @@ within-stage faithfulness (`csFaithful`). This is what replaces
 `faithful_typein` on the closure fallbacks in 4d-iii. -/
 theorem cFaithful (n : Node) (hb : bindsb n = true) (hsub : nSubfree n = true) :
     Faithful (cRank n) (cBound n) := by
+  have IH : ∀ n', sizeOf n' < sizeOf n → bindsb n' = true → nSubfree n' = true →
+      Faithful (cRank n') (cBound n') :=
+    fun n' hlt hb' hsub' => cFaithful n' hb' hsub'
   have hstage : ∀ e : Entries n, stage n (firstStage n e.1) e.1 := fun e =>
     firstStage_stage n e.1 ((ndenote_binder n (fun _ => False) e.1 hb).mp e.2)
   constructor
   · intro e
-    exact ((csFaithful n hsub (firstStage n e.1)).1 ⟨e.1, hstage e⟩).trans_le
+    exact ((csFaithful n hsub IH (firstStage n e.1)).1 ⟨e.1, hstage e⟩).trans_le
       (csBound_le_cBound n (firstStage n e.1))
   · intro x y hxy
     rcases lt_trichotomy (firstStage n x.1) (firstStage n y.1) with hlt | heq | hgt
     · exact absurd hxy
-        (cRank_lt_of_firstStage_lt n hsub (hstage x) (hstage y) hlt).ne
+        (cRank_lt_of_firstStage_lt_aux n hsub IH (hstage x) (hstage y) hlt).ne
     · have hsy : stage n (firstStage n x.1) y.1 := by rw [heq]; exact hstage y
       have hxy' : csRank n (firstStage n x.1) x.1
           = csRank n (firstStage n x.1) y.1 := by
@@ -1291,11 +1421,23 @@ theorem cFaithful (n : Node) (hb : bindsb n = true) (hsub : nSubfree n = true) :
         show csRank n (firstStage n y.1) y.1 = csRank n (firstStage n x.1) y.1
         rw [heq]
       have hval := congrArg Subtype.val
-        ((csFaithful n hsub (firstStage n x.1)).2
+        ((csFaithful n hsub IH (firstStage n x.1)).2
           (a₁ := ⟨x.1, hstage x⟩) (a₂ := ⟨y.1, hsy⟩) hxy')
       exact Subtype.ext hval
     · exact absurd hxy.symm
-        (cRank_lt_of_firstStage_lt n hsub (hstage y) (hstage x) hgt).ne
+        (cRank_lt_of_firstStage_lt_aux n hsub IH (hstage y) (hstage x) hgt).ne
+termination_by sizeOf n
+decreasing_by exact hlt
+
+/-- Stage-major disjointness at the entry level, with the subterm induction
+discharged: a strictly earlier first appearance is a strictly smaller `cRank`. -/
+theorem cRank_lt_of_firstStage_lt (n : Node) (hsub : nSubfree n = true)
+    {x y : Entries n} (hx : stage n (firstStage n x.1) x.1)
+    (hy : stage n (firstStage n y.1) y.1)
+    (hlt : firstStage n x.1 < firstStage n y.1) :
+    cRank n x < cRank n y :=
+  cRank_lt_of_firstStage_lt_aux n hsub
+    (fun n' _ hb' hsub' => cFaithful n' hb' hsub') hx hy hlt
 
 /- ---- The fold-of-binder routed rank. ---- -/
 
