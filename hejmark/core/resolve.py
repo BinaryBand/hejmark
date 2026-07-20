@@ -7,6 +7,9 @@ and the registers are its reserved names, so neither may be declared.
 Acyclicity is checked here rather than discovered as a recursion depth: `&` is
 the language's only self-reference and it lives on the floor, so a name that
 reaches itself is a diagnostic. That check is what makes expansion terminate.
+It is a topological sort that never sorts: :func:`graphlib.TopologicalSorter`
+validates the reference graph and reports the offending path, so the error
+names the whole cycle rather than one arbitrary name on it.
 
 Binding is the other half. A pipeline bracket lexes as a flat list of items
 (stage names and arguments lex alike), and only arity tells them apart: each
@@ -17,6 +20,7 @@ or -- the degenerate case -- a lone numeral standing for ``n..n``.
 
 from __future__ import annotations
 
+import graphlib
 from collections.abc import Iterator
 from dataclasses import dataclass
 
@@ -110,20 +114,20 @@ def _body(declared: Expr | DefDecl) -> Expr:
 
 def _check_acyclic(env: Env) -> None:
     """Raise if any name reaches itself, directly or through other names."""
-    for name in [*env.unis, *env.defs]:
-        seen: set[str] = set()
-        stack = [name]
-        while stack:
-            current = stack.pop()
-            for referenced in _expr_refs(_body(env.lookup(current))):
-                if referenced in RESERVED:
-                    continue
-                if referenced == name:
-                    msg = f"cyclic name: @{name} reaches itself"
-                    raise HimarkScopeError(msg)
-                if referenced not in seen and _known(env, referenced):
-                    seen.add(referenced)
-                    stack.append(referenced)
+    graph = {
+        name: {
+            ref
+            for ref in _expr_refs(_body(env.lookup(name)))
+            if ref not in RESERVED and _known(env, ref)
+        }
+        for name in [*env.unis, *env.defs]
+    }
+    try:
+        graphlib.TopologicalSorter(graph).prepare()
+    except graphlib.CycleError as exc:
+        cycle = " -> ".join(f"@{node}" for node in exc.args[1])
+        msg = f"cyclic name: {cycle}"
+        raise HimarkScopeError(msg) from exc
 
 
 def _known(env: Env, name: str) -> bool:
