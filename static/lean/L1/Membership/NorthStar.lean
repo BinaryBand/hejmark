@@ -575,25 +575,18 @@ theorem amp_b_has_ab : denotes amp_b [la, lb] := by north_star
 theorem amp_b_has_abb : denotes amp_b [la, lb, lb] := by north_star
 
 theorem amp_b_stage_headed : ∀ k s, stage amp_b k s → ∃ r, s = la :: r := by
-  intro k
-  induction k with
-  | zero => intro s h; rw [stage_zero] at h; exact h.elim
-  | succ k ih =>
-      intro s h
-      rw [stage_succ] at h
-      rcases h with h | h
-      · exact ih s h
-      · simp only [amp_b, nlist, walk_cons, walk_single_prod, walk_single_face,
-          walk_nil] at h
-        rcases h with (h | h) | h
-        · exact h.elim
-        · exact ⟨[], h⟩
-        · rw [fsplit_famp] at h
-          obtain ⟨p, q, rfl, hp, hq⟩ := h
-          simp only [fsplit_fnode, fsplit_fnil] at hq
-          obtain ⟨p', q', rfl, _, rfl⟩ := hq
-          obtain ⟨r, rfl⟩ := ih p hp
-          exact ⟨r ++ p' ++ [], by simp⟩
+  refine stage_invariant amp_b _ fun k ih s h => ?_
+  simp only [amp_b, nlist, walk_cons, walk_single_prod, walk_single_face,
+    walk_nil] at h
+  rcases h with (h | h) | h
+  · exact h.elim
+  · exact ⟨[], h⟩
+  · rw [fsplit_famp] at h
+    obtain ⟨p, q, rfl, hp, hq⟩ := h
+    simp only [fsplit_fnode, fsplit_fnil] at hq
+    obtain ⟨p', q', rfl, _, rfl⟩ := hq
+    obtain ⟨r, rfl⟩ := ih p hp
+    exact ⟨r ++ p' ++ [], by simp⟩
 
 theorem amp_b_not_b : ¬ denotes amp_b [lb] := by
   intro h
@@ -623,36 +616,29 @@ induction carrying the full witness (evenness of the length is the immediate cor
 `|a^n b^n| = 2n`). -/
 theorem anbn_stage_exact : ∀ k s, stage anbn k s →
     ∃ n, 1 ≤ n ∧ s = List.replicate n la ++ List.replicate n lb := by
-  intro k
-  induction k with
-  | zero => intro s h; rw [stage_zero] at h; exact h.elim
-  | succ k ih =>
-      intro s h
-      rw [stage_succ] at h
-      rcases h with h | h
-      · exact ih s h
-      · simp only [anbn, nlist, walk_cons, walk_single_prod, walk_single_face,
-          walk_nil] at h
-        rcases h with (h | h) | h
-        · exact h.elim
-        · exact ⟨1, le_refl 1, by simp [h]⟩
-        · simp only [fsplit_fnode] at h
-          obtain ⟨p, q, rfl, hp, hq⟩ := h
-          rw [ndenote_nonbinder _ _ _ (by decide), walk_cons, walk_single_face,
-            walk_nil] at hp
-          rcases hp with hp | rfl
-          · exact hp.elim
-          rw [fsplit_famp] at hq
-          obtain ⟨p2, q2, rfl, hamp, hq2⟩ := hq
-          simp only [fsplit_fnode, fsplit_fnil] at hq2
-          obtain ⟨p3, q3, rfl, hp3, rfl⟩ := hq2
-          rw [ndenote_nonbinder _ _ _ (by decide), walk_cons, walk_single_face,
-            walk_nil] at hp3
-          rcases hp3 with hp3 | rfl
-          · exact hp3.elim
-          obtain ⟨n, hn, rfl⟩ := ih p2 hamp
-          refine ⟨n + 1, by omega, ?_⟩
-          simp [List.replicate_succ, replicate_snoc, List.append_assoc]
+  refine stage_invariant anbn _ fun k ih s h => ?_
+  simp only [anbn, nlist, walk_cons, walk_single_prod, walk_single_face,
+    walk_nil] at h
+  rcases h with (h | h) | h
+  · exact h.elim
+  · exact ⟨1, le_refl 1, by simp [h]⟩
+  · simp only [fsplit_fnode] at h
+    obtain ⟨p, q, rfl, hp, hq⟩ := h
+    rw [ndenote_nonbinder _ _ _ (by decide), walk_cons, walk_single_face,
+      walk_nil] at hp
+    rcases hp with hp | rfl
+    · exact hp.elim
+    rw [fsplit_famp] at hq
+    obtain ⟨p2, q2, rfl, hamp, hq2⟩ := hq
+    simp only [fsplit_fnode, fsplit_fnil] at hq2
+    obtain ⟨p3, q3, rfl, hp3, rfl⟩ := hq2
+    rw [ndenote_nonbinder _ _ _ (by decide), walk_cons, walk_single_face,
+      walk_nil] at hp3
+    rcases hp3 with hp3 | rfl
+    · exact hp3.elim
+    obtain ⟨n, hn, rfl⟩ := ih p2 hamp
+    refine ⟨n + 1, by omega, ?_⟩
+    simp [List.replicate_succ, replicate_snoc, List.append_assoc]
 
 /-- Every `a^n b^n` appears by stage `n` -- the backward half, building the walk stage by stage. -/
 theorem anbn_stage_build : ∀ n, 1 ≤ n →
@@ -722,28 +708,21 @@ theorem numerals_has_950 : denotes numerals [d9, d5, d0] := by north_star
 seed is `{1..9}` and each pass only appends digits on the right. -/
 theorem numerals_body_headed :
     ∀ k s, stage numerals_body k s → ∃ c r, s = c :: r ∧ d1 ≤ c ∧ c ≤ d9 := by
-  intro k
-  induction k with
-  | zero => intro s h; rw [stage_zero] at h; exact h.elim
-  | succ k ih =>
-      intro s h
-      rw [stage_succ] at h
-      rcases h with h | h
-      · exact ih s h
-      · simp only [numerals_body, nlist, walk_cons, walk_single_range,
-          walk_single_prod, walk_nil, false_or] at h
-        rcases h with h | h
-        · rw [winb_range_singleton] at h
-          obtain ⟨c, rfl, h1, h2⟩ := h
-          exact ⟨c, [], rfl, h1, h2⟩
-        · rw [fsplit_famp] at h
-          obtain ⟨p, q, rfl, hp, hq⟩ := h
-          rw [fsplit_fnode] at hq
-          obtain ⟨p2, q2, rfl, hp2, hq2⟩ := hq
-          rw [fsplit_fnil] at hq2
-          subst hq2
-          obtain ⟨c, r, rfl, h1, h2⟩ := ih p hp
-          exact ⟨c, r ++ (p2 ++ []), by simp, h1, h2⟩
+  refine stage_invariant numerals_body _ fun k ih s h => ?_
+  simp only [numerals_body, nlist, walk_cons, walk_single_range,
+    walk_single_prod, walk_nil, false_or] at h
+  rcases h with h | h
+  · rw [winb_range_singleton] at h
+    obtain ⟨c, rfl, h1, h2⟩ := h
+    exact ⟨c, [], rfl, h1, h2⟩
+  · rw [fsplit_famp] at h
+    obtain ⟨p, q, rfl, hp, hq⟩ := h
+    rw [fsplit_fnode] at hq
+    obtain ⟨p2, q2, rfl, hp2, hq2⟩ := hq
+    rw [fsplit_fnil] at hq2
+    subst hq2
+    obtain ⟨c, r, rfl, h1, h2⟩ := ih p hp
+    exact ⟨c, r ++ (p2 ++ []), by simp, h1, h2⟩
 
 /-- The doc's "first-appearance order is value order" needs the order axis;
 what membership can say is that a leading zero never appears. -/
@@ -819,26 +798,19 @@ theorem unguarded_fill_has_00a : denotes unguarded_fill [d0, d0, la] := by north
 only ever prepends. -/
 theorem unguarded_fill_stage_tailed :
     ∀ k s, stage unguarded_fill k s → ∃ r, s = r ++ [la] := by
-  intro k
-  induction k with
-  | zero => intro s h; rw [stage_zero] at h; exact h.elim
-  | succ k ih =>
-      intro s h
-      rw [stage_succ] at h
-      rcases h with h | h
-      · exact ih s h
-      · simp only [unguarded_fill, nlist, walk_cons, walk_single_face,
-          walk_single_prod, walk_nil, false_or] at h
-        rcases h with rfl | h
-        · exact ⟨[], rfl⟩
-        · rw [fsplit_fnode] at h
-          obtain ⟨p, q, rfl, _, hq⟩ := h
-          rw [fsplit_famp] at hq
-          obtain ⟨p2, q2, rfl, hp2, hq2⟩ := hq
-          rw [fsplit_fnil] at hq2
-          subst hq2
-          obtain ⟨r, rfl⟩ := ih p2 hp2
-          exact ⟨p ++ r, by simp⟩
+  refine stage_invariant unguarded_fill _ fun k ih s h => ?_
+  simp only [unguarded_fill, nlist, walk_cons, walk_single_face,
+    walk_single_prod, walk_nil, false_or] at h
+  rcases h with rfl | h
+  · exact ⟨[], rfl⟩
+  · rw [fsplit_fnode] at h
+    obtain ⟨p, q, rfl, _, hq⟩ := h
+    rw [fsplit_famp] at hq
+    obtain ⟨p2, q2, rfl, hp2, hq2⟩ := hq
+    rw [fsplit_fnil] at hq2
+    subst hq2
+    obtain ⟨r, rfl⟩ := ih p2 hp2
+    exact ⟨p ++ r, by simp⟩
 
 theorem unguarded_fill_not_0 : ¬ denotes unguarded_fill [d0] := by
   intro h
@@ -857,28 +829,21 @@ theorem abab_has_ab : denotes abab [la, lb] := by north_star
 theorem abab_has_abab : denotes abab [la, lb, la, lb] := by north_star
 
 theorem abab_stage_even : ∀ k s, stage abab k s → s.length % 2 = 0 := by
-  intro k
-  induction k with
-  | zero => intro s h; rw [stage_zero] at h; exact h.elim
-  | succ k ih =>
-      intro s h
-      rw [stage_succ] at h
-      rcases h with h | h
-      · exact ih s h
-      · simp only [abab, nlist, walk_cons, walk_single_face, walk_single_prod,
-          walk_nil, false_or] at h
-        rcases h with rfl | h
-        · decide
-        · rw [fsplit_famp] at h
-          obtain ⟨p, q, rfl, hp, hq⟩ := h
-          rw [fsplit_famp] at hq
-          obtain ⟨p2, q2, rfl, hp2, hq2⟩ := hq
-          rw [fsplit_fnil] at hq2
-          subst hq2
-          have h1 := ih p hp
-          have h2 := ih p2 hp2
-          simp only [List.length_append, List.length_nil]
-          omega
+  refine stage_invariant abab _ fun k ih s h => ?_
+  simp only [abab, nlist, walk_cons, walk_single_face, walk_single_prod,
+    walk_nil, false_or] at h
+  rcases h with rfl | h
+  · decide
+  · rw [fsplit_famp] at h
+    obtain ⟨p, q, rfl, hp, hq⟩ := h
+    rw [fsplit_famp] at hq
+    obtain ⟨p2, q2, rfl, hp2, hq2⟩ := hq
+    rw [fsplit_fnil] at hq2
+    subst hq2
+    have h1 := ih p hp
+    have h2 := ih p2 hp2
+    simp only [List.length_append, List.length_nil]
+    omega
 
 theorem abab_not_aba : ¬ denotes abab [la, lb, la] := by
   intro h
@@ -909,45 +874,38 @@ theorem btrees_has_pair :
 the literal `{)}` factor. -/
 theorem btrees_stage_closed :
     ∀ k s, stage btrees k s → ∃ r, s = r ++ [rpar] := by
-  intro k
-  induction k with
-  | zero => intro s h; rw [stage_zero] at h; exact h.elim
-  | succ k ih =>
-      intro s h
-      rw [stage_succ] at h
-      rcases h with h | h
-      · exact ih s h
-      · simp only [btrees, nlist, walk_cons, walk_single_prod, walk_nil,
-          false_or] at h
-        rcases h with h | h
-        · rw [fsplit_fnode] at h
-          obtain ⟨p1, q1, rfl, _, hq1⟩ := h
-          rw [fsplit_fnode] at hq1
-          obtain ⟨p2, q2, rfl, _, hq2⟩ := hq1
-          rw [fsplit_fnode] at hq2
-          obtain ⟨p3, q3, rfl, _, hq3⟩ := hq2
-          rw [fsplit_fnode] at hq3
-          obtain ⟨p4, q4, rfl, hp4, hq4⟩ := hq3
-          rw [fsplit_fnil] at hq4
-          subst hq4
-          rw [ndenote_nonbinder _ _ _ (by decide)] at hp4
-          simp only [walk_cons, walk_single_face, walk_nil, false_or] at hp4
-          subst hp4
-          exact ⟨p1 ++ (p2 ++ (p3 ++ [])), by simp⟩
-        · rw [fsplit_fnode] at h
-          obtain ⟨p1, q1, rfl, _, hq1⟩ := h
-          rw [fsplit_famp] at hq1
-          obtain ⟨p2, q2, rfl, _, hq2⟩ := hq1
-          rw [fsplit_famp] at hq2
-          obtain ⟨p3, q3, rfl, _, hq3⟩ := hq2
-          rw [fsplit_fnode] at hq3
-          obtain ⟨p4, q4, rfl, hp4, hq4⟩ := hq3
-          rw [fsplit_fnil] at hq4
-          subst hq4
-          rw [ndenote_nonbinder _ _ _ (by decide)] at hp4
-          simp only [walk_cons, walk_single_face, walk_nil, false_or] at hp4
-          subst hp4
-          exact ⟨p1 ++ (p2 ++ (p3 ++ [])), by simp⟩
+  refine stage_invariant btrees _ fun k ih s h => ?_
+  simp only [btrees, nlist, walk_cons, walk_single_prod, walk_nil,
+    false_or] at h
+  rcases h with h | h
+  · rw [fsplit_fnode] at h
+    obtain ⟨p1, q1, rfl, _, hq1⟩ := h
+    rw [fsplit_fnode] at hq1
+    obtain ⟨p2, q2, rfl, _, hq2⟩ := hq1
+    rw [fsplit_fnode] at hq2
+    obtain ⟨p3, q3, rfl, _, hq3⟩ := hq2
+    rw [fsplit_fnode] at hq3
+    obtain ⟨p4, q4, rfl, hp4, hq4⟩ := hq3
+    rw [fsplit_fnil] at hq4
+    subst hq4
+    rw [ndenote_nonbinder _ _ _ (by decide)] at hp4
+    simp only [walk_cons, walk_single_face, walk_nil, false_or] at hp4
+    subst hp4
+    exact ⟨p1 ++ (p2 ++ (p3 ++ [])), by simp⟩
+  · rw [fsplit_fnode] at h
+    obtain ⟨p1, q1, rfl, _, hq1⟩ := h
+    rw [fsplit_famp] at hq1
+    obtain ⟨p2, q2, rfl, _, hq2⟩ := hq1
+    rw [fsplit_famp] at hq2
+    obtain ⟨p3, q3, rfl, _, hq3⟩ := hq2
+    rw [fsplit_fnode] at hq3
+    obtain ⟨p4, q4, rfl, hp4, hq4⟩ := hq3
+    rw [fsplit_fnil] at hq4
+    subst hq4
+    rw [ndenote_nonbinder _ _ _ (by decide)] at hp4
+    simp only [walk_cons, walk_single_face, walk_nil, false_or] at hp4
+    subst hp4
+    exact ⟨p1 ++ (p2 ++ (p3 ++ [])), by simp⟩
 
 theorem btrees_not_lparen : ¬ denotes btrees [lpar] := by
   intro h

@@ -121,6 +121,28 @@ theorem stage_succ (n k s) :
     stage n (k + 1) s = (stage n k s ∨ walk n (stage n k) False s) := by
   simp only [stage]
 
+/-- Stage induction for closure invariants: a property that every body-step
+spelling inherits from the strictly earlier stages holds at every stage. The
+ladder half is discharged once here -- the empty floor (`stage_zero`) and
+`stage_succ`'s carry-over disjunct, where a spelling already present at stage
+`k` keeps the property by the induction hypothesis -- so a closure row supplies
+only its body step: assuming the invariant on stage `k`, prove it of a
+`walk n (stage n k) False` spelling. The closure-row invariants in
+`NorthStar.lean` are exactly this induction. -/
+theorem stage_invariant (n : Node) (P : Spelling → Prop)
+    (hstep : ∀ k, (∀ t, stage n k t → P t) →
+      ∀ s, walk n (stage n k) False s → P s) :
+    ∀ k s, stage n k s → P s := by
+  intro k
+  induction k with
+  | zero => intro s h; rw [stage_zero] at h; exact h.elim
+  | succ k ih =>
+      intro s h
+      rw [stage_succ] at h
+      rcases h with h | h
+      · exact ih s h
+      · exact hstep k ih s h
+
 theorem spells_fold (inner amp s) :
     spells (.fold inner) amp s
       = (if bindsb inner then (∃ k, stage inner k s)
