@@ -10,7 +10,9 @@
 //! ([`floor::syntax`]), the shortlex spelling order beneath them
 //! ([`floor::order`]), the two leaf analyses that read that AST without denoting
 //! anything ([`floor::binder`], [`floor::window`]), and the interpreter that
-//! denotes those nodes to lazy universes ([`floor::universe`]). The scan layer
-//! that matches a denoted universe against text is the next slice to port.
+//! denotes those nodes to lazy universes ([`floor::universe`]). [`scan`] sits
+//! above the floor: it matches a denoted universe against text. The surface
+//! layer (parsing, expansion, back-references) is the next slice to port.
 
 pub mod floor;
+pub mod scan;
