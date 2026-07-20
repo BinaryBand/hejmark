@@ -12,8 +12,6 @@
 
 ## Layer 1.5 -- Language Surface (interpretation)
 
-feat(value line): add digit-walk and bounds to value line operations
-
 Everything the host implements beyond denotation; the one layer allowed to reject. Its admission rule: a surface construct adds no denotation -- it expands into the floor or it does not enter.
 
 - Matching -- query and capture, text membership, maximal munch, zero-width exclusion; the matcher is scoped to guarded closure bodies (the settlement theorem's fragment), and stepping outside that scope is a diagnostic, never a denotation failure.
