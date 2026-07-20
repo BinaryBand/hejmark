@@ -157,13 +157,11 @@ stage-major `entryLt`. After the 4d-iii swap only the within-stage recursion
 the top-level closure branches rank by `cRank` / `cBound`. -/
 noncomputable def closureBound (n : Node) : Ordinal := Ordinal.type (entryLt n)
 
-/- ================================================================ -/
-/- STEP 2 support: the faithfulness apparatus -- the `Faithful`      -/
-/- bundle, the mixed-radix arithmetic, and the subtraction-free      -/
-/- skeleton -- shared by the within-stage recursion (STEP 4b) and    -/
-/- the final rank assembly at the end of this file (the STEP 2       -/
-/- faithfulness theorems, re-proved through the 4d-iii swap).        -/
-/- ================================================================ -/
+/- ---------------------------------------------------------------- -/
+/- STEP 2 support: the faithfulness apparatus -- the `Faithful`     -/
+/- bundle, the mixed-radix arithmetic, the subtraction-free         -/
+/- skeleton. See RecOrder.design.md, "Why injectivity composes".    -/
+/- ---------------------------------------------------------------- -/
 
 /-- Bound invariant plus injectivity, bundled: `rank` lands strictly below
 `bound` and is injective (so the induced `rankLt` is a well order). -/
@@ -247,21 +245,12 @@ theorem nSubfree_subfreeb : ∀ (n : Node), nSubfree n = true → subfreeb n = t
       have hrest := nSubfree_subfreeb rest
       cases m <;> simp_all [nSubfree, subfreeb, mSubfree]
 
-/- ================================================================ -/
-/- STEP 4: the closure within-stage order -- the stage-structure     -/
-/- backbone. A closure enumerates its entries stage-major (its        -/
-/- `firstStage`), and within a single stage `k+1` an entry is a       -/
-/- body-spelling `walk n (stage n k) False s` whose `&`-leaves are    -/
-/- filled from strictly earlier stages -- a body-recursive shape (the -/
-/- body half, a later slice). This section is the stage half: given   -/
-/- ANY within-stage rank that is bounded by and injective within each -/
-/- stage, the stage-major assembly (ladder offset plus within-stage   -/
-/- rank) is an injective rank, hence a well order. The offset is a    -/
-/- FINITE sum -- `firstStage` is a `ℕ` -- so it is iterated ordinal   -/
-/- addition: the union-block disjoint-interval argument run along the -/
-/- stage ladder rather than the member spine. It is to the ladder     -/
-/- what `mixmul_lt`/`mixmul_inj` are to the product.                  -/
-/- ================================================================ -/
+/- ---------------------------------------------------------------- -/
+/- STEP 4a: the closure within-stage order -- the stage half.       -/
+/- Given ANY within-stage rank bounded by and injective within      -/
+/- each stage, the stage-major assembly (ladder offset plus         -/
+/- within-stage rank) is an injective rank. See design.md 4a.       -/
+/- ---------------------------------------------------------------- -/
 
 namespace RecOrder
 
@@ -327,22 +316,12 @@ theorem stageRank_isWellOrder {β : Type*} (st : β → ℕ) (W : ℕ → Ordina
 
 end RecOrder
 
-/- ================================================================ -/
-/- STEP 4b: the within-stage body-membership inversions -- the       -/
-/- general-amp generalization of the reinterpretation block above.   -/
-/- Within a closure's stage `k+1` a body-spelling lives in            -/
-/- `walk n (stage n k) False`, not in `denotes n = walk n ∅ False`,   -/
-/- so the union / fold / product reinterpretations the within-stage   -/
-/- rank recurses through are restated over an arbitrary amp-set       -/
-/- `amp` (the earlier stage). Their proofs are the amp-general core    -/
-/- the `denotes_*` versions already specialize -- `walk_adds`,         -/
-/- `walk_single_*`, `fsplit_fnode` are all amp-parametric -- so the    -/
-/- only change is dropping the `bindsb` guards `denotes` strips        -/
-/- through `ndenote_nonbinder`. The `.amp` leaf, vacuous at the floor  -/
-/- (`walk (nsingle .amp) ∅ False = ∅`), here wears the earlier stage:  -/
-/- it is the leaf the within-stage rank defers to a supplied           -/
-/- earlier-stage rank (slice 4c ties that knot).                       -/
-/- ================================================================ -/
+/- ---------------------------------------------------------------- -/
+/- STEP 4b-i: the within-stage body-membership inversions. A        -/
+/- stage-`k+1` body-spelling lives in `walk n (stage n k) False`,   -/
+/- so the union / fold / product routings restate over an           -/
+/- arbitrary amp-set. See RecOrder.design.md 4b-i.                  -/
+/- ---------------------------------------------------------------- -/
 
 /-- The `.amp` leaf's within-stage membership: over amp-set `amp` it wears
 exactly `amp` (the earlier stage). Vacuous at the floor where `amp = ∅`; this
@@ -396,18 +375,12 @@ theorem walk_prodNode_node_split (n : Node) (rest : Factors) (amp : Spelling →
     exact ⟨p, q, rfl, (ndenote_nonbinder n amp p hbn).mpr hp,
       (walk_prodNode_fsplit rest amp q).mp hq⟩
 
-/- ================================================================ -/
-/- STEP 4b-ii-a: the within-stage body recursion -- DEFINITIONS.     -/
-/- A parallel copy of the step-2 recursion (`mRank`/`nRank`/`fRank`)  -/
-/- over `walk n amp False` membership instead of `denotes n`,         -/
-/- parameterized by a supplied earlier-stage rank `(ampRank,          -/
-/- ampBound)`. The `.amp` leaf ranks by `ampRank` (via 4b-i's          -/
-/- `walk_single_amp_false`); an amp-consuming factor (`.amp rest`, or  -/
-/- a `.node n rest` head that meets `amp`) recurses rather than         -/
-/- falling back; a nested closure -- a fold-of-binder or a binder head -/
-/- -- is amp-independent and keeps the `typein (entryLt ·)` fallback.  -/
-/- Faithfulness (the `hbound`/`hinj` input to 4a) is the next slice.   -/
-/- ================================================================ -/
+/- ---------------------------------------------------------------- -/
+/- STEP 4b-ii-a: the within-stage body recursion -- DEFINITIONS.    -/
+/- A parallel copy of the step-2 recursion over `walk n amp         -/
+/- False`, parameterized by a supplied earlier-stage rank           -/
+/- `(ampRank, ampBound)`. See RecOrder.design.md 4b-ii-a.           -/
+/- ---------------------------------------------------------------- -/
 
 /- ---- Carrier coercions: an amp-independent leaf/closure entry is a `denotes` entry. ---- -/
 
@@ -573,18 +546,11 @@ theorem wfBound_node (n : Node) (rest : Factors) :
 
 end WithinStage
 
-/- ================================================================ -/
-/- STEP 4b-ii-b: within-stage faithfulness -- the composition proof   -/
-/- of step 2 with `amp` threaded through. Given a faithful supplied   -/
-/- amp-rank (`Faithful ampRank ampBound`), the within-stage recursion  -/
-/- is faithful (injective + bounded) on the subtraction-free           -/
-/- skeleton: the `.amp` leaf is discharged by the supplied amp-rank,    -/
-/- the amp-factor / binder-head product cases by the mixed-radix        -/
-/- arithmetic (`mixmul_lt`/`mixmul_inj`), and every union/fold/product  -/
-/- routing by the 4b-i `walk_*` inversions. `wnFaithful` is the per-     -/
-/- stage `hbound`/`hinj` input to 4a's `stageRank_isWellOrder`; slice   -/
-/- 4c feeds it with the real body at each stage. -/
-/- ================================================================ -/
+/- ---------------------------------------------------------------- -/
+/- STEP 4b-ii-b: within-stage faithfulness. Given a faithful        -/
+/- supplied amp-rank, the within-stage recursion is faithful on     -/
+/- the subtraction-free skeleton. See design.md 4b-ii-b.            -/
+/- ---------------------------------------------------------------- -/
 
 /-- Two entries of a `walk`-carrier subtype are equal once their images under a
 value-preserving coercion into another subtype agree -- the coercion only ever
@@ -865,16 +831,11 @@ end
 
 end WithinStageFaithful
 
-/- ================================================================ -/
-/- STEP 4c: tie the knot -- the closure rank by recursion on the      -/
-/- stage index. Stage `k+1`'s within-rank is 4b's body rank           -/
-/- (`wnRank`) over `walk n (stage n k) False`, with the amp-rank set   -/
-/- to the closure rank of the earlier stage `k` (its `stage n k`       -/
-/- entries) and amp-bound its per-stage bound `csBound n k`. The two   -/
-/- are defined together as one pair-valued structural recursion on the -/
-/- stage `k` -- the earlier-stage rank is literally the stage-`k` data, -/
-/- so the recursion is manifestly well-founded (structural on `ℕ`).    -/
-/- ================================================================ -/
+/- ---------------------------------------------------------------- -/
+/- STEP 4c: tie the knot -- the closure rank by recursion on the    -/
+/- stage index, one pair-valued structural recursion on `Nat`       -/
+/- pairing per-stage bound with per-stage rank. See design.md 4c.   -/
+/- ---------------------------------------------------------------- -/
 
 open Classical in
 /-- The tied knot: at each stage index `k`, the pair of (per-stage
@@ -939,14 +900,11 @@ read at the stage where it first appears. Stage-major by construction (the
 noncomputable def cRank (n : Node) (e : Entries n) : Ordinal :=
   csRank n (firstStage n e.1) e.1
 
-/- ================================================================ -/
-/- STEP 4d-i: per-stage closure faithfulness. At every stage index    -/
-/- `k`, the per-stage rank `csRank n k` (on the stage-`k` set) is an   -/
-/- injective rank bounded by `csBound n k` -- the union-block          -/
-/- disjoint-interval argument run along the stage ladder, feeding on   -/
-/- 4b's `wnFaithful`. This is the `hbound` / `hinj` per-stage input    -/
-/- that 4d-ii lifts to the entry-level total-bound closure rank.       -/
-/- ================================================================ -/
+/- ---------------------------------------------------------------- -/
+/- STEP 4d-i: per-stage closure faithfulness -- the union-block     -/
+/- disjoint-interval argument run along the stage ladder.           -/
+/- See RecOrder.design.md 4d-i.                                     -/
+/- ---------------------------------------------------------------- -/
 
 /-- Per-stage closure faithfulness: at every stage index `k`, the per-stage rank
 `csRank n k` (restricted to the stage-`k` set) is an injective rank bounded by
@@ -1003,16 +961,11 @@ theorem csFaithful (n : Node) (hsub : nSubfree n = true) :
           have hval := congrArg Subtype.val (hwi (a₁ := ⟨x.1, hnew x hx⟩) (a₂ := ⟨y.1, hnew y hy⟩) heq)
           exact Subtype.ext hval
 
-/- ================================================================ -/
-/- STEP 4d-ii: entry-level total-bound closure faithfulness. The     -/
-/- total bound `cBound` is the sup of the per-stage bounds; the       -/
-/- entry rank `cRank` (per-stage rank read at the first stage) is     -/
-/- faithful for a genuine binder node -- stage-major disjointness      -/
-/- (`cRank_lt_of_firstStage_lt`) across stages, 4d-i's `csFaithful`   -/
-/- within one. Plus the fold-of-binder reinterpretation routing an     -/
-/- `nsingle (.fold inner)` entry to `cRank inner`. Purely additive;    -/
-/- the swap into `mRank` / `nRank` / `fRank` is 4d-iii.                -/
-/- ================================================================ -/
+/- ---------------------------------------------------------------- -/
+/- STEP 4d-ii: entry-level total-bound closure faithfulness, plus   -/
+/- the fold-of-binder reinterpretation. Purely additive; the swap   -/
+/- into the rank recursion is 4d-iii. See design.md 4d-ii.          -/
+/- ---------------------------------------------------------------- -/
 
 /-- The total closure bound: the sup over stages of the per-stage bounds
 `csBound n k` -- the closure's order type as seen by the recursive rank. -/
@@ -1151,20 +1104,13 @@ theorem foldBinderFaithful (inner : Node) (hb : bindsb inner = true)
    fun _ _ h => foldBinderReinterp_injective inner hb
      ((cFaithful inner hb hsub).2 h)⟩
 
-/- ================================================================ -/
-/- STEP 2 + 4d-iii: the rank and bound, defined together in one      -/
-/- structural recursion, and their faithfulness. Both are total on   -/
-/- every node: reordering constructors compose sub-ranks into        -/
-/- disjoint ordinal intervals (rank), whose widths are the bounds; a -/
-/- closure (a binder node, or a fold/prod that binds) ranks by the   -/
-/- body-recursive closure rank `cRank` bounded by `cBound` -- the    -/
-/- 4d-iii swap: the stage-ladder assembly of 4a-4d replaces the      -/
-/- stage-major `typein (entryLt ·)` fallback; a subtraction adds no  -/
-/- entry. Faithfulness (injectivity, the bound invariant) is proved  -/
-/- over the subtraction-free skeleton, the closure cases discharged  -/
-/- by `cFaithful` / `foldBinderFaithful` instead of                  -/
-/- `faithful_typein`.                                                -/
-/- ================================================================ -/
+/- ---------------------------------------------------------------- -/
+/- STEP 2 + 4d-iii: the rank and bound, defined together in one     -/
+/- structural recursion, and their faithfulness. Reordering         -/
+/- constructors compose sub-ranks into disjoint ordinal intervals;  -/
+/- a closure ranks by `cRank` / `cBound` -- the 4d-iii swap.        -/
+/- See RecOrder.design.md 4d-iii.                                   -/
+/- ---------------------------------------------------------------- -/
 
 open Classical in
 mutual
@@ -1550,16 +1496,11 @@ theorem entryRecType_final (lo : Spelling) :
   entryRecType_leaf (.final lo) (by simp [nsingle, bindsb, freeAmpb]) rfl
     (fun e => by simp only [mRank])
 
-/- ================================================================ -/
-/- STEP 5b: the product law on the recursive order. A binary product -/
-/- `prod2 a b` never binds and has no literal `&` factor, so `nRank`  -/
-/- runs the mixed-radix branch over `someSplit`; under unique splits   -/
-/- the split is pinned, the mixed-radix comparison (`mixmul_lt_iff`)   -/
-/- turns the rank arithmetic into a lex order, and the recursive       -/
-/- order is isomorphic to the lex product of the factors' recursive    -/
-/- orders. The enumeration corollary `entryRecType_prod2` is the       -/
-/- migration replacement for `prodLt_type_of_unique_splits`.           -/
-/- ================================================================ -/
+/- ---------------------------------------------------------------- -/
+/- STEP 5b: the product law on the recursive order -- under unique  -/
+/- splits the mixed-radix comparison turns the rank arithmetic      -/
+/- into a lex order. See RecOrder.design.md 5.                      -/
+/- ---------------------------------------------------------------- -/
 
 /-- The empty product denotes exactly the empty spelling -- the tail base
 case of the factor recursion (`fsplit_fnil` read at the `denotes` level). -/
@@ -1765,18 +1706,11 @@ theorem entryRecType_prod2 (a b : Node) (hsa : nSubfree a = true)
   exact (Ordinal.type_eq.mpr ⟨prod2RecIso a b hsa hsb huniq⟩).trans
     (type_prod_lex (entryRecLt b) (entryRecLt a))
 
-/- ================================================================ -/
-/- STEP 5c: the union law on the recursive order. The cons-spine     -/
-/- block law -- first-owner ownership, `mBound` offset past the head -/
-/- block -- iterated along the first body's spine gives the two-block -/
-/- law for `napp n1 n2`: a first-body entry keeps its first-body     -/
-/- rank, an unclaimed second-body entry ranks at the first body's    -/
-/- bound plus its second-body rank. Assembled into an iso onto the   -/
-/- lex sum of the first body and the second body's unclaimed         -/
-/- remainder -- the recursive analogue of `unionSumIso` -- with the  -/
-/- ordinal-sum type theorem and its disjoint corollary, the          -/
-/- replacements for `unionLt_type` / `unionLt_type_disjoint`.        -/
-/- ================================================================ -/
+/- ---------------------------------------------------------------- -/
+/- STEP 5c: the union law on the recursive order -- the cons-spine  -/
+/- block law iterated along the first body's spine, assembled into  -/
+/- an iso onto the lex sum. See RecOrder.design.md 5.               -/
+/- ---------------------------------------------------------------- -/
 
 /-- The empty node denotes nothing -- the base of the spine induction. -/
 theorem denotes_nnil (s : Spelling) : ¬ denotes Node.nil s := by
@@ -2035,18 +1969,12 @@ theorem entryRecType_napp_disjoint (n1 n2 : Node) (hb1 : bindsb n1 = false)
   rw [entryRecType_napp n1 n2 hb1 hb2 hs1 hs2,
     entryRecRemType_disjoint n1 n2 hs2 hdisj]
 
-/- ================================================================ -/
-/- STEP 5d: closure enumeration types -- the Phase-E analogue over   -/
-/- the recursive order. On a binder node the entry rank IS the       -/
-/- closure rank (`entryRank_binder`), and stage-major disjointness   -/
-/- read backwards says an `entryRecLt`-predecessor appears no later  -/
-/- (the contrapositive of `cRank_lt_of_firstStage_lt`) -- so          -/
-/- predecessors live inside one finite stage, and finite stages cap  -/
-/- `entryRecType` at `ω`, exactly `ω` when the denotation is         -/
-/- infinite. Specialized to `entryRecType (unitClosure lo hi) = ω`,  -/
-/- what the migrated rows read where they now read                   -/
-/- `unitClosure_entriesType`.                                        -/
-/- ================================================================ -/
+/- ---------------------------------------------------------------- -/
+/- STEP 5d: closure enumeration types -- the Phase-E analogue over  -/
+/- the recursive order: predecessors live inside one finite stage,  -/
+/- so finite stages cap `entryRecType` at omega.                    -/
+/- See RecOrder.design.md 5.                                        -/
+/- ---------------------------------------------------------------- -/
 
 /-- On a binder node the body-recursive entry rank is the closure rank: the
 union-spine recursion's binder branch, read at the top level. -/
