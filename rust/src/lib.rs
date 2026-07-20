@@ -6,7 +6,10 @@
 //! nothing else. It is a plain library with no dependencies, exercised by
 //! `cargo test` -- which the Python suite drives through `tests/test_rust.py`.
 //!
-//! The first slice is [`order`], the shortlex spelling order that L1 fixes as
-//! the foundation every constructor is built on.
+//! [`floor`] is the bottom stratum of `core`: the six constructors' AST
+//! ([`floor::syntax`]), the shortlex spelling order beneath them
+//! ([`floor::order`]), and the two leaf analyses that read that AST without
+//! denoting anything ([`floor::binder`], [`floor::window`]). The `universe`
+//! interpreter that denotes these nodes is the next slice, not yet ported.
 
-pub mod order;
+pub mod floor;
