@@ -39,6 +39,10 @@ lib/
 State is a single `AppState extends ChangeNotifier`, mirroring the brief's
 `Component`. The root republishes it through `HimarkScope` on every change.
 
+The shell is **adaptive** (`home_scaffold.dart`): below 840px logical width it
+renders the brief's centred phone frame with a bottom nav; at or above it uses a
+navigation rail with a multi-pane body (Rules alongside the Test editor).
+
 ## Run
 
 ```bash
