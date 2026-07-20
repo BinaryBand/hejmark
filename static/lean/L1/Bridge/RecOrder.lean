@@ -138,6 +138,30 @@ theorem mixmul_inj {W a1 b1 a2 b2 : Ordinal} (hW : W ≠ 0)
   subst ha
   exact ⟨rfl, (add_left_cancel_iff).1 h⟩
 
+/-- Mixed-radix faithfulness: a rank that splits its carrier into a high digit
+and a low digit is faithful as soon as both digits are and the two digits'
+values reassemble the carrier's own value. This is the product-composition step
+`wfFaithful` runs at every factor-list constructor; the branches there differ
+only in which head rank they supply (`ampRank`, `clRank`, or `wnRank`). -/
+theorem mixmul_faithful {E HC TC : Type*} {W Q : Ordinal}
+    (val : E → Spelling) (rank : E → Ordinal)
+    (hd : E → HC) (tl : E → TC)
+    (hdVal : HC → Spelling) (tlVal : TC → Spelling)
+    (hdRank : HC → Ordinal) (tlRank : TC → Ordinal)
+    (hvalInj : Function.Injective val)
+    (hcat : ∀ e, val e = hdVal (hd e) ++ tlVal (tl e))
+    (hrank : ∀ e, rank e = W * hdRank (hd e) + tlRank (tl e))
+    (hhd : ∀ c, hdRank c < Q) (htl : ∀ c, tlRank c < W)
+    (hdInj : ∀ c c', hdRank c = hdRank c' → hdVal c = hdVal c')
+    (tlInj : ∀ c c', tlRank c = tlRank c' → tlVal c = tlVal c') :
+    Faithful rank (W * Q) := by
+  refine ⟨fun e => ?_, fun x y hxy => ?_⟩
+  · rw [hrank e]; exact mixmul_lt (htl _) (hhd _)
+  · rw [hrank x, hrank y] at hxy
+    have hW : (0 : Ordinal) < W := zero_le.trans_lt (htl (tl x))
+    obtain ⟨hq, hr⟩ := mixmul_inj hW.ne' (htl _) (htl _) hxy
+    exact hvalInj (by rw [hcat x, hcat y, hdInj _ _ hq, tlInj _ _ hr])
+
 /-- Mixed-radix comparison: with both low digits below the base, positional
 comparison is lexicographic -- high digit first, low digit on a tie. The iff
 form of `mixmul_lt` / `mixmul_inj`, what turns the product rank's faithfulness
@@ -752,19 +776,9 @@ mutual
 
 theorem wmFaithful : ∀ (m : Member), mSubfree m = true → mSites Q m →
     Faithful (wmRank amp ampRank ampBound clRank clBound m) (wmBound amp ampRank ampBound clRank clBound m)
-  | .face t, _, _ => by
-      refine ⟨fun e => ?_, fun x y hxy => ?_⟩
-      · simp only [wmRank, wmBound, entriesType]; exact typein_lt_type _ _
-      · simp only [wmRank] at hxy
-        have hinj := typein_injective _ hxy
-        exact wentry_ext hinj
-  | .range lo hi, _, _ => by
-      refine ⟨fun e => ?_, fun x y hxy => ?_⟩
-      · simp only [wmRank, wmBound, entriesType]; exact typein_lt_type _ _
-      · simp only [wmRank] at hxy
-        have hinj := typein_injective _ hxy
-        exact wentry_ext hinj
-  | .final lo, _, _ => by
+  -- The three amp-independent leaves rank by `typein` of their own spelling
+  -- order, so they share one proof.
+  | .face _, _, _ | .range _ _, _, _ | .final _, _, _ => by
       refine ⟨fun e => ?_, fun x y hxy => ?_⟩
       · simp only [wmRank, wmBound, entriesType]; exact typein_lt_type _ _
       · simp only [wmRank] at hxy
@@ -892,21 +906,14 @@ theorem wfFaithful : ∀ (fs : Factors), fSubfree fs = true → fSites Q fs →
                   ⟨_, (walk_prodNode_fsplit rest amp _).mpr (hspec e).2.2⟩ :=
         fun e => wfRank_amp_pos amp ampRank ampBound clRank clBound rest e (hspec e).2.1
           ((walk_prodNode_fsplit rest amp _).mpr (hspec e).2.2)
-      constructor
-      · intro e; rw [hval e]; exact mixmul_lt (fb _) (hamp.1 _)
-      · intro x y hxy
-        rw [hval x, hval y] at hxy
-        have hWpos : (0 : Ordinal) < wfBound amp ampRank ampBound clRank clBound rest :=
-            zero_le.trans_lt (fb ⟨_, (walk_prodNode_fsplit rest amp _).mpr (hspec x).2.2⟩)
-        obtain ⟨hqe, hre⟩ := mixmul_inj hWpos.ne' (fb _) (fb _) hxy
-        have hhead : (someSplitP amp (fun q => fsplit rest amp q) x.1).1
-            = (someSplitP amp (fun q => fsplit rest amp q) y.1).1 :=
-          congrArg Subtype.val (hamp.2 hqe)
-        have htail : (someSplitP amp (fun q => fsplit rest amp q) x.1).2
-            = (someSplitP amp (fun q => fsplit rest amp q) y.1).2 :=
-          congrArg Subtype.val (fi hre)
-        apply Subtype.ext
-        rw [(hspec x).1, (hspec y).1, hhead, htail]
+      exact mixmul_faithful Subtype.val _
+        (fun e => ⟨_, (hspec e).2.1⟩)
+        (fun e => ⟨_, (walk_prodNode_fsplit rest amp _).mpr (hspec e).2.2⟩)
+        Subtype.val Subtype.val ampRank _
+        Subtype.val_injective (fun e => (hspec e).1) hval
+        (fun c => hamp.1 c) fb
+        (fun _ _ h => congrArg Subtype.val (hamp.2 h))
+        (fun _ _ h => congrArg Subtype.val (fi h))
   | .node n rest, h, hs => by
       simp only [fSites] at hs
       have hcomp : nSubfree n = true ∧ fSubfree rest = true := by
@@ -937,21 +944,15 @@ theorem wfFaithful : ∀ (fs : Factors), fSubfree fs = true → fSites Q fs →
           fun e => wfRank_node_binder_pos amp ampRank ampBound clRank clBound n rest hb e
             (ndenote_binder_denotes n amp _ hb (hspec e).2.1)
             ((walk_prodNode_fsplit rest amp _).mpr (hspec e).2.2)
-        constructor
-        · intro e; rw [hval e]; exact mixmul_lt (fb _) ((hcl n (by simpa only [if_pos hb] using hs.1) hb hn).1 _)
-        · intro x y hxy
-          rw [hval x, hval y] at hxy
-          have hWpos : (0 : Ordinal) < wfBound amp ampRank ampBound clRank clBound rest :=
-            zero_le.trans_lt (fb ⟨_, (walk_prodNode_fsplit rest amp _).mpr (hspec x).2.2⟩)
-          obtain ⟨hqe, hre⟩ := mixmul_inj hWpos.ne' (fb _) (fb _) hxy
-          have hhead : (someSplitP (fun p => ndenote n amp p) (fun q => fsplit rest amp q) x.1).1
-              = (someSplitP (fun p => ndenote n amp p) (fun q => fsplit rest amp q) y.1).1 :=
-            congrArg Subtype.val ((hcl n (by simpa only [if_pos hb] using hs.1) hb hn).2 hqe)
-          have htail : (someSplitP (fun p => ndenote n amp p) (fun q => fsplit rest amp q) x.1).2
-              = (someSplitP (fun p => ndenote n amp p) (fun q => fsplit rest amp q) y.1).2 :=
-            congrArg Subtype.val (fi hre)
-          apply Subtype.ext
-          rw [(hspec x).1, (hspec y).1, hhead, htail]
+        have hcln := hcl n (by simpa only [if_pos hb] using hs.1) hb hn
+        exact mixmul_faithful Subtype.val _
+          (fun e => ⟨_, ndenote_binder_denotes n amp _ hb (hspec e).2.1⟩)
+          (fun e => ⟨_, (walk_prodNode_fsplit rest amp _).mpr (hspec e).2.2⟩)
+          Subtype.val Subtype.val (clRank n) _
+          Subtype.val_injective (fun e => (hspec e).1) hval
+          (fun c => hcln.1 c) fb
+          (fun _ _ h => congrArg Subtype.val (hcln.2 h))
+          (fun _ _ h => congrArg Subtype.val (fi h))
       · rw [Bool.not_eq_true] at hb
         have hbf : ¬ (bindsb n = true) := by simp [hb]
         simp only [hb, Bool.false_eq_true, if_false]
@@ -966,21 +967,14 @@ theorem wfFaithful : ∀ (fs : Factors), fSubfree fs = true → fSites Q fs →
           fun e => wfRank_node_nonbinder_pos amp ampRank ampBound clRank clBound n rest hb e
             ((ndenote_nonbinder n amp _ hb).mp (hspec e).2.1)
             ((walk_prodNode_fsplit rest amp _).mpr (hspec e).2.2)
-        constructor
-        · intro e; rw [hval e]; exact mixmul_lt (fb _) (nb _)
-        · intro x y hxy
-          rw [hval x, hval y] at hxy
-          have hWpos : (0 : Ordinal) < wfBound amp ampRank ampBound clRank clBound rest :=
-            zero_le.trans_lt (fb ⟨_, (walk_prodNode_fsplit rest amp _).mpr (hspec x).2.2⟩)
-          obtain ⟨hqe, hre⟩ := mixmul_inj hWpos.ne' (fb _) (fb _) hxy
-          have hhead : (someSplitP (fun p => ndenote n amp p) (fun q => fsplit rest amp q) x.1).1
-              = (someSplitP (fun p => ndenote n amp p) (fun q => fsplit rest amp q) y.1).1 :=
-            congrArg Subtype.val (ni hqe)
-          have htail : (someSplitP (fun p => ndenote n amp p) (fun q => fsplit rest amp q) x.1).2
-              = (someSplitP (fun p => ndenote n amp p) (fun q => fsplit rest amp q) y.1).2 :=
-            congrArg Subtype.val (fi hre)
-          apply Subtype.ext
-          rw [(hspec x).1, (hspec y).1, hhead, htail]
+        exact mixmul_faithful Subtype.val _
+          (fun e => ⟨_, (ndenote_nonbinder n amp _ hb).mp (hspec e).2.1⟩)
+          (fun e => ⟨_, (walk_prodNode_fsplit rest amp _).mpr (hspec e).2.2⟩)
+          Subtype.val Subtype.val (wnRank amp ampRank ampBound clRank clBound n) _
+          Subtype.val_injective (fun e => (hspec e).1) hval
+          (fun c => nb c) fb
+          (fun _ _ h => congrArg Subtype.val (ni h))
+          (fun _ _ h => congrArg Subtype.val (fi h))
 
 end
 
@@ -2101,6 +2095,30 @@ theorem nSubfree_napp : ∀ (n1 n2 : Node), nSubfree n1 = true →
       simpa only [napp, nSubfree, Bool.and_eq_true] using
         ⟨hcomp.1, nSubfree_napp rest n2 hcomp.2 h2⟩
 
+/-- The spine step shared by the two union-rank block laws: peeling a head
+member off a non-binding, subtraction-free first body leaves a non-binding head
+singleton, a non-binding subtraction-free tail, and a non-binding reassociated
+union `m :: (rest ++ n2)`. -/
+theorem napp_cons_spine {m : Member} {rest n2 : Node}
+    (hb1 : bindsb (.cons m rest) = false) (hb2 : bindsb n2 = false)
+    (hs1 : nSubfree (.cons m rest) = true) :
+    bindsb (nsingle m) = false ∧ bindsb rest = false ∧ nSubfree rest = true
+      ∧ bindsb (napp rest n2) = false
+      ∧ bindsb (Node.cons m (napp rest n2)) = false := by
+  have hbcomp : freeAmpb m = false ∧ bindsb rest = false := by
+    rw [bindsb, Bool.or_eq_false_iff] at hb1
+    exact hb1
+  have hban : bindsb (napp rest n2) = false := by
+    rw [bindsb_napp, hbcomp.2, hb2]
+    rfl
+  refine ⟨?_, hbcomp.2, ?_, hban, ?_⟩
+  · simp only [nsingle, bindsb, Bool.or_false]
+    exact hbcomp.1
+  · exact (by simpa only [nSubfree, Bool.and_eq_true] using hs1 :
+      mSubfree m = true ∧ nSubfree rest = true).2
+  · rw [bindsb, Bool.or_eq_false_iff]
+    exact ⟨hbcomp.1, hban⟩
+
 /-- The first block of the union rank: an entry the first body claims ranks at
 its first-body rank -- `nRank_cons_first` iterated along the first body's
 spine (each unclaimed head member adds the same `mBound` offset on both
@@ -2111,21 +2129,7 @@ theorem nRank_napp_first : ∀ (n1 n2 : Node), bindsb n1 = false →
       nRank (napp n1 n2) e = nRank n1 ⟨e.1, h1⟩
   | .nil, _, _, _, _, _, e, h1 => absurd h1 (denotes_nnil e.1)
   | .cons m rest, n2, hb1, hb2, hs1, hs2, e, h1 => by
-      have hbcomp : freeAmpb m = false ∧ bindsb rest = false := by
-        rw [bindsb, Bool.or_eq_false_iff] at hb1
-        exact hb1
-      have hbm : bindsb (nsingle m) = false := by
-        simp only [nsingle, bindsb, Bool.or_false]
-        exact hbcomp.1
-      have hbr : bindsb rest = false := hbcomp.2
-      have hcomp : mSubfree m = true ∧ nSubfree rest = true := by
-        simpa only [nSubfree, Bool.and_eq_true] using hs1
-      have hban : bindsb (napp rest n2) = false := by
-        rw [bindsb_napp, hbr, hb2]
-        rfl
-      have hbc : bindsb (Node.cons m (napp rest n2)) = false := by
-        rw [bindsb, Bool.or_eq_false_iff]
-        exact ⟨hbcomp.1, hban⟩
+      obtain ⟨hbm, hbr, hsr, hban, hbc⟩ := napp_cons_spine hb1 hb2 hs1
       by_cases hA : denotes (nsingle m) e.1
       · have hL : nRank (napp (.cons m rest) n2) e = mRank m ⟨e.1, hA⟩ :=
           nRank_cons_first hbc e hA
@@ -2134,11 +2138,11 @@ theorem nRank_napp_first : ∀ (n1 n2 : Node), bindsb n1 = false →
         rw [hL, hR]
       · have hrest2 : denotes (napp rest n2) e.1 :=
           ((denotes_napp_iff (nsingle m) (napp rest n2) hbm hban
-            (subfreeb_napp rest n2 (nSubfree_subfreeb rest hcomp.2)
+            (subfreeb_napp rest n2 (nSubfree_subfreeb rest hsr)
               (nSubfree_subfreeb n2 hs2)) e.1).mp e.2).resolve_left hA
         have hrest1 : denotes rest e.1 :=
           ((denotes_napp_iff (nsingle m) rest hbm hbr
-            (nSubfree_subfreeb rest hcomp.2) e.1).mp h1).resolve_left hA
+            (nSubfree_subfreeb rest hsr) e.1).mp h1).resolve_left hA
         have hL : nRank (napp (.cons m rest) n2) e
             = mBound m + nRank (napp rest n2) ⟨e.1, hrest2⟩ :=
           nRank_cons_rest hbc e hA hrest2
@@ -2146,7 +2150,7 @@ theorem nRank_napp_first : ∀ (n1 n2 : Node), bindsb n1 = false →
             = mBound m + nRank rest ⟨e.1, hrest1⟩ :=
           nRank_cons_rest hb1 ⟨e.1, h1⟩ hA hrest1
         rw [hL, hR,
-          nRank_napp_first rest n2 hbr hb2 hcomp.2 hs2 ⟨e.1, hrest2⟩ hrest1]
+          nRank_napp_first rest n2 hbr hb2 hsr hs2 ⟨e.1, hrest2⟩ hrest1]
 
 /-- The second block of the union rank: an entry the first body does not claim
 ranks past the whole first block -- the first body's bound plus its
@@ -2161,22 +2165,8 @@ theorem nRank_napp_rest : ∀ (n1 n2 : Node), bindsb n1 = false →
       show nRank n2 ⟨e.1, e.2⟩ = nBound Node.nil + nRank n2 ⟨e.1, h2⟩
       rw [hz, zero_add]
   | .cons m rest, n2, hb1, hb2, hs1, hs2, e, h1, h2 => by
-      have hbcomp : freeAmpb m = false ∧ bindsb rest = false := by
-        rw [bindsb, Bool.or_eq_false_iff] at hb1
-        exact hb1
-      have hbm : bindsb (nsingle m) = false := by
-        simp only [nsingle, bindsb, Bool.or_false]
-        exact hbcomp.1
-      have hbr : bindsb rest = false := hbcomp.2
-      have hcomp : mSubfree m = true ∧ nSubfree rest = true := by
-        simpa only [nSubfree, Bool.and_eq_true] using hs1
-      have hsfr : subfreeb rest = true := nSubfree_subfreeb rest hcomp.2
-      have hban : bindsb (napp rest n2) = false := by
-        rw [bindsb_napp, hbr, hb2]
-        rfl
-      have hbc : bindsb (Node.cons m (napp rest n2)) = false := by
-        rw [bindsb, Bool.or_eq_false_iff]
-        exact ⟨hbcomp.1, hban⟩
+      obtain ⟨hbm, hbr, hsr, hban, hbc⟩ := napp_cons_spine hb1 hb2 hs1
+      have hsfr : subfreeb rest = true := nSubfree_subfreeb rest hsr
       have hA : ¬ denotes (nsingle m) e.1 := fun hA =>
         h1 ((denotes_napp_iff (nsingle m) rest hbm hbr hsfr e.1).mpr (Or.inl hA))
       have hnr : ¬ denotes rest e.1 := fun hR =>
@@ -2188,7 +2178,7 @@ theorem nRank_napp_rest : ∀ (n1 n2 : Node), bindsb n1 = false →
       have hL : nRank (napp (.cons m rest) n2) e
           = mBound m + nRank (napp rest n2) ⟨e.1, hrest2⟩ :=
         nRank_cons_rest hbc e hA hrest2
-      rw [hL, nRank_napp_rest rest n2 hbr hb2 hcomp.2 hs2 ⟨e.1, hrest2⟩ hnr h2,
+      rw [hL, nRank_napp_rest rest n2 hbr hb2 hsr hs2 ⟨e.1, hrest2⟩ hnr h2,
         nBound_cons_nb hb1, add_assoc]
 
 /-- Restricting the recursive order to any predicate keeps it a well order --
