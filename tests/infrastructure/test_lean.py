@@ -138,7 +138,10 @@ HEADLINE_THEOREMS = (
     "L1.entryRecType_fold_binder",
     # The transfinite rows over the body-recursive order: omega + 2 (union
     # past the limit), omega * 2 (the {b,c}{a..} north-star row), omega^2 (the
-    # seam row, marker outside the range), omega (the total collision
+    # seam row, twice: marker outside the range with unique splits, and marker
+    # inside the range where the seams genuinely collide and the recursion's
+    # least-split choice keeps the marker-free heads -- phase F's
+    # seam_collision_survives on a real term), omega (the total collision
     # collapse), and omega * 4 (the doc-literal nonempty-factor {a..}{a..}
     # collapse -- k = 4 under the recursive order, not the spelling-order
     # approximation's k = 2, because each surviving head block is enumerated
@@ -147,6 +150,7 @@ HEADLINE_THEOREMS = (
     "L1.unionRow_entryRecType",
     "L1.twoBlocks_entryRecType",
     "L1.seamRow_entryRecType",
+    "L1.inSeamRow_entryRecType",
     "L1.collapseRow_entryRecType",
     "L1.neCollapseRow_entryRecType",
     # Compression laws on real syntax (L1/Membership/Laws.lean): union

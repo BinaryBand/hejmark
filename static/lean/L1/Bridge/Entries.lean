@@ -36,10 +36,10 @@ and the type-omega claims land as theorems about the finite fragment:
 union/product term shapes, their denotation inversions and collision
 ownership of faces live in `L1/Bridge/Split.lean`, the body-recursive entry
 order itself in `L1/Bridge/RecOrder.lean`, and the transfinite entry types
-(the product rows at omega*k and omega^2, the union row past the limit) in
-`L1/Bridge/Rows.lean`. What remains deferred -- n-ary factor machinery and
-the in-range seam survivors -- is listed under "What this does not prove" in
-`static/lean/README.md`. -/
+(the product rows at omega*k and omega^2 -- the latter with the seam marker
+out of range and in range both -- the union row past the limit) in
+`L1/Bridge/Rows.lean`. What remains deferred -- e.g. n-ary factor machinery
+-- is listed under "What this does not prove" in `static/lean/README.md`. -/
 import L1.Membership.Laws
 import L1.Membership.NorthStar
 import L1.Order.Enumeration

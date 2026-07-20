@@ -9,8 +9,10 @@ real syntax, through the recursive within-body order: `entryRecType_prod2`
 (the positional product law, under unique splits) and
 `entryRecType_napp_disjoint` (the disjoint union sum). The codes are fixed
 small numerals: the omega factor is `unitClosure 0 1` (every spelling over
-`{0, 1}`), the front faces and the seam marker are `2` and `3` -- outside
-the closure range, so the marker pins each split.
+`{0, 1}`), and the unique-split rows draw their front faces and seam marker
+from `2` and `3` -- outside the closure range, so the marker pins each
+split. The in-range seam row at the end of the file instead draws its
+marker from *inside* the range, where the splits genuinely collide.
 
 - `collapseRow_entryRecType` (`{a..}{a..}`-extreme, type omega): with the
   empty spelling in both factors every entry is claimed by the collision
@@ -22,8 +24,16 @@ the closure range, so the marker pins each split.
 - `seamRow_entryRecType` (type omega^2): the doc's `{b}{a..}{b}{a..}`
   written two-factor, with the marker `2` closing the first block
   (`markedBlock`). The marker is outside the closure range so each
-  spelling splits at its unique marker; the in-range-seam survivor story
-  stays with the abstract `seam_collision_survives`.
+  spelling splits at its unique marker.
+- `inSeamRow_entryRecType` (type omega^2, marker in range): the same seam
+  row with the marker `1` drawn from the closure range, the doc-faithful
+  reading of `{b}{a..}{b}{a..}` where `b` is itself an `{a..}` entry. The
+  splits genuinely collide (`inSeamRow_splits_collide`), the recursion
+  keeps each entry's first-marker split -- the marker-free head `0^k`
+  closed by the seam character (`inSeamRow_survivor`, the doc's "every
+  pair with a `b`-free first segment is its own least split") -- those
+  heads stand cofinally with a full omega block each, and omega^2 still
+  stands: phase F's `seam_collision_survives`, landed on real syntax.
 - `unionRow_entryRecType` (type omega + 2): a braced closure with a
   two-face tail -- the union enumeration continues past the limit, the
   doc's "omega plus a finite tail" on real syntax.
@@ -423,7 +433,8 @@ theorem twoBlocks_entryRecType :
 
 /-- Headline: the seam row at omega^2 on the recursive order -- the doc's
 `{b}{a..}{b}{a..}` two-factor with the marker closing the first block.
-Splits are pinned by the marker outside the range. -/
+Splits are pinned by the marker outside the range; the colliding in-range
+marker version is `inSeamRow_entryRecType` at the end of the file. -/
 theorem seamRow_entryRecType :
     entryRecType (prod2 markedBlock (unitClosure 0 1)) = ω ^ (2 : Ordinal) := by
   rw [entryRecType_prod2 markedBlock (unitClosure 0 1) markedBlock_nSubfree
@@ -765,5 +776,419 @@ previously had nowhere to be tested on. -/
 theorem nestedClosureRow_entryRecLt_isWellOrder :
     IsWellOrder (Entries nestedClosureRow) (entryRecLt nestedClosureRow) :=
   entryRecLt_isWellOrder nestedClosureRow nestedClosureRow_nSubfree
+
+/- ================================================================ -/
+/- The in-range seam row: the marker lives in the closure range, the -/
+/- splits genuinely collide, and omega^2 still stands.               -/
+/-                                                                   -/
+/- The doc's `{b}{a..}{b}{a..}` has its seam character `b` inside     -/
+/- the `{a..}` factors, so a spelling with several `b`s is claimed    -/
+/- by several splits and the collision rule must drop all but the     -/
+/- least. `seamRow_entryRecType` above dodged that by moving the      -/
+/- marker out of range; this section keeps it in range (`1`, a        -/
+/- closure code) and runs the recursion's own split choice            -/
+/- (`someSplit`) through the collision: the least split cuts at the   -/
+/- FIRST marker, so the surviving heads are exactly the marker-free   -/
+/- runs `0^k` closed by the seam character -- phase F's               -/
+/- `bfree_survives`, on real syntax -- and they stand cofinally with  -/
+/- a full omega block of tails each: omega^2 survives the collision.  -/
+/- ================================================================ -/
+
+/-- The in-range marked block: bounded strings closed by the marker `1` --
+`markedBlock` with the seam character drawn from the closure range. -/
+def inSeamBlock : Node := prod2 (unitClosure 0 1) (nsingle (.face [1]))
+
+theorem inSeamBlock_denotes_iff (s : Spelling) :
+    denotes inSeamBlock s ↔ ∃ u, s = u ++ [1] ∧ ∀ c ∈ u, c ≤ 1 := by
+  show denotes (prod2 (unitClosure 0 1) (nsingle (.face [1]))) s ↔ _
+  rw [prod2_denotes_iff]
+  constructor
+  · rintro ⟨p, q, rfl, hp, hq⟩
+    rw [face_denotes_iff] at hq
+    subst hq
+    exact ⟨p, rfl, (unitClosure01_denotes p).mp hp⟩
+  · rintro ⟨u, rfl, hu⟩
+    exact ⟨u, [1], rfl, (unitClosure01_denotes u).mpr hu,
+      (face_denotes_iff _ _).mpr rfl⟩
+
+/-- The block's own splits stay unique -- the face tail pins the cut point
+regardless of where the marker code lives (`markedBlock_splits_unique`'s
+argument, unchanged). The collision below is a row-level phenomenon. -/
+theorem inSeamBlock_splits_unique {s : Spelling} {pq pq' : Spelling × Spelling}
+    (h : IsSplit (unitClosure 0 1) (nsingle (.face [1])) s pq)
+    (h' : IsSplit (unitClosure 0 1) (nsingle (.face [1])) s pq') : pq = pq' := by
+  obtain ⟨heq, -, hq⟩ := h
+  obtain ⟨heq', -, hq'⟩ := h'
+  rw [face_denotes_iff] at hq hq'
+  obtain ⟨h1, h2⟩ := List.append_inj' (heq.symm.trans heq') (by rw [hq, hq'])
+  exact Prod.ext h1 h2
+
+theorem inSeamBlock_nSubfree : nSubfree inSeamBlock = true := by
+  simp [inSeamBlock, prod2, nsingle, nSubfree, mSubfree, fSubfree,
+    unitClosure_nSubfree]
+
+/-- The in-range marked block under the recursive order: a full omega of
+bounded prefixes, one marker entry each. -/
+theorem inSeamBlock_entryRecType : entryRecType inSeamBlock = ω := by
+  show entryRecType (prod2 (unitClosure 0 1) (nsingle (.face [1]))) = ω
+  rw [entryRecType_prod2 (unitClosure 0 1) (nsingle (.face [1]))
+      (unitClosure_nSubfree 0 1) rfl
+      (fun _ _ _ h h' => inSeamBlock_splits_unique h h'),
+    face_entryRecType, unitClosure_entryRecType 0 1 (by omega), one_mul]
+
+/-- The seams genuinely collide: the spelling `11` is claimed by two
+distinct splits, `1 | 1` and `11 | empty` -- the unique-split hypothesis of
+`entryRecType_prod2` is unavailable on this row, so the omega^2 headline
+below cannot ride the positional product law and has to survive the
+collision rule instead. Phase F's colliding pairs, on real cuts. -/
+theorem inSeamRow_splits_collide :
+    ∃ (s : Spelling) (pq pq' : Spelling × Spelling), pq ≠ pq' ∧
+      IsSplit inSeamBlock (unitClosure 0 1) s pq ∧
+      IsSplit inSeamBlock (unitClosure 0 1) s pq' := by
+  refine ⟨[1, 1], ([1], [1]), ([1, 1], []), by decide,
+    ⟨rfl, ?_, ?_⟩, ⟨(List.append_nil _).symm, ?_, ?_⟩⟩
+  · exact (inSeamBlock_denotes_iff [1]).mpr ⟨[], rfl, by simp⟩
+  · exact (unitClosure01_denotes [1]).mpr (by simp)
+  · exact (inSeamBlock_denotes_iff [1, 1]).mpr ⟨[1], rfl, by simp⟩
+  · exact (unitClosure01_denotes []).mpr (by simp)
+
+/- ---- The marker-free run and the first-marker cut. ---- -/
+
+/-- `k` zeros: over the two-code alphabet a marker-free bounded segment is
+exactly such a run -- the real-syntax shape of phase F's `b`-free
+`List.replicate` spellings. -/
+def zeros (k : ℕ) : Spelling := List.replicate k 0
+
+theorem zeros_length (k : ℕ) : (zeros k).length = k := by simp [zeros]
+
+theorem one_not_mem_zeros (k : ℕ) : (1 : Code) ∉ zeros k := fun h => by
+  simpa using List.eq_of_mem_replicate h
+
+theorem zeros_bounded (k : ℕ) : ∀ c ∈ zeros k, c ≤ 1 := fun c hc => by
+  rw [List.eq_of_mem_replicate hc]
+  omega
+
+/-- A bounded marker-free segment is a run of zeros. -/
+theorem zeros_of_marker_free {z : Spelling} (hb : ∀ c ∈ z, c ≤ 1)
+    (hz : (1 : Code) ∉ z) : z = zeros z.length := by
+  show z = List.replicate z.length 0
+  rw [List.eq_replicate_length]
+  intro b hbz
+  have h1 := hb b hbz
+  have h2 : b ≠ 1 := fun h => hz (h ▸ hbz)
+  omega
+
+/-- Every spelling wearing the marker cuts at its first occurrence, with a
+marker-free prefix. -/
+theorem first_marker_split {s : Spelling} (h : (1 : Code) ∈ s) :
+    ∃ z v, s = z ++ 1 :: v ∧ (1 : Code) ∉ z := by
+  induction s with
+  | nil => cases h
+  | cons c rest ih =>
+      by_cases hc : c = 1
+      · subst hc
+        exact ⟨[], rest, rfl, by simp⟩
+      · have hrest : (1 : Code) ∈ rest := by
+          rcases List.mem_cons.mp h with h1 | h1
+          · exact absurd h1.symm hc
+          · exact h1
+        obtain ⟨z, v, rfl, hz⟩ := ih hrest
+        refine ⟨c :: z, v, rfl, fun hm => ?_⟩
+        rcases List.mem_cons.mp hm with h1 | h1
+        · exact hc h1.symm
+        · exact hz h1
+
+/-- The collision surgery: two first-marker readings of one spelling either
+agree or the one with the marker-free prefix is the strictly shorter cut --
+the doc's "a shorter prefix would place `b` inside the `b`-free segment"
+(`bfree_survives`'s trichotomy, on real lists). -/
+theorem seam_least_split {z v u q : Spelling} (hz : (1 : Code) ∉ z)
+    (h : z ++ 1 :: v = u ++ 1 :: q) :
+    (z = u ∧ v = q) ∨ z.length < u.length := by
+  rcases Nat.lt_trichotomy z.length u.length with hlt | heq | hgt
+  · exact Or.inr hlt
+  · obtain ⟨h1, h2⟩ := List.append_inj h heq
+    exact Or.inl ⟨h1, ((List.cons.injEq _ _ _ _).mp h2).2⟩
+  · -- A shorter `u` forces the marker into the marker-free `z`.
+    exfalso
+    have hpre1 : u <+: z ++ 1 :: v := h ▸ List.prefix_append u (1 :: q)
+    obtain ⟨t, rfl⟩ := List.prefix_of_prefix_length_le hpre1
+      (List.prefix_append z (1 :: v)) (Nat.le_of_lt hgt)
+    rw [List.append_assoc] at h
+    have htail : t ++ 1 :: v = 1 :: q := List.append_cancel_left h
+    cases t with
+    | nil => simp at hgt
+    | cons th tt =>
+        simp only [List.cons_append, List.cons.injEq] at htail
+        exact hz (List.mem_append_right u (htail.1 ▸ List.mem_cons_self))
+
+/-- Cut a spelling at its first marker: the length of the marker-free
+prefix, and the suffix past the marker (junk on a marker-free spelling). -/
+def seamCut : Spelling → ℕ × Spelling
+  | [] => (0, [])
+  | c :: rest =>
+      if c = 1 then (0, rest)
+      else ((seamCut rest).1 + 1, (seamCut rest).2)
+
+theorem seamCut_eq {z v : Spelling} (hz : (1 : Code) ∉ z) :
+    seamCut (z ++ 1 :: v) = (z.length, v) := by
+  induction z with
+  | nil => simp [seamCut]
+  | cons c rest ih =>
+      have hc : c ≠ 1 := fun h => hz (h ▸ List.mem_cons_self)
+      have hrest : (1 : Code) ∉ rest := fun h => hz (List.mem_cons_of_mem c h)
+      simp [seamCut, hc, ih hrest]
+
+/- ---- The row's entries: bounded spellings wearing the marker. ---- -/
+
+theorem inSeamRow_denotes_iff (s : Spelling) :
+    denotes (prod2 inSeamBlock (unitClosure 0 1)) s
+      ↔ (1 : Code) ∈ s ∧ ∀ c ∈ s, c ≤ 1 := by
+  rw [prod2_denotes_iff]
+  constructor
+  · rintro ⟨p, q, rfl, hp, hq⟩
+    obtain ⟨u, rfl, hu⟩ := (inSeamBlock_denotes_iff p).mp hp
+    have hq1 := (unitClosure01_denotes q).mp hq
+    refine ⟨List.mem_append_left q (List.mem_append_right u List.mem_cons_self), ?_⟩
+    intro c hc
+    rcases List.mem_append.mp hc with hc1 | hc2
+    · rcases List.mem_append.mp hc1 with hcu | hc1'
+      · exact hu c hcu
+      · rw [List.mem_singleton.mp hc1']
+    · exact hq1 c hc2
+  · rintro ⟨hm, hcodes⟩
+    obtain ⟨z, v, rfl, hz⟩ := first_marker_split hm
+    refine ⟨z ++ [1], v, (List.append_assoc z [1] v).symm, ?_, ?_⟩
+    · exact (inSeamBlock_denotes_iff _).mpr
+        ⟨z, rfl, fun c hc => hcodes c (List.mem_append_left _ hc)⟩
+    · exact (unitClosure01_denotes v).mpr
+        (fun c hc => hcodes c (List.mem_append_right z (List.mem_cons_of_mem 1 hc)))
+
+/-- Every entry is its first-marker cut: a marker-free run of zeros, the
+seam character, the suffix. -/
+theorem inSeamRow_cons (e : Entries (prod2 inSeamBlock (unitClosure 0 1))) :
+    e.1 = zeros (seamCut e.1).1 ++ 1 :: (seamCut e.1).2 := by
+  obtain ⟨hm, hcodes⟩ := (inSeamRow_denotes_iff e.1).mp e.2
+  obtain ⟨z, v, hzv, hz⟩ := first_marker_split hm
+  have hzb : ∀ c ∈ z, c ≤ 1 := fun c hc =>
+    hcodes c (by rw [hzv]; exact List.mem_append_left _ hc)
+  rw [hzv, seamCut_eq hz, ← zeros_of_marker_free hzb hz]
+
+theorem inSeamRow_head_denotes (e : Entries (prod2 inSeamBlock (unitClosure 0 1))) :
+    denotes inSeamBlock (zeros (seamCut e.1).1 ++ [1]) :=
+  (inSeamBlock_denotes_iff _).mpr ⟨zeros (seamCut e.1).1, rfl, zeros_bounded _⟩
+
+theorem inSeamRow_tail_denotes (e : Entries (prod2 inSeamBlock (unitClosure 0 1))) :
+    denotes (unitClosure 0 1) (seamCut e.1).2 := by
+  obtain ⟨-, hcodes⟩ := (inSeamRow_denotes_iff e.1).mp e.2
+  refine (unitClosure01_denotes _).mpr (fun c hc => hcodes c ?_)
+  rw [inSeamRow_cons e]
+  exact List.mem_append_right _ (List.mem_cons_of_mem 1 hc)
+
+/-- The recursion's split choice under the collision: the least split cuts
+at the FIRST marker. A claimant cutting later has a longer head and loses
+positionally; one cutting earlier would need a marker inside the
+marker-free prefix (`seam_least_split`). This is `someSplit` -- the one
+split-choosing primitive -- exercised on genuinely colliding claimants. -/
+theorem inSeamRow_someSplit (e : Entries (prod2 inSeamBlock (unitClosure 0 1)))
+    {z v : Spelling} (heq : e.1 = z ++ 1 :: v) (hz : (1 : Code) ∉ z) :
+    someSplit inSeamBlock (prodNode (.node (unitClosure 0 1) .nil)) e.1
+      = (z ++ [1], v) := by
+  obtain ⟨-, hcodes⟩ := (inSeamRow_denotes_iff e.1).mp e.2
+  have hzb : ∀ c ∈ z, c ≤ 1 := fun c hc =>
+    hcodes c (by rw [heq]; exact List.mem_append_left _ hc)
+  have hvb : ∀ c ∈ v, c ≤ 1 := fun c hc =>
+    hcodes c (by rw [heq]; exact List.mem_append_right z (List.mem_cons_of_mem 1 hc))
+  refine someSplit_eq inSeamBlock (prodNode (.node (unitClosure 0 1) .nil))
+    ⟨heq.trans (List.append_assoc z [1] v).symm,
+      (inSeamBlock_denotes_iff _).mpr ⟨z, rfl, hzb⟩,
+      (prodTail_denotes_iff (unitClosure 0 1) v).mpr
+        ((unitClosure01_denotes v).mpr hvb)⟩ ?_
+  rintro ⟨p, q⟩ ⟨hpq, hp, -⟩
+  obtain ⟨u, rfl, -⟩ := (inSeamBlock_denotes_iff p).mp hp
+  have hcat : z ++ 1 :: v = u ++ 1 :: q :=
+    heq.symm.trans (hpq.trans (List.append_assoc u [1] q))
+  rcases seam_least_split hz hcat with ⟨rfl, rfl⟩ | hlt
+  · left
+    rfl
+  · right
+    refine Prod.lex_def.mpr (Or.inl (List.Shortlex.of_length_lt ?_))
+    simp only [List.length_append, List.length_cons, List.length_nil]
+    omega
+
+/-- The survivors on real syntax: the recursion carves every entry at its
+first-marker split, so the head it keeps is the marker-free run `0^k`
+closed by the seam character -- the doc's "every pair with a `b`-free
+first segment is its own least split", read off `prod2RecPieces`. -/
+theorem inSeamRow_survivor (e : Entries (prod2 inSeamBlock (unitClosure 0 1))) :
+    prod2RecPieces inSeamBlock (unitClosure 0 1) e
+      = (⟨zeros (seamCut e.1).1 ++ [1], inSeamRow_head_denotes e⟩,
+         ⟨(seamCut e.1).2, inSeamRow_tail_denotes e⟩) := by
+  have hpin := inSeamRow_someSplit e (inSeamRow_cons e) (one_not_mem_zeros _)
+  exact Prod.ext (Subtype.ext (congrArg Prod.fst hpin))
+    (Subtype.ext (congrArg Prod.snd hpin))
+
+/- ---- Head blocks in run-length order. ---- -/
+
+/-- On the demotion row the recursive rank is length-monotone: a strictly
+shorter entry first-appears strictly earlier, so stage-major disjointness
+(`cRank_lt_of_firstStage_lt`) puts it strictly below. -/
+theorem unitClosure_entryRank_lt_of_length_lt {x y : Entries (unitClosure 0 1)}
+    (h : x.1.length < y.1.length) :
+    entryRank (unitClosure 0 1) x < entryRank (unitClosure 0 1) y := by
+  have hstage : ∀ e : Entries (unitClosure 0 1),
+      stage (unitClosure 0 1) (firstStage (unitClosure 0 1) e.1) e.1 := fun e =>
+    firstStage_stage _ e.1
+      ((ndenote_binder _ (fun _ => False) e.1 (unitClosure_bindsb 0 1)).mp e.2)
+  rw [entryRank_binder _ (unitClosure_bindsb 0 1) x,
+    entryRank_binder _ (unitClosure_bindsb 0 1) y]
+  refine cRank_lt_of_firstStage_lt _ (unitClosure_nSubfree 0 1)
+    (hstage x) (hstage y) ?_
+  rw [unitClosure_firstStage 0 1 x.1 ((unitClosure_generates 0 1 x.1).mp x.2),
+    unitClosure_firstStage 0 1 y.1 ((unitClosure_generates 0 1 y.1).mp y.2)]
+  omega
+
+/-- The surviving heads' pieces inside the block: the block's splits are
+unique, so the recursion cuts `0^k 1` into the run and the face. -/
+theorem inSeamBlock_headPieces (k : ℕ) (h : denotes inSeamBlock (zeros k ++ [1]))
+    (hp : denotes (unitClosure 0 1) (zeros k))
+    (hq : denotes (nsingle (.face [1])) [1]) :
+    prod2RecPieces (unitClosure 0 1) (nsingle (.face [1])) ⟨zeros k ++ [1], h⟩
+      = (⟨zeros k, hp⟩, ⟨[1], hq⟩) := by
+  have hpin : someSplit (unitClosure 0 1)
+      (prodNode (.node (nsingle (.face [1])) .nil)) (zeros k ++ [1])
+      = (zeros k, [1]) :=
+    prod2_someSplit_eq (unitClosure 0 1) (nsingle (.face [1]))
+      (fun _ _ _ h1 h2 => inSeamBlock_splits_unique h1 h2) rfl hp hq
+  exact Prod.ext (Subtype.ext (congrArg Prod.fst hpin))
+    (Subtype.ext (congrArg Prod.snd hpin))
+
+/-- A longer marker-free run is a strictly larger head: the run rides the
+closure's length-monotone rank, the face contributes nothing. -/
+theorem inSeamBlock_headRank_lt {j k : ℕ} (hjk : j < k)
+    (hj : denotes inSeamBlock (zeros j ++ [1]))
+    (hk : denotes inSeamBlock (zeros k ++ [1])) :
+    entryRank inSeamBlock ⟨zeros j ++ [1], hj⟩
+      < entryRank inSeamBlock ⟨zeros k ++ [1], hk⟩ := by
+  have hpj : denotes (unitClosure 0 1) (zeros j) :=
+    (unitClosure01_denotes _).mpr (zeros_bounded j)
+  have hpk : denotes (unitClosure 0 1) (zeros k) :=
+    (unitClosure01_denotes _).mpr (zeros_bounded k)
+  have hface : denotes (nsingle (.face [1])) [1] := (face_denotes_iff _ _).mpr rfl
+  show entryRecLt (prod2 (unitClosure 0 1) (nsingle (.face [1])))
+    ⟨zeros j ++ [1], hj⟩ ⟨zeros k ++ [1], hk⟩
+  rw [entryRecLt_prod2_iff (unitClosure 0 1) (nsingle (.face [1])) rfl,
+    inSeamBlock_headPieces j hj hpj hface, inSeamBlock_headPieces k hk hpk hface]
+  refine Or.inl (unitClosure_entryRank_lt_of_length_lt ?_)
+  show (zeros j).length < (zeros k).length
+  rw [zeros_length, zeros_length]
+  exact hjk
+
+/-- Surviving heads compare by run length. -/
+theorem inSeamBlock_headRank_lt_iff {j k : ℕ}
+    (hj : denotes inSeamBlock (zeros j ++ [1]))
+    (hk : denotes inSeamBlock (zeros k ++ [1])) :
+    entryRank inSeamBlock ⟨zeros j ++ [1], hj⟩
+      < entryRank inSeamBlock ⟨zeros k ++ [1], hk⟩ ↔ j < k := by
+  rcases Nat.lt_trichotomy j k with h | rfl | h
+  · exact iff_of_true (inSeamBlock_headRank_lt h hj hk) h
+  · exact iff_of_false (lt_irrefl _) (lt_irrefl _)
+  · exact iff_of_false (lt_asymm (inSeamBlock_headRank_lt h hk hj)) (by omega)
+
+/-- Surviving heads with equal rank share the run length: the head block
+index is injective. -/
+theorem inSeamBlock_headRank_eq_iff {j k : ℕ}
+    (hj : denotes inSeamBlock (zeros j ++ [1]))
+    (hk : denotes inSeamBlock (zeros k ++ [1])) :
+    entryRank inSeamBlock ⟨zeros j ++ [1], hj⟩
+      = entryRank inSeamBlock ⟨zeros k ++ [1], hk⟩ ↔ j = k := by
+  constructor
+  · intro h
+    have hval := congrArg Subtype.val
+      (entryRank_injective inSeamBlock inSeamBlock_nSubfree h)
+    have hlen := congrArg List.length hval
+    simp only [List.length_append, List.length_cons, List.length_nil,
+      zeros_length] at hlen
+    omega
+  · rintro rfl
+    rfl
+
+/-- The in-range seam row recurses as run-length-many surviving head blocks
+over the tail closure's own recursive order: collision ownership erases
+every split but the first-marker one, and what remains is `ℕ` lex a full
+omega block -- phase F's "`b`-free blocks embed a full ω·ω", generated. -/
+noncomputable def inSeamRowRecIso :
+    entryRecLt (prod2 inSeamBlock (unitClosure 0 1))
+      ≃r Prod.Lex ((· < ·) : ℕ → ℕ → Prop) (entryRecLt (unitClosure 0 1)) where
+  toEquiv := Equiv.ofBijective (fun e =>
+    ((seamCut e.1).1, ⟨(seamCut e.1).2, inSeamRow_tail_denotes e⟩)) (by
+    constructor
+    · intro x y hxy
+      simp only [Prod.mk.injEq, Subtype.mk.injEq] at hxy
+      apply Subtype.ext
+      rw [inSeamRow_cons x, inSeamRow_cons y, hxy.1, hxy.2]
+    · rintro ⟨k, ⟨v, hv⟩⟩
+      have hd : denotes (prod2 inSeamBlock (unitClosure 0 1)) (zeros k ++ 1 :: v) := by
+        refine (inSeamRow_denotes_iff _).mpr
+          ⟨List.mem_append_right _ List.mem_cons_self, ?_⟩
+        intro c hc
+        rcases List.mem_append.mp hc with h | h
+        · exact zeros_bounded k c h
+        · rcases List.mem_cons.mp h with rfl | h
+          · exact le_refl 1
+          · exact (unitClosure01_denotes v).mp hv c h
+      refine ⟨⟨zeros k ++ 1 :: v, hd⟩, ?_⟩
+      have hcut : seamCut (zeros k ++ 1 :: v) = (k, v) := by
+        rw [seamCut_eq (one_not_mem_zeros k), zeros_length]
+      refine Prod.ext ?_ (Subtype.ext ?_)
+      · show (seamCut (zeros k ++ 1 :: v)).1 = k
+        rw [hcut]
+      · show (seamCut (zeros k ++ 1 :: v)).2 = v
+        rw [hcut])
+  map_rel_iff' := by
+    intro x y
+    simp only [Equiv.ofBijective_apply, Prod.lex_def]
+    rw [entryRecLt_prod2_iff inSeamBlock (unitClosure 0 1) (unitClosure_nSubfree 0 1) x y]
+    have hhx : (prod2RecPieces inSeamBlock (unitClosure 0 1) x).1
+        = ⟨zeros (seamCut x.1).1 ++ [1], inSeamRow_head_denotes x⟩ :=
+      congrArg Prod.fst (inSeamRow_survivor x)
+    have hhy : (prod2RecPieces inSeamBlock (unitClosure 0 1) y).1
+        = ⟨zeros (seamCut y.1).1 ++ [1], inSeamRow_head_denotes y⟩ :=
+      congrArg Prod.fst (inSeamRow_survivor y)
+    have htx : (prod2RecPieces inSeamBlock (unitClosure 0 1) x).2
+        = ⟨(seamCut x.1).2, inSeamRow_tail_denotes x⟩ :=
+      congrArg Prod.snd (inSeamRow_survivor x)
+    have hty : (prod2RecPieces inSeamBlock (unitClosure 0 1) y).2
+        = ⟨(seamCut y.1).2, inSeamRow_tail_denotes y⟩ :=
+      congrArg Prod.snd (inSeamRow_survivor y)
+    rw [hhx, hhy, htx, hty,
+      inSeamBlock_headRank_lt_iff (inSeamRow_head_denotes x) (inSeamRow_head_denotes y),
+      inSeamBlock_headRank_eq_iff (inSeamRow_head_denotes x) (inSeamRow_head_denotes y)]
+    exact Iff.rfl
+
+/-- Headline: the in-range seam row keeps omega^2 on the recursive order --
+the doc's `{b}{a..}{b}{a..}` with the seam character genuinely inside the
+range, where "the seams collide (`babba` is both `b|a|b|ba` and `b|ab|b|a`),
+yet every pair with a `b`-free first segment is its own least split --
+infinitely many full omega-blocks survive, cofinally, so omega^2 stands."
+
+Unlike `seamRow_entryRecType` the splits collide (`inSeamRow_splits_collide`),
+so the type cannot come from the unique-split product law: the recursion's
+own split choice drops every claimant but the first-marker one
+(`inSeamRow_someSplit`), the surviving marker-free heads `0^k` stand
+cofinally (`inSeamRow_survivor`), each with the tail closure's full omega
+block -- phase F's `seam_collision_survives`, landed on a real term. -/
+theorem inSeamRow_entryRecType :
+    entryRecType (prod2 inSeamBlock (unitClosure 0 1)) = ω ^ (2 : Ordinal) := by
+  have hsub : nSubfree (prod2 inSeamBlock (unitClosure 0 1)) = true := by
+    simp [prod2, nsingle, nSubfree, mSubfree, fSubfree, inSeamBlock_nSubfree,
+      unitClosure_nSubfree]
+  haveI := entryRecLt_isWellOrder (prod2 inSeamBlock (unitClosure 0 1)) hsub
+  haveI := entryRecLt_isWellOrder (unitClosure 0 1) (unitClosure_nSubfree 0 1)
+  rw [entryRecType_def (prod2 inSeamBlock (unitClosure 0 1)) hsub,
+    Ordinal.type_eq.mpr ⟨inSeamRowRecIso⟩, type_prod_lex,
+    ← entryRecType_def (unitClosure 0 1) (unitClosure_nSubfree 0 1),
+    unitClosure_entryRecType 0 1 (by omega), type_nat_lt,
+    show (2 : Ordinal) = 1 + 1 by norm_num, opow_add, opow_one]
 
 end L1
