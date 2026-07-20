@@ -111,25 +111,6 @@ theorem denotes_fold_nonbinder (inner : Node) (s : Spelling)
   simp only [denotes, ndenote, hnode, h, Bool.false_eq_true, if_false,
     walk_single_fold, false_or, spells_fold]
 
-open Ordinal in
-/-- Binary product pieces. An entry of a binary product carries to the pair of
-factor entries carved out by its owning split (`leastSplit`). The recursion
-recurses `entryRank` into each factor on its piece. -/
-noncomputable def prodPieces (a b : Node) (e : Entries (prod2 a b)) :
-    Entries a × Entries b :=
-  (⟨(leastSplit a b e).1, (leastSplit_isSplit a b e).2.1⟩,
-   ⟨(leastSplit a b e).2, (leastSplit_isSplit a b e).2.2⟩)
-
-/-- The pieces map is injective with no uniqueness hypothesis -- the owning
-split reconstructs its entry (`e.1 = p ++ q`), so distinct entries cannot share
-both pieces. This is the product face of the composed-injectivity argument. -/
-theorem prodPieces_injective (a b : Node) :
-    Function.Injective (prodPieces a b) := by
-  intro x y hxy
-  simp only [prodPieces, Prod.mk.injEq, Subtype.mk.injEq] at hxy
-  apply Subtype.ext
-  rw [(leastSplit_isSplit a b x).1, (leastSplit_isSplit a b y).1, hxy.1, hxy.2]
-
 open Classical in
 /-- Union first-owner reinterpretation (subtraction-free bodies). An entry of a
 union `napp n1 n2` is owned by the first body when it denotes it, else by the
@@ -166,9 +147,8 @@ theorem unionReinterp_injective (n1 n2 : Node) (hb1 : bindsb n1 = false)
 /- ---------------------------------------------------------------- -/
 /- N-ary product: head/tail piece extraction. The `Factors` recursion -/
 /- splits a product entry into its head factor and the tail product,  -/
-/- one binary cut at a time, so it reuses a general head/tail          -/
-/- least-split (generalizing `Product.leastSplit` off the 2-factor     -/
-/- `prod2` to any node whose entries split head/tail).                 -/
+/- one binary cut at a time, over `Product.IsSplit` -- the same split  -/
+/- address the binary `prod2` uses, reused off the 2-factor case.      -/
 /- ---------------------------------------------------------------- -/
 
 /-- A product over a factor list, as a node. -/
@@ -203,50 +183,6 @@ theorem prodNode_node_split (n : Node) (rest : Factors) (hnb : hasAmpb rest = fa
   · rintro ⟨p, q, rfl, hp, hq⟩
     exact ⟨p, q, rfl, hp, (denotes_prodNode_fsplit rest hnb q).mp hq⟩
 
-open Ordinal in
-/-- Abstract head/tail split address: `s` cut into a head that `nh` denotes and
-a tail that `nt` denotes. Generalizes `Product.IsSplit` off the binary `prod2`
-to any node whose entries split head/tail. -/
-def IsHT (nh nt : Node) (s : Spelling) (pq : Spelling × Spelling) : Prop :=
-  s = pq.1 ++ pq.2 ∧ denotes nh pq.1 ∧ denotes nt pq.2
-
-open Ordinal in
-/-- The least head/tail split owning an entry, given that every entry of `N`
-splits. Generalizes `Product.leastSplit`; positional order `splitLt` is
-reused. -/
-noncomputable def htLeastSplit (nh nt N : Node)
-    (hsplit : ∀ s, denotes N s → ∃ pq, IsHT nh nt s pq)
-    (e : Entries N) : Spelling × Spelling :=
-  (IsWellFounded.wf (r := splitLt)).min {pq | IsHT nh nt e.1 pq} (hsplit e.1 e.2)
-
-open Ordinal in
-theorem htLeastSplit_isHT (nh nt N : Node)
-    (hsplit : ∀ s, denotes N s → ∃ pq, IsHT nh nt s pq) (e : Entries N) :
-    IsHT nh nt e.1 (htLeastSplit nh nt N hsplit e) :=
-  WellFounded.min_mem (IsWellFounded.wf (r := splitLt))
-    {pq | IsHT nh nt e.1 pq} (hsplit e.1 e.2)
-
-open Ordinal in
-/-- The head/tail pieces of an entry: the factor entries carved by its owning
-split. Generalizes `prodPieces`. -/
-noncomputable def htPieces (nh nt N : Node)
-    (hsplit : ∀ s, denotes N s → ∃ pq, IsHT nh nt s pq) (e : Entries N) :
-    Entries nh × Entries nt :=
-  (⟨(htLeastSplit nh nt N hsplit e).1, (htLeastSplit_isHT nh nt N hsplit e).2.1⟩,
-   ⟨(htLeastSplit nh nt N hsplit e).2, (htLeastSplit_isHT nh nt N hsplit e).2.2⟩)
-
-open Ordinal in
-/-- The pieces map is injective with no uniqueness hypothesis -- the owning split
-reconstructs the entry (`e.1 = p ++ q`). Generalizes `prodPieces_injective`. -/
-theorem htPieces_injective (nh nt N : Node)
-    (hsplit : ∀ s, denotes N s → ∃ pq, IsHT nh nt s pq) :
-    Function.Injective (htPieces nh nt N hsplit) := by
-  intro x y hxy
-  simp only [htPieces, Prod.mk.injEq, Subtype.mk.injEq] at hxy
-  apply Subtype.ext
-  rw [(htLeastSplit_isHT nh nt N hsplit x).1, (htLeastSplit_isHT nh nt N hsplit y).1,
-    hxy.1, hxy.2]
-
 /- ---------------------------------------------------------------- -/
 /- Shared inputs to the rank recursions: the fallback bound for a    -/
 /- nested closure inside the within-stage recursion (STEP 4b), and   -/
@@ -262,12 +198,30 @@ the top-level closure branches rank by `cRank` / `cBound`. -/
 noncomputable def closureBound (n : Node) : Ordinal := Ordinal.type (entryLt n)
 
 open Classical in
-/-- Some owning split of `s` into head/tail (junk `([], [])` when none) -- the
-total choice the product recursion uses; on a real non-binder product entry it
-is the least split `htLeastSplit` picks. -/
-noncomputable def someSplit (nh nt : Node) (s : Spelling) : Spelling × Spelling :=
-  if h : ∃ pq, IsHT nh nt s pq then (IsWellFounded.wf (r := splitLt)).min _ h
+/-- The sole split-choosing primitive: the least split of `s` into `p ++ q` with
+`headP p` and `tailP q`, junk `([], [])` when none. The product recursions and
+transfinite rows use it through the `denotes`-specialization `someSplit` below;
+the within-stage product recursion instantiates it directly on `walk`/`amp`
+piece predicates rather than `denotes`. -/
+noncomputable def someSplitP (headP tailP : Spelling → Prop) (s : Spelling) :
+    Spelling × Spelling :=
+  if h : ∃ pq : Spelling × Spelling, s = pq.1 ++ pq.2 ∧ headP pq.1 ∧ tailP pq.2
+  then (IsWellFounded.wf (r := splitLt)).min _ h
   else ([], [])
+
+/-- The chosen split is a genuine one whenever any exists. -/
+theorem someSplitP_spec (headP tailP : Spelling → Prop) (s : Spelling)
+    (h : ∃ pq : Spelling × Spelling, s = pq.1 ++ pq.2 ∧ headP pq.1 ∧ tailP pq.2) :
+    s = (someSplitP headP tailP s).1 ++ (someSplitP headP tailP s).2
+      ∧ headP (someSplitP headP tailP s).1 ∧ tailP (someSplitP headP tailP s).2 := by
+  rw [someSplitP, dif_pos h]
+  exact WellFounded.min_mem _ _ h
+
+/-- Some owning split of `s` into head/tail (junk `([], [])` when none): the
+`denotes`-specialization of `someSplitP` the product recursions and the rows use;
+on a real non-binder product entry it is the least split owning the entry. -/
+noncomputable def someSplit (nh nt : Node) (s : Spelling) : Spelling × Spelling :=
+  someSplitP (denotes nh) (denotes nt) s
 
 /- ================================================================ -/
 /- STEP 2 support: the faithfulness apparatus -- the `Faithful`      -/
@@ -362,15 +316,14 @@ theorem nSubfree_subfreeb : ∀ (n : Node), nSubfree n = true → subfreeb n = t
 /- ---- Head/tail split reconstruction for the product recursion. ---- -/
 
 /-- The total `someSplit` picks a genuine owning split whenever one exists. -/
-theorem someSplit_isHT (nh nt : Node) (s : Spelling) (h : ∃ pq, IsHT nh nt s pq) :
-    IsHT nh nt s (someSplit nh nt s) := by
-  rw [someSplit, dif_pos h]
-  exact WellFounded.min_mem _ _ h
+theorem someSplit_isHT (nh nt : Node) (s : Spelling) (h : ∃ pq, IsSplit nh nt s pq) :
+    IsSplit nh nt s (someSplit nh nt s) :=
+  someSplitP_spec (denotes nh) (denotes nt) s h
 
 /-- Every entry of a non-binder product `n :: rest` owns a head/tail split. -/
 theorem prodNode_node_split_exists {n : Node} {rest : Factors}
     (hnb : hasAmpb rest = false) (e : Entries (nsingle (.prod (.node n rest)))) :
-    ∃ pq, IsHT n (prodNode rest) e.1 pq := by
+    ∃ pq, IsSplit n (prodNode rest) e.1 pq := by
   obtain ⟨p, q, hpq, hp, hq⟩ := (prodNode_node_split n rest hnb e.1).mp e.2
   exact ⟨(p, q), hpq, hp, hq⟩
 
@@ -581,19 +534,6 @@ theorem ndenote_binder_denotes (n : Node) (amp : Spelling → Prop) (s : Spellin
   rw [denotes, ndenote_binder n _ s hb]
   exact h
 
-/- ---- The generic least head/tail split over two predicates. ---- -/
-
-open Classical in
-/-- The least split of `s` into `p ++ q` with `headP p` and `tailP q`, junk
-`([], [])` when none. Generalizes `someSplit` off the `denotes`-specific `IsHT`
-to any pair of piece predicates -- the within-stage product recursion splits on
-`walk`/`amp` predicates, not `denotes`. -/
-noncomputable def someSplitP (headP tailP : Spelling → Prop) (s : Spelling) :
-    Spelling × Spelling :=
-  if h : ∃ pq : Spelling × Spelling, s = pq.1 ++ pq.2 ∧ headP pq.1 ∧ tailP pq.2
-  then (IsWellFounded.wf (r := splitLt)).min _ h
-  else ([], [])
-
 /- ---- The within-stage recursion. ---- -/
 
 section WithinStage
@@ -725,14 +665,6 @@ end WithinStage
 /- stage `hbound`/`hinj` input to 4a's `stageRank_isWellOrder`; slice   -/
 /- 4c feeds it with the real body at each stage. -/
 /- ================================================================ -/
-
-/- Helper: the least split's spec, generic over the two piece predicates. -/
-theorem someSplitP_spec (headP tailP : Spelling → Prop) (s : Spelling)
-    (h : ∃ pq : Spelling × Spelling, s = pq.1 ++ pq.2 ∧ headP pq.1 ∧ tailP pq.2) :
-    s = (someSplitP headP tailP s).1 ++ (someSplitP headP tailP s).2
-      ∧ headP (someSplitP headP tailP s).1 ∧ tailP (someSplitP headP tailP s).2 := by
-  rw [someSplitP, dif_pos h]
-  exact WellFounded.min_mem _ _ h
 
 /-- Two entries of a `walk`-carrier subtype are equal once their images under a
 value-preserving coercion into another subtype agree -- the coercion only ever
@@ -1565,7 +1497,7 @@ theorem fFaithful : ∀ (fs : Factors), fSubfree fs = true → Faithful (fRank f
         rw [fBound_node_nb hna]
         -- reduce each entry through its owning split
         have hsplit : ∀ e : Entries (nsingle (.prod (.node n rest))),
-            IsHT n (prodNode rest) e.1 (someSplit n (prodNode rest) e.1) :=
+            IsSplit n (prodNode rest) e.1 (someSplit n (prodNode rest) e.1) :=
           fun e => someSplit_isHT _ _ _ (prodNode_node_split_exists hna e)
         have hval : ∀ e : Entries (nsingle (.prod (.node n rest))),
             fRank (.node n rest) e
@@ -1734,7 +1666,7 @@ theorem prodTail_denotes_iff (b : Node) (q : Spelling) :
 /-- The recursion's split choice on a binary-product entry is a genuine
 head/tail split (`prodNode_node_split_exists` fed to `someSplit_isHT`). -/
 theorem prod2_someSplit_isHT (a b : Node) (e : Entries (prod2 a b)) :
-    IsHT a (prodNode (.node b .nil)) e.1
+    IsSplit a (prodNode (.node b .nil)) e.1
       (someSplit a (prodNode (.node b .nil)) e.1) :=
   someSplit_isHT a (prodNode (.node b .nil)) e.1
     (prodNode_node_split_exists (rfl : hasAmpb (Factors.node b Factors.nil) = false) e)
@@ -1764,7 +1696,7 @@ theorem prod2_someSplit_eq (a b : Node)
     (huniq : ∀ s pq pq', IsSplit a b s pq → IsSplit a b s pq' → pq = pq')
     {s p q : Spelling} (hs : s = p ++ q) (hp : denotes a p) (hq : denotes b q) :
     someSplit a (prodNode (.node b .nil)) s = (p, q) := by
-  have hex : ∃ pq, IsHT a (prodNode (.node b .nil)) s pq :=
+  have hex : ∃ pq, IsSplit a (prodNode (.node b .nil)) s pq :=
     ⟨(p, q), hs, hp, (prodTail_denotes_iff b q).mpr hq⟩
   have hht := someSplit_isHT a (prodNode (.node b .nil)) s hex
   exact huniq s _ (p, q)
@@ -1774,7 +1706,7 @@ theorem prod2_someSplit_eq (a b : Node)
 empty, so the head piece is the whole entry -- no uniqueness hypothesis. -/
 theorem someSplit_prodNil_eq (b : Node) {q : Spelling} (hbq : denotes b q) :
     someSplit b (prodNode .nil) q = (q, []) := by
-  have hex : ∃ pq, IsHT b (prodNode .nil) q pq :=
+  have hex : ∃ pq, IsSplit b (prodNode .nil) q pq :=
     ⟨(q, []), (List.append_nil q).symm, hbq, prodNil_denotes_nil⟩
   have hht := someSplit_isHT b (prodNode .nil) q hex
   have h2 : (someSplit b (prodNode .nil) q).2 = [] :=
@@ -1789,16 +1721,17 @@ theorem someSplit_prodNil_eq (b : Node) {q : Spelling} (hbq : denotes b q) :
 head/tail split that every other split equals-or-follows is the split
 `someSplit` picks -- `leastSplit_eq` transported onto the total choice. -/
 theorem someSplit_eq (nh nt : Node) {s : Spelling} {pq : Spelling × Spelling}
-    (hmem : IsHT nh nt s pq)
-    (hleast : ∀ pq', IsHT nh nt s pq' → pq' = pq ∨ splitLt pq pq') :
+    (hmem : IsSplit nh nt s pq)
+    (hleast : ∀ pq', IsSplit nh nt s pq' → pq' = pq ∨ splitLt pq pq') :
     someSplit nh nt s = pq := by
-  have hex : ∃ pq', IsHT nh nt s pq' := ⟨pq, hmem⟩
-  rw [someSplit, dif_pos hex]
+  have hex : ∃ pq' : Spelling × Spelling,
+      s = pq'.1 ++ pq'.2 ∧ denotes nh pq'.1 ∧ denotes nt pq'.2 := ⟨pq, hmem⟩
+  rw [someSplit, someSplitP, dif_pos hex]
   rcases hleast _ (WellFounded.min_mem (IsWellFounded.wf (r := splitLt))
-      {pq' | IsHT nh nt s pq'} hex) with h | h
+      {pq' | s = pq'.1 ++ pq'.2 ∧ denotes nh pq'.1 ∧ denotes nt pq'.2} hex) with h | h
   · exact h
   · exact absurd h (WellFounded.not_lt_min (IsWellFounded.wf (r := splitLt))
-      {pq' | IsHT nh nt s pq'} hmem)
+      {pq' | s = pq'.1 ++ pq'.2 ∧ denotes nh pq'.1 ∧ denotes nt pq'.2} hmem)
 
 /-- The constant low-digit pad every binary-product rank carries: the rank of
 the forced-empty tail-of-tail piece in the empty product's spelling order. -/
