@@ -80,9 +80,8 @@ def _zero(node: syntax.UniverseNode) -> str | None:
     Reads the first entry of the lazy stream, so an infinite head costs one
     entry rather than a materialization.
     """
-    for entry in denote(node).entries():
-        return entry.faces[0]
-    return None
+    entry = next(iter(denote(node).entries()), None)
+    return entry.faces[0] if entry is not None else None
 
 
 def _product(factors: tuple[syntax.UniverseNode, ...]) -> syntax.UniverseNode:
