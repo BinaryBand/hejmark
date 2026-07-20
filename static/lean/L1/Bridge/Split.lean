@@ -93,6 +93,18 @@ theorem someSplitP_spec (headP tailP : Spelling → Prop) (s : Spelling)
   rw [someSplitP, dif_pos h]
   exact WellFounded.min_mem _ _ h
 
+/-- The chosen split depends on the piece predicates only through what they
+mean, not how they are written. The two product recursions carve their pieces
+with different but pointwise-equivalent predicates -- `denotes` on one side,
+`ndenote` / `fsplit` over the empty amp-set on the other -- so reconciling them
+is exactly this congruence. -/
+theorem someSplitP_congr {headP₁ headP₂ tailP₁ tailP₂ : Spelling → Prop}
+    (hh : ∀ p, headP₁ p ↔ headP₂ p) (ht : ∀ q, tailP₁ q ↔ tailP₂ q) (s : Spelling) :
+    someSplitP headP₁ tailP₁ s = someSplitP headP₂ tailP₂ s := by
+  have h1 : headP₁ = headP₂ := funext fun p => propext (hh p)
+  have h2 : tailP₁ = tailP₂ := funext fun q => propext (ht q)
+  rw [h1, h2]
+
 /-- Some owning split of `s` into head/tail (junk `([], [])` when none): the
 `denotes`-specialization of `someSplitP` the product recursions and the rows
 use; on a real non-binder product entry it is the least split owning the
