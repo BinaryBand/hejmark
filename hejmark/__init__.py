@@ -8,7 +8,7 @@ statements -- against a document.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from collections.abc import Iterator
 
 from hejmark.adapters.parser import AntlrParser
 from hejmark.core import emit
@@ -21,9 +21,6 @@ from hejmark.core.resolve import statements as _statements
 from hejmark.core.surface import HimarkScopeError
 from hejmark.core.syntax import HimarkSyntaxError
 from hejmark.core.universe import Entry, HimarkUnsettledError, Query, Universe
-
-if TYPE_CHECKING:
-    from collections.abc import Iterator
 
 _to_ast = AntlrParser().to_ast
 

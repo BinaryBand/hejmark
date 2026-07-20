@@ -13,13 +13,9 @@ until it finds the wearer.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
+from hejmark.core.match import Match
 from hejmark.core.surface import HimarkScopeError
-
-if TYPE_CHECKING:
-    from hejmark.core.match import Match
-    from hejmark.core.universe import Query, Universe
+from hejmark.core.universe import Query, Universe
 
 # How many entries a canonical-face read will stream before giving up. Reaching
 # a wearer costs its position, and a position is not bounded by anything the

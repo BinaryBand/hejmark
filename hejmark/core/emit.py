@@ -23,17 +23,13 @@ zero-width never matches.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
 from hejmark.core.capture import canonical_face
 from hejmark.core.engine import query as _denote_query
 from hejmark.core.match import finditer
-from hejmark.core.surface import Expr, Interp, Template, Text
-
-if TYPE_CHECKING:
-    from hejmark.core.resolve import Env
-    from hejmark.core.surface import Statement, Step
-    from hejmark.core.universe import Query
+from hejmark.core.resolve import Env
+from hejmark.core.surface import Expr, Interp, Statement, Step, Template, Text
+from hejmark.core.universe import Query
 
 
 @dataclass(frozen=True)

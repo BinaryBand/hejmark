@@ -18,14 +18,11 @@ file an adapter would have to read.
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import TYPE_CHECKING
 
+from hejmark.core.ports import ToAst
 from hejmark.core.resolve import Env, collect
 from hejmark.core.surface import Expr, Unit, UniverseNode
 from hejmark.core.syntax import Range
-
-if TYPE_CHECKING:
-    from hejmark.core.ports import ToAst
 
 # The greatest code point; the least is the null character.
 _MAX = "\U0010ffff"

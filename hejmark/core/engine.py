@@ -12,23 +12,17 @@ above the floor is gone before ``denote`` is called.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from collections.abc import Iterator
 
 from hejmark.core.expand import Ctx, expand
+from hejmark.core.match import Match
 from hejmark.core.match import finditer as _finditer
 from hejmark.core.match import match as _match
-from hejmark.core.resolve import collect, merge, statements
+from hejmark.core.ports import ToAst
+from hejmark.core.resolve import Env, collect, merge, statements
 from hejmark.core.std import std_env
-from hejmark.core.surface import Expr, HimarkScopeError
+from hejmark.core.surface import Expr, HimarkScopeError, ScriptNode
 from hejmark.core.universe import Query, denote
-
-if TYPE_CHECKING:
-    from collections.abc import Iterator
-
-    from hejmark.core.match import Match
-    from hejmark.core.ports import ToAst
-    from hejmark.core.resolve import Env
-    from hejmark.core.surface import ScriptNode
 
 
 def script(to_ast: ToAst, source: str) -> tuple[ScriptNode, Env]:

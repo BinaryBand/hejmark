@@ -17,14 +17,17 @@ or -- the degenerate case -- a lone numeral standing for ``n..n``.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
 from hejmark.core.surface import (
     DefDecl,
     Expr,
     HimarkScopeError,
+    Member,
+    PipeItem,
     Ref,
+    ScriptNode,
     Segments,
     Statement,
     Subtract,
@@ -32,11 +35,6 @@ from hejmark.core.surface import (
     Unit,
     UniverseNode,
 )
-
-if TYPE_CHECKING:
-    from collections.abc import Iterator
-
-    from hejmark.core.surface import Member, PipeItem, ScriptNode
 
 # The reserved names: bare `@` is the head, `@0` its zero entry. Numerals are
 # not declarable, which is what keeps `@0` free.

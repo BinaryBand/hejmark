@@ -25,9 +25,10 @@ single entry is the caller's non-terminating loop to ask for.
 from __future__ import annotations
 
 import itertools
+from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import TYPE_CHECKING, assert_never
+from typing import assert_never
 
 from hejmark.core.order import Window, successor
 from hejmark.core.syntax import (
@@ -35,21 +36,17 @@ from hejmark.core.syntax import (
     Face,
     Final,
     Fold,
+    Member,
     Product,
     Range,
     Subtract,
     UniverseNode,
 )
 
-if TYPE_CHECKING:
-    from collections.abc import Callable, Iterator, Sequence
-
-    from hejmark.core.syntax import Member
-
-    # A liveness test: whether a face is still unclaimed at its point of use.
-    Live = Callable[[str], bool]
-    # A member that adds faces (every member except a subtraction).
-    Adding = Face | Range | Final | Fold | Product | Closure
+# A liveness test: whether a face is still unclaimed at its point of use.
+Live = Callable[[str], bool]
+# A member that adds faces (every member except a subtraction).
+Adding = Face | Range | Final | Fold | Product | Closure
 
 
 class HimarkUnsettledError(ValueError):

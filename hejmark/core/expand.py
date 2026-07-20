@@ -24,16 +24,18 @@ passed through as a braced member, which denotation already splices.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
 from hejmark.core import syntax
-from hejmark.core.resolve import Binding, bind, canonicalize
+from hejmark.core.resolve import Binding, Env, bind, canonicalize
 from hejmark.core.surface import (
     DefDecl,
     Expr,
     HimarkScopeError,
+    Member,
     Operand,
+    Param,
     Ref,
+    Segment,
     Subtract,
     Unit,
     UniverseNode,
@@ -43,10 +45,6 @@ from hejmark.core.surface import (
 # `&`. Expansion must know, because a binder may never be inlined.
 from hejmark.core.universe import _binds as binds
 from hejmark.core.universe import denote
-
-if TYPE_CHECKING:
-    from hejmark.core.resolve import Env
-    from hejmark.core.surface import Member, Param, Segment
 
 # The empty universe, and the unit: a fold over the empty alphabet, the one
 # entry wearing the empty spelling. The unit is the product identity.

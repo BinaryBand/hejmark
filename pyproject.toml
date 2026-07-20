@@ -46,7 +46,17 @@ ignore = [
     "ISC001", # single-line-implicit-string-concatenation
     # Deliberate policy opt-outs.
     "CPY001", # missing-copyright-notice -- not wanted on internal projects
-    "TC003"
+    # The flake8-type-checking "move this into an `if TYPE_CHECKING:` block"
+    # rules, all three of them. `static/rules/no-type-checking-guard.yml`
+    # forbids that block outright and IS enforced (tests/test_lint.py), so
+    # leaving these on would have ruff and ast-grep issuing opposite orders on
+    # the same line. The policy: imports live at module level, in one place,
+    # visible to every reader and tool -- not only to a type checker. The cost
+    # is a marginally slower import; that is the right trade in a language
+    # chosen for readability.
+    "TC001",  # typing-only-first-party-import
+    "TC002",  # typing-only-third-party-import
+    "TC003",  # typing-only-standard-library-import
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -136,6 +146,10 @@ dev = [
     "hypothesis==6.156.*",
     "import-linter==2.13.*",
     "vulture==2.16.*",
+    # Structural lint for the house rules ruff has no equivalent for; the rules
+    # live in static/rules/ and sgconfig.yml points at them. Ships the
+    # `ast-grep` console script that tests/test_lint.py shells out to.
+    "ast-grep-cli==0.44.*",
     # Installs the `antlr4` console script used by `hejmark gen-parser` /
     # tests/infrastructure/test_antlr.py. It's a code-generation-time tool
     # (wraps the Java antlr4 jar, auto-downloading it and a JRE if needed),

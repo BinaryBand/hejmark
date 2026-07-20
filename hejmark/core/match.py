@@ -11,13 +11,10 @@ spelling is never accepted (no zero-width match).
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from collections.abc import Iterator
-
-    from hejmark.core.universe import Query, Universe
+from hejmark.core.universe import Query, Universe
 
 
 @dataclass(frozen=True)

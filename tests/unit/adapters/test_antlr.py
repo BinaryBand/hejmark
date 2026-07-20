@@ -3,15 +3,12 @@
 from __future__ import annotations
 
 import subprocess
-from typing import TYPE_CHECKING
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
 from hejmark.adapters.antlr import AntlrGenerationError, AntlrGenerator, AntlrToolNotFoundError
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 def test_generate_raises_when_tool_missing(tmp_path: Path) -> None:

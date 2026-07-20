@@ -73,6 +73,21 @@ def test_vulture() -> None:
     )
 
 
+def test_ast_grep() -> None:
+    """ast-grep structural rules must report no violations.
+
+    The rules in static/rules/ carry the house conventions that no ruff rule
+    expresses -- imports are never guarded, and never deferred to an
+    ``if TYPE_CHECKING:`` block. ast-grep exits 1 when any error-severity rule
+    matches, so the return code is the whole assertion.
+    """
+    result = _run(["ast-grep", "scan", "--config", str(ROOT / "sgconfig.yml")])
+    assert result.returncode == 0, (
+        f"ast-grep found rule violations (exit {result.returncode}):\n\n"
+        f"{result.stdout}\n{result.stderr}"
+    )
+
+
 def test_module_length() -> None:
     """No source module may exceed MAX_MODULE_LINES lines."""
     offenders: list[str] = []

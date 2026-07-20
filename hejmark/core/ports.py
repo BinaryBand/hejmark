@@ -7,13 +7,11 @@ at the call site.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Protocol
+from collections.abc import Sequence
+from pathlib import Path
+from typing import Protocol
 
-if TYPE_CHECKING:
-    from collections.abc import Sequence
-    from pathlib import Path
-
-    from hejmark.core.surface import ScriptNode
+from hejmark.core.surface import ScriptNode
 
 
 class ParserGenerator(Protocol):

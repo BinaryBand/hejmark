@@ -8,15 +8,12 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from collections.abc import Callable, Iterator
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import pytest
 from antlr4 import CommonTokenStream, InputStream
 from antlr4.error.ErrorListener import ErrorListener
-
-if TYPE_CHECKING:
-    from collections.abc import Callable, Iterator
 
 ROOT = Path(__file__).resolve().parents[2]
 GRAMMARS = (

@@ -9,16 +9,14 @@ domain error rather than a bare `ModuleNotFoundError` reaching the CLI.
 from __future__ import annotations
 
 import importlib
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from antlr4 import CommonTokenStream, InputStream
 from antlr4.error.ErrorListener import ErrorListener
 
 from hejmark.adapters.build import build
+from hejmark.core.surface import ScriptNode
 from hejmark.core.syntax import HimarkSyntaxError
-
-if TYPE_CHECKING:
-    from hejmark.core.surface import ScriptNode
 
 
 class GeneratedParserMissingError(RuntimeError):

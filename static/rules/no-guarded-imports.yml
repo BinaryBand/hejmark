@@ -8,9 +8,19 @@ note: >
   Declare the dependency in pyproject.toml instead.
 rule:
   # Any import statement (plain or from-import), anywhere inside a try_statement
-  # -- try body, except, else, or finally. A single structural rule instead of
-  # enumerating exact try-body shapes, so extra imports, multi-name imports, and
-  # fallback imports in the except block all get caught.
+  # that HAS an except clause -- try body, except, else, or finally. A single
+  # structural rule instead of enumerating exact try-body shapes, so extra
+  # imports, multi-name imports, and fallback imports in the except block all
+  # get caught.
+  #
+  # The `has: except_clause` guard is what makes this rule mean what its message
+  # says. A try/finally swallows nothing -- an ImportError propagates exactly as
+  # it would unguarded -- so it is cleanup, not a guarded import. The motivating
+  # case is tests/infrastructure/test_antlr.py, which imports a freshly
+  # generated parser from a temp dir and uses `finally` to take that dir back
+  # off sys.path. Without this guard the rule fires there, and the fix it asks
+  # for (hoist the import out of the try) would leak sys.path entries on
+  # failure -- strictly worse code, demanded by a rule aiming at something else.
   all:
     - any:
         - kind: import_statement
@@ -18,3 +28,6 @@ rule:
     - inside:
         kind: try_statement
         stopBy: end
+        has:
+          kind: except_clause
+          stopBy: end

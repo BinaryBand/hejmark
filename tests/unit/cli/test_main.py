@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from pathlib import Path
 from unittest.mock import patch
 
 from typer.testing import CliRunner
@@ -10,9 +10,6 @@ from typer.testing import CliRunner
 from hejmark.adapters.antlr import AntlrToolNotFoundError
 from hejmark.adapters.parser import GeneratedParserMissingError
 from hejmark.cli.main import app
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 runner = CliRunner()
 

@@ -15,11 +15,8 @@ constructors need:
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from collections.abc import Iterator
 
 # The greatest code point: the one character with no in-length successor.
 _MAX = 0x10FFFF
