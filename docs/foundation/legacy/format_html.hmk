@@ -1,0 +1,98 @@
+// ============================================================================
+//  format_html.hmk -- pretty-print/normalize HTML (one tab per nesting level).
+//  Run: himark run himark/scripts/format_html.hmk page.html
+//
+//  Handles real markup: attributes, void elements (<br>, <img ...>), self-
+//  closing tags, comments, DOCTYPE, and inline-vs-block (inline elements like
+//  <b>/<a>/<code> stay on one line; only block elements are broken out and
+//  indented). Inter-tag whitespace is normalized then re-derived, so the
+//  formatter is idempotent.
+//
+//  HOW: stackless and inside-out (HMK has no parse stack).
+//   1. NORMALIZE inter-tag whitespace.
+//   2. Mask INLINE elements (void, then paired inside-out) behind `@lt`/`@gt`
+//      sentinels so an inline subtree carries no raw `<` and is never split.
+//      An inline tag wrapping block content keeps a raw `<` in its body, so
+//      it falls through to step 4 and is formatted as a block.
+//   3. Mark block LEAVES (comments, DOCTYPE, block-level void tags) behind
+//      the same masks -- inline and leaf only differ in the `\n` their
+//      templates prefix.
+//   4. WRAP to a fixed point (`<=>`): peel each innermost block pair (body has
+//      no raw `<`), back-reference the tag name for the close, and
+//      `{{ ... | trim | indent }}` re-tabs the body each pass.
+//   5. Tidy blank lines and drop the doc-start newline: mask every `\n` as
+//      `@nl`, restore only those with a predecessor (the doc-start run has
+//      none, so it dies at the exit-strip). `@lt`/`@gt` restore to `< >` via
+//      the explicit restore statements at the end of the script.
+//
+//  Scope (well-formed HTML, no <script>): a `<`/`>` in an attribute value or
+//  comment reads as a tag boundary; <style>/<pre>/<textarea> bodies are
+//  reflowed (whitespace not preserved). Sentinels are engine-private Unicode
+//  noncharacters, stripped on ingest and at pipeline exit, so masks are
+//  collision-free by construction.
+// ============================================================================
+
+sentinel lt  // masked `<` the WRAP step must not re-parse
+sentinel gt  // (restored by explicit statements after the last one below)
+sentinel nl  // masked `\n`; bare -- only newlines with a predecessor are
+             // restored, the doc-start run dies at the exit-strip
+
+// ── Inlined prelude (was std.hmk) ──
+uni any = {\x00..\U0010ffff}
+uni s = {\n,\r,\ ,\t}
+sentinel docstart
+sentinel docend
+filter lstrip = {
+"{{ @docstart }}{{ $ }}"
+{@docstart}{{@s}}[1..] => ""
+{@docstart} => ""
+}
+filter rstrip = {
+"{{ $ }}{{ @docend }}"
+{{@s}}[1..]{@docend} => ""
+{@docend} => ""
+}
+filter trim = "{{ $ | lstrip | rstrip }}"
+filter headtab = {
+"{{ @docstart }}{{ $ }}"
+{@docstart}{@any} => "\t{{$1}}"
+{@docstart} => ""
+}
+filter nlindent = {\n} => "\n\t"
+filter indent = "{{ $ | headtab | nlindent }}"
+
+// Element classes (HTML5). Inline voids stay inline, unlike the block voids.
+uni inline_void = {br,img,wbr,input}
+uni inline_tag = {a,abbr,b,bdi,bdo,cite,code,data,dfn,em,i,kbd,mark,q,rp,rt,ruby,s,samp,small,span,strong,sub,sup,time,u,var}
+uni block_void = {hr,meta,link,base,col,embed,source,track,area,param}
+
+// ── NORMALIZE ── collapse whitespace that sits purely between two tags ───────
+{>}{{@s}}[1..]{<} <=> "><"
+
+// ── MASK INLINE ── inline elements stay on their line ────────────────────────
+// Inline void elements, bare and with attributes (the `{{@s}}` doubles as the
+// word boundary: `<brick>` is not a `<br>`).
+{<}{@inline_void}{>} => "{{@lt}}{{$1}}{{@gt}}"
+{<}{@inline_void}{{@s}}{{@any,!{<,>}}}[..]{>} => "{{@lt}}{{$1}}{{$2}}{{$3}}{{@gt}}"
+// Inline paired elements, innermost-first to a fixed point (handles nesting).
+{<}{@inline_tag}{>}{{@any,!{<}}}[..]{</}{$1}{>} <=> "{{@lt}}{{$1}}{{@gt}}{{$3}}{{@lt}}/{{$1}}{{@gt}}"
+{<}{@inline_tag}{{@s}}{{@any,!{<,>}}}[..]{>}{{@any,!{<}}}[..]{</}{$1}{>} <=> "{{@lt}}{{$1}}{{$2}}{{$3}}{{@gt}}{{$5}}{{@lt}}/{{$1}}{{@gt}}"
+
+// ── MARK BLOCK LEAVES ── comment, DOCTYPE, then block-level void elements ─────
+{<\!--}{{@any,!{-->}}}[..]{-->} => "\n{{@lt}}!--{{$1}}--{{@gt}}"
+{<\!}{{@any,!{>}}}[..]{>} => "\n{{@lt}}!{{$1}}{{@gt}}"
+{<}{@block_void}{>} => "\n{{@lt}}{{$1}}{{@gt}}"
+{<}{@block_void}{{@s}}{{@any,!{<,>}}}[..]{>} => "\n{{@lt}}{{$1}}{{$2}}{{$3}}{{@gt}}"
+
+// ── WRAP ── indent each innermost block pair, re-spliced to a fixed point ─────
+{<}{{@any,!{<,>,/,@s}}}[1..]{{@any,!{<,>}}}[..]{>}{{@any,!{<}}}[..]{</}{$1}{>} <=> "\n{{@lt}}{{$1}}{{$2}}{{@gt}}\n{{ $4 | trim | indent }}\n{{@lt}}/{{$1}}{{@gt}}"
+
+// ── TIDY ── blank lines, then the doc-start newline (the @lt/@gt masks restore
+// to real angle brackets after this, via the explicit restores below).
+{\n}{{\ ,\t}}[1..]{\n} <=> "\n"
+{\n} => "{{@nl}}"
+{@any,!{@nl}}{@nl} => "{{$0}}\n"
+
+// ── RESTORE ── unmask the tokens frozen above, in declaration order.
+{@lt} => "<"
+{@gt} => ">"
