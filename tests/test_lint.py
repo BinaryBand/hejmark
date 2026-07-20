@@ -73,18 +73,16 @@ def test_vulture() -> None:
     )
 
 
-def test_ast_grep() -> None:
-    """ast-grep structural rules must report no violations.
+def test_astgrep() -> None:
+    """ast-grep architectural rules must all pass.
 
-    The rules in static/rules/ carry the house conventions that no ruff rule
-    expresses -- imports are never guarded, and never deferred to an
-    ``if TYPE_CHECKING:`` block. ast-grep exits 1 when any error-severity rule
-    matches, so the return code is the whole assertion.
+    Installed via the `ast-grep-cli` dev dependency (declared in
+    pyproject.toml), which provides both the `ast-grep` and `sg` binaries.
+    Rules live under static/rules/, one file per rule.
     """
-    result = _run(["ast-grep", "scan", "--config", str(ROOT / "sgconfig.yml")])
+    result = _run(["ast-grep", "scan", "--config", str(ROOT / "sgconfig.yml"), str(ROOT)])
     assert result.returncode == 0, (
-        f"ast-grep found rule violations (exit {result.returncode}):\n\n"
-        f"{result.stdout}\n{result.stderr}"
+        f"ast-grep found violations (exit {result.returncode}):\n\n{result.stdout}\n{result.stderr}"
     )
 
 
