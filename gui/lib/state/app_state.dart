@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../models/project.dart';
 
-enum NavTab { rules, test, expand, settings }
+enum NavTab { rules, test, settings }
 
 enum ThemeChoice { dark, light, system }
 
@@ -89,9 +89,6 @@ class AppState extends ChangeNotifier {
   MenuState? menu;
   ConfirmState? confirm;
   SnackState? snack;
-
-  // --- expand tab ---
-  int expandIndex = 5; // "a.. → ω" by default, matching the hero screenshot.
 
   int _uid = 1;
   String _newId(String prefix) => '$prefix${_uid++}';
@@ -499,11 +496,6 @@ class AppState extends ChangeNotifier {
 
   void toggleWhitespace() {
     showWhitespace = !showWhitespace;
-    notifyListeners();
-  }
-
-  void setExpandExample(int index) {
-    expandIndex = index;
     notifyListeners();
   }
 

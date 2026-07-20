@@ -120,13 +120,27 @@ class Syntax {
   static const Color escape = Color(0xFFE06C75); // \n
 }
 
-/// Shared monospace text family. Uses the platform monospace with a small
-/// fallback chain so the app needs no bundled font files.
-const String kMonoFamily = 'monospace';
+/// Shared monospace text family. Prefers Roboto Mono (the brief's font, present
+/// on mobile), falling back to fonts installed on Linux/macOS/Windows so the app
+/// needs no bundled font files.
+const String kMonoFamily = 'Roboto Mono';
 const List<String> kMonoFallback = <String>[
+  'Noto Sans Mono',
+  'DejaVu Sans Mono',
   'Menlo',
-  'Courier New',
+  'Consolas',
   'monospace',
+];
+
+/// Shared sans family and fallback, mirroring the brief's Roboto with clean
+/// cross-platform substitutes.
+const String kSansFamily = 'Roboto';
+const List<String> kSansFallback = <String>[
+  'Noto Sans',
+  'DejaVu Sans',
+  'Helvetica Neue',
+  'Arial',
+  'sans-serif',
 ];
 
 TextStyle mono({

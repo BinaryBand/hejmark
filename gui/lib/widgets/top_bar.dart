@@ -4,7 +4,7 @@ import '../state/app_state.dart';
 import '../state/scope.dart';
 import 'common.dart';
 
-/// The 56px top app bar. On Rules/Test/Expand it shows the shelf toggle, the
+/// The 56px top app bar. On Rules/Test it shows the shelf toggle, the
 /// project name and the save status; on Test it also carries the view toggle
 /// (when the tab strip is collapsed) and the collapse-tabs chevron. On Settings
 /// it shows a plain title.

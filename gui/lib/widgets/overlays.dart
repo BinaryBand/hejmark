@@ -52,47 +52,53 @@ class ActionSheet extends StatelessWidget {
           bottom: 12,
           child: SafeArea(
             top: false,
-            child: _slideUp(
-              child: Material(
-                color: t.surfaceContainerHigh,
-                borderRadius: BorderRadius.circular(20),
-                clipBehavior: Clip.antiAlias,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(18, 16, 18, 8),
-                      child: Text(
-                        menu.name.toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.4,
-                          color: t.onSurfaceVariant,
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 460),
+                child: _slideUp(
+                  child: Material(
+                    color: t.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(20),
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(18, 16, 18, 8),
+                          child: Text(
+                            menu.name.toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.4,
+                              color: t.onSurfaceVariant,
+                            ),
+                          ),
                         ),
-                      ),
+                        item(
+                          Icons.edit_outlined,
+                          'Rename',
+                          t.onSurface,
+                          () => s.startRename(menu.scope, menu.id),
+                        ),
+                        item(
+                          Icons.content_copy_outlined,
+                          'Duplicate',
+                          t.onSurface,
+                          () => s.duplicate(menu.scope, menu.id),
+                        ),
+                        item(
+                          Icons.delete_outline,
+                          'Delete',
+                          t.error,
+                          () => s.requestDelete(menu.scope, menu.id),
+                        ),
+                        const SizedBox(height: 6),
+                      ],
                     ),
-                    item(
-                      Icons.edit_outlined,
-                      'Rename',
-                      t.onSurface,
-                      () => s.startRename(menu.scope, menu.id),
-                    ),
-                    item(
-                      Icons.content_copy_outlined,
-                      'Duplicate',
-                      t.onSurface,
-                      () => s.duplicate(menu.scope, menu.id),
-                    ),
-                    item(
-                      Icons.delete_outline,
-                      'Delete',
-                      t.error,
-                      () => s.requestDelete(menu.scope, menu.id),
-                    ),
-                    const SizedBox(height: 6),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -218,46 +224,55 @@ class SnackBarOverlay extends StatelessWidget {
       bottom: 72,
       child: SafeArea(
         top: false,
-        child: TweenAnimationBuilder<double>(
-          tween: Tween(begin: 1, end: 0),
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOut,
-          builder: (context, v, child) => Opacity(
-            opacity: 1 - v,
-            child: Transform.translate(offset: Offset(0, v * 30), child: child),
-          ),
-          child: Material(
-            color: t.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(14),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(18, 12, 12, 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      snack.message,
-                      style: TextStyle(fontSize: 13, color: t.onSurface),
-                    ),
-                  ),
-                  if (snack.onAction != null) ...[
-                    const SizedBox(width: 12),
-                    TextButton(
-                      onPressed: snack.onAction,
-                      style: TextButton.styleFrom(
-                        foregroundColor: t.primary,
-                        minimumSize: const Size(0, 36),
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
-                      ),
-                      child: Text(
-                        snack.actionLabel ?? '',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
+        child: Align(
+          alignment: Alignment.bottomCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 460),
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 1, end: 0),
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOut,
+              builder: (context, v, child) => Opacity(
+                opacity: 1 - v,
+                child: Transform.translate(
+                  offset: Offset(0, v * 30),
+                  child: child,
+                ),
+              ),
+              child: Material(
+                color: t.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(14),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 12, 12, 12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          snack.message,
+                          style: TextStyle(fontSize: 13, color: t.onSurface),
                         ),
                       ),
-                    ),
-                  ],
-                ],
+                      if (snack.onAction != null) ...[
+                        const SizedBox(width: 12),
+                        TextButton(
+                          onPressed: snack.onAction,
+                          style: TextButton.styleFrom(
+                            foregroundColor: t.primary,
+                            minimumSize: const Size(0, 36),
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                          ),
+                          child: Text(
+                            snack.actionLabel ?? '',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
               ),
             ),
           ),

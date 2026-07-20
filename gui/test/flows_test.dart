@@ -12,6 +12,14 @@ void _usePhone(WidgetTester tester) {
   addTearDown(tester.view.resetDevicePixelRatio);
 }
 
+/// Pins a wide desktop surface so the adaptive layout takes the multi-pane path.
+void _useDesktop(WidgetTester tester) {
+  tester.view.devicePixelRatio = 1.0;
+  tester.view.physicalSize = const Size(1280, 900);
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+}
+
 Future<void> _boot(WidgetTester tester) async {
   _usePhone(tester);
   await tester.pumpWidget(const HimarkApp());
@@ -23,7 +31,7 @@ void main() {
     tester,
   ) async {
     await _boot(tester);
-    for (final tab in ['Rules', 'Test', 'Expand', 'Settings']) {
+    for (final tab in ['Rules', 'Test', 'Settings']) {
       await tester.tap(find.text(tab));
       await tester.pumpAndSettle();
     }
@@ -52,17 +60,6 @@ void main() {
     // Top bar now names project-a; its single rule (ipv4) matches hosts.conf.
     expect(find.text('project-a'), findsWidgets);
     expect(find.text('PROJECTS'), findsNothing); // shelf closed
-  });
-
-  testWidgets('expand strip switches the denotation', (tester) async {
-    await _boot(tester);
-    await tester.tap(find.text('Expand'));
-    await tester.pumpAndSettle();
-    expect(find.text('Final segment — order type ω'), findsOneWidget);
-
-    await tester.tap(find.text('a..z'));
-    await tester.pumpAndSettle();
-    expect(find.text('Finite range — order type 26'), findsOneWidget);
   });
 
   testWidgets('theme switch to light rebuilds without error', (tester) async {
@@ -94,5 +91,34 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('4 matches'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('wide layout shows the nav rail and Rules|Test two-pane', (
+    tester,
+  ) async {
+    _useDesktop(tester);
+    await tester.pumpWidget(const HimarkApp());
+    await tester.pumpAndSettle();
+
+    expect(find.byType(NavigationRail), findsOneWidget);
+    // Default destination is Test: the Rules companion and the editor are both
+    // on screen at once.
+    expect(find.text('2 active'), findsOneWidget); // Rules pane header
+    expect(find.text('4 matches'), findsOneWidget); // Test output sheet
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('wide layout: selecting Settings drops the Rules companion', (
+    tester,
+  ) async {
+    _useDesktop(tester);
+    await tester.pumpWidget(const HimarkApp());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.settings_outlined)); // rail destination
+    await tester.pumpAndSettle();
+
+    expect(find.text('2 active'), findsNothing); // companion gone
+    expect(find.text('Theme'), findsOneWidget); // Settings pane shown
   });
 }

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../state/app_state.dart';
 import '../state/scope.dart';
 
-/// The four-item bottom navigation bar: Rules · Test · Expand · Settings.
+/// The bottom navigation bar: Rules · Test · Settings.
 class BottomNav extends StatelessWidget {
   const BottomNav({super.key});
 
@@ -52,7 +52,6 @@ class BottomNav extends StatelessWidget {
           children: [
             item(NavTab.rules, Icons.checklist, 'Rules'),
             item(NavTab.test, Icons.terminal, 'Test'),
-            item(NavTab.expand, Icons.data_object, 'Expand'),
             item(NavTab.settings, Icons.settings_outlined, 'Settings'),
           ],
         ),

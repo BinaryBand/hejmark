@@ -48,11 +48,15 @@ class _HimarkAppState extends State<HimarkApp> {
             useMaterial3: true,
             brightness: Brightness.light,
             scaffoldBackgroundColor: lightTokens.surface,
+            fontFamily: kSansFamily,
+            fontFamilyFallback: kSansFallback,
           ),
           darkTheme: ThemeData(
             useMaterial3: true,
             brightness: Brightness.dark,
             scaffoldBackgroundColor: darkTokens.surface,
+            fontFamily: kSansFamily,
+            fontFamilyFallback: kSansFallback,
           ),
           home: Builder(
             builder: (context) {
