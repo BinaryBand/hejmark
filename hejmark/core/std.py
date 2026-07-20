@@ -40,6 +40,9 @@ upto w       := {@shorter w, @C^w}
 longer w     := {@spellings, !{@upto w}}
 where lo..hi := {@numerals, !{@numerals, !{ {lo..hi} }}}
 pad w..w'    := {@fill^{w'} _, !{@shorter w}, !{@longer w'}}
+zeros        := {{{}}, &@0}
+zfold        := {{@zeros}}
+padfree      := {@zfold _}
 """
 
 # `C` as a bounded range over the whole code space -- the seeded declaration.
