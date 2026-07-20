@@ -42,7 +42,7 @@ So proving is programming. "Prove the theorem" means "construct a term of this t
 
 Here is a tiny transliterated example -- the fact that `A and B` implies `B and A`:
 
-```
+```lean
 theorem and_comm (A B : Prop) (h : A /\ B) : B /\ A :=
   And.intro h.right h.left
 ```
@@ -70,7 +70,7 @@ The tactics you will meet constantly in `static/lean/L1/`:
 
 A transliterated tactic proof, so the shape is familiar when you hit the real ones:
 
-```
+```lean
 theorem le_of_lt_example (a b : Nat) (h : a < b) : a <= b := by
   omega
 ```

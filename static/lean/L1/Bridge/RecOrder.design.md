@@ -12,7 +12,7 @@ The carrier is unchanged: `Entries n := Subtype (denotes n)`. Same objects, same
 
 The existing files prove `IsWellOrder` by building a `RelEmbedding` into a `Prod.Lex` of known well-orders. For a *recursive* order the embedding target is itself recursive and dependent on which sub-body owns the entry, which is awkward to write. Instead, define a rank function into the single non-dependent type `Ordinal`:
 
-```
+```lean
 entryRank n : Entries n -> Ordinal          -- structural recursion on the syntax
 entryRecLt n a b := entryRank n a < entryRank n b
 ```
@@ -29,7 +29,7 @@ So the entire novelty of the well-order proof collapses to one lemma: `entryRank
 
 Leaves are where spelling order is already exactly right; the reordering constructors compose sub-ranks into disjoint ordinal intervals so that injectivity is inherited.
 
-```
+```lean
 -- leaf: range / face / final -- no reordering. Rank = shortlex position.
 entryRank (leaf) s = typein (entrySpellLt leaf) s          -- ordinal rank in shortlex
 
@@ -70,11 +70,11 @@ The upshot is a cleaner first increment: **every closure -- a top-level binder n
 
 Union's second-block offset and product's factor weights are *order types of sub-orders* -- but the sub-order is the one being defined, so rank and "type of this node's order" are mutually dependent. Break it by defining the pair together in one structural recursion:
 
-```
+````lean
 entryRank  n : Entries n -> Ordinal
 entryBound n : Ordinal                       -- the offset/weight this node contributes
   with the invariant  forall e, entryRank n e < entryBound n
-```
+```lean
 
 `entryBound` is computed by the same recursion (union: sum of members' bounds over the collision-disjoint claims; product: product of factor bounds; fold: inner's bound; leaf: `entriesType leaf`). The invariant `entryRank n e < entryBound n` is proved alongside injectivity and is exactly what makes cross-block ranks disjoint.
 
@@ -132,11 +132,11 @@ Why the merge and the promotion are one increment: `cRank n` is built from the w
 
 The high-risk shape would be one `mutual` block spanning all six within-stage ways plus the stage-ladder knot. Instead the within-stage recursion stays **structural** and takes the closure rank as an abstract parameter:
 
-```
+```lean
 section WithinStage
 variable (amp) (ampRank) (ampBound)
   (clRank : (n' : Node) -> Entries n' -> Ordinal) (clBound : Node -> Ordinal)
-```
+```lean
 
 The four fallback sites become `clRank` / `clBound` consultations (the fold site keyed on `inner` through `foldBinderReinterp`, matching how the top level routes it). Nothing about the recursion's structure changes -- `cl` is opaque to it -- so 4b-ii-a's definitions and 4b-ii-b's faithfulness keep their shape, the latter gaining one hypothesis `hcl : Faithful (clRank n') (clBound n')` at the subterms where the oracle is consulted, replacing the `typein_injective` / `typein_lt_type` discharges.
 
@@ -150,27 +150,27 @@ Gating on an abstract `P` rather than on a size bound is what lets one block ser
 
 Split 4c's `csData` in two. The stage-index recursion stays structural and becomes oracle-parametric:
 
-```
+```lean
 csStep (n) (clR) (clB) : Nat -> Ordinal x (Spelling -> Ordinal)
-```
+```lean
 
 with 4c's body verbatim, `clR` / `clB` threaded into `wnBound` / `wnRank`. Then one well-founded recursion supplies the promoted oracle, guarded so the recursive calls are visibly smaller:
 
-```
+```lean
 csData (n : Node) : Nat -> Ordinal x (Spelling -> Ordinal) :=
   csStep n
     (fun n' e' => if h : sizeOf n' < sizeOf n then (csData n' (firstStage n' e'.1)).2 e'.1 else 0)
     (fun n' => if h : sizeOf n' < sizeOf n then Sup j, (csData n' j).1 else 0)
 termination_by sizeOf n
-```
+```lean
 
 Both guards are **dependent** `if h :` -- a non-dependent `ite` would leave the guard out of scope and the termination goal unprovable. The measure is a bare `Nat`, not a `Prod.lex` of `(sizeOf n, k)`: the stage index no longer needs to participate, because `csStep` already handles it structurally. Every termination goal is then discharged by the guard itself.
 
 The payoff is in the equation lemmas. `csBound_succ` and `csRank_succ_{old,new,none}` are restated about `csStep n cRank cBound`, which is structural, so they keep their existing `rfl` / `simp only [csStep, ...]` proofs and `csFaithful`'s sixteen uses of them are untouched. Exactly one propositional equation is well-founded-derived,
 
-```
+```lean
 csData_eq_total (n) (k) : csData n k = csStep n cRank cBound k
-```
+```lean
 
 proved from `csData.eq_def` plus the locality lemmas (the guards hold at every consultation site because those sites are strict subterms). Everything downstream reads the total `cRank` / `cBound`, never the guarded lambdas.
 
@@ -191,3 +191,4 @@ Three seams need care. The `.amp` branches of the old mutual were totality scaff
 The 4b fallback disappears, so the "`entryRecLt` and `entryLt` agree on every closure by construction" guarantee that covered the un-promoted order needs a replacement at the new resolution: on a node with no nested-closure site (`ncFreeb`, the boolean reflection of `nSites (fun _ => False)`), the shipped promoted rank equals the same recursion run at the old fallback oracle. It follows from the locality lemmas without touching either recursion's internals -- the oracle is never consulted, so the two instances cannot disagree. Together with a witness row that *does* nest a closure inside a stage body (no existing row does), this pins both sides of the promotion: where it was supposed to change nothing, it changes nothing; where it was supposed to bite, it is exercised.
 
 `closureBound` is then deleted and `entryLt` leaves `RecOrder.lean` entirely -- it survives in `Entries.lean` as the Phase-E stage-major order with its own headlines, no longer load-bearing for the recursive order.
+````

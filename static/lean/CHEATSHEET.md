@@ -67,16 +67,16 @@ inductive Tree (A : Type) where
 
 ```
 
-| Form               | Meaning                                                     |
-| ------------------ | ----------------------------------------------------------- |
-| `fun x => e`       | anonymous function (lambda); also written as `$\lambda$ x => e`     |
-| `$\forall$ x : T, U`       | dependent function type (Pi); `$\rightarrow$` is the non-dependent case |
-| `A $\rightarrow$ B`            | function type -- also implication                           |
-| `let x := e; body` | local binding                                               |
-| `match e with ...` | pattern match / case analysis                               |
-| `A $\times$ B`, `A $\oplus$ B`   | product, sum types                                          |
-| `{ x : T // P x }` | subtype                                                     |
-| `@f`               | supply implicit args explicitly                             |
+| Form                           | Meaning                                                                 |
+| ------------------------------ | ----------------------------------------------------------------------- |
+| `fun x => e`                   | anonymous function (lambda); also written as `$\lambda$ x => e`         |
+| `$\forall$ x : T, U`           | dependent function type (Pi); `$\rightarrow$` is the non-dependent case |
+| `A $\rightarrow$ B`            | function type -- also implication                                       |
+| `let x := e; body`             | local binding                                                           |
+| `match e with ...`             | pattern match / case analysis                                           |
+| `A $\times$ B`, `A $\oplus$ B` | product, sum types                                                      |
+| `{ x : T // P x }`             | subtype                                                                 |
+| `@f`                           | supply implicit args explicitly                                         |
 
 **Inductives** define data (like `Nat`, `List`) and propositions (like `LessEq`, `Exists`) uniformly -- constructors are the introduction rules; `match` / `cases` / `induction` are the elimination rules.
 
@@ -102,16 +102,16 @@ ______________________________________________________________________
 
 ## :scroll: Propositions -- Curry-Howard
 
-| Logic          | Lean             | Type-theoretic reading                         | Intro / elim tactics                                        |
-| -------------- | ---------------- | ---------------------------------------------- | ----------------------------------------------------------- |
-| implication    | `P $\rightarrow$ Q`          | function type                                  | `intro` / `apply`                                           |
-| conjunction    | `P $\land$ Q`          | pair (`And`, ctor `And.intro`)                 | `constructor` or `$\langle$h1, h2$\rangle$` / `rcases`, `cases`             |
-| disjunction    | `P $\lor$ Q`          | sum (`Or`, ctors `Or.inl`, `Or.inr`)           | `left`, `right` (or `Or.inl`, `Or.inr`) / `rcases`, `cases` |
-| negation       | `$\neg$ P`            | `P $\rightarrow$ False`                                    | `intro` / `contradiction`                                   |
-| for all        | `$\forall$ x, P`         | dependent function (Pi)                        | `intro` / `apply`, `specialize`                             |
-| exists         | `$\exists$ x, P`         | dependent pair (`Exists`, ctor `Exists.intro`) | `use t` or `$\langle$t, h$\rangle$` / `rcases`, `cases`                     |
-| equality       | `x = y`          | `Eq` inductive (`Eq.refl`)                     | `rfl` / `rw`, `subst`                                       |
-| truth / absurd | `True` / `False` | unit / empty type                              | `trivial` / `contradiction`, `exfalso`                      |
+| Logic          | Lean                | Type-theoretic reading                         | Intro / elim tactics                                            |
+| -------------- | ------------------- | ---------------------------------------------- | --------------------------------------------------------------- |
+| implication    | `P $\rightarrow$ Q` | function type                                  | `intro` / `apply`                                               |
+| conjunction    | `P $\land$ Q`       | pair (`And`, ctor `And.intro`)                 | `constructor` or `$\langle$h1, h2$\rangle$` / `rcases`, `cases` |
+| disjunction    | `P $\lor$ Q`        | sum (`Or`, ctors `Or.inl`, `Or.inr`)           | `left`, `right` (or `Or.inl`, `Or.inr`) / `rcases`, `cases`     |
+| negation       | `$\neg$ P`          | `P $\rightarrow$ False`                        | `intro` / `contradiction`                                       |
+| for all        | `$\forall$ x, P`    | dependent function (Pi)                        | `intro` / `apply`, `specialize`                                 |
+| exists         | `$\exists$ x, P`    | dependent pair (`Exists`, ctor `Exists.intro`) | `use t` or `$\langle$t, h$\rangle$` / `rcases`, `cases`         |
+| equality       | `x = y`             | `Eq` inductive (`Eq.refl`)                     | `rfl` / `rw`, `subst`                                           |
+| truth / absurd | `True` / `False`    | unit / empty type                              | `trivial` / `contradiction`, `exfalso`                          |
 
 ______________________________________________________________________
 
@@ -121,7 +121,7 @@ ______________________________________________________________________
 
 | Tactic               | Effect                                                    |
 | -------------------- | --------------------------------------------------------- |
-| `intro x` / `intros` | move `$\forall$`/`$\rightarrow$` premises into hypotheses                     |
+| `intro x` / `intros` | move `$\forall$`/`$\rightarrow$` premises into hypotheses |
 | `apply H`            | backward reasoning: match `H`'s conclusion to the goal    |
 | `exact t`            | give the proof term directly                              |
 | `assumption`         | goal is one of the hypotheses verbatim                    |
@@ -140,13 +140,13 @@ ______________________________________________________________________
 
 #### Equality and rewriting
 
-| Tactic                | Effect                                                   |
-| --------------------- | -------------------------------------------------------- |
-| `rfl`                 | prove `x = x` (up to conversion / definitional equality) |
+| Tactic                           | Effect                                                   |
+| -------------------------------- | -------------------------------------------------------- |
+| `rfl`                            | prove `x = x` (up to conversion / definitional equality) |
 | `rw [H]` / `rw [$\leftarrow$ H]` | rewrite goal left-to-right / right-to-left with `H`      |
-| `rw [H] at H2`        | rewrite inside a hypothesis                              |
-| `symm` / `trans`      | flip / chain an equality                                 |
-| `subst x`             | eliminate a variable given `x = e`                       |
+| `rw [H] at H2`                   | rewrite inside a hypothesis                              |
+| `symm` / `trans`                 | flip / chain an equality                                 |
+| `subst x`                        | eliminate a variable given `x = e`                       |
 
 #### Conversion / unfolding
 
@@ -158,12 +158,12 @@ ______________________________________________________________________
 
 #### Building forward
 
-| Tactic                 | Effect                                                         |
-| ---------------------- | -------------------------------------------------------------- |
-| `have H : P := e`      | prove `P` as a local hypothesis using tactic block or term `e` |
-| `let x := e`           | define a local variable                                        |
-| `specialize H t`       | instantiate a hypothesis                                       |
-| `generalize h : e = x` | replace expression `e` with variable `x`                       |
+| Tactic                                 | Effect                                                         |
+| -------------------------------------- | -------------------------------------------------------------- |
+| `have H : P := e`                      | prove `P` as a local hypothesis using tactic block or term `e` |
+| `let x := e`                           | define a local variable                                        |
+| `specialize H t`                       | instantiate a hypothesis                                       |
+| `generalize h : e = x`                 | replace expression `e` with variable `x`                       |
 | `obtain $\langle$h1, h2$\rangle$ := H` | destructure a hypothesis forward (requires Mathlib)            |
 
 #### Automation

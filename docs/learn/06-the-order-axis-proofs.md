@@ -22,7 +22,7 @@ All three proofs run the *same play* you learned in lesson 4:
 
 **The free half: well-order for free from Mathlib** (lines 38-45). Instead of hand-rolling irreflexivity, transitivity, and totality the way `Spelling.lean` did, this file *reuses* Mathlib's `List.Shortlex`:
 
-```
+```lean
 def fshortlex : FSpelling m -> FSpelling m -> Prop := List.Shortlex (. < .)
 
 instance : IsWellFounded (FSpelling m) (fshortlex m) := <List.Shortlex.wf wellFounded_lt>
@@ -34,7 +34,7 @@ instance : IsWellOrder (FSpelling m) (fshortlex m) where
 
 **The numbering: a base-`(m+1)` odometer with a length offset** (lines 53-63). Shortlex sorts by length first, then dictionary order within a length. So the numbering has two parts:
 
-```
+```lean
 def lenOffset : Nat -> Nat            -- how many spellings are strictly shorter than length k
   | 0     => 0
   | k + 1 => lenOffset k + (m + 1) ^ k
@@ -61,7 +61,7 @@ Read it against the intuition: all length-$k$ spellings occupy a contiguous bloc
 
 **The payoff** (lines 210-226):
 
-```
+```lean
 noncomputable def valueRelIso : (fshortlex m) ~=r ((. < .) : Nat -> Nat -> Prop) where
   toEquiv     := Equiv.ofBijective (value m) <value_injective m, value_surjective m>
   map_rel_iff' := ...        -- value l1 < value l2  <->  fshortlex l1 l2
@@ -79,7 +79,7 @@ Steps 4 and 5 of the shared play: bundle the bijection and order-preservation in
 
 **The numbering** (lines 40-43):
 
-```
+```lean
 def mixedRadix : List Nat -> List Nat -> Nat
   | _,      []      => 0
   | [],     _       => 0
@@ -99,7 +99,7 @@ This is lesson 3's clock/odometer written as Horner's rule: the leading digit `d
 
 **The payoff** (140-184): `toFinVal` sends a tuple to its value in `Fin bs.prod`; `toFinVal_injective` and `toFinVal_surjective` (the trichotomy-and-decode arguments) make it a bijection; `posValueIso` packages it as `~=r` onto `(Fin bs.prod, <)`; and the headline
 
-```
+```lean
 theorem positional_value_type (bs : List Nat) :
     Ordinal.type (tupleLt bs) = (bs.prod : Ordinal) :=
   (Ordinal.type_eq.mpr <posValueIso bs>).trans (Ordinal.type_fin bs.prod)
@@ -113,7 +113,7 @@ reads: the order type equals `Ordinal.type_fin bs.prod` = the natural `bs.prod`.
 
 **The address model** (lines 39-44):
 
-```
+```lean
 abbrev Address := Ordinal x-lex Nat        -- <value, face>, lexicographically ordered
 
 def Survives (spell : Address -> S) (a : Address) : Prop :=
@@ -124,7 +124,7 @@ def Survives (spell : Address -> S) (a : Address) : Prop :=
 
 **The headline** (lines 53-64):
 
-```
+```lean
 theorem collision_settled (spell : Address -> S) (a : Address) :
     exists! o, Survives spell o /\ spell o = spell a := by
   have wf : WellFounded ((. < .) : Address -> Address -> Prop) := wellFounded_lt
