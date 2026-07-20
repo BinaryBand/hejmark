@@ -162,6 +162,13 @@ HEADLINE_THEOREMS = (
     "L1.product_unit_r",
     "L1.exponent_zero",
     "L1.fold_flatten",
+    # WP1 -- the nested-closure promotion, pinned from both sides. The
+    # agreement lemma says the promotion moved nothing where no closure is
+    # nested; the witness row is the first term whose stage body actually
+    # consults the promoted rank, so the new path is exercised and not merely
+    # proved faithful in the abstract.
+    "L1.entryRank_promotion_agree",
+    "L1.nestedClosureRow_entryRecLt_isWellOrder",
 )
 
 # "Axiom-free" does not port from Coq to Lean literally: every Lean/Mathlib

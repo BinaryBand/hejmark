@@ -698,4 +698,74 @@ theorem neCollapseRow_entryRecType :
   rw [hfin, mul_assoc]
   norm_num
 
+/- ---------------------------------------------------------------- -/
+/- WP1: the promotion is conservative where it was meant to be, and  -/
+/- exercised where it was meant to bite. See RecOrder.design.md WP1. -/
+/- ---------------------------------------------------------------- -/
+
+/-- **Anti-divergence for the nested-closure promotion.** On a node with no
+closure nested below it (`ncFreeb`), the shipped body-recursive rank is exactly
+the rank the same recursion gives when run at the old stage-major fallback
+oracle (`clFallbackRank` / `clFallbackBound`, the `typein (entryLt _)` the
+within-stage recursion used before WP1).
+
+So the promotion cannot silently have moved anything it was not supposed to
+move: wherever no closure is nested, the order is the one that shipped before.
+The oracle is simply never consulted, which is what the locality congruence
+lemmas turn into an equality without inspecting either recursion. -/
+theorem entryRank_promotion_agree (n : Node) (hb : bindsb n = false)
+    (hnc : ncFreeb n = true) (e : Entries n) :
+    entryRank n e
+      = wnRank noAmp noAmpRank 0 clFallbackRank clFallbackBound n
+          ⟨e.1, (ndenote_nonbinder n noAmp e.1 hb).mp e.2⟩ := by
+  show nRank n e = _
+  rw [nRank_nb hb e ((ndenote_nonbinder n noAmp e.1 hb).mp e.2)]
+  exact wnRank_cl_congr noAmp noAmpRank 0 (fun _ => False)
+    cRank clFallbackRank cBound clFallbackBound
+    (fun _ _ h => h.elim) (fun _ h => h.elim) n (nSites_of_ncFreeb n hnc) _
+
+/- ---- The witness: a row that genuinely nests a closure. ---- -/
+
+/-- A row that nests a closure inside a *stage body* -- the shape WP1 promoted.
+
+Two things have to hold at once. The node must **bind** (its product carries a
+bare `&`), so its entries rank through the closure ladder and its body is
+walked by the within-stage recursion at `amp := stage n k`. And a closure must
+occur **below** it (`ncFreeb = false`): here the brace factor
+`{unitClosure 0 1}` is a fold-of-binder, so ranking the body consults the
+oracle. That consultation is what used to be `typein (entryLt _)` and is now
+`cRank`.
+
+Existing terms have at most one of the two. `unitClosure`, `anbn`, `abab`,
+`btrees`, `numerals_body` and `unguarded_fill` bind but are nested-closure-free;
+`numerals`, `braced (unitClosure 0 1)` and `neBounded` do consult the oracle but
+do not bind, so the consultation happens at the top level, where 4d-iii had
+already routed it to `cRank` before WP1. This row is the first term where the
+consultation happens inside a stage body. -/
+def nestedClosureRow : Node :=
+  nsingle (.prod (.node (braced (unitClosure 0 1)) (.amp .nil)))
+
+/-- The witness really is one: it binds *and* consults the closure oracle below
+itself, so the consultation happens inside a stage body. Both halves are needed
+-- either alone is satisfied by pre-existing rows. Being outside `ncFreeb`, it
+is also exactly the case the agreement lemma above does *not* cover: a term
+where the promotion genuinely changed the order. -/
+theorem nestedClosureRow_is_wp1_shape :
+    bindsb nestedClosureRow = true ∧ ncFreeb nestedClosureRow = false :=
+  ⟨rfl, rfl⟩
+
+theorem nestedClosureRow_nSubfree : nSubfree nestedClosureRow = true := by
+  simp [nestedClosureRow, nsingle, nSubfree, mSubfree, fSubfree, braced,
+    unitClosure_nSubfree]
+
+/-- **The promoted order is a genuine well order on a term that exercises the
+promotion.** Getting here runs faithfulness through the body-recursive
+nested-closure branch: the stage-body rank of the brace factor is discharged by
+`cFaithful` at the nested subterm, where before WP1 it was `faithful_typein` on
+the stage-major fallback. This is the regression witness the promoted path
+previously had nowhere to be tested on. -/
+theorem nestedClosureRow_entryRecLt_isWellOrder :
+    IsWellOrder (Entries nestedClosureRow) (entryRecLt nestedClosureRow) :=
+  entryRecLt_isWellOrder nestedClosureRow nestedClosureRow_nSubfree
+
 end L1

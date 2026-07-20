@@ -1191,6 +1191,80 @@ theorem fSites_sizeOf : ∀ (fs : Factors) (B : ℕ), sizeOf fs ≤ B →
 
 end
 
+mutual
+
+/-- Decides "no closure is nested below here": `false` exactly when some
+fold-of-binder member or binder factor head occurs, i.e. exactly at the sites
+where the within-stage recursion consults the closure oracle. The boolean
+reflection of `mSites` / `nSites` / `fSites` at `P := False`. -/
+def mNcFreeb : Member → Bool
+  | .face _ => true
+  | .range _ _ => true
+  | .final _ => true
+  | .amp => true
+  | .sub _ => true
+  | .fold inner => if bindsb inner then false else nNcFreeb inner
+  | .prod fs => fNcFreeb fs
+
+def nNcFreeb : Node → Bool
+  | .nil => true
+  | .cons m rest => mNcFreeb m && nNcFreeb rest
+
+def fNcFreeb : Factors → Bool
+  | .nil => true
+  | .amp rest => fNcFreeb rest
+  | .node n rest => (if bindsb n then false else nNcFreeb n) && fNcFreeb rest
+
+end
+
+/-- No nested closure below `n`: the oracle is never consulted when ranking it. -/
+abbrev ncFreeb (n : Node) : Bool := nNcFreeb n
+
+mutual
+
+theorem mSites_of_ncFreeb : ∀ (m : Member), mNcFreeb m = true → mSites (fun _ => False) m
+  | .face _, _ => trivial
+  | .range _ _, _ => trivial
+  | .final _, _ => trivial
+  | .amp, _ => trivial
+  | .sub _, _ => trivial
+  | .fold inner, h => by
+      simp only [mNcFreeb] at h
+      simp only [mSites]
+      by_cases hb : bindsb inner = true
+      · exact absurd h (by simp [hb])
+      · rw [Bool.not_eq_true] at hb
+        have hbf : ¬ (bindsb inner = true) := by simp [hb]
+        simpa only [if_neg hbf] using nSites_of_ncFreeb inner (by simpa [hb] using h)
+  | .prod fs, h => by
+      simp only [mNcFreeb] at h
+      simp only [mSites]
+      exact fSites_of_ncFreeb fs h
+
+theorem nSites_of_ncFreeb : ∀ (n : Node), nNcFreeb n = true → nSites (fun _ => False) n
+  | .nil, _ => trivial
+  | .cons m rest, h => by
+      simp only [nNcFreeb, Bool.and_eq_true] at h
+      exact ⟨mSites_of_ncFreeb m h.1, nSites_of_ncFreeb rest h.2⟩
+
+theorem fSites_of_ncFreeb : ∀ (fs : Factors), fNcFreeb fs = true → fSites (fun _ => False) fs
+  | .nil, _ => trivial
+  | .amp rest, h => by
+      simp only [fNcFreeb] at h
+      simp only [fSites]
+      exact fSites_of_ncFreeb rest h
+  | .node n rest, h => by
+      simp only [fNcFreeb, Bool.and_eq_true] at h
+      simp only [fSites]
+      refine ⟨?_, fSites_of_ncFreeb rest h.2⟩
+      by_cases hb : bindsb n = true
+      · exact absurd h.1 (by simp [hb])
+      · rw [Bool.not_eq_true] at hb
+        have hbf : ¬ (bindsb n = true) := by simp [hb]
+        simpa only [if_neg hbf] using nSites_of_ncFreeb n (by simpa [hb] using h.1)
+
+end
+
 /-- The stage-index recursion depends on its oracle only through the sites the
 body recursion consults -- the stage ladder itself is oracle-blind. -/
 theorem csStep_cl_congr (n : Node) (P : Node → Prop) (hP : nSites P n)
