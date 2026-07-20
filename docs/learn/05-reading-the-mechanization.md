@@ -48,19 +48,21 @@ graph TD
         Fx["Fixpoint.lean -- positive closure is the least fixpoint"]
         Ad["Admission.lean -- the admission test; a^n b^n is not regular"]
     end
-    subgraph Order["Order axis -- six abstract phases"]
+    subgraph Order["Order axis -- six abstract phases, plus numerals"]
         Or["Order.lean -- A: shortlex over finite alphabet has type omega"]
         Po["Positional.lean -- B: positional value is mixed radix"]
         Cl["Collision.lean -- C: least-address ownership is well-defined"]
         Tr["Transfinitude.lean -- D: the calculus stays below epsilon_0"]
         En["Enumeration.lean -- E: first appearance fits within one limit"]
         Cp["Collapse.lean -- F: collision alone does not decide the type"]
+        Nu["Numerals.lean -- canonical numerals: value order is shortlex order"]
     end
     subgraph Bridge["Bridge -- the axes meet on real syntax"]
         Be["Entries.lean -- the ordinal-valued entries enumeration"]
         Bs["Split.lean -- split addresses; product/union inversions"]
         Br["RecOrder.lean -- the body-recursive within-body order"]
         Bw["Rows.lean -- the transfinite rows, past omega on real terms"]
+        Bn["Numerals.lean -- the canonical-numerals row on real syntax"]
     end
     Root --> Membership
     Root --> Order
@@ -82,7 +84,7 @@ Read this as a story: each file builds on the ones above it.
 - **`Fixpoint.lean`** -- the *positive* half of lesson 3's fixpoint theorem, on the real semantics. A positive walk (no subtraction operand enclosing the ambient `&`) is monotone and continuous in its amp, so the closure at $\omega$ is a genuine *least* fixpoint: `positive_fixpoint` (one more application of the body adds nothing) and `positive_least` (any prefixpoint contains the closure). The guarded half lives in `Settling.lean`; together they mechanize both halves of the doc's "Fixpoint on settled bodies."
 - **`Admission.lean`** -- lesson 3's admission test, on the real semantics. `operand_needs_infinitely_many_removals` makes the universe operand axiomatic (finitely many entry-wise steps cannot carve the seam-free set out of `{a..}`), and `closure_admission` proves the $a^n b^n$ face set is not a regular language (Myhill-Nerode), so no closure-free arrangement reaches it and closure keeps its place as an axiom.
 
-## The order-axis files: six phases
+## The order-axis files: six phases, plus numerals
 
 Each phase is self-contained (independent of the membership axis, and mostly of each other), which makes the first three the *best first proofs to actually understand* -- lesson 6 reads them line by line.
 
@@ -92,6 +94,7 @@ Each phase is self-contained (independent of the membership axis, and mostly of 
 - **`Transfinitude.lean`** -- phase D, bounded transfinitude: the ordinal ceiling from lesson 3's theorem 2, over an abstract ordinal calculus. The closure-free floor stays below $\omega^\omega$; linear closure caps at $u \cdot \omega$; nonlinear closure's squared stages sup to *exactly* $\omega^\omega$ (`nonlinear_closure_sup` -- the binary-trees showpiece); and the full calculus never reaches $\varepsilon_0$ (headline `l1Type_lt_epsilon0`, because $\varepsilon_0$ is closed under everything the calculus can do below it). Also carries the two product rows ($\omega \cdot 2$ and $\omega^2$) and the load-bearing left-collapse $n \cdot \omega = \omega$.
 - **`Enumeration.lean`** -- phase E, first-appearance enumeration: stage-major order over $\omega$-many finite stages has type at most $\omega$ -- one limit, no continuation past it (headline `stageMajor_type_le_omega0`, exactly $\omega$ when new entries appear cofinally). The engine is a general fact worth knowing: a well order in which every element has finitely many predecessors has type at most $\omega$.
 - **`Collapse.lean`** -- phase F, lesson 3's "collision alone does not decide the type," both halves: the `{a..}{a..}` survivors collapse to $\omega \cdot (m+1)$ (`cofinite_collision_collapses`) while the seam row's survivors keep $\omega \cdot \omega$ (`seam_collision_survives`) -- same collision rule, opposite effect on the type.
+- **`Numerals.lean`** -- past the six lettered phases, the abstract half of the canonical-numerals theorem. On the leading-zero-free numerals of a sub-range head radix, the bare positional value `lexIndex` -- phase A's numeral *without* the length offset -- is already the shortlex order (`numeral_fshortlex_iff_lexIndex_lt`), because no leading zero makes the wider numeral the larger value and phase A's within-width tie-break handles the rest. Its enumeration (`numeralValueIso`, needing a genuine radix `0 < m`) pins the order type at exactly $\omega$ (`numeralShortlex_type_omega0`). This is the phase that says "value order and spelling order agree on the canonical numerals," which is the fact L1.5's value line (`where`) leans on; the real-syntax half is `Bridge/Numerals.lean` below.
 
 ## `L1/Bridge/`: where the axes meet
 
@@ -100,14 +103,15 @@ The abstract phases prove the doc's order claims over explicit models. `L1/Bridg
 - **`Entries.lean`** -- the enumeration itself: `Entries n` is the subtype of spellings a node denotes, and `entriesType` (its shortlex order type) is total on *every* term, because Mathlib's shortlex is a well order even over the infinite alphabet -- what needs finiteness is type $\omega$, not well-orderedness. Phase A and phase E are instantiated here against the real `stage` ladder, and on the demotion row `{{{}}, &C}` the generated first-appearance order provably *is* the spelling order -- the order-level half of `unitClosure_generates`.
 - **`Split.lean`** -- the split address space: product and union term shapes with their denotation inversions, and phase C's collision theorem replayed with *real cuts* (`s = p ++ q`) as addresses (`prod2_collision_settled`: every denoted spelling of a product has a unique least split).
 - **`RecOrder.lean`** -- the body-recursive within-body order, the deepest file on this axis: `entryRecLt` recurses into each constructor's own structure at every depth, is a well order on every subtraction-free node, restricts back to shortlex on a leaf, and carries the type laws (positional product, union sum with the skip rule priced in, closure at $\omega$). Its design history is recorded in `RecOrder.design.md` alongside it.
-- **`Rows.lean`** -- the payoff: the transfinite rows on real terms, all through `entryRecType`. The union row at $\omega + 2$, the `{b,c}{a..}` row at $\omega \cdot 2$, the seam row at $\omega^2$, the total collapse back to $\omega$, and the doc-literal `{a..}{a..}` collapse at $\omega \cdot 4$ -- the doc's "$\omega \cdot k$, $k$ finite" with the recursive order's own $k$.
+- **`Rows.lean`** -- the payoff: the transfinite rows on real terms, all through `entryRecType`. The union row at $\omega + 2$, the `{b,c}{a..}` row at $\omega \cdot 2$, the seam row at $\omega^2$ (marker outside the closure range, so every spelling splits uniquely), the total collapse back to $\omega$, and the doc-literal `{a..}{a..}` collapse at $\omega \cdot 4$ -- the doc's "$\omega \cdot k$, $k$ finite" with the recursive order's own $k$. It also carries the *in-range* seam row `inSeamRow_entryRecType`: the doc-faithful `{b}{a..}{b}{a..}` with the marker drawn from *inside* the closure range, where the splits genuinely collide (`inSeamRow_splits_collide`) yet the recursion's own least-split choice keeps the marker-free heads and $\omega^2$ survives -- phase F's abstract `seam_collision_survives`, now landed on a real term.
+- **`Numerals.lean`** -- the real-syntax half of `Order/Numerals.lean`: the canonical-numerals north-star row `{0, {1..9, &{0..9}}}`. The term denotes exactly the canonical numerals (`numerals_generates`); first appearance under the closure is width, so the generated first-appearance order collapses onto the spelling order and both agree with the decimal value each entry spells (`numerals_body_entryLt_iff`, `numerals_entrySpellLt_iff_numVal_lt`) -- the doc's "first-appearance order is value order." All three enumerations sit at exactly $\omega$.
 
 ## What is proven, what is deferred, and why
 
 Be honest about the boundary, because the README is:
 
-- **Fully mechanized:** the entire membership axis (including the fixpoint theorem and the admission witness), all six abstract order phases -- including the $\varepsilon_0$ ceiling itself -- and the bridge onto real syntax up through the transfinite rows.
-- **Deferred, permanently:** development is frozen here, and the README's "What this does not prove" section lists the four items that stay open. Each is a research increment, not a gap in what landed: the *n-ary* positional machinery (the product type laws are proved for the binary `prod2`; the rows only need the binary form), the *in-range-seam* survivors on real syntax (that story stands at phase F's abstract `seam_collision_survives`), the *converse* half of the admission test (closure-free implies regular, which needs a DFA construction; the witness half that actually rules compression out *is* proved), and the ordinal-level *face axis* on real syntax.
+- **Fully mechanized:** the entire membership axis (including the fixpoint theorem and the admission witness), all six abstract order phases -- including the $\varepsilon_0$ ceiling itself -- the canonical-numerals theorem on both the abstract and the real-syntax side, and the bridge onto real syntax up through the transfinite rows, including the *in-range* seam row where the splits genuinely collide (`inSeamRow_entryRecType` -- once deferred, now landed).
+- **Deferred, permanently:** development is frozen here, and the README's "What this does not prove" section lists the *three* items that stay open. Each is a research increment, not a gap in what landed: the *n-ary* positional machinery (the product type laws are proved for the binary `prod2`; the rows only need the binary form), the *converse* half of the admission test (closure-free implies regular, which needs a DFA construction; the witness half that actually rules compression out *is* proved), and the ordinal-level *face axis* on real syntax.
 
 Two documented *approximations* in the evaluator are worth knowing so you are not surprised (both are spelled out in the README's "two documented approximations" section):
 
@@ -121,6 +125,6 @@ These are not bugs; they are the exact, documented places where a *computable* c
 - The tree splits into the *membership axis* (which spellings, pure set algebra, fully proved) and the *order axis* (what order type, ordinals, proved as six abstract phases), meeting on real syntax in `L1/Bridge/`.
 - The membership files stack `Spelling -> Syntax -> Semantics -> {Laws, Evaluator} -> Settling -> Completeness -> NorthStar -> {Fixpoint, Admission}`, ending in a machine-checked reproduction of the doc's ground-truth table plus the fixpoint and admission theorems.
 - The first order-axis trio (`Order`, `Positional`, `Collision`) is self-contained and the best place to read real proofs -- which is exactly what lesson 6 does; `Transfinitude`, `Enumeration`, and `Collapse` extend the same style up to the $\varepsilon_0$ ceiling, and `Bridge/` lands it all on real terms.
-- The honesty gates check the build, the axiom footprint, and the absence of `sorry`/`axiom`; two evaluator approximations are documented and theorem-fenced; the four remaining items are deliberately deferred, listed in the README, and the development is frozen there.
+- The honesty gates check the build, the axiom footprint, and the absence of `sorry`/`axiom`; two evaluator approximations are documented and theorem-fenced; the three remaining items are deliberately deferred, listed in the README, and the development is frozen there.
 
 Next: we read the first three order-axis files closely -- the numbering function, the mixed-radix isomorphism, and the well-order behind collision ownership.
