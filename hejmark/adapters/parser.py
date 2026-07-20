@@ -9,10 +9,16 @@ domain error rather than a bare `ModuleNotFoundError` reaching the CLI.
 from __future__ import annotations
 
 import importlib
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from antlr4 import CommonTokenStream, InputStream
 from antlr4.error.ErrorListener import ErrorListener
+
+from hejmark.adapters.build import build
+from hejmark.core.syntax import HimarkSyntaxError
+
+if TYPE_CHECKING:
+    from hejmark.core.surface import ScriptNode
 
 
 class GeneratedParserMissingError(RuntimeError):
@@ -33,7 +39,11 @@ class _CollectingErrorListener(ErrorListener):
 
 
 class AntlrParser:
-    """Concrete `core.ports.SurfaceParser` backed by the generated ANTLR parser."""
+    """Parses hejmark source with the generated ANTLR parser.
+
+    `to_ast` is the `core.ports.ToAst` port the engine consumes; `parse` and
+    `parse_tree` are the error-listing and tree-dumping helpers the CLI uses.
+    """
 
     def _run(self, source: str) -> tuple[Any, list[str], Any]:
         """Parse *source* and return `(tree, errors, parser)`.
@@ -65,6 +75,18 @@ class AntlrParser:
         """
         _tree, errors, _parser = self._run(source)
         return errors
+
+    def to_ast(self, source: str) -> ScriptNode:
+        """Parse *source* into a faithful `core.surface` AST.
+
+        Raises:
+            GeneratedParserMissingError: `hejmark.adapters._gen` doesn't exist.
+            HimarkSyntaxError: *source* failed to lex or parse.
+        """
+        tree, errors, _parser = self._run(source)
+        if errors:
+            raise HimarkSyntaxError(errors[0])
+        return build(tree)
 
     def parse_tree(self, source: str) -> str:
         """Return a LISP-style s-expression dump of *source*'s parse tree.

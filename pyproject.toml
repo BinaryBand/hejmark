@@ -58,6 +58,11 @@ ignore = [
 # Typer's idioms are intentional: callables as argument/option defaults (B008)
 # and boolean flags as parameters (FBT001/FBT002).
 "hejmark/cli/**" = ["T20", "B008", "FBT001", "FBT002"]
+# The tree walker's parameters are ANTLR-generated context classes, which ship
+# no stubs and share no base type worth naming -- the grammar's labelled
+# alternatives are the real contract, and build.py dispatches on them. Any is
+# the honest annotation here, so ANN401 is off for this module only.
+"hejmark/adapters/build.py" = ["ANN401"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

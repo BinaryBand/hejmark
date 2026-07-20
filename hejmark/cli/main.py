@@ -2,10 +2,12 @@
 
 Keep it thin -- parse arguments, wire adapters into core use-cases, format results. Typer is the
 standard framework: declare commands with @app.command() and describe any
-arguments/options with typing.Annotated so `ty` sees real signatures. Three
-commands are exposed as named subcommands: `status` (version echo), `gen-parser`
-(rebuild the ANTLR parser from the grammars), and `parse-file` (parse a .hmk
-source file and dump its parse tree).
+arguments/options with typing.Annotated so `ty` sees real signatures.
+
+The commands: `find` (scan a target file with a query) and `run` (execute a
+whole script against a target file) are the language; `gen-parser` (rebuild the
+ANTLR parser from the grammars), `parse-file` (dump a parse tree) and `status`
+(version echo) are the tooling around it.
 """
 
 from __future__ import annotations
@@ -14,8 +16,10 @@ from importlib.metadata import version
 from pathlib import Path
 from typing import Annotated
 
+import click
 import typer
 
+import hejmark
 from hejmark.adapters.antlr import AntlrGenerationError, AntlrGenerator, AntlrToolNotFoundError
 from hejmark.adapters.parser import AntlrParser, GeneratedParserMissingError
 
@@ -32,6 +36,43 @@ DEFAULT_OUTPUT_DIR = Path("hejmark/adapters/_gen")
 def status() -> None:
     """Print the installed package name and version -- minimal runnable seed."""
     typer.echo(f"hejmark {version('hejmark')}")
+
+
+SOURCE_ARG = typer.Argument(exists=True, dir_okay=False, readable=True)
+
+
+@app.command()
+def find(
+    query_file: Annotated[Path, SOURCE_ARG],
+    target_file: Annotated[Path, SOURCE_ARG],
+) -> None:
+    """Scan a target file with a query, printing one line per match."""
+    source = query_file.read_text().strip()
+    text = target_file.read_text()
+    try:
+        found = list(hejmark.finditer(source, text))
+    except ValueError as exc:
+        msg = f"invalid query: {exc}"
+        raise click.UsageError(msg) from exc
+    for one in found:
+        start, end = one.span
+        typer.echo(f"{start}:{end}\t{text[start:end]!r}")
+    typer.echo()
+    typer.echo(f"{len(found)} match(es).")
+
+
+@app.command()
+def run(
+    script_file: Annotated[Path, SOURCE_ARG],
+    target_file: Annotated[Path, SOURCE_ARG],
+) -> None:
+    """Run a whole script against a target file, printing the spliced document."""
+    try:
+        result = hejmark.run(script_file.read_text(), target_file.read_text())
+    except ValueError as exc:
+        msg = f"invalid script: {exc}"
+        raise click.UsageError(msg) from exc
+    typer.echo(result, nl=False)
 
 
 @app.command("gen-parser")

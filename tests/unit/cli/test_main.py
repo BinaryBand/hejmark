@@ -100,3 +100,53 @@ def test_parse_file_reports_missing_generated_parser(tmp_path: Path) -> None:
         result = runner.invoke(app, ["parse-file", str(source)])
     assert result.exit_code == 1
     assert "run gen-parser" in result.output
+
+
+def test_find_reports_matches_and_a_count(tmp_path: Path) -> None:
+    query = tmp_path / "q.hmk"
+    target = tmp_path / "t.txt"
+    query.write_text("{a}\n")  # a trailing newline is stripped before parsing
+    target.write_text("banana")
+    result = runner.invoke(app, ["find", str(query), str(target)])
+    assert result.exit_code == 0
+    assert "1:2\t'a'" in result.stdout
+    assert "3 match(es)." in result.stdout
+
+
+def test_find_reports_no_matches(tmp_path: Path) -> None:
+    query = tmp_path / "q.hmk"
+    target = tmp_path / "t.txt"
+    query.write_text("{z}")
+    target.write_text("banana")
+    result = runner.invoke(app, ["find", str(query), str(target)])
+    assert result.exit_code == 0
+    assert "0 match(es)." in result.stdout
+
+
+def test_find_rejects_an_invalid_query(tmp_path: Path) -> None:
+    query = tmp_path / "q.hmk"
+    target = tmp_path / "t.txt"
+    query.write_text("{a")
+    target.write_text("banana")
+    result = runner.invoke(app, ["find", str(query), str(target)])
+    # A usage error, the way click reports a bad argument.
+    assert result.exit_code == 2
+
+
+def test_run_splices_the_document(tmp_path: Path) -> None:
+    script = tmp_path / "s.hmk"
+    target = tmp_path / "t.txt"
+    script.write_text('uni synonym = {{cat,feline}}\n{@synonym} => "{{$0}}"\n')
+    target.write_text("my feline friend")
+    result = runner.invoke(app, ["run", str(script), str(target)])
+    assert result.exit_code == 0
+    assert result.stdout == "my cat friend"
+
+
+def test_run_rejects_an_unknown_name(tmp_path: Path) -> None:
+    script = tmp_path / "s.hmk"
+    target = tmp_path / "t.txt"
+    script.write_text("{@nope}")
+    target.write_text("text")
+    result = runner.invoke(app, ["run", str(script), str(target)])
+    assert result.exit_code == 2

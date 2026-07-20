@@ -1,42 +1,71 @@
-"""Engine orchestration: wire a parser port to core denotation and matching.
+"""Engine orchestration: wire a parser port to expansion, denotation and matching.
 
 This module combines a parser adapter (injected via the :class:`ToAst` port)
-with core's ``denote`` and ``match``/``finditer``.  The adapter is never
-imported here -- it is passed in by the composition root (cli / library entry
-point), keeping the dependency arrow strictly inward.
+with the L1.5 expander and core's ``denote`` and ``match``/``finditer``. The
+adapter is never imported here -- it is passed in by the composition root (cli
+/ library entry point), keeping the dependency arrow strictly inward.
+
+The pipeline is one line long: source becomes a surface AST, the surface
+expands into the floor's six constructors, and the floor denotes. Every layer
+above the floor is gone before ``denote`` is called.
 """
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from hejmark.core.match import Match
+from hejmark.core.expand import Ctx, expand
 from hejmark.core.match import finditer as _finditer
 from hejmark.core.match import match as _match
+from hejmark.core.resolve import collect, merge, statements
+from hejmark.core.std import std_env
+from hejmark.core.surface import Expr, HimarkScopeError
 from hejmark.core.universe import Query, denote
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
+    from hejmark.core.match import Match
     from hejmark.core.ports import ToAst
+    from hejmark.core.resolve import Env
+    from hejmark.core.surface import ScriptNode
+
+
+def script(to_ast: ToAst, source: str) -> tuple[ScriptNode, Env]:
+    """Parse *source* and resolve its declarations over the seeded std."""
+    node = to_ast(source)
+    return node, merge(std_env(to_ast), collect(node))
+
+
+def query(expr: Expr, env: Env, source: str = "") -> Query:
+    """Expand and denote one query expression into a :class:`Query`."""
+    return Query(source, tuple(denote(factor) for factor in expand(expr, Ctx(env))))
 
 
 def parse(to_ast: ToAst, source: str) -> Query:
-    """Parse and denote *source* into a :class:`Query` (universes, most-significant-first)."""
-    node = to_ast(source)
-    return Query(source, tuple(denote(universe) for universe in node.universes))
+    """Parse and denote *source* into a :class:`Query` (universes, most-significant-first).
+
+    Raises:
+        HimarkScopeError: *source* is not a single query expression.
+    """
+    node, env = script(to_ast, source)
+    found = statements(node)
+    if len(found) != 1 or len(found[0].steps) != 1 or not isinstance(found[0].steps[0], Expr):
+        msg = "expected a single query expression"
+        raise HimarkScopeError(msg)
+    return query(found[0].steps[0], env, source)
 
 
-def _as_query(to_ast: ToAst, query: Query | str) -> Query:
+def _as_query(to_ast: ToAst, value: Query | str) -> Query:
     """Coerce raw source to a denoted query; pass an existing query through."""
-    return parse(to_ast, query) if isinstance(query, str) else query
+    return parse(to_ast, value) if isinstance(value, str) else value
 
 
-def match(to_ast: ToAst, query: Query | str, text: str, start: int = 0) -> Match | None:
-    """Return the leftmost match of *query* in *text* at or after *start*."""
-    return _match(_as_query(to_ast, query), text, start)
+def match(to_ast: ToAst, value: Query | str, text: str, start: int = 0) -> Match | None:
+    """Return the leftmost match of *value* in *text* at or after *start*."""
+    return _match(_as_query(to_ast, value), text, start)
 
 
-def finditer(to_ast: ToAst, query: Query | str, text: str) -> Iterator[Match]:
-    """Yield non-overlapping matches of *query* across *text*, left to right."""
-    return _finditer(_as_query(to_ast, query), text)
+def finditer(to_ast: ToAst, value: Query | str, text: str) -> Iterator[Match]:
+    """Yield non-overlapping matches of *value* across *text*, left to right."""
+    return _finditer(_as_query(to_ast, value), text)

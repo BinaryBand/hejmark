@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
     from pathlib import Path
 
-    from hejmark.core.syntax import ScriptNode
+    from hejmark.core.surface import ScriptNode
 
 
 class ParserGenerator(Protocol):
