@@ -2059,7 +2059,7 @@ noncomputable def prod2RecIso (a b : Node) (hsa : nSubfree a = true)
 /-- The product law on the recursive enumeration: with unique splits a binary
 product enumerates as the ordinal product of its factors' recursive
 enumerations, most significant factor on the left of the syntax and the right
-of the `*` -- the migration replacement for `prodLt_type_of_unique_splits`. -/
+of the `*`. -/
 theorem entryRecType_prod2 (a b : Node) (hsa : nSubfree a = true)
     (hsb : nSubfree b = true)
     (huniq : ∀ s pq pq', IsSplit a b s pq → IsSplit a b s pq' → pq = pq') :
@@ -2297,8 +2297,7 @@ noncomputable def unionRecIso (n1 n2 : Node) (hb1 : bindsb n1 = false)
 
 /-- The union law on the recursive enumeration: the union enumerates as the
 ordinal sum of the first body and the second body's unclaimed remainder --
-the doc's append rule with the skip rule priced in, the migration replacement
-for `unionLt_type`. -/
+the doc's append rule with the skip rule priced in. -/
 theorem entryRecType_napp (n1 n2 : Node) (hb1 : bindsb n1 = false)
     (hb2 : bindsb n2 = false) (hs1 : nSubfree n1 = true)
     (hs2 : nSubfree n2 = true) :
@@ -2324,8 +2323,7 @@ theorem entryRecRemType_disjoint (n1 n2 : Node) (hs2 : nSubfree n2 = true)
     ⟨⟨Equiv.subtypeUnivEquiv (fun e2 h1 => hdisj e2.1 h1 e2.2), Iff.rfl⟩⟩
 
 /-- The disjoint corollary: nothing to skip, so the union enumerates at
-exactly the sum of the body enumerations -- the migration replacement for
-`unionLt_type_disjoint`. -/
+exactly the sum of the body enumerations. -/
 theorem entryRecType_napp_disjoint (n1 n2 : Node) (hb1 : bindsb n1 = false)
     (hb2 : bindsb n2 = false) (hs1 : nSubfree n1 = true)
     (hs2 : nSubfree n2 = true)

@@ -37,9 +37,9 @@ union/product term shapes, their denotation inversions and collision
 ownership of faces live in `L1/Bridge/Split.lean`, the body-recursive entry
 order itself in `L1/Bridge/RecOrder.lean`, and the transfinite entry types
 (the product rows at omega*k and omega^2, the union row past the limit) in
-`L1/Bridge/Rows.lean`. What remains deferred -- n-ary factor machinery, the
-in-range seam survivors, the within-stage body order for nested closures --
-is the narrowed TODO in `docs/.TODO.md`. -/
+`L1/Bridge/Rows.lean`. What remains deferred -- n-ary factor machinery and
+the in-range seam survivors -- is listed under "What this does not prove" in
+`static/lean/README.md`. -/
 import L1.Membership.Laws
 import L1.Membership.NorthStar
 import L1.Order.Enumeration
