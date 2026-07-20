@@ -169,6 +169,26 @@ HEADLINE_THEOREMS = (
     # proved faithful in the abstract.
     "L1.entryRank_promotion_agree",
     "L1.nestedClosureRow_entryRecLt_isWellOrder",
+    # Canonical numerals in shortlex, both halves (docs/foundation/L1.md,
+    # "Canonical numerals" and the {0, {1..9, &{0..9}}} north-star row).
+    # Abstract half (L1/Order/Numerals.lean): on the leading-zero-free
+    # numerals of a sub-range head radix the bare positional value is the
+    # shortlex order, and the enumeration pins the order type at omega.
+    # Real-syntax half (L1/Bridge/Numerals.lean): the north-star term denotes
+    # exactly the canonical numerals, first appearance under the closure is
+    # width, so the generated first-appearance order is the spelling order and
+    # both agree with the value each entry spells -- "first-appearance order
+    # is value order", with all three enumerations (spelling, first
+    # appearance, recursive) at exactly omega.
+    "L1.numeral_fshortlex_iff_lexIndex_lt",
+    "L1.numeralShortlex_type_omega0",
+    "L1.numerals_generates",
+    "L1.numerals_body_entryLt_iff",
+    "L1.numerals_body_entryLt_type",
+    "L1.numerals_body_entryLt_iff_numVal_lt",
+    "L1.numerals_entrySpellLt_iff_numVal_lt",
+    "L1.numerals_entriesType",
+    "L1.numerals_entryRecType",
 )
 
 # "Axiom-free" does not port from Coq to Lean literally: every Lean/Mathlib

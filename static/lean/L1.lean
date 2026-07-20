@@ -12,9 +12,11 @@ import L1.Order.Collision
 import L1.Order.Transfinitude
 import L1.Order.Enumeration
 import L1.Order.Collapse
+import L1.Order.Numerals
 import L1.Membership.Fixpoint
 import L1.Membership.Admission
 import L1.Bridge.Entries
 import L1.Bridge.Split
 import L1.Bridge.Rows
 import L1.Bridge.RecOrder
+import L1.Bridge.Numerals
