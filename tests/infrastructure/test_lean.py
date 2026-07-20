@@ -89,7 +89,7 @@ HEADLINE_THEOREMS = (
     "L1.positive_fixpoint",
     "L1.positive_least",
     "L1.bare_stages_agree",
-    # The re-admission test: the universe operand is axiomatic (finitely many
+    # The admission test: the universe operand is axiomatic (finitely many
     # entry-wise steps cannot make infinitely many removals), and closure's
     # admission witness {ab, {a}&{b}} denotes exactly a^n b^n, which is not a
     # regular language (docs/foundation/L1.md, the constructors' closing

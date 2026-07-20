@@ -46,7 +46,7 @@ graph TD
         Co["Completeness.lean -- the two-sided membership theorem"]
         Ns["NorthStar.lean -- every row of the doc's table, checked"]
         Fx["Fixpoint.lean -- positive closure is the least fixpoint"]
-        Ad["Admission.lean -- the re-admission test; a^n b^n is not regular"]
+        Ad["Admission.lean -- the admission test; a^n b^n is not regular"]
     end
     subgraph Order["Order axis -- six abstract phases"]
         Or["Order.lean -- A: shortlex over finite alphabet has type omega"]
@@ -80,7 +80,7 @@ Read this as a story: each file builds on the ones above it.
 - **`Completeness.lean`** -- the converse of soundness, and the crown two-sided theorem `containsb_exact`: on a well-behaved fragment, the evaluator says yes *if and only if* the denotation holds. This is what certifies the matcher is *correct*, not just sound. Closures cross the Bool/Prop boundary here via the settling bound from `Settling.lean`.
 - **`NorthStar.lean`** -- every row of `docs/foundation/L1.md`'s north-star table, verified. Positive membership samples compute through the evaluator (via `native_decide`, the compiled-computation tactic -- which is why these rows sit *outside* the axiom-honesty gate, per lesson 4); non-membership and emptiness rows are proved at the `Prop` level. This file is the payoff: the table you were told is "ground truth" in lesson 1 is machine-checked, row by row. It also carries `anbn_exact`, the two-sided characterization of the `{ab, {a}&{b}}` row's language as *exactly* $a^n b^n$, which `Admission.lean` reuses.
 - **`Fixpoint.lean`** -- the *positive* half of lesson 3's fixpoint theorem, on the real semantics. A positive walk (no subtraction operand enclosing the ambient `&`) is monotone and continuous in its amp, so the closure at $\omega$ is a genuine *least* fixpoint: `positive_fixpoint` (one more application of the body adds nothing) and `positive_least` (any prefixpoint contains the closure). The guarded half lives in `Settling.lean`; together they mechanize both halves of the doc's "Fixpoint on settled bodies."
-- **`Admission.lean`** -- lesson 3's re-admission test, on the real semantics. `operand_needs_infinitely_many_removals` makes the universe operand axiomatic (finitely many entry-wise steps cannot carve the seam-free set out of `{a..}`), and `closure_admission` proves the $a^n b^n$ face set is not a regular language (Myhill-Nerode), so no closure-free arrangement reaches it and closure keeps its place as an axiom.
+- **`Admission.lean`** -- lesson 3's admission test, on the real semantics. `operand_needs_infinitely_many_removals` makes the universe operand axiomatic (finitely many entry-wise steps cannot carve the seam-free set out of `{a..}`), and `closure_admission` proves the $a^n b^n$ face set is not a regular language (Myhill-Nerode), so no closure-free arrangement reaches it and closure keeps its place as an axiom.
 
 ## The order-axis files: six phases
 
@@ -106,8 +106,8 @@ The abstract phases prove the doc's order claims over explicit models. `L1/Bridg
 
 Be honest about the boundary, because the README is:
 
-- **Fully mechanized:** the entire membership axis (including the fixpoint theorem and the re-admission witness), all six abstract order phases -- including the $\varepsilon_0$ ceiling itself -- and the bridge onto real syntax up through the transfinite rows.
-- **Deferred, permanently:** development is frozen here, and the README's "What this does not prove" section lists the four items that stay open. Each is a research increment, not a gap in what landed: the *n-ary* positional machinery (the product type laws are proved for the binary `prod2`; the rows only need the binary form), the *in-range-seam* survivors on real syntax (that story stands at phase F's abstract `seam_collision_survives`), the *converse* half of the re-admission test (closure-free implies regular, which needs a DFA construction; the witness half that actually rules compression out *is* proved), and the ordinal-level *face axis* on real syntax.
+- **Fully mechanized:** the entire membership axis (including the fixpoint theorem and the admission witness), all six abstract order phases -- including the $\varepsilon_0$ ceiling itself -- and the bridge onto real syntax up through the transfinite rows.
+- **Deferred, permanently:** development is frozen here, and the README's "What this does not prove" section lists the four items that stay open. Each is a research increment, not a gap in what landed: the *n-ary* positional machinery (the product type laws are proved for the binary `prod2`; the rows only need the binary form), the *in-range-seam* survivors on real syntax (that story stands at phase F's abstract `seam_collision_survives`), the *converse* half of the admission test (closure-free implies regular, which needs a DFA construction; the witness half that actually rules compression out *is* proved), and the ordinal-level *face axis* on real syntax.
 
 Two documented *approximations* in the evaluator are worth knowing so you are not surprised (both are spelled out in the README's "two documented approximations" section):
 
@@ -119,7 +119,7 @@ These are not bugs; they are the exact, documented places where a *computable* c
 ## What you should now be able to say
 
 - The tree splits into the *membership axis* (which spellings, pure set algebra, fully proved) and the *order axis* (what order type, ordinals, proved as six abstract phases), meeting on real syntax in `L1/Bridge/`.
-- The membership files stack `Spelling -> Syntax -> Semantics -> {Laws, Evaluator} -> Settling -> Completeness -> NorthStar -> {Fixpoint, Admission}`, ending in a machine-checked reproduction of the doc's ground-truth table plus the fixpoint and re-admission theorems.
+- The membership files stack `Spelling -> Syntax -> Semantics -> {Laws, Evaluator} -> Settling -> Completeness -> NorthStar -> {Fixpoint, Admission}`, ending in a machine-checked reproduction of the doc's ground-truth table plus the fixpoint and admission theorems.
 - The first order-axis trio (`Order`, `Positional`, `Collision`) is self-contained and the best place to read real proofs -- which is exactly what lesson 6 does; `Transfinitude`, `Enumeration`, and `Collapse` extend the same style up to the $\varepsilon_0$ ceiling, and `Bridge/` lands it all on real terms.
 - The honesty gates check the build, the axiom footprint, and the absence of `sorry`/`axiom`; two evaluator approximations are documented and theorem-fenced; the four remaining items are deliberately deferred, listed in the README, and the development is frozen there.
 

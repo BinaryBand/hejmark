@@ -25,7 +25,7 @@ Everything the host implements beyond denotation; the one layer allowed to rejec
 
 ## Layer 2 -- Standard Library (content)
 
-Nothing but in-language declarations over the L1.5 surface: `uni` universes and `:=` definitions. No new denotation, no host code -- every entry must compile away through L1.5's expansion into the six constructors, which is the re-admission test in operational form.
+Nothing but in-language declarations over the L1.5 surface: `uni` universes and `:=` definitions. No new denotation, no host code -- every entry must compile away through L1.5's expansion into the six constructors, which is the admission test in operational form.
 
 | Expression                     | Denotes                                            |
 | ------------------------------ | -------------------------------------------------- |

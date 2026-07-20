@@ -1,4 +1,4 @@
-/- L1 re-admission test: the axioms earn their places.
+/- L1 admission test: the axioms earn their places.
 
 Two `docs/foundation/L1.md` claims live here, both about why the constructor list is exactly what
 it is.
@@ -11,13 +11,13 @@ steps (each a finite symmetric difference) reach only sets a finite symmetric di
 (`entrySteps_finite_diff`), and the seam-free set differs from the final segment on the infinite
 family `a b a^(i+1)`.
 
-**Closure refuses by power** ("The re-admission test"): `{ab, {a}&{b}}` denotes `a^n b^n` -- "no
+**Closure refuses by power** ("The admission test"): `{ab, {a}&{b}}` denotes `a^n b^n` -- "no
 regular face set, so no arrangement of the others reaches it." Mechanized against the *real*
 semantics: `NorthStar.lean`'s `anbn_exact` characterizes the closure's denotation exactly (a stage
 induction in both directions over its `anbn` node), and `closure_admission` here shows that face set
 is not a regular language, by Myhill-Nerode: the left quotients by `a^(i+1)` are pairwise distinct, so
 they cannot fit in the finitely many states of any DFA. This is the witness half of the
-re-admission test -- closure reaches past every finite-state face set, so it must stand as
+admission test -- closure reaches past every finite-state face set, so it must stand as
 axiomatic. (The complementary half, that every closure-free universe *has* a regular face set, needs a
 DFA construction for shortlex windows over the code space and stays deferred with the rest of the
 `Universe.entries` integration; the witness half is the load-bearing direction, since it is what

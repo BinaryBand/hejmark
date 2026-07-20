@@ -41,8 +41,8 @@ EMIT_ROWS = (
     ('{ba} <=>[@spellings] "ab"', "bbaa", "aabb"),
 )
 
-# The bubble sort, verbatim from L1_5.md's re-admission section: the queue's
-# minimal witness, and the reason `<=>` exists.
+# The bubble sort, verbatim from L1_5.md's north-star section: the layer's
+# witness, and the reason `<=>` exists.
 SORT = r"""
 sentinel start
 sentinel end
@@ -143,7 +143,7 @@ def test_sentinels_carry_the_masking_idiom_end_to_end() -> None:
     ],
 )
 def test_the_bubble_sort_north_star(document: str, expected: str) -> None:
-    """The re-admission queue's minimal witness runs as written.
+    """The north-star sort runs as written.
 
     Every pass swaps the adjacent out-of-order pairs its tiling reaches, and
     the declared measure `@sorted` -- wrapped numeral lines over the value
