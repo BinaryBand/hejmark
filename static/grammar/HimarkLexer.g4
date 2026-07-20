@@ -54,6 +54,10 @@ B_REF    : '@' ~[{}[\],!.\\&@_^$" \t\r\n]* -> type(REF) ;
 B_USCORE : '_'  -> type(USCORE) ;
 B_CARET  : '^'  -> type(CARET) ;
 B_LBRACK : '['  -> type(LBRACK), pushMode(ARGS) ;
+// A back-reference `$k` standing where a universe stands: factor k of the
+// same query, as it hit. Only the factor family enters a pattern -- `$` and
+// `$0` are the emitter's -- so a bare or zero read here stays a lex error.
+B_CAPTURE : '$' [1-9] [0-9]* -> type(CAPTURE) ;
 ESC      : '\\' . ;
 B_WS     : [ \t\r\n]+ -> skip ;
 CHAR     : ~[{}[\],!.\\&@_^$" \t\r\n] ;
@@ -70,6 +74,9 @@ mode ARGS;
 RBRACK  : ']'  -> popMode ;
 A_RANGE : '..' -> type(RANGE) ;
 A_WS    : [ \t\r\n]+ -> skip ;
+// A back-reference standing as an argument (`where 0..$2`). Listed before ARG
+// so the exact spelling `$k` lexes as a read; anything longer stays an ARG.
+A_CAPTURE : '$' [1-9] [0-9]* -> type(CAPTURE) ;
 // One argument is one token, escapes included, so whitespace (not the
 // skipped-token seam) is what separates arguments.
 ARG     : (~[[\]. \t\r\n\\] | '\\' .)+ ;

@@ -37,19 +37,20 @@ EMIT_ROWS = (
     ("{a} => {b}", "banana", "banana"),
     ('"seed" => {e} => "E"', "anything", "anything"),
     ('{a,ab}{c,bc} => "{{$2}}"', "abc", "bc"),
+    ('{a,b}{$1} => "{{$1}}!"', "aa ab", "a! ab"),
 )
 
 
 @pytest.mark.parametrize(("source", "expected"), PIPELINE_ROWS)
 def test_pipeline_rows(source: str, expected: list[tuple[str, ...]]) -> None:
     """Each pipeline row denotes the entries L1_5.md says it does."""
-    universe = parse(source).universes[0]
+    universe = parse(source).universe()
     assert [entry.faces for entry in islice(universe.entries(), len(expected))] == expected
 
 
 def test_where_cuts_the_value_line_exactly() -> None:
     """``where`` is a cut of the value line, so membership is exact at the boundary."""
-    universe = parse("{0..9}[where 8..12]").universes[0]
+    universe = parse("{0..9}[where 8..12]").universe()
     assert universe.contains("8")
     assert universe.contains("12")
     assert not universe.contains("7")
@@ -58,7 +59,7 @@ def test_where_cuts_the_value_line_exactly() -> None:
 
 def test_where_binds_its_argument_canonically() -> None:
     """``aa`` binds as ``a``, so the width-1 numerals enter the range: 55 entries."""
-    universe = parse("{a..z}[where aa..cc]").universes[0]
+    universe = parse("{a..z}[where aa..cc]").universe()
     faces = [entry.faces[0] for entry in islice(universe.entries(), 55)]
     assert faces[:3] == ["a", "b", "c"]
     assert faces[-3:] == ["ca", "cb", "cc"]

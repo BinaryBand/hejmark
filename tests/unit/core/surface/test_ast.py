@@ -12,6 +12,7 @@ from hejmark.core.surface.ast import (
     Operand,
     Param,
     PipeItem,
+    Read,
     Ref,
     RefInterp,
     ScriptNode,
@@ -23,6 +24,7 @@ from hejmark.core.surface.ast import (
     UniDecl,
     Unit,
     UniverseNode,
+    read_index,
 )
 
 
@@ -94,3 +96,17 @@ def test_a_sentinel_read_is_not_a_capture_read() -> None:
     """``{{@name}}`` reads the environment; ``{{$}}`` reads the hit."""
     assert RefInterp("start") != Interp("$")
     assert RefInterp("start").name == "start"
+
+
+def test_read_index_recognizes_the_factor_family_exactly() -> None:
+    """Only the exact spelling `$k`, 1-based and without a leading zero, is a read."""
+    assert read_index("$2") == 2
+    assert read_index("$12") == 12
+    for text in ("$", "$0", "$01", "2", "$2x", "x$2"):
+        assert read_index(text) is None
+
+
+def test_a_read_carries_its_factor_index() -> None:
+    """`Read` is the pattern-standing back-reference; the index is 1-based."""
+    assert Read(3).index == 3
+    assert Read(1) != Read(2)

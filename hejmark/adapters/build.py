@@ -22,6 +22,7 @@ from hejmark.core.surface.ast import (
     Operand,
     Param,
     PipeItem,
+    Read,
     Ref,
     RefInterp,
     ScriptNode,
@@ -69,7 +70,7 @@ def _pipeline(ctx: Any) -> tuple[PipeItem, ...]:
         return ()
     items = []
     for item in ctx.pipeItem():
-        args = item.ARG()
+        args = item.pipeArg()
         hi = _unescape(args[1].getText()) if len(args) > 1 else None
         items.append(PipeItem(_unescape(args[0].getText()), hi))
     return tuple(items)
@@ -94,10 +95,13 @@ def _unit(ctx: Any) -> Unit:
     )
 
 
-def _segment(ctx: Any) -> Unit | Closure | Face:
-    """Dispatch a segment: a factor, the closure token, or a bare face."""
+def _segment(ctx: Any) -> Unit | Closure | Face | Read:
+    """Dispatch a segment: a factor, the closure token, a back-reference, or a face."""
     if ctx.base() is not None:
         return _unit(ctx)
+    capture = ctx.CAPTURE()
+    if capture is not None:
+        return Read(int(capture.getText()[1:]))
     face = ctx.face()
     return _face(face) if face is not None else Closure()
 

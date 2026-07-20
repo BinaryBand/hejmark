@@ -31,7 +31,7 @@ _FACE = text(
 
 def _faces_of(source: str) -> list[tuple[str, ...]]:
     """Denote *source* and materialize its (finite) entries as face tuples."""
-    return [entry.faces for entry in parse(source).universes[0].entries()]
+    return [entry.faces for entry in parse(source).universe().entries()]
 
 
 @given(faces=lists(_FACE, min_size=0, max_size=10))
@@ -75,7 +75,7 @@ def test_range_cardinality(lo: int, hi: int) -> None:
 def test_settlement_theorem_is_the_membership_oracle(seed: str, step: str, depth: int) -> None:
     """For the guarded closure ``{seed,&{step}}``, full membership equals the
     stage-``len + 1`` truncation -- the fixpoint theorem, executable."""
-    universe = parse("{" + seed + ",&{" + step + "}}").universes[0]
+    universe = parse("{" + seed + ",&{" + step + "}}").universe()
     inside = seed + step * depth
     outside = inside + "#"
 

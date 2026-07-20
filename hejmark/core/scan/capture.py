@@ -18,8 +18,8 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 
-from hejmark.core.floor.universe import Query, Universe
-from hejmark.core.scan.match import Match
+from hejmark.core.floor.universe import Universe
+from hejmark.core.scan.match import Factor, Match, Query, universe_at
 from hejmark.core.surface.ast import HimarkScopeError
 
 # How many entries a canonical-face read will stream before giving up. Reaching
@@ -59,23 +59,25 @@ def canonical(universe: Universe, spelling: str) -> str | None:
 
 
 def _splits(
-    universes: tuple[Universe, ...], text: str, pos: int, depth: int
+    factors: tuple[Factor, ...], text: str, pos: int, depth: int, bound: tuple[str, ...]
 ) -> Iterator[tuple[str, ...]]:
-    """Yield every exact tiling of ``text[pos:]`` by ``universes[depth:]``.
+    """Yield every exact tiling of ``text[pos:]`` by ``factors[depth:]``.
 
     One face per factor, faces never empty -- the matcher accepts no zero-width
-    part, and the re-split honors the same rule.
+    part, and the re-split honors the same rule. A late factor resolves under
+    the faces this tiling has already chosen, so each candidate split carries
+    its own bindings.
     """
-    if depth == len(universes):
+    if depth == len(factors):
         if pos == len(text):
             yield ()
         return
-    universe = universes[depth]
+    universe = universe_at(factors[depth], bound)
     for end in range(pos + 1, len(text) + 1):
         face = text[pos:end]
         if not universe.contains(face):
             continue
-        for tail in _splits(universes, text, end, depth + 1):
+        for tail in _splits(factors, text, end, depth + 1, (*bound, face)):
             yield (face, *tail)
 
 
@@ -101,10 +103,13 @@ def _address(universe: Universe, face: str) -> tuple[int, int]:
 
 
 def _claim(
-    universes: tuple[Universe, ...], split: tuple[str, ...]
+    factors: tuple[Factor, ...], split: tuple[str, ...]
 ) -> tuple[tuple[int, ...], tuple[int, ...]]:
     """A split's sort key under the collision rule: values first, faces to break ties."""
-    addresses = [_address(u, f) for u, f in zip(universes, split, strict=True)]
+    addresses = [
+        _address(universe_at(factor, split[:depth]), face)
+        for depth, (factor, face) in enumerate(zip(factors, split, strict=True))
+    ]
     return tuple(a[0] for a in addresses), tuple(a[1] for a in addresses)
 
 
@@ -123,7 +128,7 @@ def factor_faces(query: Query, found: Match) -> tuple[str, ...]:
     """
     text = "".join(part.face for part in found.parts)
     splits: list[tuple[str, ...]] = []
-    for split in _splits(query.universes, text, 0, 0):
+    for split in _splits(query.universes, text, 0, 0, ()):
         splits.append(split)
         if len(splits) > BUDGET:
             msg = f"cannot bind the factors of {text!r}: more than {BUDGET} splits"
@@ -142,6 +147,9 @@ def canonical_face(query: Query, found: Match) -> str:
     hit.
     """
     pieces = []
-    for universe, part in zip(query.universes, found.parts, strict=False):
+    bound: tuple[str, ...] = ()
+    for factor, part in zip(query.universes, found.parts, strict=False):
+        universe = universe_at(factor, bound)
         pieces.append(canonical(universe, part.face) or part.face)
+        bound = (*bound, part.face)
     return "".join(pieces)

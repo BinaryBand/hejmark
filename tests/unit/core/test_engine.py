@@ -6,8 +6,9 @@ import pytest
 
 from hejmark.adapters.parser import AntlrParser
 from hejmark.core.engine import finditer, match, parse, script
-from hejmark.core.floor.universe import Query
+from hejmark.core.scan.match import Query
 from hejmark.core.surface.ast import HimarkScopeError
+from hejmark.core.surface.late import Late
 
 _to_ast = AntlrParser().to_ast
 
@@ -23,8 +24,8 @@ def test_universes_stay_most_significant_first() -> None:
     """Adjacency is the product, and the leftmost factor moves slowest."""
     query = parse(_to_ast, "{a}{b}{c}")
     assert len(query.universes) == 3
-    assert query.universes[0].contains("a")
-    assert query.universes[2].contains("c")
+    assert query.universe().contains("a")
+    assert query.universe(2).contains("c")
 
 
 def test_script_resolves_declarations_over_the_std() -> None:
@@ -55,3 +56,17 @@ def test_match_honours_the_start_offset() -> None:
     found = match(_to_ast, "{a}", "banana", 2)
     assert found is not None
     assert found.span[0] == 3
+
+
+def test_a_back_referencing_unit_enters_the_query_late() -> None:
+    """A unit reading a factor to its left cannot denote yet; it rides as `Late`."""
+    query = parse(_to_ast, "{a,b}{$1}")
+    assert isinstance(query.universes[1], Late)
+    assert query.universe(0).contains("a")
+
+
+def test_a_read_not_strictly_left_is_refused() -> None:
+    """A read of the reading factor, one to its right, or past the query, binds nothing."""
+    for source in ("{$1}", "{a}{$2}", "{a}{$3}"):
+        with pytest.raises(HimarkScopeError, match="stand to its left"):
+            parse(_to_ast, source)

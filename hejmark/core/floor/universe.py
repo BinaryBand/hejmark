@@ -86,14 +86,6 @@ class Universe:
         return _stream(self.node.members, self.amp, None)
 
 
-@dataclass(frozen=True)
-class Query:
-    """A denoted query: its source plus its universes, most-significant-first."""
-
-    source: str
-    universes: tuple[Universe, ...]
-
-
 def denote(node: UniverseNode) -> Universe:
     """Denote a universe AST node to a lazy :class:`Universe`."""
     return Universe(node)

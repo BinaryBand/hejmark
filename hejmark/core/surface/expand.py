@@ -24,6 +24,7 @@ passed through as a braced member, which denotation already splices.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import NoReturn
 
 from hejmark.core.floor import syntax
 
@@ -38,11 +39,13 @@ from hejmark.core.surface.ast import (
     Member,
     Operand,
     Param,
+    Read,
     Ref,
     Segment,
     Subtract,
     Unit,
     UniverseNode,
+    read_index,
 )
 from hejmark.core.surface.resolve import Binding, Env, bind, canonicalize
 
@@ -72,6 +75,20 @@ class Ctx:
         """Substitute a parameter name for the spelling bound to it, if any."""
         bindings = self.bindings or {}
         return bindings.get(text, text)
+
+
+def _refuse_read(spelling: str) -> NoReturn:
+    """Refuse a back-reference that reached expansion: it crossed a declaration.
+
+    A query's own reads are substituted before its units expand, so a read
+    still standing here sits inside a ``uni`` or ``:=`` body -- where there is
+    no query to bind it.
+
+    Raises:
+        HimarkScopeError: always.
+    """
+    msg = f"{spelling} reads through a declaration: a factor read stands in the query itself"
+    raise HimarkScopeError(msg)
 
 
 def _zero(node: syntax.UniverseNode) -> str | None:
@@ -144,6 +161,9 @@ def _bind_params(
     """
     bindings: dict[str, str] = {}
     for param, argument in zip(params, arguments, strict=True):
+        for spelling in (argument.lo, argument.hi):
+            if spelling is not None and read_index(spelling) is not None:
+                _refuse_read(spelling)
         lo = canonicalize(argument.lo, zero) if zero else argument.lo
         hi = argument.hi if argument.hi is not None else argument.lo
         if param.hi is None:
@@ -241,6 +261,8 @@ def _factor(segment: Segment, ctx: Ctx) -> syntax.UniverseNode:
             return syntax.UniverseNode((syntax.Face(ctx.spell(text)),))
         case Unit():
             return _unit(segment, ctx)
+        case Read(index):
+            _refuse_read(f"${index}")
         case _:
             msg = "the closure token `&` is not a universe"
             raise HimarkScopeError(msg)
@@ -263,6 +285,8 @@ def _lone(only: Segment, ctx: Ctx) -> tuple[syntax.Member, ...]:
         return (syntax.Face(ctx.spell(only.text)),)
     if isinstance(only, syntax.Closure):
         return (syntax.Closure(),)
+    if isinstance(only, Read):
+        _refuse_read(f"${only.index}")
     if isinstance(only.base, UniverseNode) and only.exponent is None and not only.pipeline:
         return (syntax.Fold(_universe(only.base, ctx)),)
     return _members_of(_unit(only, ctx))

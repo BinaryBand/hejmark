@@ -7,9 +7,15 @@ so every assertion is about spans and faces.
 
 from __future__ import annotations
 
+import pytest
+
 from hejmark.core.floor.syntax import Face, Fold, UniverseNode
-from hejmark.core.floor.universe import Query, Universe, denote
-from hejmark.core.scan.match import finditer, match
+from hejmark.core.floor.universe import Universe, denote
+from hejmark.core.scan.match import Query, finditer, match
+from hejmark.core.surface import ast
+from hejmark.core.surface.ast import HimarkScopeError
+from hejmark.core.surface.late import Late
+from hejmark.core.surface.resolve import Env
 
 
 def _universe(*faces: str) -> Universe:
@@ -86,3 +92,28 @@ def test_finditer_yields_non_overlapping_matches() -> None:
 
 def test_finditer_is_empty_when_nothing_matches() -> None:
     assert list(finditer(_query(_universe("a")), "zzz")) == []
+
+
+def _late_echo() -> Late:
+    """A hand-built back-reference: a factor that re-spells factor 1."""
+    unit = ast.Unit(ast.UniverseNode((ast.Segments((ast.Read(1),)),)))
+    return Late(unit, Env({}, {}), (1,))
+
+
+def test_a_late_factor_expands_under_the_faces_bound_to_its_left() -> None:
+    """Each attempt substitutes the bound face, so `{a,b}{$1}` matches only echoes."""
+    query = Query("<hand-built>", (_universe("a", "b"), _late_echo()))
+    found = match(query, "bb")
+
+    assert found is not None
+    assert [part.face for part in found.parts] == ["b", "b"]
+    assert match(query, "ab") is None
+
+
+def test_universe_refuses_a_late_factor() -> None:
+    """A back-referencing factor denotes only under a binding, and says so."""
+    query = Query("<hand-built>", (_universe("a"), _late_echo()))
+
+    assert query.universe(0).contains("a")
+    with pytest.raises(HimarkScopeError, match="under a binding"):
+        query.universe(1)

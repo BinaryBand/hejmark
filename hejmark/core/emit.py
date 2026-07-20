@@ -25,9 +25,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from hejmark.core.engine import query as _denote_query
-from hejmark.core.floor.universe import Query
 from hejmark.core.scan.capture import canonical_face, factor_faces
-from hejmark.core.scan.match import finditer
+from hejmark.core.scan.match import Query, finditer
 from hejmark.core.surface.ast import (
     Expr,
     HimarkScopeError,

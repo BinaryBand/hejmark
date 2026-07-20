@@ -18,8 +18,8 @@ from hejmark.core.engine import match as _match
 from hejmark.core.engine import parse as _parse
 from hejmark.core.engine import script as _script
 from hejmark.core.floor.syntax import HimarkSyntaxError
-from hejmark.core.floor.universe import Entry, HimarkUnsettledError, Query, Universe
-from hejmark.core.scan.match import Match, MatchPart
+from hejmark.core.floor.universe import Entry, HimarkUnsettledError, Universe
+from hejmark.core.scan.match import Match, MatchPart, Query
 from hejmark.core.surface.ast import HimarkScopeError
 from hejmark.core.surface.resolve import statements as _statements
 

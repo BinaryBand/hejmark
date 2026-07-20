@@ -14,14 +14,15 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 
-from hejmark.core.floor.universe import Query, denote
+from hejmark.core.floor.universe import denote
 from hejmark.core.ports import ToAst
-from hejmark.core.scan.match import Match
+from hejmark.core.scan.match import Factor, Match, Query
 from hejmark.core.scan.match import finditer as _finditer
 from hejmark.core.scan.match import match as _match
 from hejmark.core.std import std_env
 from hejmark.core.surface.ast import Expr, HimarkScopeError, ScriptNode
 from hejmark.core.surface.expand import Ctx, expand
+from hejmark.core.surface.late import Late, reads
 from hejmark.core.surface.resolve import Env, collect, merge, statements
 
 
@@ -32,8 +33,28 @@ def script(to_ast: ToAst, source: str) -> tuple[ScriptNode, Env]:
 
 
 def query(expr: Expr, env: Env, source: str = "") -> Query:
-    """Expand and denote one query expression into a :class:`Query`."""
-    return Query(source, tuple(denote(factor) for factor in expand(expr, Ctx(env))))
+    """Expand and denote one query expression into a :class:`Query`.
+
+    A unit that back-references a factor to its left cannot expand yet; it
+    enters the query as a :class:`Late`, expanded per attempt once the matcher
+    has bound its reads. A read of the reading factor itself, of one to its
+    right, or past the written factors has nothing to bind and is refused.
+
+    Raises:
+        HimarkScopeError: a read is not strictly left of the factor reading it.
+    """
+    factors: list[Factor] = []
+    for index, unit in enumerate(expr.units):
+        needs = reads(unit)
+        past = [k for k in needs if k > index]
+        if past:
+            msg = f"${past[0]} reads factor {past[0]}, but only {index} factor(s) stand to its left"
+            raise HimarkScopeError(msg)
+        if needs:
+            factors.append(Late(unit, env, needs))
+        else:
+            factors.append(denote(expand(Expr((unit,)), Ctx(env))[0]))
+    return Query(source, tuple(factors))
 
 
 def parse(to_ast: ToAst, source: str) -> Query:

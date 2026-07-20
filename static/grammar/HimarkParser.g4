@@ -59,7 +59,10 @@ exponent
 // definition's arity.
 pipeline : LBRACK pipeItem+ RBRACK ;
 
-pipeItem : ARG (RANGE ARG)? ;
+pipeItem : pipeArg (RANGE pipeArg)? ;
+
+// An argument, or a back-reference standing as one (`where 0..$2`).
+pipeArg : ARG | CAPTURE ;
 
 universe : LBRACE (member (COMMA member)*)? RBRACE ;
 
@@ -76,6 +79,7 @@ member
 segment
     : base (CARET exponent)? pipeline?
     | AMP
+    | CAPTURE
     | face
     ;
 

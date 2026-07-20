@@ -59,7 +59,7 @@ def _entry_faces(source: str):
     """Denote *source* as one universe, wrapping a top-level product as a member."""
     if len(parse(source).universes) > 1:
         source = "{" + source + "}"
-    universe = parse(source).universes[0]
+    universe = parse(source).universe()
     return (entry.faces for entry in universe.entries())
 
 
@@ -77,14 +77,14 @@ def test_infinite_row_denotes_lazily(source: str, expected: Faces) -> None:
 
 def test_spelling_order_is_generated_not_postulated() -> None:
     """`{{{}},&C}` over a tiny C yields every spelling in shortlex."""
-    universe = parse("{{{}},&{a..b}}").universes[0]
+    universe = parse("{{{}},&{a..b}}").universe()
     prefix = [entry.faces[0] for entry in islice(universe.entries(), 7)]
     assert prefix == ["", "a", "b", "aa", "ab", "ba", "bb"]
 
 
 def test_closure_admission_witness_is_not_regular() -> None:
     """`{ab,{a}&{b}}` decides a^n b^n exactly -- membership, not enumeration."""
-    universe = parse("{ab,{a}&{b}}").universes[0]
+    universe = parse("{ab,{a}&{b}}").universe()
     assert universe.contains("a" * 7 + "b" * 7)
     assert not universe.contains("a" * 7 + "b" * 6)
     assert not universe.contains("ba")

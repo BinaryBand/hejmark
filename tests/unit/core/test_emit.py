@@ -97,3 +97,13 @@ def test_a_surviving_sentinel_is_a_script_error() -> None:
     """A sentinel at exit is a cleanup rule that did not fire, named as such."""
     with pytest.raises(HimarkSentinelError, match="sentinel @s survived"):
         run('sentinel s\n{a} => "{{@s}}"', "a")
+
+
+def test_a_back_reference_matches_only_its_factors_re_spelling() -> None:
+    """`{a,b}{$1}` hits the echoes and nothing else; the reads see the bound split."""
+    assert run('{a,b}{$1} => "{{$1}}!"', "aa ab bb") == "a! ab b!"
+
+
+def test_a_range_bound_back_reference_cuts_by_the_bound_value() -> None:
+    """`where 0..$1` regenerates the value line cut at the face factor 1 bound."""
+    assert run('{1,2}{0..9}[where 0..$1] => "<{{$2}}>"', "21 10 12") == "<1> <0> 12"

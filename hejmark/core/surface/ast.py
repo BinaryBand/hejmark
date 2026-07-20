@@ -20,9 +20,22 @@ comment already reads as one thing.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from hejmark.core.floor.syntax import Closure, Face, Final, Range
+
+# The factor family's spelling, exactly: 1-based, no leading zero. Pipeline
+# arguments keep their raw text, so a read standing as one is re-recognized by
+# this pattern; only the exact spelling ever lexes as a read, so the match is
+# faithful.
+_READ = re.compile(r"^\$([1-9][0-9]*)$")
+
+
+def read_index(text: str) -> int | None:
+    """The factor a ``$k`` spelling reads, or ``None`` if *text* is no read."""
+    matched = _READ.match(text)
+    return int(matched.group(1)) if matched else None
 
 
 class HimarkScopeError(ValueError):
@@ -82,8 +95,22 @@ class Unit:
     pipeline: tuple[PipeItem, ...] = ()
 
 
-# One adjacent piece of a member: a factor, the closure token, or a bare face.
-Segment = Unit | Closure | Face
+@dataclass(frozen=True)
+class Read:
+    """A back-reference ``$k`` standing in a pattern: factor ``k``, as it hit.
+
+    It reads a factor of the same query, strictly to its left; the matcher
+    binds factors left to right, so by the time the reading factor is tried
+    its read is bound and the face substitutes as a literal spelling. A read
+    inside a declaration stands in no query and is refused at expansion.
+    """
+
+    index: int
+
+
+# One adjacent piece of a member: a factor, the closure token, a bare face, or
+# a back-reference.
+Segment = Unit | Closure | Face | Read
 
 
 @dataclass(frozen=True)

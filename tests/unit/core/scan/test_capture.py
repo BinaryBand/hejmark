@@ -12,19 +12,19 @@ from hejmark.core.surface.ast import HimarkScopeError
 
 def test_canonical_finds_the_wearer_of_a_later_face() -> None:
     """A fold's entry is worn by every face; face 0 is the canonical one."""
-    universe = parse("{{cat,feline}}").universes[0]
+    universe = parse("{{cat,feline}}").universe()
     assert canonical(universe, "feline") == "cat"
     assert canonical(universe, "cat") == "cat"
 
 
 def test_canonical_is_none_when_no_entry_wears_the_spelling() -> None:
     """Over a finite universe an absent spelling simply runs the stream out."""
-    assert canonical(parse("{a,b}").universes[0], "z") is None
+    assert canonical(parse("{a,b}").universe(), "z") is None
 
 
 def test_canonical_reaches_a_wearer_near_the_front_of_an_infinite_stream() -> None:
     """An infinite universe is fine as long as the wearer is actually reachable."""
-    universe = parse("{a..}").universes[0]
+    universe = parse("{a..}").universe()
     assert canonical(universe, "b") == "b"
 
 
@@ -36,7 +36,7 @@ def test_canonical_refuses_a_wearer_it_cannot_reach() -> None:
     than hanging, since the matcher that accepted the hit cannot say which case
     it handed over.
     """
-    universe = parse("{a..}").universes[0]
+    universe = parse("{a..}").universe()
     with pytest.raises(HimarkScopeError, match="canonical face"):
         canonical(universe, "zz")
 
@@ -99,3 +99,17 @@ def test_factor_faces_refuses_an_address_it_cannot_reach() -> None:
     assert found is not None
     with pytest.raises(HimarkScopeError, match="cannot address"):
         factor_faces(query, found)
+
+
+def test_factor_faces_prices_a_late_factor_under_each_splits_own_binding() -> None:
+    """`{a,ab}{c,bc}{a,$1}` on `abca`: both splits tile, and value order decides.
+
+    The greedy witness is `(ab, c, a)`, but the `(a, bc, a)` split -- whose
+    third factor offers `{a, a}` under its own binding -- wins on the value
+    vector, so the reads follow it.
+    """
+    query = parse("{a,ab}{c,bc}{a,$1}")
+    found = match(query, "abca")
+    assert found is not None
+    assert [part.face for part in found.parts] == ["ab", "c", "a"]
+    assert factor_faces(query, found) == ("a", "bc", "a")
