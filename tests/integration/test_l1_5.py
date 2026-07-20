@@ -86,3 +86,22 @@ def test_declarations_resolve_before_statements() -> None:
     """A ``uni`` declared in the script stands wherever a universe stands."""
     source = 'uni synonym = {{cat,feline}}\n{@synonym} => "{{$0}}"'
     assert run(source, "my feline") == "my cat"
+
+
+def test_sentinels_carry_the_masking_idiom_end_to_end() -> None:
+    """Wrap, anchor on the wrapped whole, clean up -- the north star's first move.
+
+    Without the mask, ``{cat}`` would also hit the ``cat`` inside ``catalog``;
+    the sentinels make the wrapped word an exact anchor, and the cleanup line
+    is what the exit guard demands of every script that wraps.
+    """
+    source = (
+        "sentinel start\n"
+        "sentinel end\n"
+        "uni c = {a..z}\n"
+        "uni word = {@c, &@c}\n"
+        '{@word} => "{{@start}}{{$}}{{@end}}"\n'
+        '{@start}{cat}{@end} => "feline"\n'
+        '{@start,@end} => ""'
+    )
+    assert run(source, "cat catalog") == "feline catalog"

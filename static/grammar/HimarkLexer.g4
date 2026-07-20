@@ -8,8 +8,9 @@ lexer grammar HimarkLexer;
 // out here (a brace or quote spanning physical lines stays one statement).
 // ---------------------------------------------------------------------------
 
-UNI    : 'uni' ;
-WALRUS : ':=' ;
+UNI      : 'uni' ;
+SENTINEL : 'sentinel' ;
+WALRUS   : ':=' ;
 ARROW  : '=>' ;
 EQ     : '=' ;
 RANGE  : '..' ;
@@ -88,12 +89,14 @@ TMPL_LBRACE : '{' ;
 TMPL_TEXT   : ~["\\{]+ ;
 
 // ---------------------------------------------------------------------------
-// INTERP mode -- inside `{{ ... }}`: one capture read, `$` the hit as it hit
-// or `$0` its canonical face.
+// INTERP mode -- inside `{{ ... }}`: one read. A capture read (`$` the hit as
+// it hit, `$0` its canonical face) or a sentinel read (`@name` the face a
+// `sentinel` declaration allocated).
 // ---------------------------------------------------------------------------
 
 mode INTERP;
 
 MOUST_CLOSE : '}}' -> popMode ;
 CAPTURE     : '$' '0'? ;
+I_REF       : '@' [a-zA-Z0-9']* -> type(REF) ;
 I_WS        : [ \t]+ -> skip ;

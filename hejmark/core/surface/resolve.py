@@ -22,8 +22,9 @@ from __future__ import annotations
 
 import graphlib
 from collections.abc import Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
+from hejmark.core.floor.syntax import Face
 from hejmark.core.surface.ast import (
     DefDecl,
     Expr,
@@ -33,6 +34,7 @@ from hejmark.core.surface.ast import (
     Ref,
     ScriptNode,
     Segments,
+    SentinelDecl,
     Statement,
     Subtract,
     UniDecl,
@@ -43,6 +45,24 @@ from hejmark.core.surface.ast import (
 # The reserved names: bare `@` is the head, `@0` its zero entry. Numerals are
 # not declarable, which is what keeps `@0` free.
 RESERVED = frozenset({"", "0"})
+
+# Sentinel faces are allocated from the first noncharacter block, in
+# declaration order, so allocation is deterministic and per-script. The other
+# noncharacters are the last two code points of every plane.
+_SENTINEL_BASE = 0xFDD0
+_SENTINEL_TOP = 0xFDEF
+_PLANE_ENDER = 0xFFFE
+SENTINEL_LIMIT = 32
+
+
+def noncharacter(char: str) -> bool:
+    """Whether *char* is one of Unicode's noncharacters -- the sentinel space.
+
+    The seeded ``C`` subtracts these, so no ``@C``-derived universe can touch a
+    sentinel: only its declared name matches it.
+    """
+    point = ord(char)
+    return _SENTINEL_BASE <= point <= _SENTINEL_TOP or point & _PLANE_ENDER == _PLANE_ENDER
 
 
 @dataclass(frozen=True)
@@ -63,10 +83,15 @@ class Stage:
 
 @dataclass(frozen=True)
 class Env:
-    """The resolved namespace: ``uni`` declarations and ``:=`` definitions."""
+    """The resolved namespace: ``uni`` declarations and ``:=`` definitions.
+
+    ``sentinels`` maps each ``sentinel`` name to its allocated face; the name
+    also enters ``unis`` over that lone face, so patterns need no extra path.
+    """
 
     unis: dict[str, Expr]
     defs: dict[str, DefDecl]
+    sentinels: dict[str, str] = field(default_factory=dict)
 
     def lookup(self, name: str) -> Expr | DefDecl:
         """Return what *name* declares, or raise if nothing does."""
@@ -153,10 +178,27 @@ def collect(script: ScriptNode) -> Env:
             raise HimarkScopeError(msg)
         if isinstance(line, UniDecl):
             env.unis[line.name] = line.expr
+        elif isinstance(line, SentinelDecl):
+            face = _allocate(env)
+            env.sentinels[line.name] = face
+            env.unis[line.name] = Expr((Unit(UniverseNode((Segments((Face(face),)),))),))
         else:
             env.defs[line.name] = line
     _check_acyclic(env)
     return env
+
+
+def _allocate(env: Env) -> str:
+    """The next sentinel's face: one noncharacter, in declaration order.
+
+    Raises:
+        HimarkScopeError: the noncharacter block is exhausted.
+    """
+    index = len(env.sentinels)
+    if index == SENTINEL_LIMIT:
+        msg = f"sentinel space exhausted: at most {SENTINEL_LIMIT} per script"
+        raise HimarkScopeError(msg)
+    return chr(_SENTINEL_BASE + index)
 
 
 def statements(script: ScriptNode) -> tuple[Statement, ...]:
@@ -174,7 +216,13 @@ def merge(base: Env, extra: Env) -> Env:
         if _known(base, name):
             msg = f"duplicate name: {name} is already declared"
             raise HimarkScopeError(msg)
-    return Env({**base.unis, **extra.unis}, {**base.defs, **extra.defs})
+    # Allocation is per-collect; the std seeds no sentinels, so merged faces
+    # never alias.
+    return Env(
+        {**base.unis, **extra.unis},
+        {**base.defs, **extra.defs},
+        {**base.sentinels, **extra.sentinels},
+    )
 
 
 def _binding(item: PipeItem) -> Binding:

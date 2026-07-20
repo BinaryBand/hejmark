@@ -1,8 +1,10 @@
-"""Emit: branches, the two step kinds, and the splice."""
+"""Emit: branches, the two step kinds, the splice, and the sentinel boundary."""
 
 from __future__ import annotations
 
-from hejmark import run
+import pytest
+
+from hejmark import HimarkScopeError, HimarkSentinelError, run
 from hejmark.core.emit import Branch
 
 
@@ -49,3 +51,27 @@ def test_statements_run_in_source_order() -> None:
 def test_the_empty_document_offers_only_the_empty_spelling() -> None:
     """Zero-width never matches, so nothing fires and nothing changes."""
     assert run('{@spellings} => "X"', "") == ""
+
+
+def test_a_sentinel_read_renders_its_allocated_face() -> None:
+    """`{{@name}}` splices the face the declaration allocated; cleanup strips it."""
+    source = 'sentinel s\n{a} => "{{@s}}{{$}}"\n{@s}{a} => "A"\n{@s} => ""'
+    assert run(source, "banana") == "bAnAnA"
+
+
+def test_a_sentinel_read_of_no_sentinel_is_a_scope_error() -> None:
+    """The read is of the environment, and an undeclared name refuses."""
+    with pytest.raises(HimarkScopeError, match="reads no sentinel"):
+        run('{a} => "{{@nope}}"', "a")
+
+
+def test_a_document_spelling_a_noncharacter_is_refused() -> None:
+    """Sentinels are engine-private, so ingest refuses what could forge one."""
+    with pytest.raises(HimarkSentinelError, match="noncharacter"):
+        run('{a} => "b"', "x\ufdd0y")
+
+
+def test_a_surviving_sentinel_is_a_script_error() -> None:
+    """A sentinel at exit is a cleanup rule that did not fire, named as such."""
+    with pytest.raises(HimarkSentinelError, match="sentinel @s survived"):
+        run('sentinel s\n{a} => "{{@s}}"', "a")

@@ -9,7 +9,10 @@ and it is why the derivations below are transcribed from
 The one exception is ``C``, the code-point set, which ``L1_5.md`` names as the
 one ``uni`` the spec *seeds*: it is a bounded range over the whole code space,
 and the surface has no escape that spells a code point, so the host supplies it.
-It is seeded as a range node, which is what writing it in-language would mean.
+It is seeded as a range minus the noncharacters, which is what writing it
+in-language would mean -- the noncharacters are the sentinel space, and carving
+them out here is what makes a sentinel unreachable from any ``@C``-derived
+universe.
 
 Core stays free of I/O, so the source lives here as a constant rather than in a
 file an adapter would have to read.
@@ -21,7 +24,7 @@ from functools import lru_cache
 
 from hejmark.core.floor.syntax import Range
 from hejmark.core.ports import ToAst
-from hejmark.core.surface.ast import Expr, Unit, UniverseNode
+from hejmark.core.surface.ast import Expr, Subtract, Unit, UniverseNode
 from hejmark.core.surface.resolve import Env, collect
 
 # The greatest code point; the least is the null character.
@@ -45,8 +48,19 @@ zfold        := {{@zeros}}
 padfree      := {@zfold _}
 """
 
-# `C` as a bounded range over the whole code space -- the seeded declaration.
-_CODE_POINTS = Expr((Unit(UniverseNode((Range(_MIN, _MAX),))),))
+# The noncharacters: one contiguous block plus the last two points of every
+# plane. Unicode reserves them for internal use; the engine's internal use is
+# sentinels, so `C` subtracts them and the alphabet never contains one.
+_NONCHARACTERS = UniverseNode(
+    (
+        Range("\ufdd0", "\ufdef"),
+        *(Range(chr(plane + 0xFFFE), chr(plane + 0xFFFF)) for plane in range(0, 0x110000, 0x10000)),
+    )
+)
+
+# `C` as a bounded range over the whole code space, minus the sentinel space --
+# the seeded declaration.
+_CODE_POINTS = Expr((Unit(UniverseNode((Range(_MIN, _MAX), Subtract(_NONCHARACTERS)))),))
 
 
 @lru_cache(maxsize=1)

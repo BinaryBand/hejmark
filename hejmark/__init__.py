@@ -12,6 +12,7 @@ from collections.abc import Iterator
 
 from hejmark.adapters.parser import AntlrParser
 from hejmark.core import emit
+from hejmark.core.emit import HimarkSentinelError
 from hejmark.core.engine import finditer as _finditer
 from hejmark.core.engine import match as _match
 from hejmark.core.engine import parse as _parse
@@ -49,6 +50,7 @@ def run(source: str, text: str) -> str:
 __all__ = [
     "Entry",
     "HimarkScopeError",
+    "HimarkSentinelError",
     "HimarkSyntaxError",
     "HimarkUnsettledError",
     "Match",

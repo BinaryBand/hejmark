@@ -6,7 +6,16 @@ import pytest
 
 from hejmark.adapters.parser import AntlrParser
 from hejmark.core.surface.ast import HimarkScopeError, PipeItem
-from hejmark.core.surface.resolve import Env, bind, canonicalize, collect, merge, statements
+from hejmark.core.surface.resolve import (
+    SENTINEL_LIMIT,
+    Env,
+    bind,
+    canonicalize,
+    collect,
+    merge,
+    noncharacter,
+    statements,
+)
 
 _to_ast = AntlrParser().to_ast
 
@@ -51,6 +60,37 @@ def test_an_indirect_cycle_is_refused() -> None:
     """Acyclicity is what makes every expansion finite."""
     with pytest.raises(HimarkScopeError, match="cyclic name"):
         _env("uni a = {@b}\nuni b = {@a}")
+
+
+def test_a_sentinel_is_a_uni_over_one_noncharacter_face() -> None:
+    """The name enters the ordinary namespace, so patterns need no extra path."""
+    env = _env("sentinel start\nsentinel end")
+    assert set(env.sentinels) == {"start", "end"}
+    assert set(env.unis) == {"start", "end"}
+    faces = list(env.sentinels.values())
+    assert all(noncharacter(face) for face in faces)
+    assert len(set(faces)) == len(faces)
+
+
+def test_sentinel_faces_are_allocated_in_declaration_order() -> None:
+    """Allocation is deterministic: the same script always masks the same way."""
+    first = _env("sentinel a\nsentinel b")
+    second = _env("sentinel a\nsentinel b")
+    assert first.sentinels == second.sentinels
+    assert ord(first.sentinels["b"]) == ord(first.sentinels["a"]) + 1
+
+
+def test_the_sentinel_space_is_finite() -> None:
+    """The block runs out at its limit, as a diagnostic rather than an overflow."""
+    source = "\n".join(f"sentinel s{index}" for index in range(SENTINEL_LIMIT + 1))
+    with pytest.raises(HimarkScopeError, match="sentinel space exhausted"):
+        _env(source)
+
+
+def test_a_sentinel_name_collides_like_any_other() -> None:
+    """One namespace: a sentinel may not redeclare a uni, nor the reverse."""
+    with pytest.raises(HimarkScopeError, match="duplicate name"):
+        _env("uni d = {a}\nsentinel d")
 
 
 def test_merge_layers_the_std_under_a_script() -> None:

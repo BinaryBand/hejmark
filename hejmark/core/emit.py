@@ -28,8 +28,27 @@ from hejmark.core.engine import query as _denote_query
 from hejmark.core.floor.universe import Query
 from hejmark.core.scan.capture import canonical_face
 from hejmark.core.scan.match import finditer
-from hejmark.core.surface.ast import Expr, Interp, Statement, Step, Template, Text
-from hejmark.core.surface.resolve import Env
+from hejmark.core.surface.ast import (
+    Expr,
+    HimarkScopeError,
+    Interp,
+    RefInterp,
+    Statement,
+    Step,
+    Template,
+    Text,
+)
+from hejmark.core.surface.resolve import Env, noncharacter
+
+
+class HimarkSentinelError(ValueError):
+    """Raised at the document boundary: sentinels are engine-private.
+
+    A document that arrives spelling a noncharacter is refused -- Unicode
+    reserves them for internal use, and the engine's internal use is sentinels.
+    A sentinel surviving into the final document is a script error (a cleanup
+    rule that did not fire), never something to strip silently.
+    """
 
 
 @dataclass(frozen=True)
@@ -58,6 +77,19 @@ def _read(branch: Branch, capture: str) -> str:
     if capture == "$" or branch.bound is None or branch.found is None:
         return branch.face
     return canonical_face(branch.bound, branch.found)  # ty: ignore[invalid-argument-type]
+
+
+def _sentinel(part: RefInterp, env: Env) -> str:
+    """Render one sentinel read: the face a ``sentinel`` declaration allocated.
+
+    Raises:
+        HimarkScopeError: the name declares no sentinel.
+    """
+    face = env.sentinels.get(part.name)
+    if face is None:
+        msg = f"{{{{@{part.name}}}}} reads no sentinel"
+        raise HimarkScopeError(msg)
+    return face
 
 
 def _splice(text: str, pieces: list[tuple[int, int, str]]) -> str:
@@ -98,7 +130,7 @@ def _construct(template: Template, branch: Branch, rest: tuple[Step, ...], env: 
         if isinstance(part, Text):
             out.append(part.text)
             continue
-        rendered = _read(branch, part.capture) if isinstance(part, Interp) else ""
+        rendered = _read(branch, part.capture) if isinstance(part, Interp) else _sentinel(part, env)
         start = sum(len(piece) for piece in out)
         out.append(rendered)
         sites.append((start, start + len(rendered)))
@@ -138,8 +170,35 @@ def statement(stmt: Statement, document: str, env: Env) -> str:
     return _steps(stmt.steps, root, env)
 
 
+def _guard(document: str, env: Env | None) -> None:
+    """Refuse a document that spells a noncharacter, at either boundary.
+
+    With *env* in hand (the exit side) the message names the sentinel that
+    survived; without it (ingest) the document simply is not interchange text.
+
+    Raises:
+        HimarkSentinelError: the document carries a noncharacter.
+    """
+    for index, char in enumerate(document):
+        if not noncharacter(char):
+            continue
+        if env is None:
+            msg = f"document spells a noncharacter at index {index}: {char!r}"
+        else:
+            names = {face: name for name, face in env.sentinels.items()}
+            msg = f"sentinel @{names.get(char, '?')} survived the script at index {index}"
+        raise HimarkSentinelError(msg)
+
+
 def run(statements: tuple[Statement, ...], document: str, env: Env) -> str:
-    """Run each statement in source order, threading the document through."""
+    """Run each statement in source order, threading the document through.
+
+    Sentinels are engine-private, so the document is guarded at both ends: a
+    noncharacter at ingest is refused, and one at exit is a sentinel a cleanup
+    rule left behind.
+    """
+    _guard(document, None)
     for stmt in statements:
         document = statement(stmt, document, env)
+    _guard(document, env)
     return document

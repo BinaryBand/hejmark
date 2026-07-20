@@ -148,6 +148,17 @@ class DefDecl:
 
 
 @dataclass(frozen=True)
+class SentinelDecl:
+    """A declaration ``sentinel name``: one entry wearing one host-allocated face.
+
+    The face is a noncharacter the resolver allocates, so it carries no body
+    here; resolution turns the name into an ordinary ``uni`` over a lone face.
+    """
+
+    name: str
+
+
+@dataclass(frozen=True)
 class Text:
     """Literal template text, escapes already resolved; a lone ``{`` is text too."""
 
@@ -164,7 +175,19 @@ class Interp:
     capture: str
 
 
-Part = Text | Interp
+@dataclass(frozen=True)
+class RefInterp:
+    """An interpolation site ``{{@name}}`` reading a declared sentinel's face.
+
+    ``name`` is the text after the sigil, as on :class:`Ref`. The read is of
+    the environment, not the hit, which is what keeps it off the register
+    inventory; a name that declares no sentinel is a scope error at emit.
+    """
+
+    name: str
+
+
+Part = Text | Interp | RefInterp
 
 
 @dataclass(frozen=True)
@@ -185,7 +208,7 @@ class Statement:
     steps: tuple[Step, ...]
 
 
-Line = UniDecl | DefDecl | Statement
+Line = UniDecl | DefDecl | SentinelDecl | Statement
 
 
 @dataclass(frozen=True)

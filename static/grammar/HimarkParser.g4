@@ -17,6 +17,7 @@ line
 
 declaration
     : UNI IDENT EQ expr           # UniDecl
+    | SENTINEL IDENT              # SentinelDecl
     | IDENT param* WALRUS expr    # DefDecl
     ;
 
@@ -89,5 +90,6 @@ part
     | interp         # InterpPart
     ;
 
-// Each interpolation holds one capture read and is its own branch.
-interp : MOUST_OPEN CAPTURE MOUST_CLOSE ;
+// Each interpolation holds one read -- a capture or a sentinel -- and is its
+// own branch.
+interp : MOUST_OPEN (CAPTURE | REF) MOUST_CLOSE ;

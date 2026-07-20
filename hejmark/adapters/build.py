@@ -23,8 +23,10 @@ from hejmark.core.surface.ast import (
     Param,
     PipeItem,
     Ref,
+    RefInterp,
     ScriptNode,
     Segments,
+    SentinelDecl,
     Statement,
     Subtract,
     Template,
@@ -133,7 +135,11 @@ def _template(ctx: Any) -> Template:
     for part in ctx.part():
         match type(part).__name__:
             case "InterpPartContext":
-                parts.append(Interp(part.interp().CAPTURE().getText()))
+                capture = part.interp().CAPTURE()
+                if capture is not None:
+                    parts.append(Interp(capture.getText()))
+                else:
+                    parts.append(RefInterp(part.interp().REF().getText()[1:]))
             case "EscPartContext":
                 parts.append(Text(_unescape(part.getText())))
             case _:
@@ -153,12 +159,16 @@ def _param(ctx: Any) -> Param:
     return Param(names[0].getText(), names[1].getText() if len(names) > 1 else None)
 
 
-def _declaration(ctx: Any) -> UniDecl | DefDecl:
-    """Dispatch a declaration: a ``uni`` name or a ``:=`` definition."""
-    if type(ctx).__name__ == "UniDeclContext":
-        return UniDecl(ctx.IDENT().getText(), _expr(ctx.expr()))
-    params = tuple(_param(param) for param in ctx.param())
-    return DefDecl(ctx.IDENT().getText(), params, _expr(ctx.expr()))
+def _declaration(ctx: Any) -> UniDecl | DefDecl | SentinelDecl:
+    """Dispatch a declaration: a ``uni`` name, a sentinel, or a ``:=`` definition."""
+    match type(ctx).__name__:
+        case "UniDeclContext":
+            return UniDecl(ctx.IDENT().getText(), _expr(ctx.expr()))
+        case "SentinelDeclContext":
+            return SentinelDecl(ctx.IDENT().getText())
+        case _:
+            params = tuple(_param(param) for param in ctx.param())
+            return DefDecl(ctx.IDENT().getText(), params, _expr(ctx.expr()))
 
 
 def _line(ctx: Any) -> Any:

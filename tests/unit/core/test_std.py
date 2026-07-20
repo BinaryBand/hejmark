@@ -58,6 +58,16 @@ def test_the_code_point_set_is_seeded_not_written() -> None:
     assert "C" in std_env(_to_ast).unis
 
 
+def test_the_alphabet_excludes_the_sentinel_space() -> None:
+    """`C` subtracts the noncharacters, so no `@C`-derived universe holds one."""
+    universe = parse("{@C}").universes[0]
+    assert universe.contains("a")
+    assert universe.contains("\ufdcf")
+    assert not universe.contains("\ufdd0")
+    assert not universe.contains("\uffff")
+    assert not universe.contains("\U0010fffe")
+
+
 def test_the_std_parses_as_ordinary_source() -> None:
     """Nothing in the std is special-cased; it goes through the same grammar."""
     assert len(_to_ast(SOURCE).lines) == 13

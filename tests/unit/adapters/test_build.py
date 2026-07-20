@@ -12,7 +12,9 @@ from hejmark.core.surface.ast import (
     Interp,
     Operand,
     Ref,
+    RefInterp,
     Segments,
+    SentinelDecl,
     Statement,
     Template,
     Text,
@@ -75,6 +77,20 @@ def test_a_uni_declaration_carries_its_name_and_expression() -> None:
     line = _line("uni d = {0..9}")
     assert isinstance(line, UniDecl)
     assert line.name == "d"
+
+
+def test_a_sentinel_declaration_carries_only_its_name() -> None:
+    """`sentinel name` has no body: the resolver allocates the face."""
+    assert _line("sentinel start") == SentinelDecl("start")
+
+
+def test_a_sentinel_read_is_its_own_template_part() -> None:
+    """`{{@name}}` reads the environment where `{{$}}` reads the hit."""
+    line = _line('{a} => "{{@start}}{{$}}"')
+    assert isinstance(line, Statement)
+    template = line.steps[1]
+    assert isinstance(template, Template)
+    assert template.parts == (RefInterp("start"), Interp("$"))
 
 
 def test_a_definition_carries_its_parameters() -> None:

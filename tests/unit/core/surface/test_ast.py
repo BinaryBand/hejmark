@@ -13,8 +13,10 @@ from hejmark.core.surface.ast import (
     Param,
     PipeItem,
     Ref,
+    RefInterp,
     ScriptNode,
     Segments,
+    SentinelDecl,
     Statement,
     Template,
     Text,
@@ -81,3 +83,14 @@ def test_a_template_holds_text_and_interpolation_sites() -> None:
 def test_the_operand_token_carries_nothing() -> None:
     """``_`` is a token, not a value: what it binds to comes from the application."""
     assert Operand() == Operand()
+
+
+def test_a_sentinel_declaration_carries_no_body() -> None:
+    """The face is allocated at resolution, so the node holds only the name."""
+    assert SentinelDecl("start").name == "start"
+
+
+def test_a_sentinel_read_is_not_a_capture_read() -> None:
+    """``{{@name}}`` reads the environment; ``{{$}}`` reads the hit."""
+    assert RefInterp("start") != Interp("$")
+    assert RefInterp("start").name == "start"
