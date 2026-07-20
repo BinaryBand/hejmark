@@ -309,19 +309,12 @@ theorem fold_flatten_nested (t1 t2 t3 t4 s : Spelling) :
 
 /-- `{&}`: a bare self-reference builds nothing. -/
 theorem bare_amp_empty (s : Spelling) : ¬ denotes (nsingle .amp) s := by
-  have hstage : ∀ k s, ¬ stage (nsingle .amp) k s := by
-    intro k
-    induction k with
-    | zero => intro s h; rw [stage_zero] at h; exact h
-    | succ k ih =>
-        intro s h
-        rw [stage_succ] at h
-        rcases h with h | h
-        · exact ih s h
-        · rw [walk_single_amp] at h
-          rcases h with h | h
-          · exact h.elim
-          · exact ih s h
+  have hstage : ∀ k s, ¬ stage (nsingle .amp) k s :=
+    stage_invariant (nsingle .amp) (fun _ => False) fun k ih s h => by
+      rw [walk_single_amp] at h
+      rcases h with h | h
+      · exact h.elim
+      · exact ih s h
   intro hd
   rw [denotes, ndenote_binder _ _ _ (by simp [nsingle, bindsb, freeAmpb])] at hd
   obtain ⟨k, h⟩ := hd
@@ -332,20 +325,13 @@ theorem self_union_noop (t : Spelling) (s : Spelling) :
     denotes (.cons (.face t) (nsingle .amp)) s ↔ s = t := by
   set n := Node.cons (.face t) (nsingle .amp) with hn
   have hb : bindsb n = true := by rw [hn]; simp [bindsb, freeAmpb, nsingle]
-  have hstage : ∀ k s, stage n k s → s = t := by
-    intro k
-    induction k with
-    | zero => intro s h; rw [stage_zero] at h; exact h.elim
-    | succ k ih =>
-        intro s h
-        rw [stage_succ] at h
-        rcases h with h | h
-        · exact ih s h
-        · rw [hn, walk_cons, walk_single_amp, walk_single_face] at h
-          rcases h with (h | h) | h
-          · exact h.elim
-          · exact h
-          · exact ih s h
+  have hstage : ∀ k s, stage n k s → s = t :=
+    stage_invariant n (· = t) fun k ih s h => by
+      rw [hn, walk_cons, walk_single_amp, walk_single_face] at h
+      rcases h with (h | h) | h
+      · exact h.elim
+      · exact h
+      · exact ih s h
   constructor
   · rintro hd
     rw [denotes, ndenote_binder _ _ _ hb] at hd
@@ -363,19 +349,12 @@ theorem negative_amp_noop (lo : Spelling) (s : Spelling) :
       ↔ winb (finalWindow lo) s = true := by
   set n := Node.cons (.final lo) (nsingle (.sub (nsingle .amp))) with hn
   have hb : bindsb n = true := by rw [hn]; simp [bindsb, freeAmpb, nsingle]
-  have hstage : ∀ k s, stage n k s → winb (finalWindow lo) s = true := by
-    intro k
-    induction k with
-    | zero => intro s h; rw [stage_zero] at h; exact h.elim
-    | succ k ih =>
-        intro s h
-        rw [stage_succ] at h
-        rcases h with h | h
-        · exact ih s h
-        · rw [hn, walk_cons, walk_single_final, walk_single_sub] at h
-          rcases h.1 with h' | h'
-          · exact h'.elim
-          · exact h'
+  have hstage : ∀ k s, stage n k s → winb (finalWindow lo) s = true :=
+    stage_invariant n (fun s => winb (finalWindow lo) s = true) fun k _ s h => by
+      rw [hn, walk_cons, walk_single_final, walk_single_sub] at h
+      rcases h.1 with h' | h'
+      · exact h'.elim
+      · exact h'
   constructor
   · rintro hd
     rw [denotes, ndenote_binder _ _ _ hb] at hd
@@ -442,25 +421,18 @@ theorem unitClosure_walk (lo hi : Code) (amp : Spelling → Prop) (s : Spelling)
 
 /-- Soundness: every closure stage stays over `C`. -/
 theorem unitClosure_stage_sound (lo hi : Code) :
-    ∀ k s, stage (unitClosure lo hi) k s → ∀ c ∈ s, lo ≤ c ∧ c ≤ hi := by
-  intro k
-  induction k with
-  | zero => intro s h; rw [stage_zero] at h; exact h.elim
-  | succ k ih =>
-      intro s h
-      rw [stage_succ] at h
-      rcases h with h | h
-      · exact ih s h
-      · rw [unitClosure_walk] at h
-        rcases h with rfl | ⟨p, c, rfl, hp, hc1, hc2⟩
-        · intro c hc; simp at hc
-        · intro x hx
-          rw [List.mem_append] at hx
-          rcases hx with hx | hx
-          · exact ih p hp x hx
-          · simp only [List.mem_singleton] at hx
-            subst hx
-            exact ⟨hc1, hc2⟩
+    ∀ k s, stage (unitClosure lo hi) k s → ∀ c ∈ s, lo ≤ c ∧ c ≤ hi :=
+  stage_invariant _ (fun s => ∀ c ∈ s, lo ≤ c ∧ c ≤ hi) fun k ih s h => by
+    rw [unitClosure_walk] at h
+    rcases h with rfl | ⟨p, c, rfl, hp, hc1, hc2⟩
+    · intro c hc; simp at hc
+    · intro x hx
+      rw [List.mem_append] at hx
+      rcases hx with hx | hx
+      · exact ih p hp x hx
+      · simp only [List.mem_singleton] at hx
+        subst hx
+        exact ⟨hc1, hc2⟩
 
 /-- Completeness: a spelling of length `L` over `C` is present by stage
 `L + 1` -- each pass appends one code, seeded by the unit's empty face. -/
