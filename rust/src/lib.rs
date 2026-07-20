@@ -11,8 +11,11 @@
 //! ([`floor::order`]), the two leaf analyses that read that AST without denoting
 //! anything ([`floor::binder`], [`floor::window`]), and the interpreter that
 //! denotes those nodes to lazy universes ([`floor::universe`]). [`scan`] sits
-//! above the floor: it matches a denoted universe against text. The surface
-//! layer (parsing, expansion, back-references) is the next slice to port.
+//! above the floor: it matches denoted universes against text, reads captures
+//! off a hit, and compares entry order for the contracting measure. [`surface`]
+//! is only begun -- its scope error, which the scan layer shares. The surface
+//! AST and expansion down to the floor are the next slices to port.
 
 pub mod floor;
 pub mod scan;
+pub mod surface;

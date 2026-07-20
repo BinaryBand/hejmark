@@ -38,7 +38,10 @@ use super::syntax::{Factor, Member, UniverseNode};
 use super::window::{carve, window_of};
 
 /// The stage a free `&` in some members reads (`None` outside any binder).
-type Amp = Option<Rc<Universe>>;
+///
+/// Public because the scan layer (measure, capture) reads and threads it, the
+/// way the Python's public `Universe.amp` field is read.
+pub type Amp = Option<Rc<Universe>>;
 /// A liveness test: whether a face is still unclaimed at its point of use.
 type Live = Rc<dyn Fn(&[u32]) -> bool>;
 /// A lazy stream of entries; owns its state, so it is safe over infinity.
@@ -92,6 +95,30 @@ impl Universe {
     /// A brace expression denoted with its own `&` sealed: no outer stage reaches in.
     fn sealed(node: &UniverseNode) -> Universe {
         Universe::new(Rc::new(node.clone()), None, None)
+    }
+
+    /// The AST node this universe denotes.
+    ///
+    /// These three accessors and [`Universe::at_stage`] mirror the Python's
+    /// public `node` / `amp` / `stages` fields: the scan layer reads them to
+    /// walk a universe's structure and to build its stage universes `X_k`.
+    pub fn node(&self) -> &UniverseNode {
+        &self.node
+    }
+
+    /// The stage a free `&` in the members reads (`None` outside any binder).
+    pub fn amp(&self) -> &Amp {
+        &self.amp
+    }
+
+    /// The closure truncation, if this is a stage universe `X_k` (`None` at omega).
+    pub fn stage_limit(&self) -> Option<usize> {
+        self.stages
+    }
+
+    /// This universe truncated to its first `stage` closure passes, reusing node and amp.
+    pub fn at_stage(&self, stage: usize) -> Universe {
+        Universe::new(self.node.clone(), self.amp.clone(), Some(stage))
     }
 
     /// Whether some entry of this universe wears `spelling`.
