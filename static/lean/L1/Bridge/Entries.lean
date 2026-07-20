@@ -120,6 +120,24 @@ noncomputable def entryAddrEmb (n : Node) :
 instance (n : Node) : IsWellOrder (Entries n) (entryLt n) :=
   (entryAddrEmb n).isWellOrder
 
+/-- The stage-major fallback rank: `typein` of the first-appearance well order,
+injective for free. This is the order every closure was ranked by before the
+recursive order reached inside a stage body; it survives as the reference point
+the promotion is measured against (`entryRank_promotion_agree`), not as a
+component of the shipped rank. -/
+noncomputable def clFallbackRank (n : Node) (e : Entries n) : Ordinal :=
+  typein (entryLt n) e
+
+/-- The matching fallback bound: the first-appearance order type. -/
+noncomputable def clFallbackBound (n : Node) : Ordinal := Ordinal.type (entryLt n)
+
+theorem clFallbackRank_lt (n : Node) (e : Entries n) :
+    clFallbackRank n e < clFallbackBound n :=
+  typein_lt_type _ _
+
+theorem clFallbackRank_injective (n : Node) : Function.Injective (clFallbackRank n) :=
+  fun _ _ h => typein_injective _ h
+
 /- ---------------------------------------------------------------- -/
 /- Phase A on real syntax: a finite code range caps the spelling     -/
 /- order at the one limit.                                           -/
