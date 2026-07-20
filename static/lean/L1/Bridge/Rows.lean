@@ -471,7 +471,8 @@ theorem collapseRow_denotes_c
 
 /-- The recursion's split choice on the collapse row is the collision split
 `([], e.1)`: the empty head loses positionally to nothing, so it owns the
-entry -- the recursive-order face of `collapseRow_leastSplit`. -/
+entry -- the collision-ownership rule of `prod2_collision_settled` read off
+the collapse row. -/
 theorem collapseRow_someSplit
     (e : Entries (prod2 (unitClosure 0 1) (unitClosure 0 1))) :
     someSplit (unitClosure 0 1) (prodNode (.node (unitClosure 0 1) .nil)) e.1

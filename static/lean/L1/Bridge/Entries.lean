@@ -33,12 +33,13 @@ and the type-omega claims land as theorems about the finite fragment:
 - The admission witness `{ab, {a}&{b}}` (`anbn_entriesType`): type omega too.
 
 `entryLt` is stage-major with the spelling order within a stage; the doc's
-union/product body order and collision ownership of faces live in
-`L1/Bridge/Union.lean` and `L1/Bridge/Product.lean`, and the transfinite
-entry types (the product rows at omega*k and omega^2, the union row past
-the limit) in `L1/Bridge/Rows.lean`. What remains deferred -- n-ary factor
-machinery, the in-range seam survivors, the body-recursive within-body
-order -- is the narrowed TODO in `docs/.TODO.md`. -/
+union/product term shapes, their denotation inversions and collision
+ownership of faces live in `L1/Bridge/Split.lean`, the body-recursive entry
+order itself in `L1/Bridge/RecOrder.lean`, and the transfinite entry types
+(the product rows at omega*k and omega^2, the union row past the limit) in
+`L1/Bridge/Rows.lean`. What remains deferred -- n-ary factor machinery, the
+in-range seam survivors, the within-stage body order for nested closures --
+is the narrowed TODO in `docs/.TODO.md`. -/
 import L1.Membership.Laws
 import L1.Membership.NorthStar
 import L1.Order.Enumeration
@@ -79,6 +80,18 @@ instance (n : Node) : IsWellOrder (Entries n) (entrySpellLt n) :=
 /-- The ordinal-valued entries enumeration, total on every `Node`: the order
 type of the spelling order on its entries. -/
 noncomputable def entriesType (n : Node) : Ordinal := Ordinal.type (entrySpellLt n)
+
+/-- Restricting a well order to equivalent predicates gives the same order
+type. -/
+theorem type_subrel_congr {α : Type*} (r : α → α → Prop) [IsWellOrder α r]
+    {p q : α → Prop} (h : ∀ x, p x ↔ q x) :
+    Ordinal.type (Subrel r p) = Ordinal.type (Subrel r q) :=
+  Ordinal.type_eq.mpr ⟨⟨Equiv.subtypeEquivRight h, Iff.rfl⟩⟩
+
+/-- Denotationally equal terms wear their entries at the same type. -/
+theorem entriesType_congr {m n : Node} (h : ∀ s, denotes m s ↔ denotes n s) :
+    entriesType m = entriesType n :=
+  type_subrel_congr _ h
 
 /-- The least stage at which a binder wears `s` (`0` when it never does):
 first appearance, read off the real stage ladder of `Semantics.lean`. -/

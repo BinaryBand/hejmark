@@ -19,8 +19,7 @@ order is presented as a rank into the single, non-dependent type `Ordinal`:
 free (they are `<` on `Ordinal`, pulled back), so the entire novelty of the
 well-order proof collapses to one obligation -- the rank is injective. The
 recursive `entryRank` and its injectivity are the next increment. -/
-import L1.Bridge.Product
-import L1.Bridge.Union
+import L1.Bridge.Split
 
 namespace L1
 
@@ -145,50 +144,11 @@ theorem unionReinterp_injective (n1 n2 : Node) (hb1 : bindsb n1 = false)
     exact Subtype.ext hxy
 
 /- ---------------------------------------------------------------- -/
-/- N-ary product: head/tail piece extraction. The `Factors` recursion -/
-/- splits a product entry into its head factor and the tail product,  -/
-/- one binary cut at a time, over `Product.IsSplit` -- the same split  -/
-/- address the binary `prod2` uses, reused off the 2-factor case.      -/
-/- ---------------------------------------------------------------- -/
-
-/-- A product over a factor list, as a node. -/
-def prodNode (fs : Factors) : Node := nsingle (.prod fs)
-
-theorem prodNode_bindsb (fs : Factors) : bindsb (prodNode fs) = hasAmpb fs := by
-  simp [prodNode, nsingle, bindsb, freeAmpb]
-
-/-- A non-binder product's denotation is its factor split. -/
-theorem denotes_prodNode_fsplit (fs : Factors) (hnb : hasAmpb fs = false)
-    (s : Spelling) :
-    denotes (prodNode fs) s ↔ fsplit fs (fun _ => False) s := by
-  show ndenote (prodNode fs) (fun _ => False) s ↔ _
-  rw [ndenote_nonbinder _ _ _ (by rw [prodNode_bindsb, hnb])]
-  show walk (nsingle (.prod fs)) _ False s ↔ _
-  rw [walk_single_prod, false_or]
-
-/-- Head/tail split characterization for a non-binder product: `n :: rest` wears
-exactly the concatenations of `n`'s spellings with `prodNode rest`'s -- an
-unconditional binary split of head vs tail over the non-binder skeleton (a
-literal `&` in a later factor would make the product bind, so the hypothesis
-`hasAmpb rest = false` is exactly the non-binder condition). -/
-theorem prodNode_node_split (n : Node) (rest : Factors) (hnb : hasAmpb rest = false)
-    (s : Spelling) :
-    denotes (prodNode (.node n rest)) s
-      ↔ ∃ p q, s = p ++ q ∧ denotes n p ∧ denotes (prodNode rest) q := by
-  rw [denotes_prodNode_fsplit (.node n rest) (by simpa [hasAmpb] using hnb),
-    fsplit_fnode]
-  constructor
-  · rintro ⟨p, q, rfl, hp, hq⟩
-    exact ⟨p, q, rfl, hp, (denotes_prodNode_fsplit rest hnb q).mpr hq⟩
-  · rintro ⟨p, q, rfl, hp, hq⟩
-    exact ⟨p, q, rfl, hp, (denotes_prodNode_fsplit rest hnb q).mp hq⟩
-
-/- ---------------------------------------------------------------- -/
-/- Shared inputs to the rank recursions: the fallback bound for a    -/
-/- nested closure inside the within-stage recursion (STEP 4b), and   -/
-/- the total head/tail split choice the product recursions use. The  -/
-/- rank and bound themselves are defined at the end of this file,    -/
-/- after the closure machinery they consume (the 4d-iii swap).       -/
+/- Shared input to the rank recursions: the fallback bound for a      -/
+/- nested closure inside the within-stage recursion (STEP 4b). The    -/
+/- rank and bound themselves are defined at the end of this file,     -/
+/- after the closure machinery they consume (the 4d-iii swap); the    -/
+/- split machinery they run on is `L1/Bridge/Split.lean`.             -/
 /- ---------------------------------------------------------------- -/
 
 /-- Bound for a nested-closure fallback block: the order type of the
@@ -196,32 +156,6 @@ stage-major `entryLt`. After the 4d-iii swap only the within-stage recursion
 (STEP 4b) still ranks a nested, amp-independent closure by this fallback --
 the top-level closure branches rank by `cRank` / `cBound`. -/
 noncomputable def closureBound (n : Node) : Ordinal := Ordinal.type (entryLt n)
-
-open Classical in
-/-- The sole split-choosing primitive: the least split of `s` into `p ++ q` with
-`headP p` and `tailP q`, junk `([], [])` when none. The product recursions and
-transfinite rows use it through the `denotes`-specialization `someSplit` below;
-the within-stage product recursion instantiates it directly on `walk`/`amp`
-piece predicates rather than `denotes`. -/
-noncomputable def someSplitP (headP tailP : Spelling → Prop) (s : Spelling) :
-    Spelling × Spelling :=
-  if h : ∃ pq : Spelling × Spelling, s = pq.1 ++ pq.2 ∧ headP pq.1 ∧ tailP pq.2
-  then (IsWellFounded.wf (r := splitLt)).min _ h
-  else ([], [])
-
-/-- The chosen split is a genuine one whenever any exists. -/
-theorem someSplitP_spec (headP tailP : Spelling → Prop) (s : Spelling)
-    (h : ∃ pq : Spelling × Spelling, s = pq.1 ++ pq.2 ∧ headP pq.1 ∧ tailP pq.2) :
-    s = (someSplitP headP tailP s).1 ++ (someSplitP headP tailP s).2
-      ∧ headP (someSplitP headP tailP s).1 ∧ tailP (someSplitP headP tailP s).2 := by
-  rw [someSplitP, dif_pos h]
-  exact WellFounded.min_mem _ _ h
-
-/-- Some owning split of `s` into head/tail (junk `([], [])` when none): the
-`denotes`-specialization of `someSplitP` the product recursions and the rows use;
-on a real non-binder product entry it is the least split owning the entry. -/
-noncomputable def someSplit (nh nt : Node) (s : Spelling) : Spelling × Spelling :=
-  someSplitP (denotes nh) (denotes nt) s
 
 /- ================================================================ -/
 /- STEP 2 support: the faithfulness apparatus -- the `Faithful`      -/
@@ -312,20 +246,6 @@ theorem nSubfree_subfreeb : ∀ (n : Node), nSubfree n = true → subfreeb n = t
   | .cons m rest, h => by
       have hrest := nSubfree_subfreeb rest
       cases m <;> simp_all [nSubfree, subfreeb, mSubfree]
-
-/- ---- Head/tail split reconstruction for the product recursion. ---- -/
-
-/-- The total `someSplit` picks a genuine owning split whenever one exists. -/
-theorem someSplit_isHT (nh nt : Node) (s : Spelling) (h : ∃ pq, IsSplit nh nt s pq) :
-    IsSplit nh nt s (someSplit nh nt s) :=
-  someSplitP_spec (denotes nh) (denotes nt) s h
-
-/-- Every entry of a non-binder product `n :: rest` owns a head/tail split. -/
-theorem prodNode_node_split_exists {n : Node} {rest : Factors}
-    (hnb : hasAmpb rest = false) (e : Entries (nsingle (.prod (.node n rest)))) :
-    ∃ pq, IsSplit n (prodNode rest) e.1 pq := by
-  obtain ⟨p, q, hpq, hp, hq⟩ := (prodNode_node_split n rest hnb e.1).mp e.2
-  exact ⟨(p, q), hpq, hp, hq⟩
 
 /- ================================================================ -/
 /- STEP 4: the closure within-stage order -- the stage-structure     -/
@@ -1672,9 +1592,8 @@ theorem prod2_someSplit_isHT (a b : Node) (e : Entries (prod2 a b)) :
     (prodNode_node_split_exists (rfl : hasAmpb (Factors.node b Factors.nil) = false) e)
 
 /-- The head/tail factor entries of a binary-product entry, carved by the
-recursion's own split choice `someSplit` -- the recursive-order analogue of
-`prodPieces`. (`leastSplit` itself survives for `prod2_collision_settled`;
-only the `prodLt` order retired with the approximation in 5e.) -/
+recursion's own split choice `someSplit` (`L1/Bridge/Split.lean`), which is
+also what `prod2_collision_settled` names as the owning claimant. -/
 noncomputable def prod2RecPieces (a b : Node) (e : Entries (prod2 a b)) :
     Entries a × Entries b :=
   (⟨(someSplit a (prodNode (.node b .nil)) e.1).1, (prod2_someSplit_isHT a b e).2.1⟩,
@@ -1716,22 +1635,6 @@ theorem someSplit_prodNil_eq (b : Node) {q : Spelling} (hbq : denotes b q) :
     rw [h2, List.append_nil] at hq
     exact hq.symm
   exact Prod.ext h1 h2
-
-/-- Pin the recursion's split choice without a uniqueness hypothesis: a
-head/tail split that every other split equals-or-follows is the split
-`someSplit` picks -- `leastSplit_eq` transported onto the total choice. -/
-theorem someSplit_eq (nh nt : Node) {s : Spelling} {pq : Spelling × Spelling}
-    (hmem : IsSplit nh nt s pq)
-    (hleast : ∀ pq', IsSplit nh nt s pq' → pq' = pq ∨ splitLt pq pq') :
-    someSplit nh nt s = pq := by
-  have hex : ∃ pq' : Spelling × Spelling,
-      s = pq'.1 ++ pq'.2 ∧ denotes nh pq'.1 ∧ denotes nt pq'.2 := ⟨pq, hmem⟩
-  rw [someSplit, someSplitP, dif_pos hex]
-  rcases hleast _ (WellFounded.min_mem (IsWellFounded.wf (r := splitLt))
-      {pq' | s = pq'.1 ++ pq'.2 ∧ denotes nh pq'.1 ∧ denotes nt pq'.2} hex) with h | h
-  · exact h
-  · exact absurd h (WellFounded.not_lt_min (IsWellFounded.wf (r := splitLt))
-      {pq' | s = pq'.1 ++ pq'.2 ∧ denotes nh pq'.1 ∧ denotes nt pq'.2} hmem)
 
 /-- The constant low-digit pad every binary-product rank carries: the rank of
 the forced-empty tail-of-tail piece in the empty product's spelling order. -/

@@ -45,7 +45,7 @@ entryRank (leaf) s = typein (entrySpellLt leaf) s          -- ordinal rank in sh
 
 -- product (prod fs) -- positional / mixed radix over the factors' ranks,
 --   entry owned by its least split (collision ownership, already settled for
---   the binary case in Product.lean's `leastSplit`):
+--   the binary case in Split.lean's `someSplit` / `prod2_collision_settled`):
 --   entryRank = sum_i  entryRank(factor_i)(piece_i) * weightOf(later factors)
 
 -- closure (any binder node, AND a fold-of-binder) -- deferred stage-major:
