@@ -210,67 +210,6 @@ theorem nSubfree_subfreeb : ∀ (n : Node), nSubfree n = true → subfreeb n = t
       cases m <;> simp_all [nSubfree, subfreeb, mSubfree]
 
 /- ---------------------------------------------------------------- -/
-/- STEP 4a: the closure within-stage order -- the stage half.       -/
-/- Given ANY within-stage rank bounded by and injective within      -/
-/- each stage, the stage-major assembly (ladder offset plus         -/
-/- within-stage rank) is an injective rank. See design.md 4a.       -/
-/- ---------------------------------------------------------------- -/
-
-namespace RecOrder
-
-/-- The ladder offset: the ordinal width of every stage strictly below `k`,
-a finite sum since `k : ℕ`. Stage `k`'s rank block starts here. -/
-noncomputable def stageOffset (W : ℕ → Ordinal) : ℕ → Ordinal
-  | 0 => 0
-  | k + 1 => stageOffset W k + W k
-
-theorem stageOffset_le_succ (W : ℕ → Ordinal) (k : ℕ) :
-    stageOffset W k ≤ stageOffset W (k + 1) := by
-  rw [stageOffset]; exact le_self_add
-
-theorem stageOffset_mono (W : ℕ → Ordinal) {k k' : ℕ} (h : k ≤ k') :
-    stageOffset W k ≤ stageOffset W k' := by
-  induction h with
-  | refl => exact le_refl _
-  | step _ ih => exact ih.trans (stageOffset_le_succ W _)
-
-/-- The stage-major rank: the ladder offset of the entry's stage plus its
-within-stage rank. -/
-noncomputable def stageRank {β : Type*} (st : β → ℕ) (W : ℕ → Ordinal)
-    (w : β → Ordinal) (e : β) : Ordinal :=
-  stageOffset W (st e) + w e
-
-/-- A strictly earlier stage's whole block sits below the next ladder offset,
-so its every rank is strictly below every rank of a later stage. This is the
-cross-stage disjointness that makes the assembly injective. -/
-theorem stageRank_lt_of_stage_lt {β : Type*} (st : β → ℕ) (W : ℕ → Ordinal)
-    (w : β → Ordinal) (hbound : ∀ e, w e < W (st e)) {x y : β} (h : st x < st y) :
-    stageRank st W w x < stageRank st W w y := by
-  have h1 : stageRank st W w x < stageOffset W (st x + 1) := by
-    rw [stageRank, stageOffset]; exact (add_lt_add_iff_left _).2 (hbound x)
-  have h2 : stageOffset W (st x + 1) ≤ stageOffset W (st y) := stageOffset_mono W h
-  have h3 : stageOffset W (st y) ≤ stageRank st W w y := by
-    rw [stageRank]; exact le_self_add
-  exact h1.trans_le (h2.trans h3)
-
-/-- The stage-major rank is injective given a within-stage rank that stays
-below its stage's bound and is injective within each stage. Cross-stage
-distinctness is the block disjointness above; within a stage the shared offset
-cancels on the left and the per-stage injectivity finishes. -/
-theorem stageRank_injective {β : Type*} (st : β → ℕ) (W : ℕ → Ordinal)
-    (w : β → Ordinal) (hbound : ∀ e, w e < W (st e))
-    (hinj : ∀ x y, st x = st y → w x = w y → x = y) :
-    Function.Injective (stageRank st W w) := by
-  intro x y hxy
-  rcases lt_trichotomy (st x) (st y) with hlt | heq | hgt
-  · exact absurd hxy (ne_of_lt (stageRank_lt_of_stage_lt st W w hbound hlt))
-  · simp only [stageRank, heq] at hxy
-    exact hinj x y heq ((add_left_cancel_iff).1 hxy)
-  · exact absurd hxy.symm (ne_of_lt (stageRank_lt_of_stage_lt st W w hbound hgt))
-
-end RecOrder
-
-/- ---------------------------------------------------------------- -/
 /- STEP 4b-i: the within-stage body-membership inversions. A        -/
 /- stage-`k+1` body-spelling lives in `walk n (stage n k) False`,   -/
 /- so the union / fold / product routings restate over an           -/
@@ -1214,12 +1153,6 @@ theorem csData_eq_total (n : Node) (k : ℕ) :
 
 /- ---- One-step unfolding equations, over the total oracle. ---- -/
 
-theorem csBound_zero (n : Node) : csBound n 0 = 0 := by
-  simp only [csBound, csData_eq_total, csStep]
-
-theorem csRank_zero (n : Node) (s : Spelling) : csRank n 0 s = 0 := by
-  simp only [csRank, csData_eq_total, csStep]
-
 theorem csBound_succ (n : Node) (k : ℕ) :
     csBound n (k + 1)
       = csBound n k + wnBound (stage n k) (fun e => csRank n k e.1) (csBound n k) cRank cBound n := by
@@ -1235,11 +1168,6 @@ theorem csRank_succ_new (n : Node) (k : ℕ) (s : Spelling)
       = csBound n k
         + wnRank (stage n k) (fun e => csRank n k e.1) (csBound n k) cRank cBound n ⟨s, h2⟩ := by
   simp only [csRank, csBound, csData_eq_total, csStep, if_neg h1, dif_pos h2]
-
-theorem csRank_succ_none (n : Node) (k : ℕ) (s : Spelling)
-    (h1 : ¬ stage n k s) (h2 : ¬ walk n (stage n k) False s) :
-    csRank n (k + 1) s = 0 := by
-  simp only [csRank, csData_eq_total, csStep, if_neg h1, dif_neg h2]
 
 /- ---------------------------------------------------------------- -/
 /- STEP 4d-i: per-stage closure faithfulness -- the union-block     -/
@@ -1321,21 +1249,6 @@ theorem csBound_mono (n : Node) {j k : ℕ} (h : j ≤ k) :
   induction k, h using Nat.le_induction with
   | base => exact le_rfl
   | succ k hk ih => rw [csBound_succ]; exact ih.trans le_self_add
-
-/-- Cross-stage stabilization: once a spelling has appeared, every later
-stage carries it at the same rank (`csRank_succ_old` iterated). -/
-theorem csRank_stable (n : Node) {j k : ℕ} (h : j ≤ k) (s : Spelling)
-    (hs : stage n j s) : csRank n k s = csRank n j s := by
-  induction k, h using Nat.le_induction with
-  | base => rfl
-  | succ k hk ih => rw [csRank_succ_old n k s (stage_mono_le n j k s hk hs), ih]
-
-/-- Stabilization read at the first appearance: any stage that carries `s`
-carries it at its first-stage rank -- the per-stage rank IS the entry rank
-`cRank` wherever it is defined. -/
-theorem csRank_firstStage (n : Node) {k : ℕ} (s : Spelling) (h : stage n k s) :
-    csRank n k s = csRank n (firstStage n s) s :=
-  csRank_stable n (firstStage_le n s h) s (firstStage_stage n s ⟨k, h⟩)
 
 /-- A fresh entry ranks at or past the earlier stages' width: the fresh block
 starts at the offset `csBound n k` (`csRank_succ_new`). -/
@@ -1720,23 +1633,11 @@ theorem fSites_true : ∀ (fs : Factors), fSites (fun _ => True) fs
 end
 
 /-- Faithfulness of the merged recursion at the top-level instance. -/
-theorem wmFaithful_top (m : Member) (hm : mSubfree m = true) :
-    Faithful (wmRank noAmp noAmpRank 0 cRank cBound m)
-      (wmBound noAmp noAmpRank 0 cRank cBound m) :=
-  wmFaithful noAmp noAmpRank 0 cRank cBound (fun _ => True) noAmpFaithful
-    clFaithful_cRank m hm (mSites_true m)
-
 theorem wnFaithful_top (n : Node) (hn : nSubfree n = true) :
     Faithful (wnRank noAmp noAmpRank 0 cRank cBound n)
       (wnBound noAmp noAmpRank 0 cRank cBound n) :=
   wnFaithful noAmp noAmpRank 0 cRank cBound (fun _ => True) noAmpFaithful
     clFaithful_cRank n hn (nSites_true n)
-
-theorem wfFaithful_top (fs : Factors) (hf : fSubfree fs = true) :
-    Faithful (wfRank noAmp noAmpRank 0 cRank cBound fs)
-      (wfBound noAmp noAmpRank 0 cRank cBound fs) :=
-  wfFaithful noAmp noAmpRank 0 cRank cBound (fun _ => True) noAmpFaithful
-    clFaithful_cRank fs hf (fSites_true fs)
 
 theorem nFaithful (n : Node) (hn : nSubfree n = true) :
     Faithful (nRank n) (nBound n) := by

@@ -261,8 +261,6 @@ def braced (n : Node) : Node := nsingle (.fold n)
 
 theorem braced_bindsb (n : Node) : bindsb (braced n) = false := rfl
 
-theorem braced_subfreeb (n : Node) : subfreeb (braced n) = true := rfl
-
 theorem braced_denotes_iff (n : Node) (hb : bindsb n = true) (s : Spelling) :
     denotes (braced n) s ↔ denotes n s := by
   show ndenote (braced n) (fun _ => False) s ↔ _

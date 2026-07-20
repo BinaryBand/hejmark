@@ -3,7 +3,8 @@
 > **Completed design record, not a live spec.** Every step below has landed;
 > the record is kept for the reasoning, not as a description of current code.
 > Names it discusses as present or planned -- `closureBound`, `prodLt`,
-> `unionLt` and kin -- no longer exist in the tree. For what is true now, and
+> `unionLt`, the abstract stage-major backbone (`stageOffset` / `stageRank`)
+> and kin -- no longer exist in the tree. For what is true now, and
 > for what remains deferred, see `static/lean/README.md`.
 
 Design note for what was then the third deferral: replace the sanctioned within-body approximation (spelling order) with an order that recurses into each constructor's own structure. This is the upstream primitive the rest of `L1/Bridge/` is framed onto (`entrySpellLt` feeds `entriesType`, `entryLt`, `prodLt`, `unionLt`, and every row), so it lands additively first and the existing modules migrate onto it one at a time -- strangler-fig, single tree, every intermediate build green.
@@ -182,7 +183,7 @@ proved from `csData.eq_def` plus the locality lemmas (the guards hold at every c
 
 ### Faithfulness
 
-4d-i's `csFaithful` and 4d-ii's `cFaithful` need the subterm instance of `cFaithful` to discharge `hcl`. Rather than nesting the five lemmas that sit between them (`csBound_mono`, `csRank_stable`, `csBound_le_csRank_fresh`, `cRank_lt_of_firstStage_lt`) inside a strong-induction block, the subterm hypothesis is threaded through them explicitly and the strong induction on `sizeOf n` is closed once, at `cFaithful`. This is the promotion's whole content at the proof level: where 4b-ii-b discharged a nested closure by `faithful_typein`, it now discharges by `cFaithful` at the subterm.
+4d-i's `csFaithful` and 4d-ii's `cFaithful` need the subterm instance of `cFaithful` to discharge `hcl`. Rather than nesting the lemmas that sit between them (`csBound_mono`, `csBound_le_csRank_fresh`, `cRank_lt_of_firstStage_lt`) inside a strong-induction block, the subterm hypothesis is threaded through them explicitly and the strong induction on `sizeOf n` is closed once, at `cFaithful`. This is the promotion's whole content at the proof level: where 4b-ii-b discharged a nested closure by `faithful_typein`, it now discharges by `cFaithful` at the subterm.
 
 ### Retiring the top-level recursion
 

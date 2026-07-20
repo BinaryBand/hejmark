@@ -172,15 +172,6 @@ theorem shortlexLt_not_le (s t : Spelling) :
 theorem shortlexLe_refl (s : Spelling) : shortlexLe s s = true := by
   simp [shortlexLe]
 
-theorem shortlexLe_trans {s t u : Spelling} :
-    shortlexLe s t = true → shortlexLe t u = true → shortlexLe s u = true := by
-  simp only [shortlexLe, Bool.or_eq_true, beq_iff_eq]
-  rintro (hst | rfl) (htu | rfl)
-  · exact Or.inl (shortlexLt_trans hst htu)
-  · exact Or.inl hst
-  · exact Or.inl htu
-  · exact Or.inr rfl
-
 theorem shortlexLe_lt_trans {s t u : Spelling} :
     shortlexLe s t = true → shortlexLt t u = true → shortlexLt s u = true := by
   simp only [shortlexLe, Bool.or_eq_true, beq_iff_eq]

@@ -92,8 +92,6 @@ def twoFaces : Node := .cons (.face [2]) (nsingle (.face [3]))
 
 theorem twoFaces_bindsb : bindsb twoFaces = false := rfl
 
-theorem twoFaces_subfreeb : subfreeb twoFaces = true := rfl
-
 theorem twoFaces_denotes_iff (s : Spelling) :
     denotes twoFaces s ↔ s = [2] ∨ s = [3] := by
   show ndenote twoFaces (fun _ => False) s ↔ _

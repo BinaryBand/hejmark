@@ -81,13 +81,6 @@ instance (n : Node) : IsWellOrder (Entries n) (entrySpellLt n) :=
 type of the spelling order on its entries. -/
 noncomputable def entriesType (n : Node) : Ordinal := Ordinal.type (entrySpellLt n)
 
-/-- Restricting a well order to equivalent predicates gives the same order
-type. -/
-theorem type_subrel_congr {α : Type*} (r : α → α → Prop) [IsWellOrder α r]
-    {p q : α → Prop} (h : ∀ x, p x ↔ q x) :
-    Ordinal.type (Subrel r p) = Ordinal.type (Subrel r q) :=
-  Ordinal.type_eq.mpr ⟨⟨Equiv.subtypeEquivRight h, Iff.rfl⟩⟩
-
 /-- The least stage at which a binder wears `s` (`0` when it never does):
 first appearance, read off the real stage ladder of `Semantics.lean`. -/
 noncomputable def firstStage (n : Node) (s : Spelling) : ℕ := sInf {k | stage n k s}

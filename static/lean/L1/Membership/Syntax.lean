@@ -43,10 +43,6 @@ theorem napp_assoc : ∀ (a b c : Node), napp (napp a b) c = napp a (napp b c)
   | .nil, _, _ => rfl
   | .cons m rest, b, c => by simp [napp, napp_assoc rest b c]
 
-theorem napp_nnil_r : ∀ (n : Node), napp n .nil = n
-  | .nil => rfl
-  | .cons m rest => by simp [napp, napp_nnil_r rest]
-
 /- ---------------------------------------------------------------- -/
 /- Binder detection, mirroring universe.py's _binds/_free_amp: a     -/
 /- free `&` is the token itself or a literal `&` factor; it recurses -/
