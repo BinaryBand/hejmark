@@ -14,7 +14,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 from dataclasses import dataclass
 
-from hejmark.core.universe import Query, Universe
+from hejmark.core.floor.universe import Query, Universe
 
 
 @dataclass(frozen=True)

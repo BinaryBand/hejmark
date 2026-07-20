@@ -24,12 +24,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from hejmark.core.capture import canonical_face
 from hejmark.core.engine import query as _denote_query
-from hejmark.core.match import finditer
-from hejmark.core.resolve import Env
-from hejmark.core.surface import Expr, Interp, Statement, Step, Template, Text
-from hejmark.core.universe import Query
+from hejmark.core.floor.universe import Query
+from hejmark.core.scan.capture import canonical_face
+from hejmark.core.scan.match import finditer
+from hejmark.core.surface.ast import Expr, Interp, Statement, Step, Template, Text
+from hejmark.core.surface.resolve import Env
 
 
 @dataclass(frozen=True)

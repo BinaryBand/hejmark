@@ -30,8 +30,8 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import assert_never
 
-from hejmark.core.order import Window, successor
-from hejmark.core.syntax import (
+from hejmark.core.floor.order import Window, successor
+from hejmark.core.floor.syntax import (
     Closure,
     Face,
     Final,

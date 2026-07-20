@@ -10,11 +10,11 @@ from __future__ import annotations
 import pytest
 
 from hejmark.adapters.parser import AntlrParser
-from hejmark.core import syntax
-from hejmark.core.expand import UNIT, Ctx, expand
-from hejmark.core.resolve import collect, merge
+from hejmark.core.floor import syntax
 from hejmark.core.std import std_env
-from hejmark.core.surface import Expr, HimarkScopeError, Statement
+from hejmark.core.surface.ast import Expr, HimarkScopeError, Statement
+from hejmark.core.surface.expand import UNIT, Ctx, expand
+from hejmark.core.surface.resolve import collect, merge
 
 _to_ast = AntlrParser().to_ast
 

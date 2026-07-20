@@ -12,7 +12,7 @@ from itertools import islice
 from hypothesis import given
 from hypothesis.strategies import text
 
-from hejmark.core.order import Window, spelling_key, successor
+from hejmark.core.floor.order import Window, spelling_key, successor
 
 # A tiny alphabet whose short strings can be enumerated and checked exhaustively.
 _ALPHABET = "abc"

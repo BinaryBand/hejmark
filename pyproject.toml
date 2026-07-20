@@ -119,6 +119,31 @@ layers = [
 exhaustive = true
 exhaustive_ignores = ["__main__"]
 
+[[tool.importlinter.contracts]]
+# The pipeline, made structural. The load-bearing rule of the design is that
+# L1.5 never reaches denotation: core.floor implements the six constructors and
+# must not know the surface exists, because expansion's job is to have rewritten
+# the surface away before denote() is ever called. Stating it as layers means
+# `lint-imports` fails the moment anything in floor/ reaches upward, instead of
+# the invariant resting on reviewer attention.
+#
+# `exhaustive = true` also forces the placement question to be answered: a new
+# core module that is not named here is a contract violation, so "which stratum
+# does this belong to?" gets decided when the module is written.
+name = "core pipeline"
+type = "layers"
+containers = ["hejmark.core"]
+layers = [
+    "emit",
+    "engine",
+    "std",
+    "ports",
+    "scan",
+    "surface",
+    "floor",
+]
+exhaustive = true
+
 [build-system]
 requires = ["uv_build>=0.9,<0.11"]
 build-backend = "uv_build"

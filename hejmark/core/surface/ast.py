@@ -4,13 +4,13 @@ These nodes mirror ``HimarkParser.g4`` exactly: a script is lines, a line is a
 declaration or a statement, a statement is steps joined by ``=>``. Nothing is
 resolved here -- names stay names, the operand token stays a token, pipelines
 stay flat item lists -- because L1.5's whole job is to *expand* into the floor,
-and that happens in :mod:`hejmark.core.expand`.
+and that happens in :mod:`hejmark.core.surface.expand`.
 
 The floor's own nodes are reused wherever the surface adds nothing:
-:class:`~hejmark.core.syntax.Face`, :class:`~hejmark.core.syntax.Range`,
-:class:`~hejmark.core.syntax.Final` and :class:`~hejmark.core.syntax.Closure`
+:class:`~hejmark.core.floor.syntax.Face`, :class:`~hejmark.core.floor.syntax.Range`,
+:class:`~hejmark.core.floor.syntax.Final` and :class:`~hejmark.core.floor.syntax.Closure`
 mean here exactly what they mean there. Everything else is surface-only and
-must be gone by the time :func:`hejmark.core.universe.denote` is called.
+must be gone by the time :func:`hejmark.core.floor.universe.denote` is called.
 
 Two normalizations happen at build time rather than here, both purely
 syntactic: escapes resolve to their characters (as on the floor), and a braced
@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from hejmark.core.syntax import Closure, Face, Final, Range
+from hejmark.core.floor.syntax import Closure, Face, Final, Range
 
 
 class HimarkScopeError(ValueError):

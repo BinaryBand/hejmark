@@ -5,7 +5,8 @@ from __future__ import annotations
 import pytest
 
 from hejmark.adapters.parser import AntlrParser
-from hejmark.core.surface import (
+from hejmark.core.floor.syntax import Closure, Face, Final, HimarkSyntaxError, Range
+from hejmark.core.surface.ast import (
     DefDecl,
     Expr,
     Interp,
@@ -19,7 +20,6 @@ from hejmark.core.surface import (
     Unit,
     UniverseNode,
 )
-from hejmark.core.syntax import Closure, Face, Final, HimarkSyntaxError, Range
 
 _to_ast = AntlrParser().to_ast
 

@@ -11,7 +11,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Protocol
 
-from hejmark.core.surface import ScriptNode
+from hejmark.core.surface.ast import ScriptNode
 
 
 class ParserGenerator(Protocol):

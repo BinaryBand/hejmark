@@ -19,10 +19,10 @@ from __future__ import annotations
 
 from functools import lru_cache
 
+from hejmark.core.floor.syntax import Range
 from hejmark.core.ports import ToAst
-from hejmark.core.resolve import Env, collect
-from hejmark.core.surface import Expr, Unit, UniverseNode
-from hejmark.core.syntax import Range
+from hejmark.core.surface.ast import Expr, Unit, UniverseNode
+from hejmark.core.surface.resolve import Env, collect
 
 # The greatest code point; the least is the null character.
 _MAX = "\U0010ffff"

@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from hejmark.core.surface import (
+from hejmark.core.floor.syntax import Face
+from hejmark.core.surface.ast import (
     Expr,
     HimarkScopeError,
     Interp,
@@ -21,7 +22,6 @@ from hejmark.core.surface import (
     Unit,
     UniverseNode,
 )
-from hejmark.core.syntax import Face
 
 
 def test_scope_error_is_a_value_error() -> None:

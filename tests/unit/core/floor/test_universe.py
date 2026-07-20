@@ -11,7 +11,7 @@ from itertools import islice
 
 import pytest
 
-from hejmark.core.syntax import (
+from hejmark.core.floor.syntax import (
     Closure,
     Face,
     Final,
@@ -21,7 +21,7 @@ from hejmark.core.syntax import (
     Subtract,
     UniverseNode,
 )
-from hejmark.core.universe import HimarkUnsettledError, denote
+from hejmark.core.floor.universe import HimarkUnsettledError, denote
 
 
 def _faces(node: UniverseNode, limit: int | None = None) -> list[tuple[str, ...]]:

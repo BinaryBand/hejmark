@@ -6,7 +6,7 @@ import dataclasses
 
 import pytest
 
-from hejmark.core.syntax import (
+from hejmark.core.floor.syntax import (
     Closure,
     Face,
     Fold,

@@ -16,11 +16,11 @@ from hejmark.core.engine import finditer as _finditer
 from hejmark.core.engine import match as _match
 from hejmark.core.engine import parse as _parse
 from hejmark.core.engine import script as _script
-from hejmark.core.match import Match, MatchPart
-from hejmark.core.resolve import statements as _statements
-from hejmark.core.surface import HimarkScopeError
-from hejmark.core.syntax import HimarkSyntaxError
-from hejmark.core.universe import Entry, HimarkUnsettledError, Query, Universe
+from hejmark.core.floor.syntax import HimarkSyntaxError
+from hejmark.core.floor.universe import Entry, HimarkUnsettledError, Query, Universe
+from hejmark.core.scan.match import Match, MatchPart
+from hejmark.core.surface.ast import HimarkScopeError
+from hejmark.core.surface.resolve import statements as _statements
 
 _to_ast = AntlrParser().to_ast
 

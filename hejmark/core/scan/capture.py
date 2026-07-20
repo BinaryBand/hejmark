@@ -13,9 +13,9 @@ until it finds the wearer.
 
 from __future__ import annotations
 
-from hejmark.core.match import Match
-from hejmark.core.surface import HimarkScopeError
-from hejmark.core.universe import Query, Universe
+from hejmark.core.floor.universe import Query, Universe
+from hejmark.core.scan.match import Match
+from hejmark.core.surface.ast import HimarkScopeError
 
 # How many entries a canonical-face read will stream before giving up. Reaching
 # a wearer costs its position, and a position is not bounded by anything the

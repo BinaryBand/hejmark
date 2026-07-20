@@ -24,7 +24,7 @@ import graphlib
 from collections.abc import Iterator
 from dataclasses import dataclass
 
-from hejmark.core.surface import (
+from hejmark.core.surface.ast import (
     DefDecl,
     Expr,
     HimarkScopeError,

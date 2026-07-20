@@ -5,8 +5,8 @@ from __future__ import annotations
 import pytest
 
 from hejmark.adapters.parser import AntlrParser
-from hejmark.core.resolve import Env, bind, canonicalize, collect, merge, statements
-from hejmark.core.surface import HimarkScopeError, PipeItem
+from hejmark.core.surface.ast import HimarkScopeError, PipeItem
+from hejmark.core.surface.resolve import Env, bind, canonicalize, collect, merge, statements
 
 _to_ast = AntlrParser().to_ast
 

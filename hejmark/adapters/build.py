@@ -1,4 +1,4 @@
-r"""Walks an ANTLR parse tree into a faithful :mod:`hejmark.core.surface` AST.
+r"""Walks an ANTLR parse tree into a faithful :mod:`hejmark.core.surface.ast` AST.
 
 The grammar carries the classification, so this module only transcribes: every
 labelled alternative (``# UniDecl``, ``# RangeMember``, ``# QueryStep``, ...)
@@ -14,7 +14,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from hejmark.core.surface import (
+from hejmark.core.floor.syntax import Closure, Face, Final, HimarkSyntaxError, Range
+from hejmark.core.surface.ast import (
     DefDecl,
     Expr,
     Interp,
@@ -32,7 +33,6 @@ from hejmark.core.surface import (
     Unit,
     UniverseNode,
 )
-from hejmark.core.syntax import Closure, Face, Final, HimarkSyntaxError, Range
 
 
 def _unescape(text: str) -> str:

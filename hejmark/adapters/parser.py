@@ -15,8 +15,8 @@ from antlr4 import CommonTokenStream, InputStream
 from antlr4.error.ErrorListener import ErrorListener
 
 from hejmark.adapters.build import build
-from hejmark.core.surface import ScriptNode
-from hejmark.core.syntax import HimarkSyntaxError
+from hejmark.core.floor.syntax import HimarkSyntaxError
+from hejmark.core.surface.ast import ScriptNode
 
 
 class GeneratedParserMissingError(RuntimeError):

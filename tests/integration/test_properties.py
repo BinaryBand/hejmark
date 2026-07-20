@@ -17,7 +17,7 @@ from hypothesis.strategies import integers, lists, text
 
 from hejmark import match as match_source
 from hejmark import parse
-from hejmark.core.universe import Universe
+from hejmark.core.floor.universe import Universe
 
 # Buildable face characters: alphanumerics are unambiguous and free of reserved
 # chars ('{,}',!.\\&). We exclude them so the constructed source round-trips

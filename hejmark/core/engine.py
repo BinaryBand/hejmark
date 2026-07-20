@@ -14,15 +14,15 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 
-from hejmark.core.expand import Ctx, expand
-from hejmark.core.match import Match
-from hejmark.core.match import finditer as _finditer
-from hejmark.core.match import match as _match
+from hejmark.core.floor.universe import Query, denote
 from hejmark.core.ports import ToAst
-from hejmark.core.resolve import Env, collect, merge, statements
+from hejmark.core.scan.match import Match
+from hejmark.core.scan.match import finditer as _finditer
+from hejmark.core.scan.match import match as _match
 from hejmark.core.std import std_env
-from hejmark.core.surface import Expr, HimarkScopeError, ScriptNode
-from hejmark.core.universe import Query, denote
+from hejmark.core.surface.ast import Expr, HimarkScopeError, ScriptNode
+from hejmark.core.surface.expand import Ctx, expand
+from hejmark.core.surface.resolve import Env, collect, merge, statements
 
 
 def script(to_ast: ToAst, source: str) -> tuple[ScriptNode, Env]:

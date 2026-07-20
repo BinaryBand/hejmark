@@ -6,8 +6,8 @@ import pytest
 
 from hejmark.adapters.parser import AntlrParser
 from hejmark.core.engine import finditer, match, parse, script
-from hejmark.core.surface import HimarkScopeError
-from hejmark.core.universe import Query
+from hejmark.core.floor.universe import Query
+from hejmark.core.surface.ast import HimarkScopeError
 
 _to_ast = AntlrParser().to_ast
 

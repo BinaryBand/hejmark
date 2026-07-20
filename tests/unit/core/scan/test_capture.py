@@ -5,9 +5,9 @@ from __future__ import annotations
 import pytest
 
 from hejmark import parse
-from hejmark.core.capture import canonical, canonical_face
-from hejmark.core.match import match
-from hejmark.core.surface import HimarkScopeError
+from hejmark.core.scan.capture import canonical, canonical_face
+from hejmark.core.scan.match import match
+from hejmark.core.surface.ast import HimarkScopeError
 
 
 def test_canonical_finds_the_wearer_of_a_later_face() -> None:

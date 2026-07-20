@@ -4,8 +4,8 @@ This is L1.5's admission rule made executable. A surface construct adds no
 denotation -- every application expands into union, subtraction, fold, final
 segment, product and closure -- or it does not enter. So nothing here is
 interpreted: names splice, definitions substitute, exponents repeat, and what
-comes out is a plain :mod:`hejmark.core.syntax` tree that
-:func:`hejmark.core.universe.denote` reads without knowing L1.5 exists.
+comes out is a plain :mod:`hejmark.core.floor.syntax` tree that
+:func:`hejmark.core.floor.universe.denote` reads without knowing L1.5 exists.
 
 The registers are the expander's metafunctions, given tokens. The precedent is
 the floor's own bounded range -- ``{a..z}`` is ``{a.., !{s..}}``, which
@@ -25,9 +25,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from hejmark.core import syntax
-from hejmark.core.resolve import Binding, Env, bind, canonicalize
-from hejmark.core.surface import (
+from hejmark.core.floor import syntax
+
+# The floor's own binder test: whether a brace expression's members hold a free
+# `&`. Expansion must know, because a binder may never be inlined.
+from hejmark.core.floor.universe import _binds as binds
+from hejmark.core.floor.universe import denote
+from hejmark.core.surface.ast import (
     DefDecl,
     Expr,
     HimarkScopeError,
@@ -40,11 +44,7 @@ from hejmark.core.surface import (
     Unit,
     UniverseNode,
 )
-
-# The floor's own binder test: whether a brace expression's members hold a free
-# `&`. Expansion must know, because a binder may never be inlined.
-from hejmark.core.universe import _binds as binds
-from hejmark.core.universe import denote
+from hejmark.core.surface.resolve import Binding, Env, bind, canonicalize
 
 # The empty universe, and the unit: a fold over the empty alphabet, the one
 # entry wearing the empty spelling. The unit is the product identity.

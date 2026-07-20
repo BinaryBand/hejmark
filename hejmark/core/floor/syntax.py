@@ -3,7 +3,7 @@
 These nodes mirror the parse exactly: nothing is normalized, deduplicated, or
 rewritten here. All constructor semantics (union no-ops, fold flattening,
 subtraction, closure binding) happen later at denotation time in
-:mod:`hejmark.core.universe`.
+:mod:`hejmark.core.floor.universe`.
 """
 
 from __future__ import annotations

@@ -7,9 +7,9 @@ so every assertion is about spans and faces.
 
 from __future__ import annotations
 
-from hejmark.core.match import finditer, match
-from hejmark.core.syntax import Face, Fold, UniverseNode
-from hejmark.core.universe import Query, Universe, denote
+from hejmark.core.floor.syntax import Face, Fold, UniverseNode
+from hejmark.core.floor.universe import Query, Universe, denote
+from hejmark.core.scan.match import finditer, match
 
 
 def _universe(*faces: str) -> Universe:

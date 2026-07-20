@@ -11,7 +11,7 @@ from __future__ import annotations
 import pytest
 
 from hejmark import finditer, match
-from hejmark.core.universe import HimarkUnsettledError
+from hejmark.core.floor.universe import HimarkUnsettledError
 
 
 def test_leftmost_single_face_match() -> None:
