@@ -49,11 +49,11 @@ State is a single `AppState extends ChangeNotifier`, mirroring the brief's
 ```bash
 cd gui
 flutter pub get
-flutter run                 # on a connected Android/iOS device or emulator
+flutter run -d linux        # desktop preview (enabled)
+flutter run                 # or a connected Android/iOS device / emulator
 flutter test                # widget + phone-size flow tests
 flutter analyze             # clean
 ```
 
-The project is generated for **Android and iOS** only. To preview on desktop or
-web, add the target first, e.g. `flutter create --platforms=linux .` then
-`flutter run -d linux`.
+Targets: **Android, iOS, and Linux desktop**. To add web or another desktop,
+run e.g. `flutter create --platforms=web .` first.
