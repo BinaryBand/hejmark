@@ -1739,7 +1739,8 @@ theorem prod2_someSplit_isHT (a b : Node) (e : Entries (prod2 a b)) :
 
 /-- The head/tail factor entries of a binary-product entry, carved by the
 recursion's own split choice `someSplit` -- the recursive-order analogue of
-`prodPieces`, whose `leastSplit` retires with the approximation in 5e. -/
+`prodPieces`. (`leastSplit` itself survives for `prod2_collision_settled`;
+only the `prodLt` order retired with the approximation in 5e.) -/
 noncomputable def prod2RecPieces (a b : Node) (e : Entries (prod2 a b)) :
     Entries a × Entries b :=
   (⟨(someSplit a (prodNode (.node b .nil)) e.1).1, (prod2_someSplit_isHT a b e).2.1⟩,
@@ -1781,6 +1782,21 @@ theorem someSplit_prodNil_eq (b : Node) {q : Spelling} (hbq : denotes b q) :
     rw [h2, List.append_nil] at hq
     exact hq.symm
   exact Prod.ext h1 h2
+
+/-- Pin the recursion's split choice without a uniqueness hypothesis: a
+head/tail split that every other split equals-or-follows is the split
+`someSplit` picks -- `leastSplit_eq` transported onto the total choice. -/
+theorem someSplit_eq (nh nt : Node) {s : Spelling} {pq : Spelling × Spelling}
+    (hmem : IsHT nh nt s pq)
+    (hleast : ∀ pq', IsHT nh nt s pq' → pq' = pq ∨ splitLt pq pq') :
+    someSplit nh nt s = pq := by
+  have hex : ∃ pq', IsHT nh nt s pq' := ⟨pq, hmem⟩
+  rw [someSplit, dif_pos hex]
+  rcases hleast _ (WellFounded.min_mem (IsWellFounded.wf (r := splitLt))
+      {pq' | IsHT nh nt s pq'} hex) with h | h
+  · exact h
+  · exact absurd h (WellFounded.not_lt_min (IsWellFounded.wf (r := splitLt))
+      {pq' | IsHT nh nt s pq'} hmem)
 
 /-- The constant low-digit pad every binary-product rank carries: the rank of
 the forced-empty tail-of-tail piece in the empty product's spelling order. -/
@@ -2202,6 +2218,36 @@ theorem entryRank_binder : ∀ (n : Node), bindsb n = true →
   | .cons m rest, hb, e => by
       show nRank (.cons m rest) e = cRank (.cons m rest) e
       simp only [nRank, hb, if_true]
+
+/-- Braced closures keep their enumeration: a fold wrapped around a binder
+body wears the body's own entries at the body's own recursive rank (the
+`mRank (.fold inner)` binder branch routes through `foldBinderReinterp`), so
+the enumeration is unchanged. -/
+theorem entryRecType_fold_binder (n : Node) (hb : bindsb n = true)
+    (hsub : nSubfree n = true) :
+    entryRecType (nsingle (.fold n)) = entryRecType n := by
+  have hfsub : nSubfree (nsingle (.fold n)) = true := by
+    simp [nsingle, nSubfree, mSubfree, hsub]
+  have hbf : bindsb (nsingle (.fold n)) = false := by
+    simp [nsingle, bindsb, freeAmpb]
+  have hrank : ∀ e : Entries (nsingle (.fold n)),
+      entryRank (nsingle (.fold n)) e = entryRank n (foldBinderReinterp n hb e) := by
+    intro e
+    rw [entryRank_binder n hb]
+    show nRank (Node.cons (.fold n) Node.nil) e = cRank n (foldBinderReinterp n hb e)
+    rw [nRank_cons_first hbf e e.2]
+    simp only [mRank, dif_pos hb]
+  haveI := entryRecLt_isWellOrder (nsingle (.fold n)) hfsub
+  haveI := entryRecLt_isWellOrder n hsub
+  rw [entryRecType_def _ hfsub, entryRecType_def n hsub]
+  refine Ordinal.type_eq.mpr ⟨⟨Equiv.ofBijective (foldBinderReinterp n hb)
+    ⟨foldBinderReinterp_injective n hb, ?_⟩, ?_⟩⟩
+  · intro e
+    exact ⟨⟨e.1, (denotes_fold_binder n hb e.1).mpr e.2⟩, Subtype.ext rfl⟩
+  · intro x y
+    show entryRank n (foldBinderReinterp n hb x) < entryRank n (foldBinderReinterp n hb y)
+      ↔ entryRank (nsingle (.fold n)) x < entryRank (nsingle (.fold n)) y
+    rw [hrank x, hrank y]
 
 /-- Below a fixed entry, the recursive order draws from one finite stage: a
 predecessor's closure rank is smaller, so by the contrapositive of stage-major
