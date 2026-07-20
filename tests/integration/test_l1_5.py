@@ -27,6 +27,10 @@ PIPELINE_ROWS = (
         "{0..9}[where 8..12 pad 1..2]",
         [("8", "08"), ("9", "09"), ("10",), ("11",), ("12",)],
     ),
+    # A non-character radix: the digit-walk cuts by position, so the cut is
+    # exact where a spelling range would read shortlex and get it wrong.
+    ("{a,bb}[where a..bbbb]", [("a",), ("bb",), ("bba",), ("bbbb",)]),
+    ("{a,bb}[where bb..bba]", [("bb",), ("bba",)]),
 )
 
 # Statement, document, expected result. From L1_5.md's emit table.

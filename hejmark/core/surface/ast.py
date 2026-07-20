@@ -131,8 +131,25 @@ class Subtract:
     universe: UniverseNode
 
 
+@dataclass(frozen=True)
+class ValueCut:
+    """The value family ``@lo..hi``: the head's value line cut by value.
+
+    ``@0`` is the degenerate ``@0..0``, spelled as the bare register the way a
+    lone numeral argument keeps ``n..n``. Both bounds are spellings in the head
+    radix -- a written numeral, or a parameter naming one -- and ``hi`` may be a
+    :class:`Read` standing as one, which is how ``where 0..$2`` reaches here.
+
+    Expansion is the digit-walk, which cuts by position rather than by
+    spelling, so the cut is exact over any radix.
+    """
+
+    lo: str
+    hi: str | Read
+
+
 # A member of a surface brace group. Range and Final are the floor's own.
-Member = Range | Final | Subtract | Segments
+Member = Range | Final | Subtract | Segments | ValueCut
 
 
 @dataclass(frozen=True)

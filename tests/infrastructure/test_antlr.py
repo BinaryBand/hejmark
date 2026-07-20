@@ -76,7 +76,7 @@ L1_5_ROWS = (
     "uni spellings = {{{}}, &@C}",  # the seeded std universe
     "fill := {{{}, @0}}",  # zero-parameter definition over a register
     "nonzero := {@, !{@0}}",  # bare head register
-    "where lo..hi := {@numerals, !{@numerals, !{ {lo..hi} }}}",  # pair parameter
+    "where lo..hi := {@lo..hi}",  # pair parameter over the value family
     "pad w..w' := {@fill^{w'} _, !{@shorter w}, !{@longer w'}}",  # exponent + operand token
     "{0..9}[where 8..12 pad 1..2]",  # modifier pipeline
     '{{cat,feline}} => "{{$0}}"',  # emit: canonical-face rewrite

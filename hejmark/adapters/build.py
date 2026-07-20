@@ -37,6 +37,7 @@ from hejmark.core.surface.ast import (
     UniDecl,
     Unit,
     UniverseNode,
+    ValueCut,
 )
 
 # The three mnemonic escapes; every other `\x` spells `x` itself. Whitespace
@@ -123,6 +124,15 @@ def _member(ctx: Any) -> Any:
             return Range(_face(faces[0]).text, _face(faces[1]).text)
         case "FinalMemberContext":
             return Final(_face(ctx.face()).text)
+        case "ValueMemberContext":
+            bound = ctx.valueBound()
+            capture = bound.CAPTURE()
+            hi: str | Read = (
+                Read(int(capture.getText()[1:]))
+                if capture is not None
+                else _face(bound.face()).text
+            )
+            return ValueCut(ctx.REF().getText()[1:], hi)
         case "SubtractMemberContext":
             return Subtract(_universe(ctx.universe()))
         case "SegmentsMemberContext":

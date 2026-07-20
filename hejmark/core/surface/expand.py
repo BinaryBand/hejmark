@@ -32,6 +32,7 @@ from hejmark.core.floor import syntax
 # `&`. Expansion must know, because a binder may never be inlined.
 from hejmark.core.floor.binder import binds
 from hejmark.core.floor.universe import denote
+from hejmark.core.surface import valueline
 from hejmark.core.surface.ast import (
     DefDecl,
     Expr,
@@ -45,6 +46,7 @@ from hejmark.core.surface.ast import (
     Subtract,
     Unit,
     UniverseNode,
+    ValueCut,
     read_index,
 )
 from hejmark.core.surface.resolve import Binding, Env, bind, canonicalize
@@ -145,6 +147,28 @@ def _register(name: str, ctx: Ctx) -> syntax.UniverseNode:
         return ctx.head
     zero = _zero(ctx.head)
     return UNIT if zero is None else syntax.UniverseNode((syntax.Face(zero),))
+
+
+def _value_cut(lo: str, hi: str | Read, ctx: Ctx) -> tuple[syntax.Member, ...]:
+    """Expand the value family ``@lo..hi``: the head's value line cut by value.
+
+    Both bounds are spellings in the head radix -- a written numeral, or a
+    parameter naming one -- so each rides ``spell`` the way a range endpoint
+    does. A read still standing here crossed a declaration and is refused, as
+    one in any other position is. The cut rides a one-factor product so that a
+    sibling member never falls inside its subtraction.
+
+    Raises:
+        HimarkScopeError: the family stands outside a definition body, or a
+            read reached expansion.
+    """
+    if isinstance(hi, Read):
+        _refuse_read(f"${hi.index}")
+    if ctx.head is None:
+        msg = f"register @{lo}..{hi} outside a definition body"
+        raise HimarkScopeError(msg)
+    node = valueline.cut(ctx.head, ctx.spell(lo), ctx.spell(hi))
+    return (syntax.Product((node,)),)
 
 
 def _bind_params(
@@ -308,6 +332,8 @@ def _segments(segments: tuple[Segment, ...], ctx: Ctx) -> tuple[syntax.Member, .
 def _member(member: Member, ctx: Ctx) -> tuple[syntax.Member, ...]:
     """Expand one member; a splice may contribute several."""
     match member:
+        case ValueCut(lo, hi):
+            return _value_cut(lo, hi, ctx)
         case syntax.Range(lo, hi):
             return (syntax.Range(ctx.spell(lo), ctx.spell(hi)),)
         case syntax.Final(lo):

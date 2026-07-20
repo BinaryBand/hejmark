@@ -73,11 +73,17 @@ pipeArg : ARG | CAPTURE ;
 universe : LBRACE (member (COMMA member)*)? RBRACE ;
 
 member
-    : face RANGE face    # RangeMember
-    | face RANGE         # FinalMember
-    | BANG universe      # SubtractMember
-    | segment+           # SegmentsMember
+    : face RANGE face      # RangeMember
+    | face RANGE           # FinalMember
+    | REF RANGE valueBound # ValueMember
+    | BANG universe        # SubtractMember
+    | segment+             # SegmentsMember
     ;
+
+// The value family `@lo..hi`: the head's value line cut by value. The low bound
+// rides the REF sigil (`@0`, or `@lo` naming a numeral parameter); the high
+// bound is a numeral, a parameter, or a back-reference standing as one.
+valueBound : face | CAPTURE ;
 
 // One adjacent piece of a member: a brace group, the closure token, a
 // reference, the operand token, or a bare face. `@name face` may be an

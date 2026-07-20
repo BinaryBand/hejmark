@@ -29,6 +29,7 @@ from hejmark.core.surface.ast import (
     Subtract,
     Unit,
     UniverseNode,
+    ValueCut,
     read_index,
 )
 from hejmark.core.surface.expand import Ctx, expand
@@ -66,6 +67,8 @@ def _member_reads(member: Member) -> list[int]:
         for inner in member.universe.members:
             found.extend(_member_reads(inner))
         return found
+    if isinstance(member, ValueCut):
+        return [member.hi.index] if isinstance(member.hi, Read) else []
     if not isinstance(member, Segments):
         return []
     found = []
@@ -96,6 +99,9 @@ def _sub_member(member: Member, bound: tuple[str, ...]) -> Member:
     """Rebuild one member with its reads substituted."""
     if isinstance(member, Subtract):
         return Subtract(_sub_universe(member.universe, bound))
+    if isinstance(member, ValueCut):
+        hi = bound[member.hi.index - 1] if isinstance(member.hi, Read) else member.hi
+        return ValueCut(member.lo, hi)
     if not isinstance(member, Segments):
         return member
     return Segments(tuple(_sub_segment(segment, bound) for segment in member.segments))
