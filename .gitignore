@@ -34,4 +34,5 @@ static/lean/build/
 editors/
 docs/**/.*
 static/**/.*
+.claude
 CLAUDE.md
