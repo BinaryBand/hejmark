@@ -164,17 +164,19 @@ def _walk(members: Sequence[Member], amp: Universe | None, spelling: str) -> boo
 
 def _spells(member: Adding, amp: Universe | None, spelling: str) -> bool:
     """Whether the member's face set holds ``spelling`` (claims never shrink it)."""
-    if isinstance(member, Face):
-        return member.text == spelling
-    if isinstance(member, Range | Final):
-        return _window(member).contains(spelling)
-    if isinstance(member, Fold):
-        return _braced_spells(member.universe, amp, spelling)
-    if isinstance(member, Closure):
-        return _amp(amp).contains(spelling)
-    if isinstance(member, Product):
-        return _splits(member.factors, amp, spelling)
-    assert_never(member)
+    match member:
+        case Face(text):
+            return text == spelling
+        case Range() | Final():
+            return _window(member).contains(spelling)
+        case Fold(universe):
+            return _braced_spells(universe, amp, spelling)
+        case Closure():
+            return _amp(amp).contains(spelling)
+        case Product(factors):
+            return _splits(factors, amp, spelling)
+        case _ as unreachable:
+            assert_never(unreachable)
 
 
 def _window(member: Range | Final) -> Window:
@@ -294,20 +296,21 @@ def _member_entries(
     symbolically (so a fully subtracted infinite tail terminates); every strip
     is re-checked face by face at the stream level regardless.
     """
-    if isinstance(member, Face):
-        if live(member.text):
-            yield Entry((member.text,))
-    elif isinstance(member, Range | Final):
-        for window in _carve(_window(member), strips):
-            yield from (Entry((s,)) for s in window if live(s))
-    elif isinstance(member, Fold):
-        yield from _braced_entries(member.universe, amp, live)
-    elif isinstance(member, Closure):
-        yield from _filtered(_amp(amp).entries(), live)
-    elif isinstance(member, Product):
-        yield from _product_entries(member.factors, amp, live)
-    else:
-        assert_never(member)
+    match member:
+        case Face(text):
+            if live(text):
+                yield Entry((text,))
+        case Range() | Final():
+            for window in _carve(_window(member), strips):
+                yield from (Entry((s,)) for s in window if live(s))
+        case Fold(universe):
+            yield from _braced_entries(universe, amp, live)
+        case Closure():
+            yield from _filtered(_amp(amp).entries(), live)
+        case Product(factors):
+            yield from _product_entries(factors, amp, live)
+        case _ as unreachable:
+            assert_never(unreachable)
 
 
 def _filtered(entries: Iterator[Entry], live: Live) -> Iterator[Entry]:

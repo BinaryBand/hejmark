@@ -183,14 +183,16 @@ def _reference(name: str, ctx: Ctx, operand: syntax.UniverseNode | None) -> synt
 
 def _base(base: UniverseNode | Ref | Operand, ctx: Ctx) -> syntax.UniverseNode:
     """Expand a base: a brace group, a reference, or the operand token."""
-    if isinstance(base, UniverseNode):
-        return _universe(base, ctx)
-    if isinstance(base, Operand):
-        if ctx.operand is None:
-            msg = "operand token `_` outside an application"
-            raise HimarkScopeError(msg)
-        return ctx.operand
-    return _reference(base.name, ctx, ctx.operand)
+    match base:
+        case UniverseNode():
+            return _universe(base, ctx)
+        case Operand():
+            if ctx.operand is None:
+                msg = "operand token `_` outside an application"
+                raise HimarkScopeError(msg)
+            return ctx.operand
+        case Ref(name):
+            return _reference(name, ctx, ctx.operand)
 
 
 def _unit(unit: Unit, ctx: Ctx) -> syntax.UniverseNode:
@@ -235,12 +237,14 @@ def _application(segments: tuple[Segment, ...], ctx: Ctx) -> syntax.UniverseNode
 
 def _factor(segment: Segment, ctx: Ctx) -> syntax.UniverseNode:
     """Expand one segment standing as a product factor."""
-    if isinstance(segment, syntax.Face):
-        return syntax.UniverseNode((syntax.Face(ctx.spell(segment.text)),))
-    if isinstance(segment, Unit):
-        return _unit(segment, ctx)
-    msg = "the closure token `&` is not a universe"
-    raise HimarkScopeError(msg)
+    match segment:
+        case syntax.Face(text):
+            return syntax.UniverseNode((syntax.Face(ctx.spell(text)),))
+        case Unit():
+            return _unit(segment, ctx)
+        case _:
+            msg = "the closure token `&` is not a universe"
+            raise HimarkScopeError(msg)
 
 
 def _members_of(node: syntax.UniverseNode) -> tuple[syntax.Member, ...]:
@@ -280,13 +284,15 @@ def _segments(segments: tuple[Segment, ...], ctx: Ctx) -> tuple[syntax.Member, .
 
 def _member(member: Member, ctx: Ctx) -> tuple[syntax.Member, ...]:
     """Expand one member; a splice may contribute several."""
-    if isinstance(member, syntax.Range):
-        return (syntax.Range(ctx.spell(member.lo), ctx.spell(member.hi)),)
-    if isinstance(member, syntax.Final):
-        return (syntax.Final(ctx.spell(member.lo)),)
-    if isinstance(member, Subtract):
-        return (syntax.Subtract(_universe(member.universe, ctx)),)
-    return _segments(member.segments, ctx)
+    match member:
+        case syntax.Range(lo, hi):
+            return (syntax.Range(ctx.spell(lo), ctx.spell(hi)),)
+        case syntax.Final(lo):
+            return (syntax.Final(ctx.spell(lo)),)
+        case Subtract(universe):
+            return (syntax.Subtract(_universe(universe, ctx)),)
+        case _:
+            return _segments(member.segments, ctx)
 
 
 def _universe(node: UniverseNode, ctx: Ctx) -> syntax.UniverseNode:

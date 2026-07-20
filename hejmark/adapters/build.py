@@ -102,18 +102,19 @@ def _segment(ctx: Any) -> Unit | Closure | Face:
 
 def _member(ctx: Any) -> Any:
     """Dispatch one member context to its faithful AST node."""
-    name = type(ctx).__name__
-    if name == "RangeMemberContext":
-        faces = ctx.face()
-        return Range(_face(faces[0]).text, _face(faces[1]).text)
-    if name == "FinalMemberContext":
-        return Final(_face(ctx.face()).text)
-    if name == "SubtractMemberContext":
-        return Subtract(_universe(ctx.universe()))
-    if name == "SegmentsMemberContext":
-        return Segments(tuple(_segment(segment) for segment in ctx.segment()))
-    msg = f"unknown member alternative: {name}"
-    raise HimarkSyntaxError(msg)
+    match type(ctx).__name__:
+        case "RangeMemberContext":
+            faces = ctx.face()
+            return Range(_face(faces[0]).text, _face(faces[1]).text)
+        case "FinalMemberContext":
+            return Final(_face(ctx.face()).text)
+        case "SubtractMemberContext":
+            return Subtract(_universe(ctx.universe()))
+        case "SegmentsMemberContext":
+            return Segments(tuple(_segment(segment) for segment in ctx.segment()))
+        case name:
+            msg = f"unknown member alternative: {name}"
+            raise HimarkSyntaxError(msg)
 
 
 def _universe(ctx: Any) -> UniverseNode:
@@ -130,13 +131,13 @@ def _template(ctx: Any) -> Template:
     """Assemble a template from its parts; adjacent literal text is kept as written."""
     parts = []
     for part in ctx.part():
-        name = type(part).__name__
-        if name == "InterpPartContext":
-            parts.append(Interp(part.interp().CAPTURE().getText()))
-        elif name == "EscPartContext":
-            parts.append(Text(_unescape(part.getText())))
-        else:
-            parts.append(Text(part.getText()))
+        match type(part).__name__:
+            case "InterpPartContext":
+                parts.append(Interp(part.interp().CAPTURE().getText()))
+            case "EscPartContext":
+                parts.append(Text(_unescape(part.getText())))
+            case _:
+                parts.append(Text(part.getText()))
     return Template(tuple(parts))
 
 
