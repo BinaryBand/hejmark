@@ -29,7 +29,7 @@ from hejmark.core.floor import syntax
 
 # The floor's own binder test: whether a brace expression's members hold a free
 # `&`. Expansion must know, because a binder may never be inlined.
-from hejmark.core.floor.universe import _binds as binds
+from hejmark.core.floor.binder import binds
 from hejmark.core.floor.universe import denote
 from hejmark.core.surface.ast import (
     DefDecl,

@@ -21,17 +21,29 @@ GENERATED = "_gen"
 COMMAND_NAME_RE = re.compile(r"^[a-z][a-z0-9]*(-[a-z0-9]+)*$")
 
 
-def _extract_command_name(node: ast.Call) -> str | None:
-    """Return the command name from a ``@command("name")`` call, or *None*."""
-    func = node.func
-    if not isinstance(func, ast.Name) or func.id != "command":
+def _extract_command_name(decorator: ast.expr, func_name: str) -> str | None:
+    """Return the CLI name a ``command`` decorator gives *func_name*, or *None*.
+
+    Matches both the bare ``@command(...)`` and the ``@app.command(...)`` form
+    Typer actually uses -- an ``ast.Attribute``, which an earlier version of
+    this gate skipped, making it vacuous. When the decorator carries no explicit
+    name, Typer derives one from the function name by replacing underscores with
+    hyphens, so that derived name is what gets checked.
+    """
+    if not isinstance(decorator, ast.Call):
         return None
-    if not node.args:
+    func = decorator.func
+    is_command = (isinstance(func, ast.Name) and func.id == "command") or (
+        isinstance(func, ast.Attribute) and func.attr == "command"
+    )
+    if not is_command:
         return None
-    arg = node.args[0]
-    if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
-        return arg.value
-    return None
+    if decorator.args:
+        arg = decorator.args[0]
+        if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+            return arg.value
+        return None
+    return func_name.replace("_", "-")
 
 
 def _collect_command_names() -> list[tuple[str, str]]:
@@ -55,8 +67,10 @@ def _scan_module(path: Path) -> list[tuple[str, str]]:
     tree = ast.parse(path.read_text())
     results: list[tuple[str, str]] = []
     for node in ast.walk(tree):
-        if isinstance(node, ast.Call):
-            name = _extract_command_name(node)
+        if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+            continue
+        for decorator in node.decorator_list:
+            name = _extract_command_name(decorator, node.name)
             if name is not None:
                 results.append((str(path.relative_to(ROOT)), name))
     return results

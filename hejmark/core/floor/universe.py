@@ -30,7 +30,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import assert_never
 
-from hejmark.core.floor.order import Window, successor
+from hejmark.core.floor.binder import binds, settled
 from hejmark.core.floor.syntax import (
     Closure,
     Face,
@@ -42,6 +42,7 @@ from hejmark.core.floor.syntax import (
     Subtract,
     UniverseNode,
 )
+from hejmark.core.floor.window import carve, window_of
 
 # A liveness test: whether a face is still unclaimed at its point of use.
 Live = Callable[[str], bool]
@@ -80,7 +81,7 @@ class Universe:
 
     def entries(self) -> Iterator[Entry]:
         """Yield the entries in declaration order, lazily -- safe over infinity."""
-        if _binds(self.node):
+        if binds(self.node):
             return _closure_entries(self.node, self.amp, self.stages)
         return _stream(self.node.members, self.amp, None)
 
@@ -102,53 +103,21 @@ def denote(node: UniverseNode) -> Universe:
 def _contains(universe: Universe, spelling: str) -> bool:
     """Decide membership, memoized -- a closure re-asks each stage the same pieces."""
     node, amp, stages = universe.node, universe.amp, universe.stages
-    if not _binds(node):
+    if not binds(node):
         return _walk(node.members, amp, spelling)
     bound = len(spelling) + 1 if stages is None else stages
     for stage in range(bound):
         if _walk(node.members, Universe(node, amp, stage), spelling):
             return True
-    if stages is not None or _settled(node):
+    if stages is not None or settled(node, _spells_empty):
         return False
     msg = f"membership of {spelling!r} in an unsettled closure has no stage bound"
     raise HimarkUnsettledError(msg)
 
 
-def _binds(node: UniverseNode) -> bool:
-    """Whether this brace expression is a closure binder: a free ``&`` in its members."""
-    return any(_free_amp(member) for member in node.members)
-
-
-def _free_amp(member: Member) -> bool:
-    """Whether a free ``&`` occurs in this member (subtraction braces never bind)."""
-    if isinstance(member, Closure):
-        return True
-    if isinstance(member, Product):
-        return any(isinstance(factor, Closure) for factor in member.factors)
-    if isinstance(member, Subtract):
-        return _binds(member.universe)
-    return False
-
-
-def _settled(node: UniverseNode) -> bool:
-    """Whether every free ``&`` is guarded, so membership settles by stage len + 1."""
-    return all(_settled_member(member) for member in node.members)
-
-
-def _settled_member(member: Member) -> bool:
-    """Whether this member's free ``&`` occurrences (if any) are guarded."""
-    if isinstance(member, Closure):
-        return False
-    if isinstance(member, Product) and any(isinstance(f, Closure) for f in member.factors):
-        return any(_guards(f) for f in member.factors if isinstance(f, UniverseNode))
-    if isinstance(member, Subtract):
-        return _settled(member.universe)
-    return True
-
-
-def _guards(factor: UniverseNode) -> bool:
-    """Whether a factor guards its product: no empty face, so every pass lengthens."""
-    return not Universe(factor).contains("")
+def _spells_empty(node: UniverseNode) -> bool:
+    """The emptiness oracle `binder.settled` needs: does this node wear ``""``?"""
+    return Universe(node).contains("")
 
 
 def _walk(members: Sequence[Member], amp: Universe | None, spelling: str) -> bool:
@@ -168,7 +137,7 @@ def _spells(member: Adding, amp: Universe | None, spelling: str) -> bool:
         case Face(text):
             return text == spelling
         case Range() | Final():
-            return _window(member).contains(spelling)
+            return window_of(member).contains(spelling)
         case Fold(universe):
             return _braced_spells(universe, amp, spelling)
         case Closure():
@@ -179,39 +148,6 @@ def _spells(member: Adding, amp: Universe | None, spelling: str) -> bool:
             assert_never(unreachable)
 
 
-def _window(member: Range | Final) -> Window:
-    """The shortlex window a range or final segment denotes."""
-    if isinstance(member, Range):
-        return Window(member.lo, successor(member.hi))
-    return Window(member.lo, None)
-
-
-def _carve(window: Window, strips: tuple[UniverseNode, ...]) -> list[Window]:
-    """Cut the window-shaped strips out of a run's window, symbolically.
-
-    Operands that are not plainly window-shaped carve nothing here; they are
-    still applied face by face downstream.
-    """
-    pieces = [window]
-    for operand in strips:
-        for cut in _windows_of(operand) or []:
-            pieces = [part for piece in pieces for part in piece.minus(cut)]
-    return pieces
-
-
-def _windows_of(node: UniverseNode) -> list[Window] | None:
-    """The node's face set as windows when every member is one, else ``None``."""
-    windows: list[Window] = []
-    for member in node.members:
-        if isinstance(member, Face):
-            windows.append(Window(member.text, successor(member.text)))
-        elif isinstance(member, Range | Final):
-            windows.append(_window(member))
-        else:
-            return None
-    return windows
-
-
 def _braced_spells(inner: UniverseNode, amp: Universe | None, spelling: str) -> bool:
     """A braced member's face set: its universe's faces, plus the fold-to-unit boundary.
 
@@ -219,7 +155,7 @@ def _braced_spells(inner: UniverseNode, amp: Universe | None, spelling: str) -> 
     binder splices its closure instead, and an empty closure contributes nothing.
     """
     universe = Universe(inner, amp)
-    if spelling == "" and not _binds(inner):
+    if spelling == "" and not binds(inner):
         return universe.contains("") or next(iter(universe.entries()), None) is None
     return universe.contains(spelling)
 
@@ -301,7 +237,7 @@ def _member_entries(
             if live(text):
                 yield Entry((text,))
         case Range() | Final():
-            for window in _carve(_window(member), strips):
+            for window in carve(window_of(member), strips):
                 yield from (Entry((s,)) for s in window if live(s))
         case Fold(universe):
             yield from _braced_entries(universe, amp, live)
@@ -324,7 +260,7 @@ def _filtered(entries: Iterator[Entry], live: Live) -> Iterator[Entry]:
 def _braced_entries(inner: UniverseNode, amp: Universe | None, live: Live) -> Iterator[Entry]:
     """A braced member: a binder splices its closure, anything else folds to one entry."""
     universe = Universe(inner, amp)
-    if _binds(inner):
+    if binds(inner):
         yield from _filtered(universe.entries(), live)
         return
     declared = [face for entry in universe.entries() for face in entry.faces]
