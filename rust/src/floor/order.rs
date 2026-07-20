@@ -118,25 +118,29 @@ impl Window {
     }
 
     /// Iterate the members in spelling order (lazy; an unbounded window is infinite).
-    pub fn members(&self) -> Members<'_> {
+    pub fn members(&self) -> Members {
         Members {
             next: self.lo.clone(),
-            hi: self.hi.as_deref(),
+            hi: self.hi.clone(),
         }
     }
 }
 
 /// A lazy iterator over a [`Window`]'s members in spelling order.
-pub struct Members<'a> {
+///
+/// It owns its bound rather than borrowing the window, so it can be moved into
+/// and composed by the denotation streams in [`super::universe`] without tying
+/// their lifetime to a window that has since gone out of scope.
+pub struct Members {
     next: Vec<u32>,
-    hi: Option<&'a [u32]>,
+    hi: Option<Vec<u32>>,
 }
 
-impl Iterator for Members<'_> {
+impl Iterator for Members {
     type Item = Vec<u32>;
 
     fn next(&mut self) -> Option<Vec<u32>> {
-        if let Some(hi) = self.hi {
+        if let Some(hi) = &self.hi {
             if shortlex_cmp(&self.next, hi) != Ordering::Less {
                 return None;
             }

@@ -8,8 +8,9 @@
 //!
 //! [`floor`] is the bottom stratum of `core`: the six constructors' AST
 //! ([`floor::syntax`]), the shortlex spelling order beneath them
-//! ([`floor::order`]), and the two leaf analyses that read that AST without
-//! denoting anything ([`floor::binder`], [`floor::window`]). The `universe`
-//! interpreter that denotes these nodes is the next slice, not yet ported.
+//! ([`floor::order`]), the two leaf analyses that read that AST without denoting
+//! anything ([`floor::binder`], [`floor::window`]), and the interpreter that
+//! denotes those nodes to lazy universes ([`floor::universe`]). The scan layer
+//! that matches a denoted universe against text is the next slice to port.
 
 pub mod floor;
