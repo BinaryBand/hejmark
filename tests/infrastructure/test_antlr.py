@@ -83,6 +83,7 @@ L1_5_ROWS = (
     '{a,e,i,o,u} => ""',  # emit: deletion
     '{@spellings} => "<b>{{$}}</b>"',  # emit: whole-document idiom
     '"seed" => {e} => "E"',  # emit: detached string chain
+    '{a,ab}{c,bc} => "{{$2}}"',  # emit: factor read
     'uni d = {0..9}\n{a} => {b}\n  => "x"',  # line discipline + arrow continuation
     "",  # the empty script
 )
@@ -94,6 +95,7 @@ MALFORMED = (
     "{,a}",  # leading comma
     "a,b",  # bare members outside a universe
     "{a} =>",  # dangling arrow -- a step must follow
+    '{a}{b} => "{{$01}}"',  # a factor read carries no leading zero
 )
 
 

@@ -26,7 +26,7 @@ from dataclasses import dataclass
 
 from hejmark.core.engine import query as _denote_query
 from hejmark.core.floor.universe import Query
-from hejmark.core.scan.capture import canonical_face
+from hejmark.core.scan.capture import canonical_face, factor_faces
 from hejmark.core.scan.match import finditer
 from hejmark.core.surface.ast import (
     Expr,
@@ -73,10 +73,25 @@ class Branch:
 
 
 def _read(branch: Branch, capture: str) -> str:
-    """Render one capture read: ``$`` the hit as it hit, ``$0`` its canonical face."""
-    if capture == "$" or branch.bound is None or branch.found is None:
-        return branch.face
-    return canonical_face(branch.bound, branch.found)  # ty: ignore[invalid-argument-type]
+    """Render one capture read: ``$`` as it hit, ``$0`` canonical, ``$k`` factor ``k``.
+
+    Raises:
+        HimarkScopeError: a factor read on a branch no match anchors, or past
+            the factors the query wrote.
+    """
+    if capture in {"$", "$0"}:
+        if capture == "$" or branch.bound is None or branch.found is None:
+            return branch.face
+        return canonical_face(branch.bound, branch.found)  # ty: ignore[invalid-argument-type]
+    if branch.bound is None or branch.found is None:
+        msg = f"{{{{{capture}}}}} reads a branch no match anchors"
+        raise HimarkScopeError(msg)
+    faces = factor_faces(branch.bound, branch.found)  # ty: ignore[invalid-argument-type]
+    index = int(capture[1:])
+    if index > len(faces):
+        msg = f"{{{{{capture}}}}} reads past the query's {len(faces)} factor(s)"
+        raise HimarkScopeError(msg)
+    return faces[index - 1]
 
 
 def _sentinel(part: RefInterp, env: Env) -> str:

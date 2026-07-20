@@ -1,11 +1,11 @@
-"""The capture reads: finding the entry that wears a hit, and its face 0."""
+"""The capture reads: the wearer of a hit, its face 0, and the bound split."""
 
 from __future__ import annotations
 
 import pytest
 
 from hejmark import parse
-from hejmark.core.scan.capture import canonical, canonical_face
+from hejmark.core.scan.capture import canonical, canonical_face, factor_faces
 from hejmark.core.scan.match import match
 from hejmark.core.surface.ast import HimarkScopeError
 
@@ -55,3 +55,47 @@ def test_canonical_face_leaves_a_part_as_it_hit_when_unfound() -> None:
     found = match(query, "q")
     assert found is not None
     assert canonical_face(query, found) == "q"
+
+
+def test_factor_faces_reads_a_pinned_split_without_streaming() -> None:
+    """A split the text pins uniquely stands as matched: no entry is streamed."""
+    query = parse("{ab}{c}")
+    found = match(query, "abc")
+    assert found is not None
+    assert factor_faces(query, found) == ("ab", "c")
+
+
+def test_factor_faces_binds_the_least_claimant_of_an_ambiguous_split() -> None:
+    """`{a,ab}{c,bc}` spells `abc` twice; collision gave it to `(a, bc)`.
+
+    The matcher's greedy witness is `(ab, c)` -- value 2 -- but the floor binds
+    the value-1 claimant, and the factor reads follow the floor, not the
+    witness.
+    """
+    query = parse("{a,ab}{c,bc}")
+    found = match(query, "abc")
+    assert found is not None
+    assert found.parts[0].face == "ab"
+    assert factor_faces(query, found) == ("a", "bc")
+
+
+def test_factor_faces_breaks_a_value_tie_by_face_index() -> None:
+    """Two splits over the same entries part on the face axis; lower index wins."""
+    query = parse("{{a,ab}}{{bc,c}}")
+    found = match(query, "abc")
+    assert found is not None
+    assert factor_faces(query, found) == ("a", "bc")
+
+
+def test_factor_faces_refuses_an_address_it_cannot_reach() -> None:
+    """Ambiguity over `{a..}{a..}` needs a two-character address, past budget.
+
+    `zzb` splits as `z|zb` and `zz|b`; settling which is the least claimant
+    would stream to a two-character spelling, millions of entries in. The read
+    refuses, as `$0` does, rather than hang.
+    """
+    query = parse("{a..}{a..}")
+    found = match(query, "zzb")
+    assert found is not None
+    with pytest.raises(HimarkScopeError, match="cannot address"):
+        factor_faces(query, found)

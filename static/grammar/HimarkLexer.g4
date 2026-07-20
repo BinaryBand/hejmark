@@ -90,13 +90,15 @@ TMPL_TEXT   : ~["\\{]+ ;
 
 // ---------------------------------------------------------------------------
 // INTERP mode -- inside `{{ ... }}`: one read. A capture read (`$` the hit as
-// it hit, `$0` its canonical face) or a sentinel read (`@name` the face a
-// `sentinel` declaration allocated).
+// it hit, `$0` its canonical face, `$1..$n` factor k of the hit as it hit) or
+// a sentinel read (`@name` the face a `sentinel` declaration allocated). A
+// factor read is 1-based and carries no leading zero, which is what keeps the
+// canonical read `$0` unambiguous.
 // ---------------------------------------------------------------------------
 
 mode INTERP;
 
 MOUST_CLOSE : '}}' -> popMode ;
-CAPTURE     : '$' '0'? ;
+CAPTURE     : '$' ('0' | [1-9] [0-9]*)? ;
 I_REF       : '@' [a-zA-Z0-9']* -> type(REF) ;
 I_WS        : [ \t]+ -> skip ;

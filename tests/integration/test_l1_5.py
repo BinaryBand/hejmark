@@ -36,6 +36,7 @@ EMIT_ROWS = (
     ('{@spellings} => "<b>{{$}}</b>"', "abc", "<b>abc</b>"),
     ("{a} => {b}", "banana", "banana"),
     ('"seed" => {e} => "E"', "anything", "anything"),
+    ('{a,ab}{c,bc} => "{{$2}}"', "abc", "bc"),
 )
 
 

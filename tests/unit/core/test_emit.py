@@ -53,6 +53,28 @@ def test_the_empty_document_offers_only_the_empty_spelling() -> None:
     assert run('{@spellings} => "X"', "") == ""
 
 
+def test_a_factor_read_takes_the_floors_split() -> None:
+    """`abc` splits two ways; the read follows collision, not the greedy witness."""
+    assert run('{a,ab}{c,bc} => "{{$2}}"', "abc") == "bc"
+
+
+def test_factor_reads_address_written_units() -> None:
+    """An exponent's repetitions stay inside their unit: two factors, not four."""
+    assert run('{a}^3{b} => "{{$2}}{{$1}}"', "aaab") == "baaa"
+
+
+def test_a_factor_read_past_the_factors_is_a_scope_error() -> None:
+    """`$k` addresses the written factors, and a query wrote only so many."""
+    with pytest.raises(HimarkScopeError, match="past the query's 2 factor"):
+        run('{a}{b} => "{{$3}}"', "ab")
+
+
+def test_a_factor_read_on_a_detached_branch_is_a_scope_error() -> None:
+    """A leading template anchors no match, so a factor read has nothing to read."""
+    with pytest.raises(HimarkScopeError, match="no match anchors"):
+        run('"{{$1}}"', "abc")
+
+
 def test_a_sentinel_read_renders_its_allocated_face() -> None:
     """`{{@name}}` splices the face the declaration allocated; cleanup strips it."""
     source = 'sentinel s\n{a} => "{{@s}}{{$}}"\n{@s}{a} => "A"\n{@s} => ""'

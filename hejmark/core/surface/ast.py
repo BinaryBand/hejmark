@@ -169,7 +169,9 @@ class Text:
 class Interp:
     """An interpolation site ``{{...}}`` holding one capture read.
 
-    ``capture`` is ``"$"`` (the hit as it hit) or ``"$0"`` (its canonical face).
+    ``capture`` is ``"$"`` (the hit as it hit), ``"$0"`` (its canonical face),
+    or ``"$k"`` for ``k >= 1`` (factor ``k`` of the hit, as it hit -- one read
+    per written top-level factor, 1-based since ``$0`` is taken).
     """
 
     capture: str
