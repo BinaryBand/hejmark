@@ -7,9 +7,9 @@ from unittest.mock import patch
 
 from typer.testing import CliRunner
 
-from Himark.adapters.antlr import AntlrToolNotFoundError
-from Himark.adapters.parser import GeneratedParserMissingError
-from Himark.cli.main import app
+from hejmark.adapters.antlr import AntlrToolNotFoundError
+from hejmark.adapters.parser import GeneratedParserMissingError
+from hejmark.cli.main import app
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -28,7 +28,7 @@ def test_gen_parser_runs_generator(tmp_path: Path) -> None:
     lexer = tmp_path / "GrammarLexer.g4"
     parser = tmp_path / "GrammarParser.g4"
     output_dir = tmp_path / "out"
-    with patch("Himark.cli.main.AntlrGenerator") as generator_cls:
+    with patch("hejmark.cli.main.AntlrGenerator") as generator_cls:
         result = runner.invoke(
             app,
             [
@@ -48,7 +48,7 @@ def test_gen_parser_runs_generator(tmp_path: Path) -> None:
 
 
 def test_gen_parser_reports_missing_tool(tmp_path: Path) -> None:
-    with patch("Himark.cli.main.AntlrGenerator") as generator_cls:
+    with patch("hejmark.cli.main.AntlrGenerator") as generator_cls:
         generator_cls.return_value.generate.side_effect = AntlrToolNotFoundError("no antlr4")
         result = runner.invoke(app, ["gen-parser", "--grammar", str(tmp_path / "g.g4")])
     assert result.exit_code == 1
@@ -58,7 +58,7 @@ def test_gen_parser_reports_missing_tool(tmp_path: Path) -> None:
 def test_parse_file_prints_tree_to_console_by_default(tmp_path: Path) -> None:
     source = tmp_path / "example.hmk"
     source.write_text("{a,b,c}")
-    with patch("Himark.cli.main.AntlrParser") as parser_cls:
+    with patch("hejmark.cli.main.AntlrParser") as parser_cls:
         parser_cls.return_value.parse.return_value = []
         parser_cls.return_value.parse_tree.return_value = "(query (set a b c))"
         result = runner.invoke(app, ["parse-file", str(source)])
@@ -72,7 +72,7 @@ def test_parse_file_writes_tree_to_out_file(tmp_path: Path) -> None:
     source = tmp_path / "example.hmk"
     source.write_text("{a,b,c}")
     out = tmp_path / "example.tree"
-    with patch("Himark.cli.main.AntlrParser") as parser_cls:
+    with patch("hejmark.cli.main.AntlrParser") as parser_cls:
         parser_cls.return_value.parse.return_value = []
         parser_cls.return_value.parse_tree.return_value = "(query (set a b c))"
         result = runner.invoke(app, ["parse-file", str(source), "--out", str(out)])
@@ -85,7 +85,7 @@ def test_parse_file_writes_tree_to_out_file(tmp_path: Path) -> None:
 def test_parse_file_reports_syntax_errors(tmp_path: Path) -> None:
     source = tmp_path / "example.hmk"
     source.write_text("{a")
-    with patch("Himark.cli.main.AntlrParser") as parser_cls:
+    with patch("hejmark.cli.main.AntlrParser") as parser_cls:
         parser_cls.return_value.parse.return_value = ["1:2 missing '}'"]
         result = runner.invoke(app, ["parse-file", str(source)])
     assert result.exit_code == 1
@@ -95,7 +95,7 @@ def test_parse_file_reports_syntax_errors(tmp_path: Path) -> None:
 def test_parse_file_reports_missing_generated_parser(tmp_path: Path) -> None:
     source = tmp_path / "example.hmk"
     source.write_text("{a,b,c}")
-    with patch("Himark.cli.main.AntlrParser") as parser_cls:
+    with patch("hejmark.cli.main.AntlrParser") as parser_cls:
         parser_cls.return_value.parse.side_effect = GeneratedParserMissingError("run gen-parser")
         result = runner.invoke(app, ["parse-file", str(source)])
     assert result.exit_code == 1

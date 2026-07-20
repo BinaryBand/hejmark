@@ -10,20 +10,20 @@ from unittest.mock import patch
 
 import pytest
 
-from Himark.adapters.antlr import AntlrGenerator
-from Himark.adapters.parser import AntlrParser, GeneratedParserMissingError
+from hejmark.adapters.antlr import AntlrGenerator
+from hejmark.adapters.parser import AntlrParser, GeneratedParserMissingError
 
 ROOT = Path(__file__).resolve().parents[3]
 GRAMMARS = (
     ROOT / "static" / "grammar" / "HimarkLexer.g4",
     ROOT / "static" / "grammar" / "HimarkParser.g4",
 )
-GEN_DIR = ROOT / "Himark" / "adapters" / "_gen"
+GEN_DIR = ROOT / "hejmark" / "adapters" / "_gen"
 
 
 @pytest.fixture(scope="module")
 def _generated() -> Iterator[None]:
-    """Generate the real `Himark.adapters._gen` package for this module's tests.
+    """Generate the real `hejmark.adapters._gen` package for this module's tests.
 
     `_gen` is a gitignored build artifact (see `AntlrGenerator`); `AntlrParser`
     imports it by its real package path, so exercising it for real means
@@ -40,7 +40,7 @@ def _generated() -> Iterator[None]:
         if not already_present:
             shutil.rmtree(GEN_DIR)
             for module in list(sys.modules):
-                if module.startswith("Himark.adapters._gen"):
+                if module.startswith("hejmark.adapters._gen"):
                     del sys.modules[module]
 
 

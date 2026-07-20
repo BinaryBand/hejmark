@@ -23,7 +23,7 @@ class ParserGenerator(Protocol):
 
 
 class SurfaceParser(Protocol):
-    """Parses Himark surface syntax."""
+    """Parses hejmark surface syntax."""
 
     def parse(self, source: str) -> list[str]:
         """Return syntax error messages for *source*; empty means it parsed cleanly."""

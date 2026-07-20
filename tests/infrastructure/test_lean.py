@@ -182,10 +182,10 @@ def test_lean_proofs_build() -> None:
 
     Lean and Lake are elan-managed toolchains. A missing toolchain fails this
     test loudly rather than silently skipping it, so contributors must set
-    ``HIMARK_SKIP_LEAN=1`` explicitly to opt out.
+    ``HEJMARK_SKIP_LEAN=1`` explicitly to opt out.
     """
-    if os.environ.get("HIMARK_SKIP_LEAN") == "1":
-        pytest.skip("HIMARK_SKIP_LEAN=1 set; Lean scaffold not checked")
+    if os.environ.get("HEJMARK_SKIP_LEAN") == "1":
+        pytest.skip("HEJMARK_SKIP_LEAN=1 set; Lean scaffold not checked")
     result = subprocess.run(
         ["lake", "build"], capture_output=True, text=True, cwd=LEAN, check=False
     )
@@ -203,8 +203,8 @@ def test_lean_headline_theorems_are_honestly_axiom_free() -> None:
     replacement: each headline theorem's axiom set must be a subset of that
     trusted base, and nothing else.
     """
-    if os.environ.get("HIMARK_SKIP_LEAN") == "1":
-        pytest.skip("HIMARK_SKIP_LEAN=1 set; Lean scaffold not checked")
+    if os.environ.get("HEJMARK_SKIP_LEAN") == "1":
+        pytest.skip("HEJMARK_SKIP_LEAN=1 set; Lean scaffold not checked")
     script = "import L1\n" + "\n".join(f"#print axioms {name}" for name in HEADLINE_THEOREMS)
     with tempfile.NamedTemporaryFile("w", suffix=".lean", delete=False) as handle:
         handle.write(script)

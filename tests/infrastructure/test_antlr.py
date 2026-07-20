@@ -120,14 +120,14 @@ def antlr_build() -> Iterator[tuple[subprocess.CompletedProcess[str], Path]]:
     The `antlr4` generator is an external toolchain (the runtime is a pinned
     dependency, but the code generator is not). A missing generator fails
     loudly rather than silently skipping, mirroring the Lean gate: set
-    ``HIMARK_SKIP_ANTLR=1`` to opt out deliberately. Yields the completed run
+    ``HEJMARK_SKIP_ANTLR=1`` to opt out deliberately. Yields the completed run
     and the temp dir holding the generated modules, torn down with the fixture.
     """
-    if os.environ.get("HIMARK_SKIP_ANTLR") == "1":
-        pytest.skip("HIMARK_SKIP_ANTLR=1 set; ANTLR grammar not checked")
+    if os.environ.get("HEJMARK_SKIP_ANTLR") == "1":
+        pytest.skip("HEJMARK_SKIP_ANTLR=1 set; ANTLR grammar not checked")
     tool = shutil.which("antlr4")
     if tool is None:
-        pytest.fail("antlr4 not found on PATH; set HIMARK_SKIP_ANTLR=1 to opt out")
+        pytest.fail("antlr4 not found on PATH; set HEJMARK_SKIP_ANTLR=1 to opt out")
     with tempfile.TemporaryDirectory() as tmp:
         workdir = Path(tmp)
         for grammar in GRAMMARS:

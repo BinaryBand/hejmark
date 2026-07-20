@@ -1,5 +1,5 @@
 [project]
-name = "Himark"
+name = "hejmark"
 version = "0.1.0"
 description = ""
 authors = [{ name = "BinaryBand", email = "BinaryBand@users.noreply.github.com" }]
@@ -11,8 +11,8 @@ requires-python = ">=3.11"
 dependencies = ["antlr4-python3-runtime==4.13.2", "typer>=0.16,<0.17"]
 
 [project.scripts]
-# Installed console script; resolves to the same entry as `python -m Himark`.
-"Himark" = "Himark.cli.main:main"
+# Installed console script; resolves to the same entry as `python -m hejmark`.
+hejmark = "hejmark.cli.main:main"
 
 [tool.pytest.ini_options]
 minversion = "9.1"
@@ -28,7 +28,7 @@ line-length = 100
 # (>=3.11 -> py311). The pinned .python-version fixes the interpreter that
 # actually resolves, so the target is stated once, in one place.
 # The ANTLR-generated parser is a build artifact, not authored source.
-extend-exclude = ["Himark/adapters/_gen"]
+extend-exclude = ["hejmark/adapters/_gen"]
 force-exclude = true
 
 [tool.ruff.lint]
@@ -46,7 +46,6 @@ ignore = [
     "ISC001", # single-line-implicit-string-concatenation
     # Deliberate policy opt-outs.
     "CPY001", # missing-copyright-notice -- not wanted on internal projects
-    "N999",   # invalid-module-name -- the project name is Himark, with a capital H
     "TC003"
 ]
 
@@ -58,7 +57,7 @@ ignore = [
 # The CLI layer is the one place print() is a legitimate output channel, and
 # Typer's idioms are intentional: callables as argument/option defaults (B008)
 # and boolean flags as parameters (FBT001/FBT002).
-"Himark/cli/**" = ["T20", "B008", "FBT001", "FBT002"]
+"hejmark/cli/**" = ["T20", "B008", "FBT001", "FBT002"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
@@ -78,16 +77,16 @@ max-statements = 40
 # signatures to work with. When ty gains configurable rule levels worth pinning,
 # set them explicitly in this section and treat a change like rolling the
 # ruleset forward.
-src = { exclude = ["Himark/adapters/_gen"] }
+src = { exclude = ["hejmark/adapters/_gen"] }
 
 [tool.vulture]
 min_confidence = 80
-paths = ["Himark", "tests"]
+paths = ["hejmark", "tests"]
 ignore_decorators = ["@pytest.fixture", "@pytest.mark.*"]
 exclude = ["*/_gen/*"]
 
 [tool.importlinter]
-root_package = "Himark"
+root_package = "hejmark"
 
 [[tool.importlinter.contracts]]
 # The one standard layout, enforced everywhere. `exhaustive = true` means any
@@ -96,7 +95,7 @@ root_package = "Himark"
 # may only point downward: cli -> adapters -> core.
 name = "Standard layered layout"
 type = "layers"
-containers = ["Himark"]
+containers = ["hejmark"]
 layers = [
     "cli",
     "adapters",
@@ -110,16 +109,14 @@ requires = ["uv_build>=0.9,<0.11"]
 build-backend = "uv_build"
 
 [tool.uv.build-backend]
-# Flat layout: the importable package lives at the project root (Himark/), not
+# Flat layout: the importable package lives at the project root (hejmark/), not
 # under src/, so point the build backend at the root instead of its default
 # "src".
 module-root = ""
-# The backend would otherwise normalize the project name to "himark"; the
-# importable package keeps its capital H.
-module-name = "Himark"
+module-name = "hejmark"
 # _gen is gitignored, and the backend excludes gitignored files by default; name
 # it explicitly so a built sdist/wheel still ships the generated parser.
-source-include = ["Himark/adapters/_gen/*.py"]
+source-include = ["hejmark/adapters/_gen/*.py"]
 
 [dependency-groups]
 # Pinned to a series (not `>=`) so two projects scaffolded months apart enforce
@@ -134,7 +131,7 @@ dev = [
     "hypothesis==6.156.*",
     "import-linter==2.13.*",
     "vulture==2.16.*",
-    # Installs the `antlr4` console script used by `Himark gen-parser` /
+    # Installs the `antlr4` console script used by `hejmark gen-parser` /
     # tests/infrastructure/test_antlr.py. It's a code-generation-time tool
     # (wraps the Java antlr4 jar, auto-downloading it and a JRE if needed),
     # not something the shipped package imports, so it lives in dev rather

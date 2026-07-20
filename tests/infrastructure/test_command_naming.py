@@ -1,6 +1,6 @@
 """Gate: enforce kebab-case verb-noun naming on CLI ``@command`` calls.
 
-This is a Himark-specific convention not shipped by the scaffold, so it
+This is a hejmark-specific convention not shipped by the scaffold, so it
 lives outside the uniform ``test_lint.py`` gate in the free-form
 ``tests/infrastructure/`` category.
 """
@@ -12,7 +12,7 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-PACKAGE = ROOT / "Himark"
+PACKAGE = ROOT / "hejmark"
 
 # The ANTLR-generated parser package: a build artifact, exempt from source rules.
 GENERATED = "_gen"

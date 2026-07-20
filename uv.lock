@@ -133,7 +133,7 @@ wheels = [
 ]
 
 [[package]]
-name = "himark"
+name = "hejmark"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

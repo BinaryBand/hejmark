@@ -1,7 +1,7 @@
-"""adapters.parser: parses Himark source using the generated ANTLR parser.
+"""adapters.parser: parses hejmark source using the generated ANTLR parser.
 
-Imports `Himark.adapters._gen`, the build artifact `adapters.antlr.AntlrGenerator`
-writes (and `Himark gen-parser` triggers). It's gitignored and not present until
+Imports `hejmark.adapters._gen`, the build artifact `adapters.antlr.AntlrGenerator`
+writes (and `hejmark gen-parser` triggers). It's gitignored and not present until
 generated, so the import is deferred to `parse()` and translated into a clear
 domain error rather than a bare `ModuleNotFoundError` reaching the CLI.
 """
@@ -16,7 +16,7 @@ from antlr4.error.ErrorListener import ErrorListener
 
 
 class GeneratedParserMissingError(RuntimeError):
-    """Raised when `Himark.adapters._gen` hasn't been generated yet."""
+    """Raised when `hejmark.adapters._gen` hasn't been generated yet."""
 
 
 class _CollectingErrorListener(ErrorListener):
@@ -39,13 +39,13 @@ class AntlrParser:
         """Parse *source* and return `(tree, errors, parser)`.
 
         Raises:
-            GeneratedParserMissingError: `Himark.adapters._gen` doesn't exist.
+            GeneratedParserMissingError: `hejmark.adapters._gen` doesn't exist.
         """
         try:
-            lexer_module = importlib.import_module("Himark.adapters._gen.HimarkLexer")
-            parser_module = importlib.import_module("Himark.adapters._gen.HimarkParser")
+            lexer_module = importlib.import_module("hejmark.adapters._gen.HimarkLexer")
+            parser_module = importlib.import_module("hejmark.adapters._gen.HimarkParser")
         except ModuleNotFoundError as exc:
-            msg = "Himark.adapters._gen not found; run `Himark gen-parser` first"
+            msg = "hejmark.adapters._gen not found; run `hejmark gen-parser` first"
             raise GeneratedParserMissingError(msg) from exc
         listener = _CollectingErrorListener()
         lexer = lexer_module.HimarkLexer(InputStream(source))
@@ -61,7 +61,7 @@ class AntlrParser:
         """Return syntax error messages for *source*; empty means it parsed cleanly.
 
         Raises:
-            GeneratedParserMissingError: `Himark.adapters._gen` doesn't exist.
+            GeneratedParserMissingError: `hejmark.adapters._gen` doesn't exist.
         """
         _tree, errors, _parser = self._run(source)
         return errors
@@ -74,7 +74,7 @@ class AntlrParser:
         own tree for a human to read.
 
         Raises:
-            GeneratedParserMissingError: `Himark.adapters._gen` doesn't exist.
+            GeneratedParserMissingError: `hejmark.adapters._gen` doesn't exist.
         """
         tree, _errors, parser = self._run(source)
         return tree.toStringTree(recog=parser)

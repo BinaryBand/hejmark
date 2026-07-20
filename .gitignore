@@ -19,8 +19,8 @@ __pycache__/
 /dist/
 *.egg-info/
 
-# Generated ANTLR parser (regenerate with `Himark gen-parser`)
-Himark/adapters/_gen/
+# Generated ANTLR parser (regenerate with `hejmark gen-parser`)
+hejmark/adapters/_gen/
 
 # Lean/Lake build artifacts (static/lean/)
 static/lean/.lake/

@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 import pytest
 
-from Himark.adapters.antlr import AntlrGenerationError, AntlrGenerator, AntlrToolNotFoundError
+from hejmark.adapters.antlr import AntlrGenerationError, AntlrGenerator, AntlrToolNotFoundError
 
 if TYPE_CHECKING:
     from pathlib import Path

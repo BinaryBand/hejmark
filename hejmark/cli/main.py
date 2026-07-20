@@ -2,11 +2,10 @@
 
 Keep it thin -- parse arguments, wire adapters into core use-cases, format results. Typer is the
 standard framework: declare commands with @app.command() and describe any
-arguments/options with typing.Annotated so `ty` sees real signatures. A Typer
-app needs at least one command to run, so `status` below is the minimal runnable
-seed -- add your own commands alongside it or replace it. While it is the only
-command, Typer runs it directly (invoke the app as `Himark`, not
-`Himark status`); it becomes a named subcommand once a second is added.
+arguments/options with typing.Annotated so `ty` sees real signatures. Three
+commands are exposed as named subcommands: `status` (version echo), `gen-parser`
+(rebuild the ANTLR parser from the grammars), and `parse-file` (parse a .hmk
+source file and dump its parse tree).
 """
 
 from __future__ import annotations
@@ -17,8 +16,8 @@ from typing import Annotated
 
 import typer
 
-from Himark.adapters.antlr import AntlrGenerationError, AntlrGenerator, AntlrToolNotFoundError
-from Himark.adapters.parser import AntlrParser, GeneratedParserMissingError
+from hejmark.adapters.antlr import AntlrGenerationError, AntlrGenerator, AntlrToolNotFoundError
+from hejmark.adapters.parser import AntlrParser, GeneratedParserMissingError
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
 
@@ -26,13 +25,13 @@ DEFAULT_GRAMMARS = (
     Path("static/grammar/HimarkLexer.g4"),
     Path("static/grammar/HimarkParser.g4"),
 )
-DEFAULT_OUTPUT_DIR = Path("Himark/adapters/_gen")
+DEFAULT_OUTPUT_DIR = Path("hejmark/adapters/_gen")
 
 
 @app.command()
 def status() -> None:
     """Print the installed package name and version -- minimal runnable seed."""
-    typer.echo(f"Himark {version('Himark')}")
+    typer.echo(f"hejmark {version('hejmark')}")
 
 
 @app.command("gen-parser")
@@ -67,7 +66,7 @@ def parse_file(
         typer.Option("--out", "-o", help="Write the parse tree here instead of the console."),
     ] = None,
 ) -> None:
-    """Parse a Himark source file, reporting syntax errors or dumping its parse tree."""
+    """Parse a hejmark source file, reporting syntax errors or dumping its parse tree."""
     source = path.read_text()
     parser = AntlrParser()
     try:

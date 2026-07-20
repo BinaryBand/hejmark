@@ -1,8 +1,8 @@
-"""Entry point for `python -m Himark`."""
+"""Entry point for `python -m hejmark`."""
 
 from __future__ import annotations
 
-from Himark.cli.main import main
+from hejmark.cli.main import main
 
 if __name__ == "__main__":
     main()
