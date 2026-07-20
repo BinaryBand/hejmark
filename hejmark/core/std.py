@@ -29,6 +29,7 @@ _MAX = "\U0010ffff"
 _MIN = "\x00"
 
 SOURCE = """\
+uni hex       = {0..9,a..f}
 uni spellings = {{{}}, &@C}
 
 fill         := {{{}, @0}}

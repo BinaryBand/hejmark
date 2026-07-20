@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from hejmark import parse
 from hejmark.adapters.parser import AntlrParser
 from hejmark.core.std import SOURCE, std_env
 
@@ -21,7 +22,13 @@ def test_the_std_declares_the_derivations_l1_5_spells() -> None:
         "where",
         "pad",
     }
-    assert set(env.unis) == {"spellings", "C"}
+    assert set(env.unis) == {"hex", "spellings", "C"}
+
+
+def test_hex_is_the_l2_radix() -> None:
+    """`uni hex` ships in the std, denoting the sixteen digits in value order."""
+    universe = parse("{@hex}").universes[0]
+    assert [entry.faces[0] for entry in universe.entries()] == list("0123456789abcdef")
 
 
 def test_the_code_point_set_is_seeded_not_written() -> None:
@@ -32,7 +39,7 @@ def test_the_code_point_set_is_seeded_not_written() -> None:
 
 def test_the_std_parses_as_ordinary_source() -> None:
     """Nothing in the std is special-cased; it goes through the same grammar."""
-    assert len(_to_ast(SOURCE).lines) == 9
+    assert len(_to_ast(SOURCE).lines) == 10
 
 
 def test_the_std_is_resolved_once() -> None:
