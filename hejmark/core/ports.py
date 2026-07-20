@@ -13,6 +13,8 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
     from pathlib import Path
 
+    from hejmark.core.syntax import ScriptNode
+
 
 class ParserGenerator(Protocol):
     """Generates a parser from ANTLR grammar files."""
@@ -22,9 +24,9 @@ class ParserGenerator(Protocol):
         ...
 
 
-class SurfaceParser(Protocol):
-    """Parses hejmark surface syntax."""
+class ToAst(Protocol):
+    """Callable that parses hejmark source into a faithful AST."""
 
-    def parse(self, source: str) -> list[str]:
-        """Return syntax error messages for *source*; empty means it parsed cleanly."""
+    def __call__(self, source: str) -> ScriptNode:
+        """Parse *source* into a :class:`ScriptNode` AST."""
         ...
