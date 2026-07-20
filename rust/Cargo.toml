@@ -1,0 +1,13 @@
+# The Rust half of hejmark: a standalone port of core/, grown one
+# self-contained slice at a time. It has no dependencies and is exercised
+# entirely by `cargo test`, which the Python suite drives through
+# tests/test_rust.py (cargo fmt --check, clippy -D warnings, cargo test).
+[package]
+name = "hejmark"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+name = "hejmark"
+path = "src/lib.rs"
