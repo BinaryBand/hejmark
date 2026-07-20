@@ -15,7 +15,7 @@ Read these in order. Each one assumes the ones before it.
 3. [The theorems: what the object forces](03-the-theorems.md) -- positional value, transfinitude, fixpoints, and compression. These are not features somebody added; they are consequences nobody could avoid. This is the hardest math lesson and the most rewarding.
 4. [Lean in a hurry](04-lean-in-a-hurry.md) -- a from-zero crash course in the proof assistant: propositions as types, tactics, well-founded recursion, order isomorphisms, and what "axiom-free" actually means. No Himark here, just the tool.
 5. [Reading the mechanization](05-reading-the-mechanization.md) -- a guided tour of `static/lean/L1/`: which file proves what, the crucial split between the "membership axis" and the "order axis," and how the CI gates keep everyone honest.
-6. [The order-axis proofs, up close](06-the-order-axis-proofs.md) -- a line-by-line reading of the three order-axis files (`Order.lean`, `Positional.lean`, `Collision.lean`), which are the newest, the most self-contained, and the best first proofs to actually understand.
+6. [The order-axis proofs, up close](06-the-order-axis-proofs.md) -- a line-by-line reading of the first three order-axis files (`Order.lean`, `Positional.lean`, `Collision.lean`), which are the most self-contained and the best first proofs to actually understand.
 
 ## How to read a lesson
 

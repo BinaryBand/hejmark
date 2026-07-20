@@ -29,9 +29,9 @@ If the Lean toolchain is not installed the build gate fails *loudly* rather than
 A universe is a pointed dictionary, and the pointer has two coordinates (lesson 1): *which entry* (`value`) and *which face* (`face`). Correspondingly there are two different questions you can ask about a universe, and they turn out to have very different proof difficulty:
 
 - The **membership axis** -- *which spellings does this universe wear?* This is pure structural set algebra. Collision moves *ownership* of a spelling from one entry to another, but it never changes *whether the spelling is worn at all*. So for membership you can ignore ordinals entirely and reason with ordinary induction over the constructors. This axis is mechanized **completely**.
-- The **order axis** -- *in what order, and of what ordinal order type?* This is where the ordinals, the mixed-radix positional value, the collision addressing, and the transfinite ceiling live. It is much harder, and it is mechanized in **pieces**, three so far, with the full climb to $\varepsilon_0$ still open.
+- The **order axis** -- *in what order, and of what ordinal order type?* This is where the ordinals, the mixed-radix positional value, the collision addressing, and the transfinite ceiling live. It is much harder, and it is mechanized as **six self-contained abstract phases** (A through F), each capturing one doc claim over an explicit model rather than the real syntax.
 
-Every file in the tree belongs to one axis or the other, and knowing which tells you immediately what kind of reasoning to expect.
+Every file belongs to one axis or the other -- except the third directory, `L1/Bridge/`, which is the one place the axes meet: it instantiates the abstract phases against the real `Syntax.lean` terms, all the way up to the transfinite rows. Knowing which axis a file is on tells you immediately what kind of reasoning to expect.
 
 ```mermaid
 graph TD
@@ -45,14 +45,26 @@ graph TD
         St["Settling.lean -- guarded closures settle by stage L+1"]
         Co["Completeness.lean -- the two-sided membership theorem"]
         Ns["NorthStar.lean -- every row of the doc's table, checked"]
+        Fx["Fixpoint.lean -- positive closure is the least fixpoint"]
+        Ad["Admission.lean -- the re-admission test; a^n b^n is not regular"]
     end
-    subgraph Order["Order axis -- three phases landed"]
-        Or["Order.lean -- shortlex over finite alphabet has type omega"]
-        Po["Positional.lean -- positional value is mixed radix"]
-        Cl["Collision.lean -- least-address ownership is well-defined"]
+    subgraph Order["Order axis -- six abstract phases"]
+        Or["Order.lean -- A: shortlex over finite alphabet has type omega"]
+        Po["Positional.lean -- B: positional value is mixed radix"]
+        Cl["Collision.lean -- C: least-address ownership is well-defined"]
+        Tr["Transfinitude.lean -- D: the calculus stays below epsilon_0"]
+        En["Enumeration.lean -- E: first appearance fits within one limit"]
+        Cp["Collapse.lean -- F: collision alone does not decide the type"]
+    end
+    subgraph Bridge["Bridge -- the axes meet on real syntax"]
+        Be["Entries.lean -- the ordinal-valued entries enumeration"]
+        Bs["Split.lean -- split addresses; product/union inversions"]
+        Br["RecOrder.lean -- the body-recursive within-body order"]
+        Bw["Rows.lean -- the transfinite rows, past omega on real terms"]
     end
     Root --> Membership
     Root --> Order
+    Root --> Bridge
 ```
 
 ## The membership-axis files, in dependency order
@@ -66,22 +78,36 @@ Read this as a story: each file builds on the ones above it.
 - **`Evaluator.lean`** -- a *Bool*-valued executable matcher (`containsb` and friends) mirroring the `Prop`-valued semantics, plus its soundness theorem `containsb_sound`: if the evaluator says yes, the denotation agrees. Bool-valued means it *computes* -- you can actually run it on an example, which `NorthStar.lean` does.
 - **`Settling.lean`** -- lesson 3's fixpoint theorem, the hard one. Headline `guarded_settles`: on a guarded body, if a spelling ever appears at *some* stage it appears by stage `length s + 1`. The proof has three layers -- *amp-irrelevance* (a non-binder ignores the ambient closure), *locality* (a guarded body reads its recursion only at strictly shorter spellings, because the guard eats a character), and *stabilization* (strong induction on spelling length: past stage `|s|+1` the answer stops moving). This is the deepest proof in the tree; do not start here.
 - **`Completeness.lean`** -- the converse of soundness, and the crown two-sided theorem `containsb_exact`: on a well-behaved fragment, the evaluator says yes *if and only if* the denotation holds. This is what certifies the matcher is *correct*, not just sound. Closures cross the Bool/Prop boundary here via the settling bound from `Settling.lean`.
-- **`NorthStar.lean`** -- every row of `docs/foundation/L1.md`'s north-star table, verified. Positive membership samples compute through the evaluator (via `native_decide`, the compiled-computation tactic -- which is why these rows sit *outside* the axiom-honesty gate, per lesson 4); non-membership and emptiness rows are proved at the `Prop` level. This file is the payoff: the table you were told is "ground truth" in lesson 1 is machine-checked, row by row.
+- **`NorthStar.lean`** -- every row of `docs/foundation/L1.md`'s north-star table, verified. Positive membership samples compute through the evaluator (via `native_decide`, the compiled-computation tactic -- which is why these rows sit *outside* the axiom-honesty gate, per lesson 4); non-membership and emptiness rows are proved at the `Prop` level. This file is the payoff: the table you were told is "ground truth" in lesson 1 is machine-checked, row by row. It also carries `anbn_exact`, the two-sided characterization of the `{ab, {a}&{b}}` row's language as *exactly* $a^n b^n$, which `Admission.lean` reuses.
+- **`Fixpoint.lean`** -- the *positive* half of lesson 3's fixpoint theorem, on the real semantics. A positive walk (no subtraction operand enclosing the ambient `&`) is monotone and continuous in its amp, so the closure at $\omega$ is a genuine *least* fixpoint: `positive_fixpoint` (one more application of the body adds nothing) and `positive_least` (any prefixpoint contains the closure). The guarded half lives in `Settling.lean`; together they mechanize both halves of the doc's "Fixpoint on settled bodies."
+- **`Admission.lean`** -- lesson 3's re-admission test, on the real semantics. `operand_needs_infinitely_many_removals` makes the universe operand axiomatic (finitely many entry-wise steps cannot carve the seam-free set out of `{a..}`), and `closure_admission` proves the $a^n b^n$ face set is not a regular language (Myhill-Nerode), so no closure-free arrangement reaches it and closure keeps its place as an axiom.
 
-## The order-axis files (lesson 6 reads these line by line)
+## The order-axis files: six phases
 
-These three are the newest, the most self-contained (each is independent of the membership axis and of each other, except `Positional` building on `Order`), and therefore the *best first proofs to actually understand*.
+Each phase is self-contained (independent of the membership axis, and mostly of each other), which makes the first three the *best first proofs to actually understand* -- lesson 6 reads them line by line.
 
 - **`Order.lean`** -- phase A. Shortlex over a genuinely *finite* alphabet `Fin (m+1)` is a well-order of order type $\omega$. It builds an explicit order isomorphism (`value`, reading a spelling as a length-offset plus a base-`(m+1)` numeral) onto `(Nat, <)`, then invokes "$\omega$ is the type of Nat." Headline `finShortlex_type_omega0`. This is lesson 3's "finite alphabet gives type $\omega$," and it is the piece `Spelling.lean` explicitly deferred.
 - **`Positional.lean`** -- phase B. Positional value is *mixed radix* over a product of finite factors (lesson 3's odometer/clock). It generalizes phase A's uniform base to a per-factor radix list `bs`, defines the mixed-radix reading by Horner recursion, and proves it is an order isomorphism onto `Fin (bs.prod)`. Headline `positional_value_type`: the product's order type is exactly the natural `bs.prod` -- "finite factors give naturals, and the order of multiplication is invisible." A bridge lemma `lexIndex_eq_mixedRadix` shows phase A is the constant-radix special case.
 - **`Collision.lean`** -- phase C. The `<value, face>` address is an ordinal paired with a natural under lexicographic order; because that order is a *well-order*, every spelling has a *unique* least claimant. Headline `collision_settled`. This is lesson 3's collision rule -- "least address wins, later claimants drop" -- made a well-definedness theorem, with three tiny facts checking the doc's three documented collisions.
+- **`Transfinitude.lean`** -- phase D, bounded transfinitude: the ordinal ceiling from lesson 3's theorem 2, over an abstract ordinal calculus. The closure-free floor stays below $\omega^\omega$; linear closure caps at $u \cdot \omega$; nonlinear closure's squared stages sup to *exactly* $\omega^\omega$ (`nonlinear_closure_sup` -- the binary-trees showpiece); and the full calculus never reaches $\varepsilon_0$ (headline `l1Type_lt_epsilon0`, because $\varepsilon_0$ is closed under everything the calculus can do below it). Also carries the two product rows ($\omega \cdot 2$ and $\omega^2$) and the load-bearing left-collapse $n \cdot \omega = \omega$.
+- **`Enumeration.lean`** -- phase E, first-appearance enumeration: stage-major order over $\omega$-many finite stages has type at most $\omega$ -- one limit, no continuation past it (headline `stageMajor_type_le_omega0`, exactly $\omega$ when new entries appear cofinally). The engine is a general fact worth knowing: a well order in which every element has finitely many predecessors has type at most $\omega$.
+- **`Collapse.lean`** -- phase F, lesson 3's "collision alone does not decide the type," both halves: the `{a..}{a..}` survivors collapse to $\omega \cdot (m+1)$ (`cofinite_collision_collapses`) while the seam row's survivors keep $\omega \cdot \omega$ (`seam_collision_survives`) -- same collision rule, opposite effect on the type.
+
+## `L1/Bridge/`: where the axes meet
+
+The abstract phases prove the doc's order claims over explicit models. `L1/Bridge/` ties them to the *real* syntax -- an ordinal-valued entries enumeration over actual `Syntax.lean` terms, which is the Lean shape of the Python `Universe.entries`.
+
+- **`Entries.lean`** -- the enumeration itself: `Entries n` is the subtype of spellings a node denotes, and `entriesType` (its shortlex order type) is total on *every* term, because Mathlib's shortlex is a well order even over the infinite alphabet -- what needs finiteness is type $\omega$, not well-orderedness. Phase A and phase E are instantiated here against the real `stage` ladder, and on the demotion row `{{{}}, &C}` the generated first-appearance order provably *is* the spelling order -- the order-level half of `unitClosure_generates`.
+- **`Split.lean`** -- the split address space: product and union term shapes with their denotation inversions, and phase C's collision theorem replayed with *real cuts* (`s = p ++ q`) as addresses (`prod2_collision_settled`: every denoted spelling of a product has a unique least split).
+- **`RecOrder.lean`** -- the body-recursive within-body order, the deepest file on this axis: `entryRecLt` recurses into each constructor's own structure at every depth, is a well order on every subtraction-free node, restricts back to shortlex on a leaf, and carries the type laws (positional product, union sum with the skip rule priced in, closure at $\omega$). Its design history is recorded in `RecOrder.design.md` alongside it.
+- **`Rows.lean`** -- the payoff: the transfinite rows on real terms, all through `entryRecType`. The union row at $\omega + 2$, the `{b,c}{a..}` row at $\omega \cdot 2$, the seam row at $\omega^2$, the total collapse back to $\omega$, and the doc-literal `{a..}{a..}` collapse at $\omega \cdot 4$ -- the doc's "$\omega \cdot k$, $k$ finite" with the recursive order's own $k$.
 
 ## What is proven, what is deferred, and why
 
 Be honest about the boundary, because the README is:
 
-- **Fully mechanized:** the entire membership axis, and three separable pieces of the order axis (type-$\omega$ for finite alphabets, mixed-radix positional value over finite factors, collision-ownership well-definedness).
-- **Deferred:** entry order and first-appearance *enumeration* (`Universe.entries`), and the full *bounded transfinitude* climb to $\varepsilon_0$ (lesson 3's theorem 2). The last one is genuinely research-grade: it requires modeling closure stages, the nonlinear stage-type squaring, Cantor normal form, and the $\varepsilon_0$ bound. Lesson 3 told you *why* it is hard; the mechanization tree agrees by leaving it open.
+- **Fully mechanized:** the entire membership axis (including the fixpoint theorem and the re-admission witness), all six abstract order phases -- including the $\varepsilon_0$ ceiling itself -- and the bridge onto real syntax up through the transfinite rows.
+- **Deferred, permanently:** development is frozen here, and the README's "What this does not prove" section lists the four items that stay open. Each is a research increment, not a gap in what landed: the *n-ary* positional machinery (the product type laws are proved for the binary `prod2`; the rows only need the binary form), the *in-range-seam* survivors on real syntax (that story stands at phase F's abstract `seam_collision_survives`), the *converse* half of the re-admission test (closure-free implies regular, which needs a DFA construction; the witness half that actually rules compression out *is* proved), and the ordinal-level *face axis* on real syntax.
 
 Two documented *approximations* in the evaluator are worth knowing so you are not surprised (both are spelled out in the README's "two documented approximations" section):
 
@@ -92,9 +118,9 @@ These are not bugs; they are the exact, documented places where a *computable* c
 
 ## What you should now be able to say
 
-- The tree splits into the *membership axis* (which spellings, pure set algebra, fully proved) and the *order axis* (what order type, ordinals, proved in three pieces).
-- The membership files stack `Spelling -> Syntax -> Semantics -> {Laws, Evaluator} -> Settling -> Completeness -> NorthStar`, ending in a machine-checked reproduction of the doc's ground-truth table.
-- The order-axis trio (`Order`, `Positional`, `Collision`) is self-contained and the best place to read real proofs -- which is exactly what lesson 6 does.
-- The honesty gates check the build, the axiom footprint, and the absence of `sorry`/`axiom`; two evaluator approximations are documented and theorem-fenced; the $\varepsilon_0$ climb is deliberately deferred as research-grade.
+- The tree splits into the *membership axis* (which spellings, pure set algebra, fully proved) and the *order axis* (what order type, ordinals, proved as six abstract phases), meeting on real syntax in `L1/Bridge/`.
+- The membership files stack `Spelling -> Syntax -> Semantics -> {Laws, Evaluator} -> Settling -> Completeness -> NorthStar -> {Fixpoint, Admission}`, ending in a machine-checked reproduction of the doc's ground-truth table plus the fixpoint and re-admission theorems.
+- The first order-axis trio (`Order`, `Positional`, `Collision`) is self-contained and the best place to read real proofs -- which is exactly what lesson 6 does; `Transfinitude`, `Enumeration`, and `Collapse` extend the same style up to the $\varepsilon_0$ ceiling, and `Bridge/` lands it all on real terms.
+- The honesty gates check the build, the axiom footprint, and the absence of `sorry`/`axiom`; two evaluator approximations are documented and theorem-fenced; the four remaining items are deliberately deferred, listed in the README, and the development is frozen there.
 
-Next: we read the three order-axis files closely -- the numbering function, the mixed-radix isomorphism, and the well-order behind collision ownership.
+Next: we read the first three order-axis files closely -- the numbering function, the mixed-radix isomorphism, and the well-order behind collision ownership.
