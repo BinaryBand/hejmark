@@ -761,8 +761,8 @@ theorem nestedClosureRow_nSubfree : nSubfree nestedClosureRow = true := by
 /-- **The promoted order is a genuine well order on a term that exercises the
 promotion.** Getting here runs faithfulness through the body-recursive
 nested-closure branch: the stage-body rank of the brace factor is discharged by
-`cFaithful` at the nested subterm, where before WP1 it was `faithful_typein` on
-the stage-major fallback. This is the regression witness the promoted path
+`cFaithful` at the nested subterm, where before WP1 it was `typein` of the
+stage-major fallback. This is the regression witness the promoted path
 previously had nowhere to be tested on. -/
 theorem nestedClosureRow_entryRecLt_isWellOrder :
     IsWellOrder (Entries nestedClosureRow) (entryRecLt nestedClosureRow) :=

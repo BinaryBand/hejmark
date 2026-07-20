@@ -88,11 +88,6 @@ theorem type_subrel_congr {α : Type*} (r : α → α → Prop) [IsWellOrder α 
     Ordinal.type (Subrel r p) = Ordinal.type (Subrel r q) :=
   Ordinal.type_eq.mpr ⟨⟨Equiv.subtypeEquivRight h, Iff.rfl⟩⟩
 
-/-- Denotationally equal terms wear their entries at the same type. -/
-theorem entriesType_congr {m n : Node} (h : ∀ s, denotes m s ↔ denotes n s) :
-    entriesType m = entriesType n :=
-  type_subrel_congr _ h
-
 /-- The least stage at which a binder wears `s` (`0` when it never does):
 first appearance, read off the real stage ladder of `Semantics.lean`. -/
 noncomputable def firstStage (n : Node) (s : Spelling) : ℕ := sInf {k | stage n k s}
@@ -130,13 +125,6 @@ noncomputable def clFallbackRank (n : Node) (e : Entries n) : Ordinal :=
 
 /-- The matching fallback bound: the first-appearance order type. -/
 noncomputable def clFallbackBound (n : Node) : Ordinal := Ordinal.type (entryLt n)
-
-theorem clFallbackRank_lt (n : Node) (e : Entries n) :
-    clFallbackRank n e < clFallbackBound n :=
-  typein_lt_type _ _
-
-theorem clFallbackRank_injective (n : Node) : Function.Injective (clFallbackRank n) :=
-  fun _ _ h => typein_injective _ h
 
 /- ---------------------------------------------------------------- -/
 /- Phase A on real syntax: a finite code range caps the spelling     -/

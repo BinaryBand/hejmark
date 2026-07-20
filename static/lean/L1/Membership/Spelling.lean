@@ -188,9 +188,6 @@ theorem shortlexLe_lt_trans {s t u : Spelling} :
   · exact shortlexLt_trans hst htu
   · exact htu
 
-theorem shortlexLt_length {s t : Spelling} (h : s.length < t.length) :
-    shortlexLt s t = true := by simp [shortlexLt, h]
-
 theorem singleton_shortlexLt {a b : Code} (h : a < b) :
     shortlexLt [a] [b] = true := by simp [shortlexLt, lexLt, h]
 

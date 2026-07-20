@@ -96,53 +96,6 @@ end RecOrder
 /- so, which is what makes the composed rank injective.               -/
 /- ---------------------------------------------------------------- -/
 
-/-- Fold-of-a-non-binder reinterpretation. A fold whose inner universe does
-not bind wears exactly inner's language, plus the empty spelling when inner is
-denotationally empty -- the fold-to-unit boundary. So a fold-of-non-binder
-entry is either an entry of `inner` or the lone empty face of an empty inner;
-the recursion routes the former down into `inner` and ranks the latter at 0. -/
-theorem denotes_fold_nonbinder (inner : Node) (s : Spelling)
-    (h : bindsb inner = false) :
-    denotes (nsingle (.fold inner)) s
-      ↔ denotes inner s ∨ (s = [] ∧ ∀ t, ¬ denotes inner t) := by
-  have hnode : bindsb (nsingle (.fold inner)) = false := by
-    simp [nsingle, bindsb, freeAmpb]
-  simp only [denotes, ndenote, hnode, h, Bool.false_eq_true, if_false,
-    walk_single_fold, false_or, spells_fold]
-
-open Classical in
-/-- Union first-owner reinterpretation (subtraction-free bodies). An entry of a
-union `napp n1 n2` is owned by the first body when it denotes it, else by the
-second; ownership is a function of the spelling (the `dif`), so the map into
-`Entries n1 ⊕ Entries n2` is injective. The recursion recurses `entryRank` into
-the owning body -- first body's block, then the second body's unclaimed
-remainder. Subtraction-free is exactly the hypothesis `denotes_napp_iff`
-carries (a subtraction interleaved in the second body would strip the first
-body's faces and break the clean block split); interleaved subtraction is a
-deferred follow-up increment. -/
-noncomputable def unionReinterp (n1 n2 : Node) (hb1 : bindsb n1 = false)
-    (hb2 : bindsb n2 = false) (hsf2 : subfreeb n2 = true)
-    (e : Entries (napp n1 n2)) : Entries n1 ⊕ Entries n2 :=
-  if h : denotes n1 e.1 then Sum.inl ⟨e.1, h⟩
-  else Sum.inr ⟨e.1, ((denotes_napp_iff n1 n2 hb1 hb2 hsf2 e.1).mp e.2).resolve_left h⟩
-
-theorem unionReinterp_injective (n1 n2 : Node) (hb1 : bindsb n1 = false)
-    (hb2 : bindsb n2 = false) (hsf2 : subfreeb n2 = true) :
-    Function.Injective (unionReinterp n1 n2 hb1 hb2 hsf2) := by
-  intro x y hxy
-  simp only [unionReinterp] at hxy
-  by_cases hx : denotes n1 x.1 <;> by_cases hy : denotes n1 y.1
-  · rw [dif_pos hx, dif_pos hy] at hxy
-    simp only [Sum.inl.injEq, Subtype.mk.injEq] at hxy
-    exact Subtype.ext hxy
-  · rw [dif_pos hx, dif_neg hy] at hxy
-    exact absurd hxy Sum.inl_ne_inr
-  · rw [dif_neg hx, dif_pos hy] at hxy
-    exact absurd hxy Sum.inr_ne_inl
-  · rw [dif_neg hx, dif_neg hy] at hxy
-    simp only [Sum.inr.injEq, Subtype.mk.injEq] at hxy
-    exact Subtype.ext hxy
-
 /- ---------------------------------------------------------------- -/
 /- Shared input to the rank recursions: the fallback bound for a      -/
 /- nested closure inside the within-stage recursion (STEP 4b). The    -/
@@ -161,19 +114,6 @@ theorem unionReinterp_injective (n1 n2 : Node) (hb1 : bindsb n1 = false)
 `bound` and is injective (so the induced `rankLt` is a well order). -/
 def Faithful {β : Type*} (rank : β → Ordinal) (bound : Ordinal) : Prop :=
   (∀ e, rank e < bound) ∧ Function.Injective rank
-
-/-- The stage-major fallback is faithful at every node, unconditionally -- it is
-`typein` of a well order. This is the closure oracle the within-stage recursion
-runs on until WP1 step 3 promotes it to `cRank` / `cBound`. -/
-theorem clFallbackFaithful (n : Node) : Faithful (clFallbackRank n) (clFallbackBound n) :=
-  ⟨clFallbackRank_lt n, clFallbackRank_injective n⟩
-
-/-- Any well order's own `typein` is faithful with bound its order type -- the
-leaf base case (a leaf ranks by `entrySpellLt`, bounded by its own order type),
-and the nested-closure fallback inside the within-stage recursion (STEP 4b). -/
-theorem faithful_typein {β : Type*} (r : β → β → Prop) [IsWellOrder β r] :
-    Faithful (fun e => Ordinal.typein r e) (Ordinal.type r) :=
-  ⟨fun e => Ordinal.typein_lt_type r e, Ordinal.typein_injective r⟩
 
 /- ---- Mixed-radix arithmetic: the product-composition core. ---- -/
 
@@ -304,16 +244,6 @@ theorem stageRank_injective {β : Type*} (st : β → ℕ) (W : ℕ → Ordinal)
     exact hinj x y heq ((add_left_cancel_iff).1 hxy)
   · exact absurd hxy.symm (ne_of_lt (stageRank_lt_of_stage_lt st W w hbound hgt))
 
-/-- The payoff of the stage half: the stage-major assembly is a well order --
-its rank is injective, so `rankLt` inherits the ordinals' well-order. The body
-half (a bounded, per-stage-injective within-stage rank on real closures) plugs
-into `hbound`/`hinj` in the follow-up slice. -/
-theorem stageRank_isWellOrder {β : Type*} (st : β → ℕ) (W : ℕ → Ordinal)
-    (w : β → Ordinal) (hbound : ∀ e, w e < W (st e))
-    (hinj : ∀ x y, st x = st y → w x = w y → x = y) :
-    IsWellOrder β (rankLt (stageRank st W w)) :=
-  isWellOrder_of_injective _ (stageRank_injective st W w hbound hinj)
-
 end RecOrder
 
 /- ---------------------------------------------------------------- -/
@@ -342,9 +272,12 @@ theorem walk_napp_iff (n1 n2 : Node) (amp : Spelling → Prop)
     walk_adds n2 amp False s hsf2]
   tauto
 
-/-- Fold-of-a-non-binder inversion over an arbitrary amp-set: the amp-general
-core of `denotes_fold_nonbinder`. A fold whose inner universe does not bind
-wears inner's amp-membership, plus the empty spelling when inner is empty. -/
+/-- Fold-of-a-non-binder inversion over an arbitrary amp-set: a fold whose
+inner universe does not bind wears inner's amp-membership, plus the empty
+spelling when inner is empty -- the fold-to-unit boundary. So a
+fold-of-non-binder entry is either an entry of `inner` or the lone empty face
+of an empty inner; the recursion routes the former down into `inner` and ranks
+the latter at 0. -/
 theorem walk_fold_nonbinder (inner : Node) (amp : Spelling → Prop) (s : Spelling)
     (h : bindsb inner = false) :
     walk (nsingle (.fold inner)) amp False s
@@ -357,23 +290,6 @@ theorem walk_prodNode_fsplit (fs : Factors) (amp : Spelling → Prop) (s : Spell
     walk (prodNode fs) amp False s ↔ fsplit fs amp s := by
   show walk (nsingle (.prod fs)) amp False s ↔ _
   rw [walk_single_prod, false_or]
-
-/-- Head/tail split of a product with a non-binder head over an arbitrary
-amp-set: the amp-general `prodNode_node_split`. The head `n` is a non-binder
-(a literal `&` in the head would rebind, routing to the closure fallback), so
-its `ndenote` collapses to `walk n amp False`. -/
-theorem walk_prodNode_node_split (n : Node) (rest : Factors) (amp : Spelling → Prop)
-    (hbn : bindsb n = false) (s : Spelling) :
-    walk (prodNode (.node n rest)) amp False s
-      ↔ ∃ p q, s = p ++ q ∧ walk n amp False p ∧ walk (prodNode rest) amp False q := by
-  rw [walk_prodNode_fsplit, fsplit_fnode]
-  constructor
-  · rintro ⟨p, q, rfl, hp, hq⟩
-    exact ⟨p, q, rfl, (ndenote_nonbinder n amp p hbn).mp hp,
-      (walk_prodNode_fsplit rest amp q).mpr hq⟩
-  · rintro ⟨p, q, rfl, hp, hq⟩
-    exact ⟨p, q, rfl, (ndenote_nonbinder n amp p hbn).mpr hp,
-      (walk_prodNode_fsplit rest amp q).mp hq⟩
 
 /- ---------------------------------------------------------------- -/
 /- STEP 4b-ii-a: the within-stage body recursion -- DEFINITIONS.    -/
@@ -1470,8 +1386,8 @@ theorem cRank_lt_of_firstStage_lt_aux (n : Node) (hsub : nSubfree n = true)
 body-recursive closure rank `cRank` is injective and lands below the total
 bound `cBound`. Different first stages separate by stage-major disjointness
 (`cRank_lt_of_firstStage_lt`); a shared first stage reduces to 4d-i's
-within-stage faithfulness (`csFaithful`). This is what replaces
-`faithful_typein` on the closure fallbacks in 4d-iii. -/
+within-stage faithfulness (`csFaithful`). This is the oracle 4d-iii installs on
+the closure branches, in place of the stage-major fallback. -/
 theorem cFaithful (n : Node) (hb : bindsb n = true) (hsub : nSubfree n = true) :
     Faithful (cRank n) (cBound n) := by
   have IH : ∀ n', sizeOf n' < sizeOf n → bindsb n' = true → nSubfree n' = true →
@@ -1515,17 +1431,6 @@ theorem cRank_lt_of_firstStage_lt (n : Node) (hsub : nSubfree n = true)
 
 /- ---- The fold-of-binder routed rank. ---- -/
 
-/-- The routed rank is faithful: a fold-of-binder entry ranks at its inner
-closure's `cRank`, bounded by the inner closure's `cBound` -- the branch
-4d-iii installs on `mRank (.fold inner)` for a binder `inner`. -/
-theorem foldBinderFaithful (inner : Node) (hb : bindsb inner = true)
-    (hsub : nSubfree inner = true) :
-    Faithful (fun e => cRank inner (foldBinderReinterp inner hb e))
-      (cBound inner) :=
-  ⟨fun e => (cFaithful inner hb hsub).1 (foldBinderReinterp inner hb e),
-   fun _ _ h => foldBinderReinterp_injective inner hb
-     ((cFaithful inner hb hsub).2 h)⟩
-
 /- ---------------------------------------------------------------- -/
 /- STEP 2 + 4d-iii: the rank and bound, defined together in one     -/
 /- structural recursion, and their faithfulness. Reordering         -/
@@ -1537,8 +1442,9 @@ theorem foldBinderFaithful (inner : Node) (hb : bindsb inner = true)
 open Classical in
 /-- The top-level instance of the within-stage recursion: the empty amp-set.
 A bare `&` makes its node a binder, so the wrappers below route it to `cRank`
-before the amp branches are ever reached -- `noAmpRank` / `ampBound := 0` are
-totality scaffolding, and `noAmp_binds` records why that is safe. -/
+before the amp branches are ever reached: a member carrying a free `&` makes
+its one-member node a binder. So `noAmpRank` / `ampBound := 0` are totality
+scaffolding on an empty carrier. -/
 abbrev noAmp : Spelling → Prop := fun _ => False
 
 /-- The vacuous amp-rank: its carrier is empty. -/
@@ -1546,11 +1452,6 @@ noncomputable def noAmpRank : {s : Spelling // noAmp s} → Ordinal := fun e => 
 
 theorem noAmpFaithful : Faithful noAmpRank 0 :=
   ⟨fun e => e.2.elim, fun {x} _ _ => x.2.elim⟩
-
-/-- A member carrying a free `&` makes its one-member node a binder -- so the
-`.amp` branches of the merged recursion are unreachable from the wrappers. -/
-theorem noAmp_binds (m : Member) (h : freeAmpb m = true) : bindsb (nsingle m) = true := by
-  simp only [nsingle, bindsb, h, Bool.true_or]
 
 /-- The nested-closure oracle at the top level is the closure rank itself. -/
 theorem clFaithful_cRank : ∀ n', (fun _ => True) n' → bindsb n' = true → nSubfree n' = true →
@@ -1843,26 +1744,6 @@ theorem wfFaithful_top (fs : Factors) (hf : fSubfree fs = true) :
   wfFaithful noAmp noAmpRank 0 cRank cBound (fun _ => True) noAmpFaithful
     clFaithful_cRank fs hf (fSites_true fs)
 
-theorem mFaithful (m : Member) (hm : mSubfree m = true) :
-    Faithful (mRank m) (mBound m) := by
-  by_cases hb : bindsb (nsingle m) = true
-  · have hsub : nSubfree (nsingle m) = true := by
-      simpa only [nsingle, nSubfree, Bool.and_true] using hm
-    obtain ⟨cb, ci⟩ := cFaithful (nsingle m) hb hsub
-    exact ⟨fun e => by rw [mRank, dif_pos hb, mBound, if_pos hb]; exact cb e,
-      fun {x y} hxy => by
-        rw [mRank, dif_pos hb, mRank, dif_pos hb] at hxy; exact ci hxy⟩
-  · rw [Bool.not_eq_true] at hb
-    have hcar : ∀ e : Entries (nsingle m), walk (nsingle m) noAmp False e.1 :=
-      fun e => denotes_walk_nb hb e.2
-    exact ⟨fun e => by
-        rw [mRank_nb hb e (hcar e), mBound_nb hb]; exact (wmFaithful_top m hm).1 _,
-      fun {x y} hxy => by
-        rw [mRank_nb hb x (hcar x), mRank_nb hb y (hcar y)] at hxy
-        have h := (wmFaithful_top m hm).2 hxy
-        apply Subtype.ext
-        simpa using congrArg Subtype.val h⟩
-
 theorem nFaithful (n : Node) (hn : nSubfree n = true) :
     Faithful (nRank n) (nBound n) := by
   by_cases hb : bindsb n = true
@@ -1877,28 +1758,6 @@ theorem nFaithful (n : Node) (hn : nSubfree n = true) :
       fun {x y} hxy => by
         rw [nRank_nb hb x (hcar x), nRank_nb hb y (hcar y)] at hxy
         have h := (wnFaithful_top n hn).2 hxy
-        apply Subtype.ext
-        simpa using congrArg Subtype.val h⟩
-
-theorem fFaithful (fs : Factors) (hf : fSubfree fs = true) :
-    Faithful (fRank fs) (fBound fs) := by
-  by_cases hb : hasAmpb fs = true
-  · have hb' : bindsb (nsingle (.prod fs)) = true := by rw [bindsb_prod]; exact hb
-    have hsub : nSubfree (nsingle (.prod fs)) = true := by
-      simpa only [nsingle, nSubfree, mSubfree, Bool.and_true] using hf
-    obtain ⟨cb, ci⟩ := cFaithful (nsingle (.prod fs)) hb' hsub
-    exact ⟨fun e => by rw [fRank, dif_pos hb', fBound, if_pos hb']; exact cb e,
-      fun {x y} hxy => by
-        rw [fRank, dif_pos hb', fRank, dif_pos hb'] at hxy; exact ci hxy⟩
-  · rw [Bool.not_eq_true] at hb
-    have hb' : bindsb (nsingle (.prod fs)) = false := by rw [bindsb_prod]; exact hb
-    have hcar : ∀ e : Entries (nsingle (.prod fs)),
-        walk (nsingle (.prod fs)) noAmp False e.1 := fun e => denotes_walk_nb hb' e.2
-    exact ⟨fun e => by
-        rw [fRank_nb hb e (hcar e), fBound_nb hb]; exact (wfFaithful_top fs hf).1 _,
-      fun {x y} hxy => by
-        rw [fRank_nb hb x (hcar x), fRank_nb hb y (hcar y)] at hxy
-        have h := (wfFaithful_top fs hf).2 hxy
         apply Subtype.ext
         simpa using congrArg Subtype.val h⟩
 
@@ -2358,9 +2217,11 @@ theorem entryRecRemType_def (n1 n2 : Node) (h : nSubfree n2 = true) :
 open Classical in
 /-- Union first-owner pieces: route an entry of `napp n1 n2` to the first body
 when it claims the spelling, else to the second body's unclaimed remainder.
-Ownership is a function of the spelling (the `dif`), so the map is injective;
-unlike `unionReinterp` the second component carries its unclaimed-ness, which
-is what makes the map onto. -/
+Ownership is a function of the spelling (the `dif`), so the map is injective,
+and the second component carries its unclaimed-ness, which is what makes the
+map onto. Subtraction-free is exactly the hypothesis `denotes_napp_iff`
+carries: a subtraction interleaved in the second body would strip the first
+body's faces and break the clean block split. -/
 noncomputable def unionRecPieces (n1 n2 : Node) (hb1 : bindsb n1 = false)
     (hb2 : bindsb n2 = false) (hsf2 : subfreeb n2 = true)
     (e : Entries (napp n1 n2)) :
@@ -2555,20 +2416,9 @@ theorem entryRecLt_finite_predecessors (n : Node) (hb : bindsb n = true)
     exact stage_mono_le n _ _ y.1 hle (hstage y)
   exact ((hfin _).preimage Subtype.val_injective.injOn).subset hpool
 
-/-- Phase E on the recursive enumeration: a binder whose stages are all finite
-enumerates its entries within the one limit -- `entryRecType` at most `ω`, the
-`entryLt_type_le_omega0` claim transported to the body-recursive order. -/
-theorem entryRecType_le_omega0 (n : Node) (hb : bindsb n = true)
-    (hsub : nSubfree n = true) (hfin : ∀ k, {s | stage n k s}.Finite) :
-    entryRecType n ≤ ω := by
-  haveI := entryRecLt_isWellOrder n hsub
-  rw [entryRecType_def n hsub]
-  exact type_le_omega0_of_finite_predecessors _
-    (entryRecLt_finite_predecessors n hb hsub hfin)
-
-/-- The exact version: a binder with finite stages and infinitely many entries
-spends the limit on the nose -- the recursive-order face of
-`entryLt_type_eq_omega0`. -/
+/-- Phase E on the recursive enumeration: a binder with finite stages and
+infinitely many entries enumerates its entries within the one limit, spending
+it on the nose -- the recursive-order face of `entryLt_type_eq_omega0`. -/
 theorem entryRecType_eq_omega0 (n : Node) (hb : bindsb n = true)
     (hsub : nSubfree n = true) (hfin : ∀ k, {s | stage n k s}.Finite)
     (hinf : {s | denotes n s}.Infinite) : entryRecType n = ω := by
