@@ -237,7 +237,23 @@ class Statement:
     steps: tuple[Step, ...]
 
 
-Line = UniDecl | DefDecl | SentinelDecl | Statement
+@dataclass(frozen=True)
+class IterStatement:
+    """A contracting statement ``query <=>[@m] template``: passes to settlement.
+
+    The pass is the ordinary two-step statement, re-run until it finds nothing
+    to rewrite. ``measure`` names a declared universe (the text after the
+    sigil); each pass must leave the document strictly earlier in its entry
+    order, which is what makes the iteration settle -- and a pass that fails
+    to shrink it is a scope error at emit, never a silent stall.
+    """
+
+    query: Expr
+    measure: str
+    template: Template
+
+
+Line = UniDecl | DefDecl | SentinelDecl | Statement | IterStatement
 
 
 @dataclass(frozen=True)

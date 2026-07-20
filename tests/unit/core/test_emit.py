@@ -107,3 +107,31 @@ def test_a_back_reference_matches_only_its_factors_re_spelling() -> None:
 def test_a_range_bound_back_reference_cuts_by_the_bound_value() -> None:
     """`where 0..$1` regenerates the value line cut at the face factor 1 bound."""
     assert run('{1,2}{0..9}[where 0..$1] => "<{{$2}}>"', "21 10 12") == "<1> <0> 12"
+
+
+def test_a_contracting_statement_settles_when_no_pass_matches() -> None:
+    """The measured letter sort: three descending passes, then nothing to rewrite."""
+    assert run('{ba} <=>[@spellings] "ab"', "bbaa") == "aabb"
+
+
+def test_a_contracting_statement_that_never_matches_returns_the_document() -> None:
+    """No pass runs, so the measure is never consulted -- emptiness stays legal."""
+    assert run('uni m = {x}\n{z} <=>[@m] "y"', "abc") == "abc"
+
+
+def test_a_pass_that_fails_to_shrink_the_measure_is_refused() -> None:
+    """`b` sits after `a` in `@spellings`, so the first pass already grows."""
+    with pytest.raises(HimarkScopeError, match="failed to shrink"):
+        run('{a} <=>[@spellings] "b"', "a")
+
+
+def test_a_pass_that_rewrites_in_place_is_refused() -> None:
+    """Matching without moving is the livelock the measure exists to surface."""
+    with pytest.raises(HimarkScopeError, match="failed to shrink"):
+        run('{a} <=>[@spellings] "a"', "a")
+
+
+def test_a_document_the_measure_does_not_spell_is_refused() -> None:
+    """The measure must spell what it is asked to seat, before and after a pass."""
+    with pytest.raises(HimarkScopeError, match="does not spell the document"):
+        run('uni m = {x}\n{a} <=>[@m] "x"', "a")

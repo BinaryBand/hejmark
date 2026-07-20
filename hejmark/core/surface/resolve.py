@@ -29,6 +29,7 @@ from hejmark.core.surface.ast import (
     DefDecl,
     Expr,
     HimarkScopeError,
+    IterStatement,
     Member,
     PipeItem,
     Ref,
@@ -168,7 +169,7 @@ def collect(script: ScriptNode) -> Env:
     """
     env = Env({}, {})
     for line in script.lines:
-        if isinstance(line, Statement):
+        if isinstance(line, Statement | IterStatement):
             continue
         if line.name in RESERVED:
             msg = f"reserved name: @{line.name} is a register"
@@ -201,9 +202,9 @@ def _allocate(env: Env) -> str:
     return chr(_SENTINEL_BASE + index)
 
 
-def statements(script: ScriptNode) -> tuple[Statement, ...]:
+def statements(script: ScriptNode) -> tuple[Statement | IterStatement, ...]:
     """The script's statements, in source order; declarations are not statements."""
-    return tuple(line for line in script.lines if isinstance(line, Statement))
+    return tuple(line for line in script.lines if isinstance(line, Statement | IterStatement))
 
 
 def merge(base: Env, extra: Env) -> Env:

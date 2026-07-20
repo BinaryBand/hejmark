@@ -96,10 +96,10 @@ def _contains(universe: Universe, spelling: str) -> bool:
     """Decide membership, memoized -- a closure re-asks each stage the same pieces."""
     node, amp, stages = universe.node, universe.amp, universe.stages
     if not binds(node):
-        return _walk(node.members, amp, spelling)
+        return walk(node.members, amp, spelling)
     bound = len(spelling) + 1 if stages is None else stages
     for stage in range(bound):
-        if _walk(node.members, Universe(node, amp, stage), spelling):
+        if walk(node.members, Universe(node, amp, stage), spelling):
             return True
     if stages is not None or settled(node, _spells_empty):
         return False
@@ -112,12 +112,17 @@ def _spells_empty(node: UniverseNode) -> bool:
     return Universe(node).contains("")
 
 
-def _walk(members: Sequence[Member], amp: Universe | None, spelling: str) -> bool:
-    """The union/subtraction walk: presence after the member list, left to right."""
+def walk(members: Sequence[Member], amp: Universe | None, spelling: str) -> bool:
+    """The union/subtraction walk: presence after the member list, left to right.
+
+    Public because it is the member-level membership oracle: a caller asking
+    about a *slice* of a binder's members cannot re-brace the slice without
+    rebinding its free ``&``, so it asks here with the binder's ``amp`` intact.
+    """
     present = False
     for member in members:
         if isinstance(member, Subtract):
-            present = present and not _walk(member.universe.members, amp, spelling)
+            present = present and not walk(member.universe.members, amp, spelling)
         elif not present:
             present = _spells(member, amp, spelling)
     return present
@@ -131,7 +136,7 @@ def _spells(member: Adding, amp: Universe | None, spelling: str) -> bool:
         case Range() | Final():
             return window_of(member).contains(spelling)
         case Fold(universe):
-            return _braced_spells(universe, amp, spelling)
+            return _braced_spells(universe, spelling)
         case Closure():
             return _amp(amp).contains(spelling)
         case Product(factors):
@@ -140,13 +145,15 @@ def _spells(member: Adding, amp: Universe | None, spelling: str) -> bool:
             assert_never(unreachable)
 
 
-def _braced_spells(inner: UniverseNode, amp: Universe | None, spelling: str) -> bool:
+def _braced_spells(inner: UniverseNode, spelling: str) -> bool:
     """A braced member's face set: its universe's faces, plus the fold-to-unit boundary.
 
     A fold of the empty alphabet is the unit, so it wears the empty spelling; a
     binder splices its closure instead, and an empty closure contributes nothing.
+    A brace that is not a subtraction operand seals its own ``&``, so no outer
+    stage reaches in and the inner universe carries no ``amp``.
     """
-    universe = Universe(inner, amp)
+    universe = Universe(inner)
     if spelling == "" and not binds(inner):
         return universe.contains("") or next(iter(universe.entries()), None) is None
     return universe.contains(spelling)
@@ -174,10 +181,10 @@ def _splits(
 
 
 def _factor_contains(factor: UniverseNode | Closure, amp: Universe | None, piece: str) -> bool:
-    """Whether a product factor's face set holds ``piece``."""
+    """Whether a product factor's face set holds ``piece``; a braced factor seals ``&``."""
     if isinstance(factor, Closure):
         return _amp(amp).contains(piece)
-    return Universe(factor, amp).contains(piece)
+    return Universe(factor).contains(piece)
 
 
 def _amp(amp: Universe | None) -> Universe:
@@ -197,7 +204,7 @@ def _stream(members: Sequence[Member], amp: Universe | None, outer: Live | None)
         live = _live(members[:index], amp, outer)
         for entry in _member_entries(member, amp, live, strips):
             faces = tuple(
-                f for f in entry.faces if not any(_walk(op.members, amp, f) for op in strips)
+                f for f in entry.faces if not any(walk(op.members, amp, f) for op in strips)
             )
             if faces:
                 yield Entry(faces)
@@ -210,7 +217,7 @@ def _live(prefix: Sequence[Member], amp: Universe | None, outer: Live | None) ->
         """Whether ``face`` is still unclaimed at this member's position."""
         if outer is not None and not outer(face):
             return False
-        return not _walk(prefix, amp, face)
+        return not walk(prefix, amp, face)
 
     return live
 
@@ -232,7 +239,7 @@ def _member_entries(
             for window in carve(window_of(member), strips):
                 yield from (Entry((s,)) for s in window if live(s))
         case Fold(universe):
-            yield from _braced_entries(universe, amp, live)
+            yield from _braced_entries(universe, live)
         case Closure():
             yield from _filtered(_amp(amp).entries(), live)
         case Product(factors):
@@ -249,9 +256,12 @@ def _filtered(entries: Iterator[Entry], live: Live) -> Iterator[Entry]:
             yield Entry(faces)
 
 
-def _braced_entries(inner: UniverseNode, amp: Universe | None, live: Live) -> Iterator[Entry]:
-    """A braced member: a binder splices its closure, anything else folds to one entry."""
-    universe = Universe(inner, amp)
+def _braced_entries(inner: UniverseNode, live: Live) -> Iterator[Entry]:
+    """A braced member: a binder splices its closure, anything else folds to one entry.
+
+    As at membership, the brace seals its own ``&``: no ``amp`` reaches in.
+    """
+    universe = Universe(inner)
     if binds(inner):
         yield from _filtered(universe.entries(), live)
         return
@@ -290,8 +300,8 @@ def _tuples(
 
 
 def _factor_entries(factor: UniverseNode | Closure, amp: Universe | None) -> Iterator[Entry]:
-    """A product factor's entries in declaration order."""
-    source = _amp(amp) if isinstance(factor, Closure) else Universe(factor, amp)
+    """A product factor's entries in declaration order; a braced factor seals ``&``."""
+    source = _amp(amp) if isinstance(factor, Closure) else Universe(factor)
     return source.entries()
 
 

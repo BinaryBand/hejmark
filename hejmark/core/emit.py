@@ -27,15 +27,19 @@ from dataclasses import dataclass
 from hejmark.core.engine import query as _denote_query
 from hejmark.core.scan.capture import canonical_face, factor_faces
 from hejmark.core.scan.match import Query, finditer
+from hejmark.core.scan.measure import precedes
 from hejmark.core.surface.ast import (
     Expr,
     HimarkScopeError,
     Interp,
+    IterStatement,
+    Ref,
     RefInterp,
     Statement,
     Step,
     Template,
     Text,
+    Unit,
 )
 from hejmark.core.surface.resolve import Env, noncharacter
 
@@ -184,6 +188,35 @@ def statement(stmt: Statement, document: str, env: Env) -> str:
     return _steps(stmt.steps, root, env)
 
 
+def _iterate(stmt: IterStatement, document: str, env: Env) -> str:
+    """Run a contracting statement: passes to settlement, each strictly descending.
+
+    The pass is the ordinary two-step statement; passes repeat until one finds
+    nothing to rewrite. Each pass is checked, not trusted: the document before
+    and after are read as spellings of the declared measure, and the after
+    must sit strictly earlier in its entry order -- a well-order, so checked
+    descent is the termination proof, not a hope.
+
+    Raises:
+        HimarkScopeError: a pass fails to shrink the measure, or the measure
+            does not spell the document it is asked to seat.
+    """
+    measure = _denote_query(Expr((Unit(Ref(stmt.measure)),)), env).universe()
+    denoted = _denote_query(stmt.query, env)
+    once = Statement((stmt.query, stmt.template))
+    while next(iter(finditer(denoted, document)), None) is not None:
+        result = statement(once, document, env)
+        for text in (document, result):
+            if not measure.contains(text):
+                msg = f"@{stmt.measure} does not spell the document between passes"
+                raise HimarkScopeError(msg)
+        if not precedes(measure, result, document):
+            msg = f"a pass failed to shrink @{stmt.measure}"
+            raise HimarkScopeError(msg)
+        document = result
+    return document
+
+
 def _guard(document: str, env: Env | None) -> None:
     """Refuse a document that spells a noncharacter, at either boundary.
 
@@ -204,7 +237,7 @@ def _guard(document: str, env: Env | None) -> None:
         raise HimarkSentinelError(msg)
 
 
-def run(statements: tuple[Statement, ...], document: str, env: Env) -> str:
+def run(statements: tuple[Statement | IterStatement, ...], document: str, env: Env) -> str:
     """Run each statement in source order, threading the document through.
 
     Sentinels are engine-private, so the document is guarded at both ends: a
@@ -213,6 +246,9 @@ def run(statements: tuple[Statement, ...], document: str, env: Env) -> str:
     """
     _guard(document, None)
     for stmt in statements:
-        document = statement(stmt, document, env)
+        if isinstance(stmt, IterStatement):
+            document = _iterate(stmt, document, env)
+        else:
+            document = statement(stmt, document, env)
     _guard(document, env)
     return document

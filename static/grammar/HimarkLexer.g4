@@ -12,6 +12,9 @@ UNI      : 'uni' ;
 SENTINEL : 'sentinel' ;
 WALRUS   : ':=' ;
 ARROW  : '=>' ;
+// The contracting arrow: its statement re-runs to settlement, each pass
+// strictly descending the declared measure's entry order.
+IARROW : '<=>' ;
 EQ     : '=' ;
 RANGE  : '..' ;
 USCORE : '_' ;

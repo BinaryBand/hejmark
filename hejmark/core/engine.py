@@ -20,7 +20,7 @@ from hejmark.core.scan.match import Factor, Match, Query
 from hejmark.core.scan.match import finditer as _finditer
 from hejmark.core.scan.match import match as _match
 from hejmark.core.std import std_env
-from hejmark.core.surface.ast import Expr, HimarkScopeError, ScriptNode
+from hejmark.core.surface.ast import Expr, HimarkScopeError, ScriptNode, Statement
 from hejmark.core.surface.expand import Ctx, expand
 from hejmark.core.surface.late import Late, reads
 from hejmark.core.surface.resolve import Env, collect, merge, statements
@@ -65,10 +65,14 @@ def parse(to_ast: ToAst, source: str) -> Query:
     """
     node, env = script(to_ast, source)
     found = statements(node)
-    if len(found) != 1 or len(found[0].steps) != 1 or not isinstance(found[0].steps[0], Expr):
+    if len(found) != 1 or not isinstance(found[0], Statement):
         msg = "expected a single query expression"
         raise HimarkScopeError(msg)
-    return query(found[0].steps[0], env, source)
+    only = found[0]
+    if len(only.steps) != 1 or not isinstance(only.steps[0], Expr):
+        msg = "expected a single query expression"
+        raise HimarkScopeError(msg)
+    return query(only.steps[0], env, source)
 
 
 def _as_query(to_ast: ToAst, value: Query | str) -> Query:

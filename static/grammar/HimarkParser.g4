@@ -12,6 +12,7 @@ script : NL* (line (NL+ line)* NL*)? EOF ;
 
 line
     : declaration
+    | contract
     | statement
     ;
 
@@ -28,6 +29,11 @@ param : IDENT (RANGE IDENT)? ;
 // An emit statement: steps joined by `=>`, each a query or a template. The
 // optional newlines before an arrow are the continuation-line rule.
 statement : step (NL* ARROW step)* ;
+
+// A contracting statement `query <=>[@m] template`: the one iterated form.
+// The measure is a declared name riding the arrow the way a pipeline rides a
+// unit; the bracket lexes in ARGS mode, so the reference is one ARG token.
+contract : expr NL* IARROW LBRACK ARG RBRACK template ;
 
 step
     : expr        # QueryStep

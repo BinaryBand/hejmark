@@ -38,7 +38,28 @@ EMIT_ROWS = (
     ('"seed" => {e} => "E"', "anything", "anything"),
     ('{a,ab}{c,bc} => "{{$2}}"', "abc", "bc"),
     ('{a,b}{$1} => "{{$1}}!"', "aa ab", "a! ab"),
+    ('{ba} <=>[@spellings] "ab"', "bbaa", "aabb"),
 )
+
+# The bubble sort, verbatim from L1_5.md's re-admission section: the queue's
+# minimal witness, and the reason `<=>` exists.
+SORT = r"""
+sentinel start
+sentinel end
+
+uni c      = {@C, !{\n}}
+uni line   = {@c, &@c}
+uni d      = {0..9}
+uni digits = {@d, &@d}
+uni value  = {0..9}[numerals padfree]
+uni list   = {@value, &{\,}{@value}}
+uni sorted = {{@start}{@list}{@end}, &{\n}{@start}{@list}{@end}}
+
+{@line} => "{{@start}}{{$}}{{@end}}"
+{@start,\,}{@digits}{\,}{{0..9}[where 0..$2 padfree], !{{0..9}[where $2 padfree]}}{@end,\,}
+  <=>[@sorted] "{{$1}}{{$4}},{{$2}}{{$5}}"
+{@start,@end} => ""
+"""
 
 
 @pytest.mark.parametrize(("source", "expected"), PIPELINE_ROWS)
@@ -107,3 +128,25 @@ def test_sentinels_carry_the_masking_idiom_end_to_end() -> None:
         '{@start,@end} => ""'
     )
     assert run(source, "cat catalog") == "feline catalog"
+
+
+@pytest.mark.parametrize(
+    ("document", "expected"),
+    [
+        ("3,1,2", "1,2,3"),
+        ("10,9", "9,10"),  # value order sorts, where spelling order would not
+        ("12,05", "05,12"),  # each numeral re-emits at the width it arrived
+        ("3,3,1", "1,3,3"),  # the strict cut never matches an equal pair, so duplicates settle
+        ("5,05", "5,05"),  # equal values at different paddings are already sorted
+        ("1,2,3", "1,2,3"),  # a sorted line matches nothing: zero passes
+        ("2,1\n10,9,1", "1,2\n1,9,10"),  # lines tile and sort independently
+    ],
+)
+def test_the_bubble_sort_north_star(document: str, expected: str) -> None:
+    """The re-admission queue's minimal witness runs as written.
+
+    Every pass swaps the adjacent out-of-order pairs its tiling reaches, and
+    the declared measure `@sorted` -- wrapped numeral lines over the value
+    line at any padding -- strictly descends until no pair is out of order.
+    """
+    assert run(SORT, document) == expected

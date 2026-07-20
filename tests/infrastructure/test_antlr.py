@@ -86,6 +86,7 @@ L1_5_ROWS = (
     '{a,ab}{c,bc} => "{{$2}}"',  # emit: factor read
     '{a,b}{$1} => "{{$1}}!"',  # back-reference standing as a factor
     "{1,2}{0..9}[where 0..$1 padfree]",  # back-reference as a range bound
+    '{ba} <=>[@spellings] "ab"',  # contracting statement, measure on the arrow
     'uni d = {0..9}\n{a} => {b}\n  => "x"',  # line discipline + arrow continuation
     "",  # the empty script
 )
@@ -99,6 +100,7 @@ MALFORMED = (
     "{a} =>",  # dangling arrow -- a step must follow
     '{a}{b} => "{{$01}}"',  # a factor read carries no leading zero
     "{$0}",  # the canonical read stands in no pattern
+    '{a} <=> "x"',  # the measure is declared, not inferred: a bare `<=>` stands alone
 )
 
 

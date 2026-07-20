@@ -6,8 +6,9 @@ generates its own context class, and each one maps to exactly one AST node.
 Nothing is resolved, folded, or flattened here.
 
 Two syntactic normalizations happen, both of them readings the grammar already
-states: an escape ``\\x`` resolves to ``x``, and a braced exponent ``^{w'}``
-unwraps to the parameter name it spells.
+states: an escape resolves to its character (``\n``/``\t``/``\r`` to the
+whitespace they name, any other ``\x`` to ``x``), and a braced exponent
+``^{w'}`` unwraps to the parameter name it spells.
 """
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ from hejmark.core.surface.ast import (
     DefDecl,
     Expr,
     Interp,
+    IterStatement,
     Operand,
     Param,
     PipeItem,
@@ -37,10 +39,17 @@ from hejmark.core.surface.ast import (
     UniverseNode,
 )
 
+# The three mnemonic escapes; every other `\x` spells `x` itself. Whitespace
+# is insignificant inside braces and carved out of the face alphabet, so these
+# are the only way the foundation's own scripts spell it (`{\n}`, `\t`).
+_MNEMONIC = {"n": "\n", "t": "\t", "r": "\r"}
+
 
 def _unescape(text: str) -> str:
-    r"""Resolve one token's text: ``\x`` yields ``x``, anything else itself."""
-    return text[1] if text.startswith("\\") else text
+    r"""Resolve one token's text: ``\n``/``\t``/``\r`` mnemonically, ``\x`` as ``x``."""
+    if not text.startswith("\\"):
+        return text
+    return _MNEMONIC.get(text[1], text[1])
 
 
 def _face(ctx: Any) -> Face:
@@ -175,11 +184,24 @@ def _declaration(ctx: Any) -> UniDecl | DefDecl | SentinelDecl:
             return DefDecl(ctx.IDENT().getText(), params, _expr(ctx.expr()))
 
 
+def _measure(ctx: Any) -> str:
+    """Read a contracting statement's measure: the declared name after the sigil."""
+    text = ctx.ARG().getText()
+    if not text.startswith("@") or not text[1:]:
+        msg = f"the measure is a declared name: write <=>[@name], got [{text}]"
+        raise HimarkSyntaxError(msg)
+    return text[1:]
+
+
 def _line(ctx: Any) -> Any:
-    """Dispatch a line: a declaration or a statement."""
+    """Dispatch a line: a declaration, a contracting statement, or a statement."""
     declaration = ctx.declaration()
     if declaration is not None:
         return _declaration(declaration)
+    contract = ctx.contract()
+    if contract is not None:
+        template = _template(contract.template())
+        return IterStatement(_expr(contract.expr()), _measure(contract), template)
     statement = ctx.statement()
     return Statement(tuple(_step(step) for step in statement.step()))
 
