@@ -4,9 +4,11 @@
 This module replaces the sanctioned within-body approximation -- `entrySpellLt`
 orders a node's entries by raw shortlex -- with an order that recurses into each
 constructor's own structure. It is the upstream primitive the rest of
-`L1/Bridge/` is framed onto, so it lands additively: the definitions and their
-well-order theory go here first, and `entriesType`/`prodLt`/`unionLt`/`Rows`
-migrate onto it one module at a time, every intermediate build green.
+`L1/Bridge/` is framed onto: the enumeration (`entryRecType`), the product and
+union type laws, and the transfinite rows (`L1/Bridge/Rows.lean`) all read off
+this order, and the superseded spelling-order approximation orders that
+Product/Union once carried (`prodLt`, `unionLt`) have been deleted in favour of
+it.
 
 This first increment is the reusable core of the design's central move. The
 existing bridge files prove `IsWellOrder` by embedding into a `Prod.Lex` of
@@ -63,9 +65,9 @@ theorem isWellOrder_of_injective (hinj : Function.Injective rank) :
 /- no reordering, so their rank is exactly the ordinal position in   -/
 /- the shortlex (spelling) order, `typein (entrySpellLt n)`. The two -/
 /- facts below say that recovers the original order on the nose and  -/
-/- is injective, so every order the bridge already builds            -/
-/- (`entrySpellLt`, `entryLt`, `prodLt`, `unionLt`) is an instance of -/
-/- the rank framework, not a competitor to it.                       -/
+/- is injective, so the spelling orders the bridge builds            -/
+/- (`entrySpellLt`, `entryLt`) are instances of the rank framework,  -/
+/- not competitors to it.                                            -/
 /- ---------------------------------------------------------------- -/
 
 section Typein

@@ -24,12 +24,12 @@ its own `denotes`.
 - `prod2_collision_settled`: the collision rule settles on real product
   syntax -- every denoted spelling has a unique least split,
   `collision_settled`'s content with real cuts for addresses.
-- `prodLt`: the entry order -- compare owning splits positionally.
-- `prodLt_type_of_unique_splits`: with unique splits the enumeration is the
-  ordinal product of the factor enumerations, most significant factor on
-  the left of the syntax and the right of the `*` --
-  `positional_value_type`'s content read off the real term. The transfinite
-  rows built on this live in `L1/Bridge/Rows.lean`. -/
+
+The entry order itself and its ordinal type now live in `RecOrder.lean`'s
+body-recursive order (`entryRecType_prod2`, the positional product law); the
+split machinery here (`IsSplit`, `leastSplit`, `prod2_collision_settled`)
+still supplies the collision-ownership facts that law and the transfinite
+rows in `L1/Bridge/Rows.lean` consume. -/
 import L1.Bridge.Entries
 
 namespace L1
@@ -141,61 +141,5 @@ theorem prod2_collision_settled (a b : Node) (s : Spelling)
     · exact Or.inr hgt
   · rintro pq ⟨hmem, hleast⟩
     exact (leastSplit_eq a b ⟨s, h⟩ hmem hleast).symm
-
-/- ---------------------------------------------------------------- -/
-/- The entry order and its type under unique splits.                 -/
-/- ---------------------------------------------------------------- -/
-
-/-- The entry order on a binary product: compare owning splits positionally
--- positional order with collision ownership, on real syntax. -/
-def prodLt (a b : Node) : Entries (prod2 a b) → Entries (prod2 a b) → Prop :=
-  fun x y => splitLt (leastSplit a b x) (leastSplit a b y)
-
-/-- Owning addresses embed the entry order into the positional order on all
-addresses -- injective because the owning split reconstructs its entry. -/
-noncomputable def prodAddrEmb (a b : Node) : prodLt a b ↪r splitLt :=
-  ⟨⟨leastSplit a b, fun x y h => Subtype.ext (by
-      rw [(leastSplit_isSplit a b x).1, (leastSplit_isSplit a b y).1, h])⟩,
-    Iff.rfl⟩
-
-instance (a b : Node) : IsWellOrder (Entries (prod2 a b)) (prodLt a b) :=
-  (prodAddrEmb a b).isWellOrder
-
-/-- With unique splits the owner map is an order isomorphism onto the lex
-product of the factor entry orders. -/
-noncomputable def prodSplitIso (a b : Node)
-    (huniq : ∀ s pq pq', IsSplit a b s pq → IsSplit a b s pq' → pq = pq') :
-    prodLt a b ≃r Prod.Lex (entrySpellLt a) (entrySpellLt b) where
-  toEquiv := Equiv.ofBijective (fun e =>
-    (⟨(leastSplit a b e).1, (leastSplit_isSplit a b e).2.1⟩,
-     ⟨(leastSplit a b e).2, (leastSplit_isSplit a b e).2.2⟩)) (by
-    constructor
-    · intro x y hxy
-      simp only [Prod.mk.injEq, Subtype.mk.injEq] at hxy
-      apply Subtype.ext
-      rw [(leastSplit_isSplit a b x).1, (leastSplit_isSplit a b y).1,
-        hxy.1, hxy.2]
-    · rintro ⟨⟨p, hp⟩, ⟨q, hq⟩⟩
-      have hd : denotes (prod2 a b) (p ++ q) :=
-        (prod2_denotes_iff a b _).mpr ⟨p, q, rfl, hp, hq⟩
-      have hmem : IsSplit a b (p ++ q) (p, q) := ⟨rfl, hp, hq⟩
-      have hls : leastSplit a b ⟨p ++ q, hd⟩ = (p, q) :=
-        leastSplit_eq a b ⟨p ++ q, hd⟩ hmem
-          (fun pq' h' => Or.inl (huniq _ _ _ h' hmem))
-      exact ⟨⟨p ++ q, hd⟩, Prod.ext (Subtype.ext (congrArg Prod.fst hls))
-        (Subtype.ext (congrArg Prod.snd hls))⟩)
-  map_rel_iff' := by
-    intro x y
-    simp only [Equiv.ofBijective_apply, prodLt, entrySpellLt, Prod.lex_def,
-      subrel_val, Subtype.mk.injEq]
-
-/-- Headline: positional value on real syntax -- with unique splits the
-entry order is the ordinal product of the factor enumerations, the most
-significant factor on the left of the syntax and the right of the `*`. -/
-theorem prodLt_type_of_unique_splits (a b : Node)
-    (huniq : ∀ s pq pq', IsSplit a b s pq → IsSplit a b s pq' → pq = pq') :
-    Ordinal.type (prodLt a b) = entriesType b * entriesType a := by
-  rw [Ordinal.type_eq.mpr ⟨prodSplitIso a b huniq⟩, type_prod_lex]
-  rfl
 
 end L1

@@ -41,13 +41,32 @@ NORTH_STAR_ROWS = (
     "{aa..zz}",  # multi-char range endpoints
     "{a..z, !{a,e,i,o,u}}",  # subtraction, with whitespace after the comma
     "{{cat,feline}}",  # fold
+    "{{cat,feline}, !{feline}}",  # subtraction strips a face, entry survives
     "{a..}",  # final segment
     "{cat}{dog}",  # product (finite adjacency)
+    "{a,ab}{b,c}",  # product, values 0-3
     "{a,ab}{c,bc}",  # product with a colliding seam
+    "{a..}{b}",  # product over a closure factor (order type omega)
+    "{b,c}{a..}",  # the omega*2 north-star row
+    "{b}{a..}{b}{a..}",  # the seam row (order type omega^2)
+    "{a..}{a..}",  # cofinite collision collapse (order type omega*k)
+    "{a,!{a}}",  # empty universe (subtraction to nothing)
+    "{z..a}",  # empty universe (reversed range)
     "{}",  # empty universe
     "{{}}",  # unit universe
+    "{{{},0}}",  # the fill factor (fold of the unit with a spelling)
+    "{{{},0}}{{{},0}}",  # Z^2, colliding faces
+    "{{{},0}}{0..9}",  # a face axis, not an entry axis
+    "{{{},0}}{0,00}",  # cross-axis collision, canonical face renumbers
     "{a, &{b}}",  # closure
     "{ab, {a}&{b}}",  # guarded closure -- the admission witness a^n b^n
+    "{0, {1..9, &{0..9}}}",  # canonical numerals
+    "{{{}}, &C}",  # every spelling in shortlex (final segment's demotion)
+    "{&}",  # bare self-reference builds nothing
+    "{a, &}",  # self-union no-ops
+    "{a.., !{&}}",  # negative self-reference
+    "{a, {{{},0}}&}",  # unguarded fill
+    "{ab, &&}",  # nonlinear closure, still type omega
     "{ {(}{b}{a..}{)}, {(}&&{)} }",  # nonlinear closure, heavily spaced
 )
 

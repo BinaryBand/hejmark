@@ -1,38 +1,41 @@
-/- L1 bridge: the transfinite rows -- entry types past omega on real syntax.
+/- L1 bridge: the transfinite rows -- entry types past omega on real syntax,
+under the body-recursive order (`RecOrder.lean`'s `entryRecType`).
 
 `docs/foundation/L1.md` (Bounded transfinitude): "union alone gives omega
 plus a finite tail; product climbs -- `{b,c}{a..}` is omega*2,
 `{b}{a..}{b}{a..}` is omega^2 ... In `{a..}{a..}` the least split pins the
 prefix ... and the type collapses." This file computes those rows over the
-real syntax, through `Product.lean`'s owner order and `Union.lean`'s
-body-major order. The codes are fixed small numerals: the omega factor is
-`unitClosure 0 1` (every spelling over `{0, 1}`), the front faces and the
-seam marker are `2` and `3` -- outside the closure range, so the marker
-pins each split.
+real syntax, through the recursive within-body order: `entryRecType_prod2`
+(the positional product law, under unique splits) and
+`entryRecType_napp_disjoint` (the disjoint union sum). The codes are fixed
+small numerals: the omega factor is `unitClosure 0 1` (every spelling over
+`{0, 1}`), the front faces and the seam marker are `2` and `3` -- outside
+the closure range, so the marker pins each split.
 
-- `collapseRow_prodLt_type` (`{a..}{a..}`-extreme, type omega): with the
-  empty spelling in both factors every entry is claimed by the split
-  `([], s)`, so the owner order is exactly the spelling order -- collision
-  collapses the pre-collision omega*omega all the way to one omega. The
-  doc's row keeps nonempty factors and collapses to omega*k; that graded
-  form stays with the abstract `cofinite_collision_collapses`.
-- `twoBlocks_prodLt_type` (`{b,c}{a..}`, type omega*2): the front faces
-  sit outside the closure range, splits are unique, and the enumeration is
-  the ordinal product -- two full omega-blocks.
-- `seamRow_prodLt_type` (type omega^2): the doc's `{b}{a..}{b}{a..}`
+- `collapseRow_entryRecType` (`{a..}{a..}`-extreme, type omega): with the
+  empty spelling in both factors every entry is claimed by the collision
+  split `([], s)`, so the recursion runs the closure's own order -- the
+  pre-collision omega*omega collapses all the way to one omega.
+- `twoBlocks_entryRecType` (`{b,c}{a..}`, type omega*2): the front faces
+  sit outside the closure range, splits are unique, and the recursive
+  enumeration is the ordinal product -- two full omega-blocks.
+- `seamRow_entryRecType` (type omega^2): the doc's `{b}{a..}{b}{a..}`
   written two-factor, with the marker `2` closing the first block
   (`markedBlock`). The marker is outside the closure range so each
   spelling splits at its unique marker; the in-range-seam survivor story
-  (seams collide, omega^2 still stands) stays with the abstract
-  `seam_collision_survives`.
-- `unionRow_unionLt_type` (type omega + 2): a braced closure with a
+  stays with the abstract `seam_collision_survives`.
+- `unionRow_entryRecType` (type omega + 2): a braced closure with a
   two-face tail -- the union enumeration continues past the limit, the
   doc's "omega plus a finite tail" on real syntax.
-- `neCollapseRow_prodLt_type` (`{a..}{a..}` with nonempty factors, type
-  omega*2): the doc-literal cofinite collision row -- splits collide
-  everywhere, the least split pins the prefix to one code, and exactly
-  `k = 2` blocks survive (the alphabet size of the range `{0, 1}`), the
-  real-syntax face of `cofinite_collision_collapses`. -/
+- `neCollapseRow_entryRecType` (`{a..}{a..}` with nonempty factors, type
+  **omega*4**): the doc-literal cofinite collision row. Splits collide
+  everywhere and the recursion's least split pins the prefix to one code,
+  so exactly two head blocks survive -- but under the recursive order each
+  block is enumerated by the *tail* body's own two-lead-block recursive
+  order (`neBounded_entryRecType = omega*2`, where the spelling-order
+  approximation gave omega). The row is therefore `(omega*2)*2 = omega*4`,
+  a k-shift from the approximation's `omega*2`; the doc's "collapses to
+  omega*k, k finite" stands with k = 4. -/
 import L1.Bridge.RecOrder
 
 namespace L1
@@ -80,85 +83,6 @@ theorem unitClosure01_denotes (s : Spelling) :
   exact ⟨fun h c hc => (h c hc).2, fun h c hc => ⟨Nat.zero_le c, h c hc⟩⟩
 
 /- ---------------------------------------------------------------- -/
-/- The collapse row: collision alone pulls omega*omega down to one   -/
-/- omega.                                                            -/
-/- ---------------------------------------------------------------- -/
-
-/-- With the empty spelling in the first factor, every entry is owned by
-the split `([], s)`: any nonempty prefix loses positionally to the empty
-one. -/
-theorem collapseRow_leastSplit
-    (e : Entries (prod2 (unitClosure 0 1) (unitClosure 0 1))) :
-    leastSplit (unitClosure 0 1) (unitClosure 0 1) e = ([], e.1) := by
-  have hcodes : ∀ c ∈ e.1, c ≤ 1 := by
-    obtain ⟨p, q, heq, hp, hq⟩ := (prod2_denotes_iff _ _ _).mp e.2
-    intro c hc
-    rw [heq] at hc
-    rcases List.mem_append.mp hc with h | h
-    · exact (unitClosure01_denotes p).mp hp c h
-    · exact (unitClosure01_denotes q).mp hq c h
-  refine leastSplit_eq _ _ e
-    ⟨(List.nil_append e.1).symm, (unitClosure01_denotes []).mpr (by simp),
-      (unitClosure01_denotes e.1).mpr hcodes⟩ ?_
-  rintro ⟨p, q⟩ ⟨heq, -, -⟩
-  cases p with
-  | nil =>
-      left
-      simp only [List.nil_append] at heq
-      rw [heq]
-  | cons c rest =>
-      right
-      exact Prod.lex_def.mpr (Or.inl (List.Shortlex.of_length_lt (by simp)))
-
-/-- On the collapse row the owner order is the spelling order: collision
-ownership erases the product structure entirely. -/
-theorem collapseRow_prodLt_iff
-    (x y : Entries (prod2 (unitClosure 0 1) (unitClosure 0 1))) :
-    prodLt (unitClosure 0 1) (unitClosure 0 1) x y
-      ↔ List.Shortlex ((· < ·) : Code → Code → Prop) x.1 y.1 := by
-  show splitLt (leastSplit _ _ x) (leastSplit _ _ y) ↔ _
-  rw [collapseRow_leastSplit x, collapseRow_leastSplit y]
-  show Prod.Lex _ _ ([], x.1) ([], y.1) ↔ _
-  rw [Prod.lex_def]
-  constructor
-  · rintro (h | ⟨-, h⟩)
-    · exact absurd h
-        (irrefl_of (List.Shortlex ((· < ·) : Code → Code → Prop)) _)
-    · exact h
-  · intro h
-    exact Or.inr ⟨rfl, h⟩
-
-/-- Headline: real-syntax collision collapse. The pre-collision address
-space of the double closure is omega*omega, but the least-split rule hands
-every spelling to `([], s)` and the surviving enumeration is one omega --
-the doc's "the least split pins the prefix ... and the type collapses",
-in the extreme form the empty spelling forces. -/
-theorem collapseRow_prodLt_type :
-    Ordinal.type (prodLt (unitClosure 0 1) (unitClosure 0 1)) = ω := by
-  have hiso : prodLt (unitClosure 0 1) (unitClosure 0 1)
-      ≃r entrySpellLt (prod2 (unitClosure 0 1) (unitClosure 0 1)) :=
-    ⟨Equiv.refl _, by
-      intro x y
-      exact (collapseRow_prodLt_iff x y).symm⟩
-  rw [Ordinal.type_eq.mpr ⟨hiso⟩]
-  refine entriesType_eq_omega0 _ 1 ?_ ?_
-  · intro s hs c hc
-    obtain ⟨p, q, rfl, hp, hq⟩ := (prod2_denotes_iff _ _ s).mp hs
-    rcases List.mem_append.mp hc with h | h
-    · exact (unitClosure01_denotes p).mp hp c h
-    · exact (unitClosure01_denotes q).mp hq c h
-  · refine Set.infinite_of_injective_forall_mem
-      (f := fun n : ℕ => List.replicate n 0) ?_ ?_
-    · intro a b hab
-      simpa using congrArg List.length hab
-    · intro n
-      rw [Set.mem_setOf_eq, prod2_denotes_iff]
-      refine ⟨List.replicate n 0, [], (List.append_nil _).symm, ?_, ?_⟩
-      · exact (unitClosure01_denotes _).mpr
-          (fun c hc => by rw [List.eq_of_mem_replicate hc]; omega)
-      · exact (unitClosure01_denotes []).mpr (by simp)
-
-/- ---------------------------------------------------------------- -/
 /- The two-blocks row {b,c}{a..}: omega * 2.                         -/
 /- ---------------------------------------------------------------- -/
 
@@ -178,33 +102,6 @@ theorem twoFaces_denotes_iff (s : Spelling) :
   rw [walk_cons, walk_single_face, walk_single_face]
   tauto
 
-/-- The front factor wears exactly two entries, in spelling order. -/
-noncomputable def twoFacesIso :
-    entrySpellLt twoFaces ≃r ((· < ·) : Fin 2 → Fin 2 → Prop) where
-  toEquiv := Equiv.ofBijective
-    (fun e => if e.1 = [2] then (0 : Fin 2) else 1) (by
-    constructor
-    · rintro ⟨s, hs⟩ ⟨t, ht⟩ hst
-      rcases (twoFaces_denotes_iff s).mp hs with rfl | rfl <;>
-        rcases (twoFaces_denotes_iff t).mp ht with rfl | rfl <;>
-        simp_all
-    · intro i
-      fin_cases i
-      · exact ⟨⟨[2], (twoFaces_denotes_iff [2]).mpr (Or.inl rfl)⟩, by simp⟩
-      · exact ⟨⟨[3], (twoFaces_denotes_iff [3]).mpr (Or.inr rfl)⟩, by simp⟩)
-  map_rel_iff' := by
-    rintro ⟨s, hs⟩ ⟨t, ht⟩
-    rcases (twoFaces_denotes_iff s).mp hs with rfl | rfl <;>
-      rcases (twoFaces_denotes_iff t).mp ht with rfl | rfl <;>
-      simp [entrySpellLt, subrel_val]
-
-theorem twoFaces_entriesType : entriesType twoFaces = 2 := by
-  show Ordinal.type (entrySpellLt twoFaces) = 2
-  rw [Ordinal.type_eq.mpr ⟨twoFacesIso⟩,
-    show Ordinal.type ((· < ·) : Fin 2 → Fin 2 → Prop) = ((2 : ℕ) : Ordinal)
-      from type_fin 2]
-  norm_num
-
 /-- The front faces sit outside the closure range, so the first code pins
 the block: splits are unique. -/
 theorem twoBlocks_splits_unique {s : Spelling} {pq pq' : Spelling × Spelling}
@@ -218,15 +115,6 @@ theorem twoBlocks_splits_unique {s : Spelling} {pq pq' : Spelling × Spelling}
     rcases (twoFaces_denotes_iff pq'.1).mp hp' with h2 | h2 <;> rw [h2] <;> rfl
   obtain ⟨h1, h2⟩ := List.append_inj (heq.symm.trans heq') (by omega)
   exact Prod.ext h1 h2
-
-/-- Headline: the doc's north-star row `{b,c}{a..}` at omega*2, on real
-syntax -- a finite front factor over an omega block is exactly two full
-blocks, most significant digit on the left. -/
-theorem twoBlocks_prodLt_type :
-    Ordinal.type (prodLt twoFaces (unitClosure 0 1)) = ω * 2 := by
-  rw [prodLt_type_of_unique_splits twoFaces (unitClosure 0 1)
-      (fun _ _ _ h h' => twoBlocks_splits_unique h h'),
-    unitClosure_entriesType 0 1 (by omega), twoFaces_entriesType]
 
 /- ---------------------------------------------------------------- -/
 /- The seam row at omega^2, marker outside the range.                -/
@@ -249,24 +137,6 @@ theorem markedBlock_denotes_iff (s : Spelling) :
     exact ⟨u, [2], rfl, (unitClosure01_denotes u).mpr hu,
       (face_denotes_iff _ _).mpr rfl⟩
 
-theorem markedBlock_entriesType : entriesType markedBlock = ω := by
-  refine entriesType_eq_omega0 _ 2 ?_ ?_
-  · intro s hs c hc
-    obtain ⟨u, rfl, hu⟩ := (markedBlock_denotes_iff _).mp hs
-    rcases List.mem_append.mp hc with h | h
-    · have := hu c h; omega
-    · have : c = 2 := List.mem_singleton.mp h
-      omega
-  · refine Set.infinite_of_injective_forall_mem
-      (f := fun n : ℕ => List.replicate n 0 ++ [2]) ?_ ?_
-    · intro a b hab
-      have := congrArg List.length hab
-      simpa using this
-    · intro n
-      rw [Set.mem_setOf_eq, markedBlock_denotes_iff]
-      exact ⟨List.replicate n 0, rfl,
-        fun c hc => by rw [List.eq_of_mem_replicate hc]; omega⟩
-
 /-- The marker never appears inside a bounded segment, so every spelling
 splits at its unique marker. -/
 theorem seamRow_splits_unique {s : Spelling} {pq pq' : Spelling × Spelling}
@@ -285,41 +155,6 @@ theorem seamRow_splits_unique {s : Spelling} {pq pq' : Spelling × Spelling}
   obtain ⟨h1, h2⟩ := append_marker_inj hnu hnu' hh
   refine Prod.ext ?_ h2
   rw [hu_eq, hu'_eq, h1]
-
-/-- Headline: a transfinite product row at omega^2 on real syntax -- the
-doc's `{b}{a..}{b}{a..}` written two-factor with the marker closing the
-first block. Splits are pinned by the marker; the in-range-seam collision
-story stays with the abstract `seam_collision_survives`. -/
-theorem seamRow_prodLt_type :
-    Ordinal.type (prodLt markedBlock (unitClosure 0 1)) = ω ^ (2 : Ordinal) := by
-  rw [prodLt_type_of_unique_splits markedBlock (unitClosure 0 1)
-      (fun _ _ _ h h' => seamRow_splits_unique h h'),
-    unitClosure_entriesType 0 1 (by omega), markedBlock_entriesType,
-    show (2 : Ordinal) = 1 + 1 by norm_num, opow_add, opow_one]
-
-/- ---------------------------------------------------------------- -/
-/- The union row: past the limit by a finite tail.                   -/
-/- ---------------------------------------------------------------- -/
-
-/-- Headline: the union enumeration continues past the limit -- a braced
-closure with a two-face tail sits at omega + 2, the doc's "union alone
-gives omega plus a finite tail" on real syntax. The closure enters braced
-(`braced_denotes_iff`), the tail is disjoint (its codes sit outside the
-closure range), and `unionLt_type_disjoint` reads off the ordinal sum. -/
-theorem unionRow_unionLt_type :
-    Ordinal.type (unionLt (braced (unitClosure 0 1)) twoFaces) = ω + 2 := by
-  have hdisj : ∀ s, denotes (braced (unitClosure 0 1)) s → ¬ denotes twoFaces s := by
-    intro s h1 h2
-    rw [braced_denotes_iff _ (unitClosure_bindsb 0 1)] at h1
-    have hcodes := (unitClosure01_denotes s).mp h1
-    rcases (twoFaces_denotes_iff s).mp h2 with rfl | rfl
-    · have := hcodes 2 (by simp); omega
-    · have := hcodes 3 (by simp); omega
-  have hbr : entriesType (braced (unitClosure 0 1)) = ω := by
-    rw [entriesType_congr (braced_denotes_iff _ (unitClosure_bindsb 0 1))]
-    exact unitClosure_entriesType 0 1 (by omega)
-  rw [unionLt_type_disjoint _ _ (braced_bindsb _) twoFaces_bindsb
-      twoFaces_subfreeb hdisj, hbr, twoFaces_entriesType]
 
 /- ---------------------------------------------------------------- -/
 /- The nonempty-factor collapse row {a..}{a..}: splits collide       -/
@@ -408,19 +243,6 @@ theorem neBounded_denotes_iff (s : Spelling) :
     · exact (unitClosure01_denotes rest).mpr
         (fun d hd => hcodes d (by simp [hd]))
 
-theorem neBounded_entriesType : entriesType neBounded = ω := by
-  refine entriesType_eq_omega0 _ 1 ?_ ?_
-  · intro s hs c hc
-    exact ((neBounded_denotes_iff s).mp hs).2 c hc
-  · refine Set.infinite_of_injective_forall_mem
-      (f := fun n : ℕ => List.replicate (n + 1) 0) ?_ ?_
-    · intro a b hab
-      have := congrArg List.length hab
-      simpa using this
-    · intro n
-      rw [Set.mem_setOf_eq, neBounded_denotes_iff]
-      exact ⟨by simp, fun c hc => by rw [List.eq_of_mem_replicate hc]; omega⟩
-
 theorem neCollapse_len (e : Entries (prod2 neBounded neBounded)) :
     2 ≤ e.1.length := by
   obtain ⟨p, q, heq, hp, hq⟩ := (prod2_denotes_iff _ _ _).mp e.2
@@ -438,99 +260,6 @@ theorem neCollapse_codes (e : Entries (prod2 neBounded neBounded)) :
   rcases List.mem_append.mp hd with h | h
   · exact ((neBounded_denotes_iff p).mp hp).2 d h
   · exact ((neBounded_denotes_iff q).mp hq).2 d h
-
-/-- The collision resolution: with nonempty factors the least split pins
-the prefix to exactly one code -- the doc's "the least split pins the
-prefix", `splitSurvives_iff`'s content on real syntax. -/
-theorem neCollapse_leastSplit (c : Code) (t : Spelling)
-    (e : Entries (prod2 neBounded neBounded)) (heq : e.1 = c :: t) :
-    leastSplit neBounded neBounded e = ([c], t) := by
-  have hc : c ≤ 1 := neCollapse_codes e c (by rw [heq]; exact List.mem_cons_self)
-  have ht : t ≠ [] := by
-    have hlen := neCollapse_len e
-    rw [heq] at hlen
-    simp only [List.length_cons] at hlen
-    intro h
-    subst h
-    simp at hlen
-  refine leastSplit_eq _ _ e
-    ⟨by rw [heq]; rfl,
-      (neBounded_denotes_iff [c]).mpr ⟨by simp,
-        fun d hd => by rw [List.mem_singleton.mp hd]; exact hc⟩,
-      (neBounded_denotes_iff t).mpr ⟨ht,
-        fun d hd => neCollapse_codes e d (by rw [heq]; exact List.mem_cons_of_mem c hd)⟩⟩
-    ?_
-  rintro ⟨p, q⟩ ⟨hpq, hp, -⟩
-  have hpne := ((neBounded_denotes_iff p).mp hp).1
-  obtain ⟨c', rest, rfl⟩ : ∃ c' rest, p = c' :: rest := by
-    cases p with
-    | nil => exact absurd rfl hpne
-    | cons c' rest => exact ⟨c', rest, rfl⟩
-  cases rest with
-  | nil =>
-      left
-      have h2 : c :: t = c' :: q := heq.symm.trans hpq
-      obtain ⟨rfl, rfl⟩ := (List.cons.injEq _ _ _ _).mp h2
-      rfl
-  | cons d rest' =>
-      right
-      exact Prod.lex_def.mpr (Or.inl (List.Shortlex.of_length_lt
-        (by simp only [List.length_cons, List.length_nil]; omega)))
-
-theorem neCollapse_split (e : Entries (prod2 neBounded neBounded)) :
-    ∃ c t, e.1 = c :: t ∧ c ≤ 1 ∧ leastSplit neBounded neBounded e = ([c], t) := by
-  obtain ⟨c, t, heq⟩ : ∃ c t, e.1 = c :: t := by
-    have hlen := neCollapse_len e
-    cases h : e.1 with
-    | nil => rw [h] at hlen; simp at hlen
-    | cons c t => exact ⟨c, t, rfl⟩
-  exact ⟨c, t, heq, neCollapse_codes e c (by rw [heq]; exact List.mem_cons_self),
-    neCollapse_leastSplit c t e heq⟩
-
-theorem neCollapse_fst (e : Entries (prod2 neBounded neBounded)) :
-    denotes rangeNode (leastSplit neBounded neBounded e).1 := by
-  obtain ⟨c, t, -, hc, hls⟩ := neCollapse_split e
-  rw [hls, range01_denotes_iff]
-  interval_cases c
-  · exact Or.inl rfl
-  · exact Or.inr rfl
-
-theorem neCollapse_snd (e : Entries (prod2 neBounded neBounded)) :
-    denotes neBounded (leastSplit neBounded neBounded e).2 :=
-  (leastSplit_isSplit neBounded neBounded e).2.2
-
-/-- The survivors are exactly `(range code, nonempty bounded string)`
-pairs, positionally ordered -- one full block per code point. -/
-noncomputable def neCollapseIso :
-    prodLt neBounded neBounded
-      ≃r Prod.Lex (entrySpellLt rangeNode) (entrySpellLt neBounded) where
-  toEquiv := Equiv.ofBijective (fun e =>
-    (⟨(leastSplit neBounded neBounded e).1, neCollapse_fst e⟩,
-     ⟨(leastSplit neBounded neBounded e).2, neCollapse_snd e⟩)) (by
-    constructor
-    · intro x y hxy
-      simp only [Prod.mk.injEq, Subtype.mk.injEq] at hxy
-      apply Subtype.ext
-      rw [(leastSplit_isSplit _ _ x).1, (leastSplit_isSplit _ _ y).1,
-        hxy.1, hxy.2]
-    · rintro ⟨⟨p, hp⟩, ⟨q, hq⟩⟩
-      have hp' : ∃ c, p = [c] ∧ c ≤ 1 := by
-        rcases (range01_denotes_iff p).mp hp with rfl | rfl
-        · exact ⟨0, rfl, by omega⟩
-        · exact ⟨1, rfl, by omega⟩
-      obtain ⟨c, rfl, hc⟩ := hp'
-      have hcq : denotes (prod2 neBounded neBounded) ([c] ++ q) :=
-        (prod2_denotes_iff _ _ _).mpr ⟨[c], q, rfl,
-          (neBounded_denotes_iff [c]).mpr ⟨by simp,
-            fun d hd => by rw [List.mem_singleton.mp hd]; exact hc⟩, hq⟩
-      have hls : leastSplit neBounded neBounded ⟨[c] ++ q, hcq⟩ = ([c], q) :=
-        neCollapse_leastSplit c q ⟨[c] ++ q, hcq⟩ rfl
-      exact ⟨⟨[c] ++ q, hcq⟩, Prod.ext (Subtype.ext (congrArg Prod.fst hls))
-        (Subtype.ext (congrArg Prod.snd hls))⟩)
-  map_rel_iff' := by
-    intro x y
-    simp only [Equiv.ofBijective_apply, prodLt, entrySpellLt, Prod.lex_def,
-      subrel_val, Subtype.mk.injEq]
 
 /- ---------------------------------------------------------------- -/
 /- 5e helpers: building-block enumerations under the recursive       -/
@@ -680,16 +409,6 @@ theorem headRank_eq_iff {cx cy : Code} (hx : denotes neBounded [cx])
     exact ((List.cons.injEq cx [] cy []).mp hval).1
   · rintro rfl; rfl
 
-/-- Headline: the doc-literal collapse row -- nonempty cofinite factors
-collide at every split, the least split pins the prefix to one code, and
-the type collapses to `omega * k` with `k = 2` the alphabet size:
-`cofinite_collision_collapses` read off the real term. -/
-theorem neCollapseRow_prodLt_type :
-    Ordinal.type (prodLt neBounded neBounded) = ω * 2 := by
-  rw [Ordinal.type_eq.mpr ⟨neCollapseIso⟩, type_prod_lex]
-  show entriesType neBounded * entriesType rangeNode = ω * 2
-  rw [neBounded_entriesType, rangeNode_entriesType]
-
 /- ================================================================ -/
 /- 5e: the five transfinite rows, restated over the recursive order.  -/
 /- ================================================================ -/
@@ -835,7 +554,7 @@ theorem collapseRow_entryRecType :
 
 /-- The recursion's split choice on the nonempty-collapse row is the
 collision split `([c], t)`: the shortest nonempty head owns the entry --
-the recursive-order face of `neCollapse_leastSplit`. -/
+the doc's "the least split pins the prefix", on the recursive order. -/
 theorem neCollapse_someSplit (c : Code) (t : Spelling)
     (e : Entries (prod2 neBounded neBounded)) (heq : e.1 = c :: t) :
     someSplit neBounded (prodNode (.node neBounded .nil)) e.1 = ([c], t) := by
@@ -879,13 +598,13 @@ theorem neCollapse_cons (e : Entries (prod2 neBounded neBounded)) :
     cases h : e.1 with
     | nil => rw [h] at hlen; simp at hlen
     | cons c t => exact ⟨c, t, rfl⟩
-  rw [hct]
+  rw [hct]; rfl
 
 theorem neCollapse_head_le (e : Entries (prod2 neBounded neBounded)) :
     e.1.headI ≤ 1 := by
-  refine neCollapse_codes e e.1.headI ?_
-  conv_rhs => rw [neCollapse_cons e]
-  exact List.mem_cons_self
+  apply neCollapse_codes e
+  have h : e.1.headI ∈ e.1.headI :: e.1.tail := List.mem_cons_self
+  rwa [← neCollapse_cons e] at h
 
 theorem neCollapse_tail_mem (e : Entries (prod2 neBounded neBounded)) :
     denotes neBounded e.1.tail := by
@@ -895,9 +614,9 @@ theorem neCollapse_tail_mem (e : Entries (prod2 neBounded neBounded)) :
     rw [neCollapse_cons e, h] at hlen
     simp at hlen
   · intro d hd
-    refine neCollapse_codes e d ?_
-    conv_rhs => rw [neCollapse_cons e]
-    exact List.mem_cons_of_mem _ hd
+    apply neCollapse_codes e
+    have h : d ∈ e.1.headI :: e.1.tail := List.mem_cons_of_mem _ hd
+    rwa [← neCollapse_cons e] at h
 
 /-- The nonempty-collapse row recurses as a two-block head over the tail
 body's own recursive order: `Fin 2` (the two range codes) lex the whole
@@ -950,6 +669,7 @@ noncomputable def neCollapseRecIso :
     rw [hhx, hhy, htx, hty,
       headRank_lt_iff (neCollapse_head_le x) (neCollapse_head_le y) hmemx hmemy,
       headRank_eq_iff hmemx hmemy]
+    exact Iff.rfl
 
 /-- Headline: the nonempty-factor collapse row `{a..}{a..}` on the recursive
 order enumerates at `omega * 4` -- NOT `omega * 2`. The doc's claim is
@@ -970,11 +690,11 @@ theorem neCollapseRow_entryRecType :
   haveI := entryRecLt_isWellOrder (prod2 neBounded neBounded) hsub
   haveI := entryRecLt_isWellOrder neBounded neBounded_nSubfree
   rw [entryRecType_def (prod2 neBounded neBounded) hsub,
-    Ordinal.type_eq.mpr ⟨neCollapseRecIso⟩,
-    type_prod_lex ((· < ·) : Fin 2 → Fin 2 → Prop) (entryRecLt neBounded),
-    ← entryRecType_def neBounded neBounded_nSubfree, neBounded_entryRecType,
-    show Ordinal.type ((· < ·) : Fin 2 → Fin 2 → Prop) = ((2 : ℕ) : Ordinal)
-      from type_fin 2, mul_assoc]
+    Ordinal.type_eq.mpr ⟨neCollapseRecIso⟩, type_prod_lex,
+    ← entryRecType_def neBounded neBounded_nSubfree, neBounded_entryRecType]
+  have hfin : Ordinal.type ((· < ·) : Fin 2 → Fin 2 → Prop) = 2 := by
+    rw [type_fin]; norm_num
+  rw [hfin, mul_assoc]
   norm_num
 
 end L1

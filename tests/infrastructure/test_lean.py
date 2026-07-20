@@ -113,22 +113,10 @@ HEADLINE_THEOREMS = (
     "L1.anbn_entriesType",
     # The entries bridge, v2: past omega. Body order and collision ownership
     # on real syntax -- every product spelling is claimed by a unique least
-    # split (the collision rule with real fsplit cuts for addresses), unique
-    # splits give the ordinal product (positional value on real terms), and
-    # the disjoint union enumerates at the ordinal sum (the doc's append rule)
-    # -- plus the transfinite rows: omega + 2 (union past the limit),
-    # omega * 2 (the {b,c}{a..} north-star row), omega^2 (the seam row,
-    # marker outside the range), omega (the total collision collapse), and
-    # omega * 2 again as the doc-literal nonempty-factor collapse, with k the
-    # alphabet size (cofinite_collision_collapses on real syntax).
+    # split (the collision rule with real fsplit cuts for addresses). The
+    # collision-ownership headline stays; the entry order and its type now
+    # live in the v3 body-recursive order below (prodLt/unionLt retired).
     "L1.prod2_collision_settled",
-    "L1.prodLt_type_of_unique_splits",
-    "L1.unionLt_type_disjoint",
-    "L1.unionRow_unionLt_type",
-    "L1.twoBlocks_prodLt_type",
-    "L1.seamRow_prodLt_type",
-    "L1.collapseRow_prodLt_type",
-    "L1.neCollapseRow_prodLt_type",
     # The entries bridge, v3: the body-recursive within-body order. The order
     # that recurses into each constructor's own structure (rather than the
     # sanctioned raw-shortlex approximation entrySpellLt) is a well-order on
@@ -139,6 +127,41 @@ HEADLINE_THEOREMS = (
     # "body order"; static/lean/L1/Bridge/RecOrder.design.md).
     "L1.entryRecLt_isWellOrder",
     "L1.entryRecLt_face",
+    # v3 order-type laws (replacing prodLt_type_of_unique_splits /
+    # unionLt_type_disjoint): the positional product law over unique splits,
+    # the union sum law and its disjoint corollary, the closure demotion at
+    # omega, and the braced-closure enumeration invariance.
+    "L1.entryRecType_prod2",
+    "L1.entryRecType_napp",
+    "L1.entryRecType_napp_disjoint",
+    "L1.unitClosure_entryRecType",
+    "L1.entryRecType_fold_binder",
+    # The transfinite rows over the body-recursive order: omega + 2 (union
+    # past the limit), omega * 2 (the {b,c}{a..} north-star row), omega^2 (the
+    # seam row, marker outside the range), omega (the total collision
+    # collapse), and omega * 4 (the doc-literal nonempty-factor {a..}{a..}
+    # collapse -- k = 4 under the recursive order, not the spelling-order
+    # approximation's k = 2, because each surviving head block is enumerated
+    # by the tail body's own two-lead-block recursive order; the doc's
+    # "collapses to omega*k, k finite" stands with k = 4).
+    "L1.unionRow_entryRecType",
+    "L1.twoBlocks_entryRecType",
+    "L1.seamRow_entryRecType",
+    "L1.collapseRow_entryRecType",
+    "L1.neCollapseRow_entryRecType",
+    # Compression laws on real syntax (L1/Membership/Laws.lean): union
+    # idempotence, difference/intersection, range compression, adjacency, the
+    # product units, the empty exponent, and fold flattening -- the algebraic
+    # identities behind "compression, not capability".
+    "L1.denotes_union_idem",
+    "L1.difference",
+    "L1.intersection",
+    "L1.range_compression",
+    "L1.adjacency",
+    "L1.product_unit_l",
+    "L1.product_unit_r",
+    "L1.exponent_zero",
+    "L1.fold_flatten",
 )
 
 # "Axiom-free" does not port from Coq to Lean literally: every Lean/Mathlib
