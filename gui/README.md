@@ -145,16 +145,19 @@ The app ships as **Himark Editor**, application ID `dev.himark.editor` (fixed --
 F-Droid keys its listing on it), version from `pubspec.yaml`'s `version:` line
 (`0.1.0+1` gives versionName `0.1.0`, versionCode `1`).
 
-The launcher icon is generated, not committed art:
+The launcher icon design is defined using vector drawables in XML format for Android. The slate SVG in `docs/.notes/icons/slate.svg` is used as the source of truth for the app's icon design.
 
-```bash
-python3 tool/make_icons.py     # stdlib only; no Pillow, no ImageMagick
-```
+- **Android**: The adaptive icon uses an XML vector drawable (`ic_launcher_foreground.xml`) for the foreground and an XML background (`ic_launcher_background.xml`) for the adaptive icon.
+- **Adaptive Icon**: The foreground is defined in `drawable/ic_launcher_foreground.xml` and the background in `values/ic_launcher_background.xml`. The adaptive icon is defined in `mipmap-anydpi-v26/ic_launcher.xml`.
 
-It writes the legacy `mipmap-*/ic_launcher.png` set, the adaptive-icon
-foreground `drawable/ic_launcher_foreground.xml` (paired with the background
-colour in `values/ic_launcher_background.xml` by `mipmap-anydpi-v26/`), and the
-512px listing icon. Edit the geometry in the script and re-run.
+The icon design features a modern, clean look based on the slate variant.
+
+To update the icon design:
+1. Edit the SVG file in `docs/.notes/icons/slate.svg`.
+2. Manually convert the SVG to XML vector drawable paths for `ic_launcher_foreground.xml`.
+3. Ensure the `ic_launcher_background.xml` color matches the design.
+
+This approach ensures scalability and consistency across different screen densities.
 
 `fastlane/metadata/android/en-US/` is the F-Droid listing (title, descriptions,
 changelog, icon) in the layout `fdroidserver` reads. Screenshots go in

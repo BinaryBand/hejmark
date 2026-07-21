@@ -1,6 +1,6 @@
 # TODO: deferred increments
 
-<!-- cspell:words uncomputable hejmark valueline slugify catchable -->
+<!-- cspell:words uncomputable hejmark valueline slugify catchable Chaquopy cdylib Himark unported typer antlr stdlib asymptotics pytest -->
 
 Priority and rationale for outstanding work. This file only ranks what remains and says why; two ledgers stay authoritative -- the **"What this does not prove"** section of `static/lean/README.md` for the mechanization, and `docs/foundation/ROADMAP.md` for the layers. When an item lands, update its ledger first.
 
@@ -8,7 +8,24 @@ Priority and rationale for outstanding work. This file only ranks what remains a
 
 Ordered by dependency, not by size.
 
-- [ ] **Teach the Rust port the Program wire format** -- `core/ir/wire.py` serializes whole compiled scripts (statements, templates, measures, sentinel table, late slots), versioned from day one; Rust currently reads only the bare-query shape from `core/ir/codec.py`. A Rust reader for the Program format gets it `run` (slot-free scripts) rather than just `find`. Slotted programs additionally need a resolver channel back into the compiler -- design that only when a consumer exists.
+The first three are one sequence -- **give the phone the real compiler** -- and are ordered so the device never loses a capability it already has. Today `rust/src/surface/parse.rs` is a second, partial front end that exists for exactly one reason: Android cannot spawn `hejmark emit-json`. It can never compile L1.5, since pipelines, definitions, registers and back-references are refused by name as `ParseRefusal::Unported`, and it is a standing divergence risk because it mirrors `emit-json`'s *observable output* by hand rather than deriving it. Embedding CPython on the device retires the whole thing. The fourth item is independent of the sequence but is what a device `run` additionally needs.
+
+- [ ] **Split the GUI bridge into `Compiler` and `Engine`** -- `gui/lib/models/bridge.dart` declares one seam (`abstract interface class Bridge`), and it is cut in the wrong place: `HejmarkBridge` *fuses* compiling and matching, because the on-device path does both inside one `hejmark_find(source, text)` FFI call. That fusion is what makes the two backends non-interchangeable. Cut instead at the compiled JSON -- `Compiler: source -> program JSON`, `Engine: (program JSON, text) -> spans` -- and every implementation becomes a drop-in: subprocess `emit-json` or embedded CPython on one side, the FFI, the `find` binary, or a Python engine on the other. The JSON is the right seam because it already *is* the boundary: `core/ir/wire.py` is versioned from day one, and the bridge's `_jsonBySource` cache already assumes a rule is compiled once and matched many times. No behavior change, and it does not commit to any of what follows.
+
+- [ ] **Compile on device with embedded CPython** -- a `Compiler` implementation backed by Chaquopy, the Gradle plugin that embeds CPython in an Android app; `gui/android/` is already Gradle, and Dart reaches it over a MethodChannel rather than FFI, since there is no C ABI to a Python interpreter. **The dependency footprint is the reason this is tractable at all.** The on-device path needs `adapters.build` -> `core.compiler` -> `emit_json` and nothing else: no CLI, so `typer` does not ship, and the one remaining runtime dependency (`antlr4-python3-runtime`) is pure Python, so there is no native wheel to cross-compile for four ABIs. What it costs is roughly 10--15 MB per ABI of interpreter and stdlib. **iOS is the open question and should be answered before this starts, not after** -- Chaquopy is Android-only, so an iOS build needs python-apple-support or an equivalent, which is a separate lift this item does not price.
+
+- [ ] **Take the FFI to compiled JSON and delete `rust/src/surface/`** -- once the device can compile, `ffi.rs` should take a program rather than source: `hejmark_find_json(program_json, target)` over the reader `floor/json.rs` already has, which is what `bin/find.rs` has always done. Then `surface/parse.rs` (650 lines), `surface/std.rs` (86) and the `unported` status all go, along with the retry branch in `bridge.dart` and `EngineStatus.unported` in `native_engine.dart`. The one entanglement is `HimarkScopeError` in `surface/ast.rs` (26 lines), which `scan/measure.rs` and `scan/capture.rs` import -- move it under `scan/` or `floor/` and the surface layer drops out clean. **Keeping the Rust engine here is a decision about constants, not asymptotics, and the margin is smaller than the port's reputation suggests.** Measured today with `uv run pytest -m benchmark`:
+
+  | query | chars | python | rust | speedup |
+  | --- | --- | --- | --- | --- |
+  | `{{cat,feline}}` | 800 | 8.3 ms | 1.6 ms | 5.3x |
+  | `{a, &{b}}` | 9 | 4.0 ms | 1.3 ms | 3.1x |
+  | `{a}` | 800 | 2.5 ms | 1.3 ms | 1.9x |
+  | `{0..9}` | 200 | 1.0 ms | 1.1 ms | 0.9x |
+
+  Both engines now carry the same four rewrites, so the curves have the same shape and Rust wins by a constant of about 2--7x (its column still paying process spawn, Python's still paying parse and expand). That is worth having on a battery-powered device holding a 60 fps editor, and it keeps a second implementation that cross-checks the first -- but it is not the order of magnitude that would make an all-Python device build unthinkable, and the honest fallback if Chaquopy plus a `cdylib` proves too much to carry is to run Python on both sides and delete `rust/` outright.
+
+- [ ] **Teach the Rust port the Program wire format** -- `core/ir/wire.py` serializes whole compiled scripts (statements, templates, measures, sentinel table, late slots), versioned from day one; Rust currently reads only the bare-query shape from `core/ir/codec.py`. A Rust reader for the Program format gets it `run` (slot-free scripts) rather than just `find`. Slotted programs additionally need a resolver channel back into the compiler -- design that only when a consumer exists. This is also what a device `run` needs under the sequence above; the alternative there is to leave `run` in the embedded Python and give `Engine` a second method.
 
 The previous eight are done; **Landed** records what they cost and, where the guess was wrong, what was actually true.
 
