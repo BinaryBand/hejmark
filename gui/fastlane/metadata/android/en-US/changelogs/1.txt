@@ -1,0 +1,2 @@
+First proof-of-concept release: projects, a syntax-highlighted rule editor,
+and a test tab that highlights matches live.

@@ -1,0 +1,21 @@
+Himark Editor is an editor for Himark, a language for describing sets of
+strings. Where a regular expression says how to scan text, a Himark rule
+describes a universe -- a virtual dictionary of spellings -- and matching is
+asking which stretch of your text is in it.
+
+Rules are grouped into projects, edited with syntax highlighting, and tried
+against a sample string as you type: matches are highlighted live, so you can
+see what a rule admits before you run it over anything real.
+
+Features
+
+* Projects holding named, reusable rules.
+* A syntax-highlighted rule editor.
+* A test tab that highlights matches in a sample string as you type.
+* Light, dark and system themes.
+
+This is an early proof of concept. Rules and projects live in memory for the
+session, and matching needs the Himark engine present on the device.
+
+Himark is free software. The language specification and both engines are
+developed in the open at https://github.com/BinaryBand/hejmark.

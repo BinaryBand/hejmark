@@ -92,3 +92,27 @@ needed.
 Targets: **Android, iOS, and Linux desktop**. The UI runs on all three, but the
 engine bridge is a desktop capability (it shells out to the Python and Rust
 toolchains); on a device without them the Test tab reports `engine unavailable`.
+
+## App identity
+
+The app ships as **Himark Editor**, application ID `dev.himark.editor` (fixed --
+F-Droid keys its listing on it), version from `pubspec.yaml`'s `version:` line
+(`0.1.0+1` gives versionName `0.1.0`, versionCode `1`).
+
+The launcher icon is generated, not committed art:
+
+```bash
+python3 tool/make_icons.py     # stdlib only; no Pillow, no ImageMagick
+```
+
+It writes the legacy `mipmap-*/ic_launcher.png` set, the adaptive-icon
+foreground `drawable/ic_launcher_foreground.xml` (paired with the background
+colour in `values/ic_launcher_background.xml` by `mipmap-anydpi-v26/`), and the
+512px listing icon. Edit the geometry in the script and re-run.
+
+`fastlane/metadata/android/en-US/` is the F-Droid listing (title, descriptions,
+changelog, icon) in the layout `fdroidserver` reads. Screenshots go in
+`images/phoneScreenshots/`; none are committed yet.
+
+**Not yet ready for F-Droid submission**: the repository has no `LICENSE` file,
+and F-Droid only accepts software under a recognised free licence.

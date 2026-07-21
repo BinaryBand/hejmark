@@ -1,0 +1,156 @@
+"""Render the Himark Editor launcher icon.
+
+Pure standard library -- no Pillow, no ImageMagick -- so the icon is
+reproducible from a checkout with nothing but Python. The artwork is four
+round-capped capsules on a rounded square: three "lines of text" with the
+middle one sitting inside a highlighter mark, which is what the app does.
+
+Geometry is written once, in a 1024x1024 canvas, and shared by both outputs:
+
+    python3 tool/make_icons.py
+
+    android/app/src/main/res/mipmap-*/ic_launcher.png   legacy, full icon
+    android/app/src/main/res/drawable/ic_launcher_foreground.xml  adaptive
+    fastlane/metadata/android/en-US/images/icon.png     F-Droid listing
+
+The adaptive foreground is the same capsules scaled to the 108-unit viewport;
+they occupy 60 of the 72-unit safe circle, so no launcher mask clips them.
+"""
+
+import struct
+import zlib
+from pathlib import Path
+
+CANVAS = 1024.0
+BG = (0x0E, 0x16, 0x26)
+BG_RADIUS = 180.0
+DIM = (0x7A, 0x8C, 0xA9)
+MARK_BG = (0xF4, 0xE4, 0xA1)
+MARK_FG = (0x3E, 0x33, 0x06)
+
+# (x1, y1, x2, y2, radius, colour) -- centrelines, drawn back to front.
+CAPSULES = [
+    (328.0, 512.0, 696.0, 512.0, 104.0, MARK_BG),
+    (292.0, 352.0, 684.0, 352.0, 36.0, DIM),
+    (380.0, 512.0, 644.0, 512.0, 36.0, MARK_FG),
+    (292.0, 672.0, 620.0, 672.0, 36.0, DIM),
+]
+
+ROOT = Path(__file__).resolve().parent.parent
+MIPMAPS = {"mdpi": 48, "hdpi": 72, "xhdpi": 96, "xxhdpi": 144, "xxxhdpi": 192}
+SAMPLES = 3
+
+
+def _capsule_covers(px, py, cap):
+    """Is (px, py) inside the capsule? Distance from point to segment."""
+    x1, y1, x2, y2, radius, _ = cap
+    dx, dy = x2 - x1, y2 - y1
+    span = dx * dx + dy * dy
+    t = 0.0 if span == 0 else ((px - x1) * dx + (py - y1) * dy) / span
+    t = max(0.0, min(1.0, t))
+    ox, oy = px - (x1 + t * dx), py - (y1 + t * dy)
+    return ox * ox + oy * oy <= radius * radius
+
+
+def _rounded_square_covers(px, py, size, radius):
+    """Is (px, py) inside a rounded square of the given size?"""
+    qx = abs(px - size / 2) - (size / 2 - radius)
+    qy = abs(py - size / 2) - (size / 2 - radius)
+    if qx <= 0 or qy <= 0:
+        # Off a corner: only the axis that overshoots constrains the point.
+        return max(qx, qy) <= radius
+    return qx * qx + qy * qy <= radius * radius
+
+
+def render(size, background):
+    """Render the icon at `size` px, returning RGBA rows."""
+    scale = CANVAS / size
+    radius = BG_RADIUS / scale
+    step = 1.0 / SAMPLES
+    rows = []
+    for y in range(size):
+        row = bytearray()
+        for x in range(size):
+            r = g = b = a = 0.0
+            for sy in range(SAMPLES):
+                for sx in range(SAMPLES):
+                    px, py = x + (sx + 0.5) * step, y + (sy + 0.5) * step
+                    if background and not _rounded_square_covers(px, py, size, radius):
+                        continue
+                    hit = BG if background else None
+                    for cap in CAPSULES:
+                        if _capsule_covers(px * scale, py * scale, cap):
+                            hit = cap[5]
+                    if hit is None:
+                        continue
+                    r, g, b, a = r + hit[0], g + hit[1], b + hit[2], a + 1.0
+            if a == 0:
+                row += b"\x00\x00\x00\x00"
+            else:
+                cover = a / (SAMPLES * SAMPLES)
+                row += bytes(
+                    (round(r / a), round(g / a), round(b / a), round(cover * 255))
+                )
+        rows.append(bytes(row))
+    return rows
+
+
+def write_png(path, rows):
+    """Write RGBA rows as a PNG."""
+    raw = b"".join(b"\x00" + row for row in rows)
+    width, height = len(rows[0]) // 4, len(rows)
+
+    def chunk(tag, payload):
+        head = struct.pack(">I", len(payload)) + tag
+        return head + payload + struct.pack(">I", zlib.crc32(tag + payload))
+
+    header = struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", header)
+        + chunk(b"IDAT", zlib.compress(raw, 9))
+        + chunk(b"IEND", b"")
+    )
+
+
+def foreground_vector():
+    """The capsules as an adaptive-icon foreground drawable."""
+    unit = 108.0 / CANVAS
+    paths = []
+    for x1, y1, x2, y2, radius, colour in CAPSULES:
+        paths.append(
+            '    <path\n'
+            f'        android:pathData="M{x1 * unit:.2f},{y1 * unit:.2f} '
+            f'L{x2 * unit:.2f},{y2 * unit:.2f}"\n'
+            f'        android:strokeColor="#{colour[0]:02X}{colour[1]:02X}{colour[2]:02X}"\n'
+            f'        android:strokeWidth="{2 * radius * unit:.2f}"\n'
+            '        android:strokeLineCap="round" />'
+        )
+    body = "\n".join(paths)
+    return (
+        '<?xml version="1.0" encoding="utf-8"?>\n'
+        # No "--" in the comment: aapt2 rejects it.
+        '<!-- Generated by tool/make_icons.py; edit the geometry there. -->\n'
+        '<vector xmlns:android="http://schemas.android.com/apk/res/android"\n'
+        '    android:width="108dp"\n'
+        '    android:height="108dp"\n'
+        '    android:viewportWidth="108"\n'
+        '    android:viewportHeight="108">\n'
+        f"{body}\n"
+        "</vector>\n"
+    )
+
+
+def main():
+    res = ROOT / "android/app/src/main/res"
+    for density, size in MIPMAPS.items():
+        write_png(res / f"mipmap-{density}/ic_launcher.png", render(size, True))
+    (res / "drawable/ic_launcher_foreground.xml").write_text(foreground_vector())
+    listing = ROOT / "fastlane/metadata/android/en-US/images/icon.png"
+    write_png(listing, render(512, True))
+    print(f"wrote {len(MIPMAPS)} mipmaps, the adaptive foreground and {listing.name}")
+
+
+if __name__ == "__main__":
+    main()

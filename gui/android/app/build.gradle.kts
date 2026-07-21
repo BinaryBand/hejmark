@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "dev.himark.himark_editor"
+    namespace = "dev.himark.editor"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -15,10 +15,8 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "dev.himark.himark_editor"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
+        // Permanent -- F-Droid keys its listing on this; it must never change.
+        applicationId = "dev.himark.editor"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -27,9 +25,12 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
+            // F-Droid builds from source and signs with its own key, so no
+            // signing config ships here. Debug keys keep `flutter run
+            // --release` working locally.
             signingConfig = signingConfigs.getByName("debug")
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 }
