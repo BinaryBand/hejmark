@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 
+from hejmark.core.floor.syntax import UniverseNode
 from hejmark.core.floor.universe import denote
 from hejmark.core.ports import ToAst
 from hejmark.core.scan.match import Factor, Match, Query
@@ -57,8 +58,8 @@ def query(expr: Expr, env: Env, source: str = "") -> Query:
     return Query(source, tuple(factors))
 
 
-def parse(to_ast: ToAst, source: str) -> Query:
-    """Parse and denote *source* into a :class:`Query` (universes, most-significant-first).
+def _single_expr(to_ast: ToAst, source: str) -> tuple[Expr, Env]:
+    """Resolve *source* to its one query expression and its environment.
 
     Raises:
         HimarkScopeError: *source* is not a single query expression.
@@ -72,7 +73,39 @@ def parse(to_ast: ToAst, source: str) -> Query:
     if len(only.steps) != 1 or not isinstance(only.steps[0], Expr):
         msg = "expected a single query expression"
         raise HimarkScopeError(msg)
-    return query(only.steps[0], env, source)
+    return only.steps[0], env
+
+
+def parse(to_ast: ToAst, source: str) -> Query:
+    """Parse and denote *source* into a :class:`Query` (universes, most-significant-first).
+
+    Raises:
+        HimarkScopeError: *source* is not a single query expression.
+    """
+    expr, env = _single_expr(to_ast, source)
+    return query(expr, env, source)
+
+
+def floor_forms(to_ast: ToAst, source: str) -> tuple[UniverseNode, ...]:
+    """Parse *source* and expand each factor to its floor AST, before denotation.
+
+    The portable hand-off to the Rust port: expansion has rewritten the surface
+    into the six constructors, and the floor AST serializes to JSON. A
+    back-referencing factor rides the query as a :class:`Late` and cannot be
+    lowered ahead of a binding, so it is refused rather than emitted.
+
+    Raises:
+        HimarkScopeError: *source* is not a single query expression, or a factor
+            reads one to its left.
+    """
+    expr, env = _single_expr(to_ast, source)
+    forms: list[UniverseNode] = []
+    for unit in expr.units:
+        if reads(unit):
+            msg = "a back-referencing factor cannot be lowered to JSON"
+            raise HimarkScopeError(msg)
+        forms.append(expand(Expr((unit,)), Ctx(env))[0])
+    return tuple(forms)
 
 
 def _as_query(to_ast: ToAst, value: Query | str) -> Query:

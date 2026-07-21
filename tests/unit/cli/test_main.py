@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from unittest.mock import patch
 
@@ -147,3 +148,34 @@ def test_run_rejects_an_unknown_name(tmp_path: Path) -> None:
     target.write_text("text")
     result = runner.invoke(app, ["run", str(script), str(target)])
     assert result.exit_code == 2
+
+
+def test_emit_json_prints_the_floor_ast(tmp_path: Path) -> None:
+    query = tmp_path / "q.hmk"
+    query.write_text("{a,b}\n")  # the trailing newline is stripped before parsing
+    result = runner.invoke(app, ["emit-json", str(query)])
+    assert result.exit_code == 0
+    assert json.loads(result.stdout) == {
+        "universes": [
+            {"members": [{"kind": "face", "text": [97]}, {"kind": "face", "text": [98]}]},
+        ],
+    }
+
+
+def test_emit_json_writes_to_an_out_file(tmp_path: Path) -> None:
+    query = tmp_path / "q.hmk"
+    out = tmp_path / "q.json"
+    query.write_text("{a}")
+    result = runner.invoke(app, ["emit-json", str(query), "--out", str(out)])
+    assert result.exit_code == 0
+    assert json.loads(out.read_text()) == {
+        "universes": [{"members": [{"kind": "face", "text": [97]}]}],
+    }
+    assert "OK" in result.output
+
+
+def test_emit_json_rejects_a_back_reference(tmp_path: Path) -> None:
+    query = tmp_path / "q.hmk"
+    query.write_text("{a,b}{$1}")
+    result = runner.invoke(app, ["emit-json", str(query)])
+    assert result.exit_code == 2  # a usage error, the way click reports a bad argument

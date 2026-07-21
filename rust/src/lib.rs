@@ -15,6 +15,10 @@
 //! off a hit, and compares entry order for the contracting measure. [`surface`]
 //! is only begun -- its scope error, which the scan layer shares. The surface
 //! AST and expansion down to the floor are the next slices to port.
+//!
+//! Because this crate parses no Himark, a host that does (the Python package)
+//! hands it an already-expanded query as JSON: [`floor::json`] reads that back
+//! into the floor AST, and the `find` binary denotes and matches it.
 
 pub mod floor;
 pub mod scan;

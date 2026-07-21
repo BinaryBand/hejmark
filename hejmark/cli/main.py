@@ -99,6 +99,28 @@ def gen_parser(
     typer.echo(f"Generated {language} parser for {names} into {output_dir}")
 
 
+@app.command("emit-json")
+def emit_json(
+    query_file: Annotated[Path, SOURCE_ARG],
+    out: Annotated[
+        Path | None,
+        typer.Option("--out", "-o", help="Write the floor JSON here instead of the console."),
+    ] = None,
+) -> None:
+    """Emit a query's expanded floor AST as JSON, the portable hand-off to the Rust port."""
+    source = query_file.read_text().strip()
+    try:
+        payload = hejmark.emit_json(source)
+    except ValueError as exc:
+        msg = f"invalid query: {exc}"
+        raise click.UsageError(msg) from exc
+    if out is None:
+        typer.echo(payload)
+    else:
+        out.write_text(payload)
+        typer.echo(f"{query_file}: OK, floor JSON written to {out}")
+
+
 @app.command("parse-file")
 def parse_file(
     path: Annotated[Path, typer.Argument(help="Path to a .hmk source file to parse.")],

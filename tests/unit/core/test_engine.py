@@ -5,7 +5,9 @@ from __future__ import annotations
 import pytest
 
 from hejmark.adapters.parser import AntlrParser
-from hejmark.core.engine import finditer, match, parse, script
+from hejmark.core.engine import finditer, floor_forms, match, parse, script
+from hejmark.core.floor.syntax import Face, UniverseNode
+from hejmark.core.floor.universe import denote
 from hejmark.core.scan.match import Query
 from hejmark.core.surface.ast import HimarkScopeError
 from hejmark.core.surface.late import Late
@@ -72,3 +74,24 @@ def test_a_read_not_strictly_left_is_refused() -> None:
     for source in ("{$1}", "{a}{$2}", "{a}{$3}"):
         with pytest.raises(HimarkScopeError, match="stand to its left"):
             parse(_to_ast, source)
+
+
+def test_floor_forms_expands_each_factor_to_its_pre_denotation_ast() -> None:
+    """The lowered form denotes to the same universes ``parse`` would build."""
+    forms = floor_forms(_to_ast, "{a,b}{c}")
+    assert len(forms) == 2
+    assert all(isinstance(form, UniverseNode) for form in forms)
+    # {a,b} carries both faces, in order.
+    assert forms[0].members == (Face("a"), Face("b"))
+    assert denote(forms[1]).contains("c")
+
+
+def test_floor_forms_refuses_a_back_referencing_factor() -> None:
+    """A ``Late`` factor denotes only under a binding, so it cannot be lowered."""
+    with pytest.raises(HimarkScopeError, match="back-referencing"):
+        floor_forms(_to_ast, "{a,b}{$1}")
+
+
+def test_floor_forms_refuses_anything_but_a_single_query() -> None:
+    with pytest.raises(HimarkScopeError, match="single query expression"):
+        floor_forms(_to_ast, "uni d = {a}")
