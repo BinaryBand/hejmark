@@ -24,7 +24,7 @@ L1.5 guards well-formedness only -- an unknown name, a malformed definition, a f
 - Diagnostics -- compiler errors live here: unknown name, malformed definition, unguarded matcher scope. The floor never rejects, so rejection is interpretation's whole job.
 
 > Finish line: the surface suffices to write all of the standard library (L3 below) in-language -- no built-in named modifiers, no host code per entry.
-
+>
 > Frontier: a value cut across two radixes is uncomputable today -- no register spells it (see Emit above). A future surface capability -- an expressive render layer that carries a computed value and wraps it against a universe's cardinality (its *ceiling*) -- would lift that. It is a denotational addition, so it grows L1.5, not the execution contract.
 
 ## Layer 2 -- Finite-Execution Contract (operational)
