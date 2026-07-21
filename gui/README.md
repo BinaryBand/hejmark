@@ -10,16 +10,22 @@ memory for the session.
 
 ## Engine bridge
 
-`lib/models/bridge.dart` (`HejmarkBridge`) has two paths to a match, and they
-differ only in **where the compiler runs**. Both compile all of L1.5, and the
-matching is the same Rust engine either way. `lib/models/backend.dart` is where
-that shows: a `Compiler` lowers a rule to a program, an `Engine` runs a program
-over text, and a `Backend` is one of each.
+`lib/models/bridge.dart` (`HejmarkBridge`) carries both of the language's verbs
+— `find` highlights where rules hit, `run` executes them as a script and
+returns the rewritten document — over two paths that differ only in **where
+the compiler runs**. Both compile all of L1.5, and the engine is the same Rust
+either way. `lib/models/backend.dart` is where that shows: a `Compiler` lowers
+source to a program (`emit-json` for one rule, `emit-program` for a whole
+script), an `Engine` runs programs over text (`findAll` to spans, `run` to a
+document), and a `Backend` is one of each.
 
 ```text
 embedded    rule.source ──emit-json (embedded python)──▶ floor JSON ──┐
 subprocess  rule.source ──emit-json (python subprocess)─▶ floor JSON ─┤
                                      libhejmark.so / find (rust) ◀────┘──▶ spans
+embedded    script ──emit-program (embedded python)──▶ Program JSON ──┐
+subprocess  script ──emit-program (python subprocess)─▶ Program JSON ─┤
+                                      libhejmark.so / run (rust) ◀────┘──▶ document
 ```
 
 **Embedded** (`lib/models/embedded_backend.dart`, Android) is the phone's whole
@@ -90,6 +96,12 @@ for the transport.
   match-highlighted read view, both under a line-number gutter; a collapsible
   output sheet whose header reports engine status (`Matching…` / count / error)
   and lists each hit with its rule's colour, `[range]` and `Ln n · Col n`.
+  The play toggle flips the screen's verb to **run**: the enabled rules, in
+  order, run as one script and the read view shows the rewritten document. A
+  rule that is a bare query is a one-step statement that writes nothing, so a
+  find-only project runs unchanged rather than erroring; a back-referencing
+  script is refused by name (resolving it needs the compiler in the engine's
+  process, which the Rust engine is not).
 - **Settings** — theme (dark/light/system), density, editor font size,
   whitespace glyphs, tab size, restore defaults, reset data.
 

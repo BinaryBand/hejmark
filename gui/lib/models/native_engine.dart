@@ -162,6 +162,29 @@ class NativeEngine {
       );
     }
   }
+
+  /// Executes one compiled script (`hejmark emit-program` output) over
+  /// [content] on a background isolate, via `hejmark_run_json`.
+  ///
+  /// Returns the raw status-line reply; the caller parses it, because an `ok`
+  /// body here is the whole document verbatim — trailing whitespace included —
+  /// not a span list, and [EngineReply.parse] would misread it.
+  Future<String> run(
+    String program,
+    String content, {
+    Duration timeout = const Duration(seconds: 5),
+  }) async {
+    final path = libraryPath;
+    try {
+      return await Isolate.run(
+        () => _runSync(path, program, content),
+      ).timeout(timeout);
+    } on TimeoutException {
+      return 'err\nscript too complex (engine timed out)';
+    } on Object catch (e) {
+      return 'err\nengine error: $e';
+    }
+  }
 }
 
 /// Runs compiled programs over the C ABI, on a background isolate.
@@ -190,6 +213,19 @@ class FfiEngine implements Engine {
         },
     ];
   }
+
+  @override
+  Future<RunResult> run(String program, String document) async {
+    final reply = await _engine.run(program, document, timeout: timeout);
+    // Parsed here rather than through [EngineReply.parse]: an `ok` body is the
+    // document itself, verbatim, so nothing may trim or line-split it.
+    final split = reply.indexOf('\n');
+    final status = split < 0 ? reply : reply.substring(0, split);
+    final body = split < 0 ? '' : reply.substring(split + 1);
+    if (status == 'ok') return RunResult(body);
+    final message = body.trim();
+    return RunResult.failed(message.isEmpty ? 'engine error' : message);
+  }
 }
 
 /// The isolate body: open the library, run every program, hand back raw replies.
@@ -216,6 +252,19 @@ List<String> _findAllSync(String path, List<String> programs, String content) {
   }
 }
 
+/// The run isolate body: one program, one document, one raw reply back.
+String _runSync(String path, String program, String content) {
+  final symbols = _Symbols.open(path);
+  final programC = program.toNativeUtf8();
+  final document = content.toNativeUtf8();
+  try {
+    return symbols.take(symbols.run(programC, document));
+  } finally {
+    calloc.free(programC);
+    calloc.free(document);
+  }
+}
+
 typedef _FindC =
     Pointer<Utf8> Function(Pointer<Utf8> query, Pointer<Utf8> target);
 typedef _FreeC = Void Function(Pointer<Utf8> text);
@@ -223,18 +272,22 @@ typedef _FreeDart = void Function(Pointer<Utf8> text);
 
 /// The C entry points, bound in whichever isolate needs them.
 class _Symbols {
-  _Symbols(this.find, this._free);
+  _Symbols(this.find, this.run, this._free);
 
   factory _Symbols.open(String path) {
     final library = DynamicLibrary.open(path);
     return _Symbols(
       library.lookupFunction<_FindC, _FindC>('hejmark_find_json'),
+      library.lookupFunction<_FindC, _FindC>('hejmark_run_json'),
       library.lookupFunction<_FreeC, _FreeDart>('hejmark_string_free'),
     );
   }
 
   /// A compiled floor AST in, parsed by nothing — it is already the AST.
   final _FindC find;
+
+  /// A whole compiled script in (`ir/wire.rs`'s shape), the document out.
+  final _FindC run;
 
   final _FreeDart _free;
 

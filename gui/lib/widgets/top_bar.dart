@@ -57,6 +57,17 @@ class TopBar extends StatelessWidget {
           const Spacer(),
           if (nav == NavTab.test) ...[
             CircleIconButton(
+              icon: Icons.play_arrow_outlined,
+              iconSize: 16,
+              tooltip: s.runMode ? 'Find matches' : 'Run as script',
+              background: s.runMode
+                  ? t.primaryContainer
+                  : t.surfaceContainerHigh,
+              color: s.runMode ? t.onPrimaryContainer : t.onSurfaceVariant,
+              onTap: s.toggleRunMode,
+            ),
+            const SizedBox(width: 4),
+            CircleIconButton(
               icon: s.editMode ? Icons.edit : Icons.visibility_outlined,
               iconSize: 16,
               tooltip: s.editMode ? 'View mode' : 'Edit mode',

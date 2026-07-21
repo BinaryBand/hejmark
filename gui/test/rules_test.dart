@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:himark_editor/app.dart';
+import 'package:himark_editor/models/project.dart';
 import 'package:himark_editor/state/app_state.dart';
 import 'package:himark_editor/theme/tokens.dart';
 import 'package:himark_editor/widgets/rule_code.dart';
@@ -67,6 +68,25 @@ void main() {
       expect(state.matches.map((m) => m.slot).toSet(), <int>{1});
     },
   );
+
+  test('run mode executes the enabled rules as one script', () async {
+    final state = AppState(bridge: const FakeBridge());
+    addTearDown(state.dispose);
+    await Future<void>.delayed(Duration.zero); // let the eager first run land
+
+    // One rewriting rule; the fake maps its script verbatim.
+    final c = state.cur!;
+    c.rules.clear();
+    c.enabled.clear();
+    c.rules.add(Rule(id: 'rs', label: 'swap', source: '{a} => "b"'));
+    c.enabled['rs'] = true;
+
+    state.toggleRunMode();
+    expect(state.editMode, isFalse); // running is for seeing the document
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+    expect(state.runDocument, 'rewritten');
+    expect(state.matchSummary, startsWith('Ran — document rewritten'));
+  });
 
   test('the palette cycles rather than running off its end', () {
     expect(darkTokens.ruleColorAt(0), same(darkTokens.ruleColors[0]));

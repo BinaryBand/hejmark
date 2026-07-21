@@ -205,8 +205,13 @@ class _TestScreenState extends State<TestScreen> {
 
   Widget _body(AppState s, HimarkTokens t, TestString active) {
     // Matches come live from the Python parser + Rust engine bridge, recomputed
-    // (debounced) by AppState whenever the text or rules change.
-    final matches = s.matches;
+    // (debounced) by AppState whenever the text or rules change. In run mode
+    // the read view shows the rewritten document instead — a run has no spans
+    // to paint, its answer *is* the text.
+    final matches = s.runMode ? const <MatchRange>[] : s.matches;
+    final readText = s.runMode
+        ? (s.runDocument ?? active.content)
+        : active.content;
     return LayoutBuilder(
       builder: (context, box) {
         final sheetHeight = s.sheetExpanded ? box.maxHeight * 0.46 : 45.0;
@@ -215,7 +220,7 @@ class _TestScreenState extends State<TestScreen> {
             Expanded(
               child: s.editMode
                   ? _editor(s, t, active)
-                  : _readView(s, t, active, matches),
+                  : _readView(s, t, readText, matches),
             ),
             AnimatedContainer(
               duration: const Duration(milliseconds: 180),
@@ -319,11 +324,10 @@ class _TestScreenState extends State<TestScreen> {
   Widget _readView(
     AppState s,
     HimarkTokens t,
-    TestString active,
+    String content,
     List<MatchRange> matches,
   ) {
     final fs = s.editorFontSize.toDouble();
-    final content = active.content;
     final lines = content.split('\n');
 
     // Offset of each line start.
@@ -500,11 +504,50 @@ class _TestScreenState extends State<TestScreen> {
         ),
         if (s.sheetExpanded)
           Expanded(
-            child: matches.isEmpty
+            child: s.runMode
+                ? _sheetRun(s, t)
+                : matches.isEmpty
                 ? _sheetEmpty(t)
                 : _matchList(s, t, matches, content),
           ),
       ],
+    );
+  }
+
+  Widget _sheetRun(AppState s, HimarkTokens t) {
+    final isError = s.engine == EngineState.error;
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: t.outlineVariant)),
+      ),
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                isError ? 'Run failed' : 'Run mode',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: isError ? t.error : t.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                isError
+                    ? (s.engineError ?? 'Engine error')
+                    : 'The enabled rules run in order as one script; the view '
+                          'shows the rewritten document. Switch to edit mode '
+                          'to change the input.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 11.5, color: t.onSurfaceVariant),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

@@ -16,6 +16,17 @@ class MatchRun {
   final String? error;
 }
 
+/// The result of one script run: the rewritten document, or why there is none.
+///
+/// No offsets, so no UTF-16 resolution: the document crosses as a plain
+/// string, which is the whole reason `run` needs none of [MatchRun]'s span
+/// machinery.
+class DocumentRun {
+  const DocumentRun(this.document, {this.error});
+  final String? document;
+  final String? error;
+}
+
 /// Runs the project's rules over a test string and returns the spans they hit.
 ///
 /// This is the seam the Test screen talks to. The real implementation
@@ -24,6 +35,10 @@ class MatchRun {
 /// deterministic without the toolchain.
 abstract interface class Bridge {
   Future<MatchRun> matchAll(List<Rule> rules, String content);
+
+  /// Runs [source] — a whole script — over [content], returning the rewritten
+  /// document. The language's other verb, over the same backends.
+  Future<DocumentRun> runScript(String source, String content);
 }
 
 /// Bridges the Flutter GUI to hejmark's real engines.
@@ -107,6 +122,15 @@ class HejmarkBridge implements Bridge {
     return bin.existsSync() ? bin : null;
   }
 
+  /// The Rust `run` binary, built beside `find`. Nullable separately: a
+  /// checkout built before it existed still matches, and only `run` reports.
+  File? get _runBin {
+    final root = _root;
+    if (root == null) return null;
+    final bin = File('${root.path}/rust/target/debug/run');
+    return bin.existsSync() ? bin : null;
+  }
+
   /// The backends reachable here, in preference order. Resolved once: what is
   /// installed does not change while the app runs.
   List<Backend> get _backends {
@@ -130,6 +154,7 @@ class HejmarkBridge implements Bridge {
         subprocessBackend(
           python: python,
           findBin: findBin,
+          runBin: _runBin,
           root: root,
           timeout: _findBudget,
         ),
@@ -165,6 +190,39 @@ class HejmarkBridge implements Bridge {
       error ??= message;
     });
     return MatchRun(_resolve(content, cpSpans), error: error);
+  }
+
+  @override
+  Future<DocumentRun> runScript(String source, String content) async {
+    final backends = _backends;
+    if (backends.isEmpty) {
+      return const DocumentRun(
+        null,
+        error:
+            'engine unavailable — no embedded compiler on this platform, and '
+            'no hejmark checkout to fall back on (needs .venv and '
+            'rust/target/debug/run)',
+      );
+    }
+    // Same dispatch as _compile, for the other verb: the first backend that
+    // compiles the script also runs it, a retryable refusal moves on, a final
+    // one stops, and the last refusal is the one reported.
+    CompileRefusal? refused;
+    for (final backend in backends) {
+      final String program;
+      try {
+        program = await backend.compiler.compileScript(source);
+      } on CompileRefusal catch (refusal) {
+        refused = refusal;
+        if (!refusal.retryable) break;
+        continue;
+      }
+      final result = await backend.engine.run(program, content);
+      final failure = result.error;
+      if (failure != null) return DocumentRun(null, error: failure);
+      return DocumentRun(result.document);
+    }
+    return DocumentRun(null, error: refused?.message ?? 'engine unavailable');
   }
 
   /// Hands each rule to the first backend that compiles it.

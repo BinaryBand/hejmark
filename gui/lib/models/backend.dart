@@ -18,6 +18,17 @@ abstract interface class Compiler {
   /// Implementations cache by source: a rule is recompiled only when edited,
   /// which is what keeps a keystroke in the test pane off the compiler.
   Future<String> compile(String source);
+
+  /// Lowers a whole script — declarations and statements — to a program for
+  /// [Engine.run], or throws [CompileRefusal].
+  ///
+  /// The other verb's other program shape: where [compile] emits one query's
+  /// floor AST (`hejmark emit-json`), this emits the whole Program JSON
+  /// (`hejmark emit-program`) — statements, templates, the contracting
+  /// measure, the sentinel table. Cached by source, separately from [compile]:
+  /// the same text can be both a query and a one-statement script, and the two
+  /// answers are different strings.
+  Future<String> compileScript(String source);
 }
 
 /// Runs compiled programs over text — the other half of the seam.
@@ -32,6 +43,17 @@ abstract interface class Engine {
   /// Spans come back as **code-point** offsets, exactly as both engines emit
   /// them; converting to UTF-16 is the caller's job.
   Future<List<EngineResult>> findAll(List<String> programs, String text);
+
+  /// Executes one compiled script over [document], returning the rewritten
+  /// document.
+  ///
+  /// [program] is what [Compiler.compileScript] produced. Not batched: a run
+  /// rewrites the whole document, so its unit is one script over one text.
+  /// The document comes back as a plain string, so no offset conversion
+  /// applies. A program the engine cannot take — a back-referencing script on
+  /// an engine without the compiler that emitted it — is a [RunResult.failed],
+  /// never a throw.
+  Future<RunResult> run(String program, String document);
 }
 
 /// A compiler and the engine that reads what it produces.
@@ -66,6 +88,21 @@ class CompileRefusal implements Exception {
 
   @override
   String toString() => message;
+}
+
+/// One script's outcome from [Engine.run]: the document, or why there is none.
+class RunResult {
+  const RunResult(String this.document) : error = null;
+
+  const RunResult.failed(String this.error) : document = null;
+
+  /// The rewritten document, verbatim — a run that changed nothing returns the
+  /// input unchanged, which is an answer and not an error.
+  final String? document;
+
+  /// Set when the engine could not answer — a timeout, a malformed program, a
+  /// refusal from the work budget, or a script this engine cannot take.
+  final String? error;
 }
 
 /// One program's outcome from an [Engine]: the hits, or why there are none.

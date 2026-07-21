@@ -78,6 +78,47 @@ void main() {
     expect(run.matches.map((m) => m.text), <String>['42', '58']);
   });
 
+  test('a script runs end to end and returns the rewritten document', () async {
+    if (skipIfUnavailable()) return;
+    // The other verb over the same backend: `hejmark emit-program` compiles,
+    // the Rust `run` binary executes, and the answer is the document itself.
+    final run = await bridge.runScript(r'{a} => "b"', 'banana');
+    expect(run.error, isNull);
+    expect(run.document, 'bbnbnb');
+  });
+
+  test('a contracting script settles and the document comes back', () async {
+    if (skipIfUnavailable()) return;
+    // normalize-space's two statements: a settlement loop under a measure,
+    // which is the construct furthest from a find — nothing about spans
+    // survives into this answer.
+    final run = await bridge.runScript(
+      '{\\t,\\r,\\n} => " "\n{\\ }{\\ } <=>[@spellings] " "',
+      'a  \t b',
+    );
+    expect(run.error, isNull);
+    expect(run.document, 'a b');
+  });
+
+  test('a back-referencing script is refused by name at load', () async {
+    if (skipIfUnavailable()) return;
+    // The program compiles — the wire format carries the late slot — and the
+    // Rust engine refuses it before spending anything, naming the factor.
+    final run = await bridge.runScript(r'{a..z}{$1} => "{{$1}}!"', 'aab');
+    expect(run.document, isNull);
+    expect(run.error, contains('back-reference'));
+  });
+
+  test('a script of bare queries leaves the document unchanged', () async {
+    if (skipIfUnavailable()) return;
+    // A one-step statement refines and writes nothing, so find-shaped rules
+    // run as a no-op rather than an error — which is what makes the Test
+    // screen's run mode safe on a find-only project.
+    final run = await bridge.runScript(r'{0..9}^4', 'id 2024 here');
+    expect(run.error, isNull);
+    expect(run.document, 'id 2024 here');
+  });
+
   test('both paths contribute to one run, each keeping its slot', () async {
     if (skipIfUnavailable()) return;
     // Slot 0 is floor-subset (device engine), slot 1 is a pipeline (Python).

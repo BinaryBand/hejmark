@@ -24,6 +24,20 @@ class FakeBridge implements Bridge {
         r'{0..9}^4': <String>['4821', '2048'],
       };
 
+  /// Literal rewrites per script source, keyed on the joined enabled-rule
+  /// sources `AppState` sends. Anything unlisted comes back unchanged, which
+  /// is what the real engine does for a script of bare queries — they refine
+  /// and write nothing.
+  static const Map<String, String> documentsByScript = <String, String>{
+    // The flows' one rewriting script: swap every a for a b.
+    '{a} => "b"': 'rewritten',
+  };
+
+  @override
+  Future<DocumentRun> runScript(String source, String content) async {
+    return DocumentRun(documentsByScript[source] ?? content);
+  }
+
   @override
   Future<MatchRun> matchAll(List<Rule> rules, String content) async {
     if (rules.isEmpty || content.isEmpty) return const MatchRun(<MatchRange>[]);

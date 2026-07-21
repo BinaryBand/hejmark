@@ -44,6 +44,25 @@ const String _whereProgram =
     '{"kind": "face", "text": [53]}, {"kind": "face", "text": [54]}, {"kind": '
     '"face", "text": [55]}]}}]}]}}]}}]}]}]}';
 
+/// `{a} => "b"` as `hejmark emit-program` compiles it: a whole (one-statement)
+/// script in the Program wire shape, which is `hejmark_run_json`'s input.
+const String _swapProgram =
+    '{"format": "hejmark-program", "version": 1, "sentinels": [], '
+    '"statements": [{"kind": "statement", "steps": [{"kind": "query", '
+    '"source": "", "factors": [{"kind": "universe", "universe": {"members": '
+    '[{"kind": "face", "text": [97]}]}}]}, {"kind": "template", "parts": '
+    '[{"kind": "text", "text": [98]}]}]}]}';
+
+/// `{a..z}{\$1} => "{{\$1}}!"` compiled — a late slot rides the wire, and it is
+/// the *engine* that refuses it, by name, at load.
+const String _slottedProgram =
+    '{"format": "hejmark-program", "version": 1, "sentinels": [], '
+    '"statements": [{"kind": "statement", "steps": [{"kind": "query", '
+    '"source": "", "factors": [{"kind": "universe", "universe": {"members": '
+    '[{"kind": "range", "lo": 97, "hi": 122}]}}, {"kind": "slot", "slot": 0, '
+    '"needs": [1], "reach": 1}]}, {"kind": "template", "parts": [{"kind": '
+    '"capture", "capture": "\$1"}, {"kind": "text", "text": [33]}]}]}]}';
+
 /// The repository root, so a desktop test run finds the library `cargo build`
 /// produced. On a device it is resolved from the APK by name and this is null.
 Directory? _root() {
@@ -113,6 +132,31 @@ void main() {
       (9, 11),
       (12, 14),
     ]);
+  });
+
+  test('a whole script runs and the reply body is the document', () async {
+    if (skipIfAbsent()) return;
+    // The other entry point, `hejmark_run_json`: a compiled script in, the
+    // rewritten document out, raw — parsing is the caller's job because the
+    // body is text, not spans.
+    final reply = await engine!.run(_swapProgram, 'banana');
+    expect(reply, 'ok\nbbnbnb');
+  });
+
+  test('a slotted program is refused by name at load', () async {
+    if (skipIfAbsent()) return;
+    // The wire format carries a late slot fine; resolving one needs the
+    // compiler that emitted it, which this library is not — so the refusal
+    // lands before the document is touched, and says which factor.
+    final reply = await engine!.run(_slottedProgram, 'aab');
+    expect(reply, startsWith('err\n'));
+    expect(reply, contains('back-reference'));
+  });
+
+  test('a query program is not a script, and run says so', () async {
+    if (skipIfAbsent()) return;
+    final reply = await engine!.run(_fourDigits, 'id 2024');
+    expect(reply, startsWith('err\ninvalid program JSON'));
   });
 
   test('a malformed program is an error rather than a crash', () async {

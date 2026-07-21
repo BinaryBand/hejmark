@@ -20,9 +20,10 @@ import java.util.concurrent.Executors
  * returns.
  *
  * This class transports and does not decide. The reply is whatever
- * `himark_compiler.compile_query` produced, in the same status-line shape
- * `rust/src/ffi.rs` uses, passed through unread; the retry policy lives in
- * `lib/models/bridge.dart`, where it can see every backend at once.
+ * `himark_compiler` produced — `compile_query` for a rule, `compile_program`
+ * for a whole script — in the same status-line shape `rust/src/ffi.rs` uses,
+ * passed through unread; the retry policy lives in `lib/models/bridge.dart`,
+ * where it can see every backend at once.
  */
 class MainActivity : FlutterActivity() {
     private companion object {
@@ -45,13 +46,20 @@ class MainActivity : FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
             .setMethodCallHandler { call, result ->
-                if (call.method != "compile") {
+                // The two verbs' compile steps: a rule to floor-AST JSON, a
+                // script to Program JSON. Same transport either way.
+                val function = when (call.method) {
+                    "compile" -> "compile_query"
+                    "compileProgram" -> "compile_program"
+                    else -> null
+                }
+                if (function == null) {
                     result.notImplemented()
                     return@setMethodCallHandler
                 }
                 val source = call.argument<String>("source") ?: ""
                 worker.execute {
-                    val reply = compile(source)
+                    val reply = compile(function, source)
                     main.post { result.success(reply) }
                 }
             }
@@ -63,21 +71,23 @@ class MainActivity : FlutterActivity() {
     }
 
     /**
-     * Runs one rule through the embedded compiler, in the status shape.
+     * Runs one source through the embedded compiler, in the status shape.
+     * [function] names which lowering: `compile_query` for a rule,
+     * `compile_program` for a whole script.
      *
      * A failure to *start* Python is reported like a failed compile rather than
      * thrown: an APK built without the staged package is a real and easy
      * mistake (as is one built without the engine), and the app should say so
      * in its error line instead of dying.
      */
-    private fun compile(source: String): String =
+    private fun compile(function: String, source: String): String =
         try {
             if (!Python.isStarted()) {
                 Python.start(AndroidPlatform(this))
             }
             Python.getInstance()
                 .getModule(MODULE)
-                .callAttr("compile_query", source)
+                .callAttr(function, source)
                 .toString()
         } catch (error: PyException) {
             "err\n${error.message ?: "the embedded compiler failed"}"

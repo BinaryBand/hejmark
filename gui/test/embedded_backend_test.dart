@@ -33,12 +33,15 @@ void main() {
   group('the compiler half, with the platform faked', () {
     const channel = MethodChannel('test/compiler');
     final calls = <String>[];
+    final methods = <String>[];
     late String reply;
 
     setUp(() {
       calls.clear();
+      methods.clear();
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (call) async {
+            methods.add(call.method);
             calls.add(call.arguments['source'] as String);
             return reply;
           });
@@ -54,6 +57,23 @@ void main() {
       final compiler = EmbeddedCompiler(channel);
       expect(await compiler.compile('{a}'), '{"universes": []}');
       expect(calls, <String>['{a}']);
+      expect(methods, <String>['compile']);
+    });
+
+    test('a script crosses as compileProgram, cached apart from compile',
+        () async {
+      // The same text is both a query and a one-statement script, and the two
+      // lowerings answer differently — so the caches must not collide.
+      reply = 'ok\n{"format": "hejmark-program"}';
+      final compiler = EmbeddedCompiler(channel);
+      expect(
+        await compiler.compileScript('{a}'),
+        '{"format": "hejmark-program"}',
+      );
+      expect(await compiler.compileScript('{a}'), isNotEmpty);
+      reply = 'ok\n{"universes": []}';
+      expect(await compiler.compile('{a}'), '{"universes": []}');
+      expect(methods, <String>['compileProgram', 'compile']);
     });
 
     test('an err reply is a final refusal, never a retryable one', () async {
@@ -139,5 +159,31 @@ void main() {
       '11',
       '12',
     ]);
+  });
+
+  test('the real compiler pairs with the device engine for a run', () async {
+    // The device run path, minus Chaquopy: `emit-program` is the same compiler
+    // Chaquopy embeds, and `hejmark_run_json` is the same call the phone
+    // makes. The closest thing to device coverage of the second verb without a
+    // device.
+    final root = _root();
+    final engine = NativeEngine.instance(root: root);
+    final python = root == null ? null : File('${root.path}/.venv/bin/python');
+    if (root == null || engine == null || !(python?.existsSync() ?? false)) {
+      markTestSkipped('needs a checkout with .venv and a built libhejmark');
+      return;
+    }
+    final bridge = HejmarkBridge(
+      backends: <Backend>[
+        Backend(
+          compiler: SubprocessCompiler(python: python!, root: root),
+          engine: FfiEngine(engine, timeout: const Duration(seconds: 5)),
+        ),
+      ],
+    );
+    final run = await bridge.runScript(r'{a} => "b"', 'banana');
+
+    expect(run.error, isNull);
+    expect(run.document, 'bbnbnb');
   });
 }

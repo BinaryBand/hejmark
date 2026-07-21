@@ -9,12 +9,19 @@ import 'package:himark_editor/models/project.dart';
 class _FakeCompiler implements Compiler {
   _FakeCompiler(this.outcomes);
 
-  /// Source to outcome: a program string, or the refusal to throw.
+  /// Source to outcome: a program string, or the refusal to throw. Shared by
+  /// both verbs, since what the dispatch tests care about is who took the
+  /// source, not which shape came back.
   final Map<String, Object> outcomes;
   final List<String> asked = <String>[];
 
   @override
-  Future<String> compile(String source) async {
+  Future<String> compile(String source) => _answer(source);
+
+  @override
+  Future<String> compileScript(String source) => _answer(source);
+
+  Future<String> _answer(String source) async {
     asked.add(source);
     final outcome = outcomes[source];
     if (outcome is CompileRefusal) throw outcome;
@@ -25,10 +32,14 @@ class _FakeCompiler implements Compiler {
 
 /// An engine that answers from a table keyed by program.
 class _FakeEngine implements Engine {
-  _FakeEngine(this.results);
+  _FakeEngine(this.results, {this.runs = const <String, RunResult>{}});
 
   final Map<String, EngineResult> results;
   final List<List<String>> batches = <List<String>>[];
+
+  /// Program to run outcome; anything unlisted comes back unchanged.
+  final Map<String, RunResult> runs;
+  final List<String> ran = <String>[];
 
   @override
   Future<List<EngineResult>> findAll(List<String> programs, String text) async {
@@ -37,6 +48,12 @@ class _FakeEngine implements Engine {
       for (final program in programs)
         results[program] ?? const EngineResult(<(int, int)>[]),
     ];
+  }
+
+  @override
+  Future<RunResult> run(String program, String document) async {
+    ran.add(program);
+    return runs[program] ?? RunResult(document);
   }
 }
 
@@ -227,4 +244,107 @@ void main() {
       expect(run.error, contains('engine unavailable'));
     },
   );
+
+  // --- the other verb: runScript through the same dispatch -------------------
+
+  test('a script runs on the first backend that compiles it', () async {
+    final engine = _FakeEngine(const {}, runs: <String, RunResult>{
+      'compiled': const RunResult('rewritten'),
+    });
+    final bridge = HejmarkBridge(
+      backends: <Backend>[
+        Backend(
+          compiler: _FakeCompiler(<String, Object>{'script': 'compiled'}),
+          engine: engine,
+        ),
+      ],
+    );
+
+    final run = await bridge.runScript('script', 'document');
+
+    expect(run.error, isNull);
+    expect(run.document, 'rewritten');
+    expect(engine.ran, <String>['compiled']);
+  });
+
+  test('a retryable script refusal falls through to the next backend',
+      () async {
+    final second = _FakeEngine(const {}, runs: <String, RunResult>{
+      'compiled': const RunResult('rewritten'),
+    });
+    final bridge = HejmarkBridge(
+      backends: <Backend>[
+        Backend(
+          compiler: _FakeCompiler(<String, Object>{
+            'script': const CompileRefusal(
+              'needs the full compiler',
+              retryable: true,
+            ),
+          }),
+          engine: _FakeEngine(const {}),
+        ),
+        Backend(
+          compiler: _FakeCompiler(<String, Object>{'script': 'compiled'}),
+          engine: second,
+        ),
+      ],
+    );
+
+    final run = await bridge.runScript('script', 'document');
+
+    expect(run.error, isNull);
+    expect(run.document, 'rewritten');
+  });
+
+  test('a final script refusal stops and is the reported message', () async {
+    final second = _FakeCompiler(<String, Object>{'bad': 'compiled'});
+    final bridge = HejmarkBridge(
+      backends: <Backend>[
+        Backend(
+          compiler: _FakeCompiler(<String, Object>{
+            'bad': const CompileRefusal('unclosed brace'),
+          }),
+          engine: _FakeEngine(const {}),
+        ),
+        Backend(compiler: second, engine: _FakeEngine(const {})),
+      ],
+    );
+
+    final run = await bridge.runScript('bad', 'document');
+
+    expect(run.document, isNull);
+    expect(run.error, 'unclosed brace');
+    expect(second.asked, isEmpty);
+  });
+
+  test('an engine that cannot take the script reports rather than throws',
+      () async {
+    // The Rust engine refusing a back-referencing program at load is the live
+    // case: compiled fine, refused by name where it would run.
+    final bridge = HejmarkBridge(
+      backends: <Backend>[
+        Backend(
+          compiler: _FakeCompiler(const {}),
+          engine: _FakeEngine(const {}, runs: <String, RunResult>{
+            'slotted': const RunResult.failed('factor 2 back-references'),
+          }),
+        ),
+      ],
+    );
+
+    final run = await bridge.runScript('slotted', 'document');
+
+    expect(run.document, isNull);
+    expect(run.error, 'factor 2 back-references');
+  });
+
+  test('with no backends a script run degrades rather than throwing',
+      () async {
+    final bridge = HejmarkBridge(backends: const <Backend>[]);
+
+    final run = await bridge.runScript('script', 'document');
+
+    expect(run.document, isNull);
+    expect(run.error, contains('engine unavailable'));
+  });
 }

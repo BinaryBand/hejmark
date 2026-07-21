@@ -156,6 +156,27 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('run mode runs the rules as a script and back again', (
+    tester,
+  ) async {
+    await _boot(tester);
+    expect(find.text('4 matches'), findsOneWidget);
+
+    // The play toggle flips the Test screen's verb and leaves edit mode; the
+    // seeded rules are bare queries, so the fake — like the real engine —
+    // returns the document unchanged.
+    await tester.tap(find.byIcon(Icons.play_arrow_outlined));
+    await _settle(tester);
+    expect(find.text('Ran — document unchanged'), findsOneWidget);
+    expect(find.byIcon(Icons.visibility_outlined), findsOneWidget);
+
+    // Back to find mode: the match count returns.
+    await tester.tap(find.byIcon(Icons.play_arrow_outlined));
+    await _settle(tester);
+    expect(find.text('4 matches'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('the output sheet starts collapsed and expands to the hits', (
     tester,
   ) async {

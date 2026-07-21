@@ -3,7 +3,8 @@ import 'package:flutter/services.dart';
 import 'backend.dart';
 import 'native_engine.dart';
 
-/// The channel `MainActivity.kt` answers on. One method, `compile`.
+/// The channel `MainActivity.kt` answers on. Two methods, `compile` (a rule to
+/// floor-AST JSON) and `compileProgram` (a script to Program JSON).
 const MethodChannel embeddedChannel = MethodChannel('dev.himark.editor/compiler');
 
 /// The phone's full backend: the **real** compiler, embedded, over the Rust
@@ -38,26 +39,40 @@ class EmbeddedCompiler implements Compiler {
 
   final MethodChannel _channel;
 
-  /// Outcome by source: the JSON where it compiled, the refusal otherwise.
+  /// Outcome by source, one map per program shape: the JSON where it
+  /// compiled, the refusal otherwise.
   ///
   /// Cached both ways, like every other [Compiler] here — the answer cannot
   /// change while the source does not, and a keystroke in the test pane should
-  /// not cross the platform channel to re-learn it.
-  final Map<String, Object> _outcomes = <String, Object>{};
+  /// not cross the platform channel to re-learn it. Separate maps because the
+  /// same text answers differently as a query and as a script.
+  final Map<String, Object> _queryOutcomes = <String, Object>{};
+  final Map<String, Object> _scriptOutcomes = <String, Object>{};
 
   @override
-  Future<String> compile(String source) async {
-    final outcome = _outcomes[source] ?? await _compile(source);
-    _outcomes[source] = outcome;
+  Future<String> compile(String source) =>
+      _cached(_queryOutcomes, 'compile', source);
+
+  @override
+  Future<String> compileScript(String source) =>
+      _cached(_scriptOutcomes, 'compileProgram', source);
+
+  Future<String> _cached(
+    Map<String, Object> outcomes,
+    String method,
+    String source,
+  ) async {
+    final outcome = outcomes[source] ?? await _invoke(method, source);
+    outcomes[source] = outcome;
     if (outcome is CompileRefusal) throw outcome;
     return outcome as String;
   }
 
-  Future<Object> _compile(String source) async {
+  Future<Object> _invoke(String method, String source) async {
     final String reply;
     try {
       reply =
-          await _channel.invokeMethod<String>('compile', <String, String>{
+          await _channel.invokeMethod<String>(method, <String, String>{
             'source': source,
           }) ??
           '';

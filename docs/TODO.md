@@ -6,15 +6,24 @@ Priority and rationale for outstanding work. This file only ranks what remains a
 
 ## Do next
 
-**Nothing is ranked here.** The thirteen items this file has carried are done, and what remains is not work waiting on a decision but work waiting on a *consumer* -- three shapes, each of which is a to-do the day something asks for it and speculation until then:
+**Nothing is ranked here.** The fourteen items this file has carried are done, and what remains is not work waiting on a decision but work waiting on a *consumer* -- two shapes, each of which is a to-do the day something asks for it and speculation until then:
 
 - **An iOS compiler.** The one real hole, and the deletion item below is why. `bridge.dart` reaches an embedded compiler on Android and a subprocess one inside a checkout; iOS gets neither and says `engine unavailable`. The seam takes a third `Compiler` and nothing else.
-- **A resolver channel for slotted programs.** A back-referencing factor crosses the wire as a late slot and is refused at load by any engine that is not the compiler that emitted it -- two of the eleven shipped scripts, including the north star. Closing it means a call *back* across the boundary per attempt, which is a protocol and not a format, and is not worth designing against no caller.
-- **A `run` in the GUI.** `hejmark_run_json` exists and is tested; `gui/`'s `Engine` interface is still find-only because the Test tab highlights spans. A second method, or a second `Engine`, the day the app wants to show a rewritten document.
+- **A resolver channel for slotted programs.** A back-referencing factor crosses the wire as a late slot and is refused at load by any engine that is not the compiler that emitted it -- two of the eleven shipped scripts, including the north star. Closing it means a call *back* across the boundary per attempt, which is a protocol and not a format. The GUI's run mode is now the nearest thing to a caller: a back-referencing script typed there compiles, crosses, and comes back refused by name -- so the day someone wants the bubble sort *in the app*, this is the item in the way.
 
-**Landed** records what the thirteen cost and, where the guess was wrong, what was actually true.
+**Landed** records what the fourteen cost and, where the guess was wrong, what was actually true.
 
 ## Landed
+
+### A `run` in the GUI
+
+The Test screen has a second verb: a play toggle flips it to **run mode**, where the enabled rules, in order, run as one script over the active test string and the read view shows the rewritten document. The seam took the "second method" fork of the choice this file left open, on both interfaces at once -- `Compiler.compileScript` (`emit-program`, Program JSON) and `Engine.run` (the `run` binary by subprocess, `hejmark_run_json` over the FFI) -- so both backends carry both verbs and `Backend` stayed one-of-each. The device channel grew a second method (`compileProgram` in `MainActivity.kt` / `himark_compiler.py`) and the Kotlin stayed a transport.
+
+**The UI needed no new data model, which is what made the item small.** The open design question was where a *script* lives in an app whose unit is the rule -- and the answer was already in the grammar: a statement is `step (ARROW step)*`, so a bare query is a one-step statement that refines and writes nothing. The enabled rules joined in order simply *are* a script, and a find-only project runs as an unchanged document rather than an error. No script editor, no per-rule verb flag.
+
+**A run reply must not ride the find parser.** An `ok` body from `run` is the document itself, verbatim -- trailing whitespace included -- where `find`'s is a span-per-line list; reusing `EngineReply.parse` would have line-split and trimmed the answer. The run path parses its own reply and skips the whole UTF-16 span resolution, because a document is a string, not offsets into one.
+
+**The refusal story now reaches a user.** A back-referencing script compiles (the wire carries the late slot) and the engine refuses it at load, naming the factor -- surfaced in the output sheet like any engine error. Dart tests went 43 to 59; the live rows cover a plain rewrite, a contracting script settling, the slotted refusal, and the bare-query no-op, plus the real-compiler-to-device-engine run pairing that stands in for Chaquopy. What was true of the find path stays true here: **nothing new is verified on an actual device**.
 
 ### Teach the Rust port the Program wire format
 

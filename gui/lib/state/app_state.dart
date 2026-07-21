@@ -106,6 +106,13 @@ class AppState extends ChangeNotifier {
   bool sheetExpanded = false;
   bool tabBarVisible = true;
 
+  /// The Test screen's verb. Find highlights where the enabled rules hit; Run
+  /// executes them, in order, as one script and shows the rewritten document.
+  /// A rule that is a bare query is a one-step statement that refines and
+  /// writes nothing, so a find-only project runs as an unchanged document
+  /// rather than an error.
+  bool runMode = false;
+
   // --- shell ---
   bool shelfOpen = false;
   DeskSidebar? deskSidebar = DeskSidebar.projects;
@@ -128,6 +135,10 @@ class AppState extends ChangeNotifier {
   List<MatchRange> matches = <MatchRange>[];
   EngineState engine = EngineState.idle;
   String? engineError;
+
+  /// The rewritten document the last run produced, shown by the read view in
+  /// run mode. Null until a run has answered for the active tab.
+  String? runDocument;
 
   int _uid = 1;
 
@@ -265,17 +276,90 @@ class AppState extends ChangeNotifier {
 
   /// One-line status for the output sheet header.
   String get matchSummary {
+    if (runMode) {
+      if (engine == EngineState.running) return 'Running…';
+      if (engine == EngineState.error) return engineError ?? 'Engine error';
+      final document = runDocument;
+      if (document == null) return 'Not run yet';
+      if (document == (cur?.active?.content ?? '')) {
+        return 'Ran — document unchanged';
+      }
+      return 'Ran — document rewritten '
+          '(${(cur?.active?.content ?? '').runes.length} → '
+          '${document.runes.length} characters)';
+    }
     if (engine == EngineState.running) return 'Matching…';
     if (engine == EngineState.error) return engineError ?? 'Engine error';
     final n = matches.length;
     return n == 1 ? '1 match' : '$n matches';
   }
 
-  /// Debounce a fresh match run behind the user's typing/toggling, so we spawn
-  /// the parser and engine once the edits pause rather than per keystroke.
+  /// Debounce a fresh engine pass behind the user's typing/toggling, so we
+  /// spawn the compiler and engine once the edits pause rather than per
+  /// keystroke. Which verb runs is [runMode]'s call.
   void _scheduleMatch() {
     _matchTimer?.cancel();
-    _matchTimer = Timer(const Duration(milliseconds: 220), _runMatch);
+    _matchTimer = Timer(
+      const Duration(milliseconds: 220),
+      () => runMode ? _runScript() : _runMatch(),
+    );
+  }
+
+  /// Flip the Test screen between finding and running. Turning run mode on
+  /// also leaves edit mode: the point of running is to see the document.
+  void toggleRunMode() {
+    runMode = !runMode;
+    if (runMode) editMode = false;
+    engine = EngineState.idle;
+    engineError = null;
+    _scheduleMatch();
+    notifyListeners();
+  }
+
+  /// Run the enabled rules, in order, as one script over the active test
+  /// string, and publish the rewritten document. The same debounce and
+  /// request-id discipline as [_runMatch].
+  Future<void> _runScript() async {
+    final c = cur;
+    final active = c?.active;
+    final req = ++_matchReq;
+    if (c == null || active == null) {
+      runDocument = null;
+      engine = EngineState.idle;
+      engineError = null;
+      notifyListeners();
+      return;
+    }
+    final sources = <String>[
+      for (final rule in c.rules)
+        if (c.enabled[rule.id] ?? false) rule.source,
+    ];
+    final content = active.content;
+    if (sources.isEmpty || content.isEmpty) {
+      // An empty script leaves any document alone, and no engine runs over an
+      // empty one — answer without crossing.
+      runDocument = content;
+      engine = EngineState.ready;
+      engineError = null;
+      notifyListeners();
+      return;
+    }
+
+    engine = EngineState.running;
+    notifyListeners();
+
+    DocumentRun run;
+    try {
+      run = await bridge.runScript(sources.join('\n'), content);
+    } on Object catch (error) {
+      run = DocumentRun(null, error: '$error');
+    }
+    if (req != _matchReq) return; // a newer pass started while we waited
+
+    runDocument = run.document;
+    engineError = run.error;
+    engine = run.error != null ? EngineState.error : EngineState.ready;
+    notifyListeners();
   }
 
   /// Run the enabled rules over the active test string through the bridge. A
