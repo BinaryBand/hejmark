@@ -214,7 +214,7 @@ def test_antlr_grammar_parses_l1_5_surface(parse: Callable[[str], list[str]]) ->
 
 def test_antlr_grammar_parses_examples(parse: Callable[[str], list[str]]) -> None:
     """Every committed `static/examples/*.hmk` program must parse."""
-    examples = sorted(EXAMPLES.glob("*.hmk"))
+    examples = sorted(EXAMPLES.rglob("*.hmk"))
     assert examples, f"no example programs found under {EXAMPLES}"
     failures = {path.name: errors for path in examples if (errors := parse(path.read_text()))}
     assert not failures, f"example programs failed to parse: {failures}"

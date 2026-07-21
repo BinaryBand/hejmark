@@ -14,29 +14,39 @@ from hejmark import finditer, parse, run
 
 EXAMPLES = Path(__file__).resolve().parents[2] / "static" / "examples"
 
+# Examples live in two groups: `simple/` one-expression find queries and
+# `demos/` multi-statement run scripts. Keys are paths relative to EXAMPLES.
+
 # Query examples: the file, a text to scan, and the leftmost match expected.
 QUERIES = {
-    "closure.hmk": ("xabbby", "abbb"),
-    "consonant.hmk": ("aeiobxy", "b"),
-    "empty.hmk": ("anything", None),
-    "final-segment.hmk": ("q", "q"),
-    "foundation.hmk": ("a fold here", "fold"),
-    "hex-digit.hmk": ("zzz7f", "7"),
-    "letter-pair.hmk": ("9abz", "ab"),
-    "lowercase.hmk": ("9a9", "a"),
-    "pipeline.hmk": ("x08y", "08"),
-    "synonym.hmk": ("my feline", "feline"),
+    "simple/closure.hmk": ("xabbby", "abbb"),
+    "simple/consonant.hmk": ("aeiobxy", "b"),
+    "simple/empty.hmk": ("anything", None),
+    "simple/final-segment.hmk": ("q", "q"),
+    "simple/foundation.hmk": ("a fold here", "fold"),
+    "simple/hex-digit.hmk": ("zzz7f", "7"),
+    "simple/letter-pair.hmk": ("9abz", "ab"),
+    "simple/lowercase.hmk": ("9a9", "a"),
+    "simple/pipeline.hmk": ("x08y", "08"),
+    "simple/synonym.hmk": ("my feline", "feline"),
 }
 
 # Script examples: the file, a document, and the document after running it.
 SCRIPTS = {
-    "emit.hmk": ("my feline", "my cat"),
+    "demos/emit.hmk": ("my feline", "my cat"),
+    "demos/redact-vowels.hmk": ("pattern", "pttrn"),
+    "demos/synonyms.hmk": ("my kitty met your feline", "my cat met your cat"),
+    "demos/wrap-bold.hmk": ("abc", "<b>abc</b>"),
+    "demos/mask-replace.hmk": ("cat catalog", "feline catalog"),
+    "demos/double-letter.hmk": ("book keeper", "bo!k ke!per"),
+    "demos/sort-swap.hmk": ("bbaa", "aabb"),
+    "demos/bubble-sort.hmk": ("3,1,2", "1,2,3"),
 }
 
 
 def test_every_example_is_covered() -> None:
     """The table and the directory agree, so nothing ships untested."""
-    shipped = {path.name for path in EXAMPLES.glob("*.hmk")}
+    shipped = {path.relative_to(EXAMPLES).as_posix() for path in EXAMPLES.rglob("*.hmk")}
     assert shipped
     assert shipped == set(QUERIES) | set(SCRIPTS)
 
