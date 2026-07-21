@@ -47,11 +47,64 @@ android {
 // The embedded compiler. Its own extension rather than a block inside
 // `defaultConfig`: that spelling is Chaquopy's Groovy DSL, and this build is
 // Kotlin DSL, where the plugin exposes one typed extension instead.
+
+// Pinned to the repository's own `.python-version`, so the device runs the
+// compiler on the interpreter it is tested against.
+val embeddedPython = "3.11"
+
+// Chaquopy resolves the device's `pip` requirements by running a *local*
+// interpreter (`buildPython`), and it will only accept one of the same version
+// as the embedded one. Its default search is `python3.11` on PATH, which is a
+// thing this repository never asked anyone to install: `.python-version` pins
+// 3.11 and `uv` supplies it, off PATH and under its own root. So resolve the
+// interpreter rather than requiring it, and leave `buildPython` unset when
+// nothing answers -- Chaquopy's own diagnostic is better than a wrong path.
+fun pythonWithPip(vararg command: String): List<String>? {
+    val probe = "import pip, sys; print('%d.%d' % sys.version_info[:2])"
+    return try {
+        val process =
+            ProcessBuilder(command.toList() + listOf("-c", probe))
+                .redirectErrorStream(true)
+                .start()
+        val reported = process.inputStream.bufferedReader().readText().trim()
+        // `pip` matters as much as the version: a uv-created venv has none, so
+        // `.venv/bin/python` is 3.11 and still cannot run this step.
+        if (process.waitFor() == 0 && reported == embeddedPython) command.toList() else null
+    } catch (absent: java.io.IOException) {
+        null
+    }
+}
+
+// uv knows where its managed interpreters live; `--system` is what keeps the
+// answer off the project venv, which is the one 3.11 here without pip.
+fun uvManagedPython(): List<String>? =
+    try {
+        val process =
+            ProcessBuilder("uv", "python", "find", "--system", embeddedPython)
+                .start()
+        val path = process.inputStream.bufferedReader().readText().trim()
+        if (process.waitFor() == 0 && path.isNotEmpty()) pythonWithPip(path) else null
+    } catch (absent: java.io.IOException) {
+        null
+    }
+
+// An explicit override is taken verbatim: it is the escape hatch for a build
+// host (F-Droid's, a CI image) whose 3.11 neither of the two guesses finds.
+val explicitBuildPython =
+    (project.findProperty("chaquopy.buildPython") as String?)
+        ?: System.getenv("CHAQUOPY_BUILD_PYTHON")
+
+val buildPythonCommand: List<String>? =
+    explicitBuildPython?.let { listOf(it) }
+        ?: pythonWithPip("python$embeddedPython")
+        ?: uvManagedPython()
+
 chaquopy {
     defaultConfig {
-        // Pinned to the repository's own `.python-version`, so the device runs
-        // the compiler on the interpreter it is tested against.
-        version = "3.11"
+        version = embeddedPython
+        if (buildPythonCommand != null) {
+            buildPython(*buildPythonCommand.toTypedArray())
+        }
         pip {
             // The whole on-device dependency list. It is one entry, and that is
             // the reason this is tractable at all: `antlr4-python3-runtime` is
