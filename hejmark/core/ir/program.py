@@ -45,10 +45,19 @@ class LateSlot:
 
     ``needs`` holds the 1-based indices of the factors it reads, in written
     order; the resolver receives exactly one bound face per entry.
+
+    ``reach`` is a sound upper bound on the length of any face this slot's
+    resolution could ever wear, computed at compile time from the unit's shape
+    and the reach already known for the factors it needs -- ``None`` where the
+    shape is not confidently priced (an exponent, a pipeline, a value cut, a
+    reference), exactly `floor.reach`'s own convention. It is what lets
+    ``capture._splits`` take the same two-ended cut bound the floor's other
+    split searches take, without ever denoting the slot.
     """
 
     slot: int
     needs: tuple[int, ...]
+    reach: int | None = None
 
 
 QueryFactor = UniverseNode | LateSlot

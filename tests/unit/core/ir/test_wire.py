@@ -68,7 +68,7 @@ def test_a_slot_rides_as_an_id_and_its_reads() -> None:
     """A back-referencing factor crosses as a hole, never as compiler objects."""
     encoded = encode_program(_program())
     factor = _walk(encoded, "statements", 0, "steps", 0, "factors", 1)
-    assert factor == {"kind": "slot", "slot": 0, "needs": [1]}
+    assert factor == {"kind": "slot", "slot": 0, "needs": [1], "reach": None}
 
 
 def test_a_foreign_format_tag_is_refused() -> None:

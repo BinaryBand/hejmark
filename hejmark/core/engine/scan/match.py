@@ -39,12 +39,16 @@ class Slot:
     ``needs`` mirrors the :class:`~hejmark.core.ir.program.LateSlot` it was
     loaded from; :meth:`at` projects the bound faces down to those reads,
     which is both the resolver's argument and the memo key -- two bindings
-    agreeing on the reads resolve once.
+    agreeing on the reads resolve once. ``reach`` is the same slot's
+    compile-time reach bound, carried unchanged for :mod:`capture`'s split
+    search -- a read-only fact about the shape, not something resolving
+    recomputes.
     """
 
     slot: int
     needs: tuple[int, ...]
     resolver: LateResolver
+    reach: int | None = None
     _cache: dict[tuple[str, ...], Universe] = field(default_factory=dict, repr=False, compare=False)
 
     def at(self, bound: tuple[str, ...]) -> Universe:
@@ -91,7 +95,7 @@ def load_query(compiled: CompiledQuery, resolver: LateResolver) -> Query:
     return Query(
         compiled.source,
         tuple(
-            Slot(factor.slot, factor.needs, resolver)
+            Slot(factor.slot, factor.needs, resolver, factor.reach)
             if isinstance(factor, LateSlot)
             else denote(factor)
             for factor in compiled.factors

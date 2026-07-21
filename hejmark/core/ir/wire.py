@@ -10,7 +10,7 @@ concern). A program serializes as::
        {"kind": "statement", "steps": [
          {"kind": "query", "source": "{a}{$1}", "factors": [
             {"kind": "universe", "universe": {"members": [...]}},
-            {"kind": "slot", "slot": 0, "needs": [1]}]},
+            {"kind": "slot", "slot": 0, "needs": [1], "reach": 1}]},
          {"kind": "template", "parts": [
             {"kind": "text", "text": [99, 97, 116]},
             {"kind": "capture", "capture": "$1"},
@@ -170,7 +170,12 @@ def _decode_template(obj: object) -> CompiledTemplate:
 def _encode_factor(factor: QueryFactor) -> dict[str, object]:
     """Encode one query factor: an eager universe, or a late slot."""
     if isinstance(factor, LateSlot):
-        return {"kind": "slot", "slot": factor.slot, "needs": list(factor.needs)}
+        return {
+            "kind": "slot",
+            "slot": factor.slot,
+            "needs": list(factor.needs),
+            "reach": factor.reach,
+        }
     return {"kind": "universe", "universe": encode_universe(factor)}
 
 
@@ -185,6 +190,7 @@ def _decode_factor(obj: object) -> QueryFactor:
         factor = LateSlot(
             _int(require_field(obj, "slot", "slot"), "slot"),
             tuple(_int(item, "needs") for item in needs),
+            _int_or_none(require_field(obj, "reach", "slot"), "reach"),
         )
     else:
         msg = f"malformed factor: unknown kind {kind!r}"
@@ -249,3 +255,10 @@ def _int(value: object, what: str) -> int:
         msg = f"malformed {what}: not an integer"
         raise HimarkPayloadError(msg)
     return value
+
+
+def _int_or_none(value: object, what: str) -> int | None:
+    """Require an integer or JSON ``null`` -- a slot's reach may be unbounded."""
+    if value is None:
+        return None
+    return _int(value, what)

@@ -8,10 +8,9 @@ Priority and rationale for outstanding work. This file only ranks what remains a
 
 Ordered by dependency, not by size.
 
-- [ ] **Bound the last split search** -- `capture._splits` is the one that did not get the cut bound, because its factors are a different type (`Universe | Slot`, and a slot has no reach until its reads bind). The clean fix is now visible: a compiler-computed reach *bound* riding `LateSlot` -- the compiler knows the unit's shape modulo its reads, and a face substitution can only lengthen reach by the read's own length, so a sound bound is computable at compile time and would let `reach.cuts` serve slotted factors. **The Rust half is done**: the port has no `Slot`, so its factors are plain universes and `capture.rs` took the bound with the other three. This item is now Python-only.
 - [ ] **Teach the Rust port the Program wire format** -- `core/ir/wire.py` serializes whole compiled scripts (statements, templates, measures, sentinel table, late slots), versioned from day one; Rust currently reads only the bare-query shape from `core/ir/codec.py`. A Rust reader for the Program format gets it `run` (slot-free scripts) rather than just `find`. Slotted programs additionally need a resolver channel back into the compiler -- design that only when a consumer exists.
 
-The previous seven are done; **Landed** records what they cost and, where the guess was wrong, what was actually true.
+The previous eight are done; **Landed** records what they cost and, where the guess was wrong, what was actually true.
 
 ## Landed
 
@@ -94,6 +93,14 @@ Five files under `static/examples/programs/`: `html-escape`, `normalize-space`, 
 
 `tests/integration/test_examples.py`'s `SCRIPTS` table grew five entries; the glob-versus-table check means the tier could not ship partially covered.
 
+### Bound the last split search (Python only)
+
+`hejmark/core/compiler/late.py`'s `unit_reach`, riding `LateSlot.reach` (`core/ir/program.py`) into `Slot.reach` (`core/engine/scan/match.py`) and read by `capture.py`'s new `_factor_reach`/`_suffixes`/`_cuts` -- a small mirror of `reach.factor_reach`/`suffixes`/`cuts` retyped for `Factor` (`Universe | Slot`) rather than the floor's `UniverseNode | Closure`, which was the type reason this search missed the sweep the other three took. `compile_query` computes each factor's reach as it builds the query left to right -- an eager factor's from `reach.reach`, a slotted one's from `unit_reach` -- so a slot's own bound can read the reach already known for the factors its reads name, without ever denoting anything.
+
+**The bound is sound by construction, not by case-covering every surface shape.** `unit_reach` prices only what it can price exactly: a bare read (`{$1}`) or one alongside literal faces and nested groups, summing like a product, with a read contributing at most the referenced factor's own reach -- because `late._sub_segment` turns it into exactly that long a `Face` and nothing longer. Everywhere the pipeline, an exponent, a value cut, or a name could stretch the shape in a way not worth chasing, it returns `None` ("no known bound") exactly as `floor.reach` already does for the eager case -- a slot with no known bound simply falls back to the unbounded search that ran before this existed. Nothing here risks a bound a real substitution could exceed; the worst outcome of being conservative is an unimproved split search, never a missed match.
+
+**Rust needed nothing.** `capture.rs` has no `Slot` at all -- the port's factors are plain universes -- so `docs/TODO.md`'s "Rust half is done" note from before this landed still stands; this item was Python-only start to finish.
+
 ## Engine performance
 
 Measured, not guessed. Cold, one workload per process, against `2ab4c14`:
@@ -113,13 +120,7 @@ Measured, not guessed. Cold, one workload per process, against `2ab4c14`:
 
 Read the two halves differently. For a fixed query shape the growth is still **~O(n³·⁵)**, down from ~O(n⁴): the cut bounds and the remembered hash moved the *constant*, by roughly forty. For a product of many factors the chart moved the *degree*, from $n^{k}$ to about $n^2$, which is the 780x row. Both were needed and neither substitutes for the other. Full timings and method are in `docs/.TEMP.md` (local-only; gitignored under "Private project files").
 
-### 1. Bound the last split search (Python only)
-
-`capture._splits` still walks every cut. It missed the sweep for a type reason and not a semantic one: its factors are `Factor` (`Universe | Slot`), where `cuts` takes the floor's `UniverseNode | Closure`, and a `Slot` has no reach until its reads are bound. Resolving each factor first and reaching the result would fix it. This is the `$1..$n` read path, already budgeted and off the hot loop, so it is small -- but it is the one place the permitted rewrite is stated and not taken.
-
-The Rust port has no `Slot`, so the question never arises there: `capture.rs` takes the cut bound directly, and the port applies the permitted rewrite on all four of its split searches rather than three. Its docstring says so, so the divergence does not read as an oversight to be tidied away.
-
-### 2. The descent is still linear in the spelling
+### 1. The descent is still linear in the spelling
 
 `_shorter_first` bounds the stack for the shape that matters -- a closure whose sub-questions are prefixes, which is every `{@x, &@x}` in the std -- but the bound is structural, not general: a closure whose split search asks about suffixes or interior substrings will descend one frame per character again and can still exhaust the interpreter's stack before the work budget fires. A `RecursionError` is not a diagnostic, so this is the one path where "never a hang, never a guess" is met by neither. Worth stating in `L2.md`'s diagnostics only if a real shape hits it; worth fixing properly (a bottom-up table over stage and substring) only if one does.
 

@@ -59,7 +59,7 @@ def test_a_back_reference_lowers_to_a_slot_and_its_resolver_answers() -> None:
     assert isinstance(line, CompiledStatement)
     query = line.steps[0]
     assert isinstance(query, CompiledQuery)
-    assert query.factors[1] == LateSlot(0, (1,))
+    assert query.factors[1] == LateSlot(0, (1,), 1)
     assert denote(resolver(0, ("a",))).contains("a")
 
 
