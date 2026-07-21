@@ -1,9 +1,11 @@
-import 'dart:convert';
 import 'dart:io';
 
+import 'backend.dart';
 import 'matcher.dart';
+import 'native_backend.dart';
 import 'native_engine.dart';
 import 'project.dart';
+import 'subprocess_backend.dart';
 
 /// The result of one match run: the spans found, plus an [error] string when
 /// the engine could not be reached, a rule failed to parse, or a pattern ran
@@ -26,41 +28,49 @@ abstract interface class Bridge {
 
 /// Bridges the Flutter GUI to hejmark's real engines.
 ///
-/// There are two paths to a match, and the difference between them is how much
-/// of the *compiler* is reachable — never how the matching is done, which is
-/// the same Rust engine either way.
+/// Everything below this class is a [Backend] — a [Compiler] that lowers a rule
+/// to a program and an [Engine] that runs the program over text. This class
+/// owns only what is genuinely about *the run*: which backends exist here,
+/// which one takes each rule, and how code-point spans become UTF-16
+/// highlights. It contains no compiling and no matching of its own.
 ///
-/// **On-device** ([NativeEngine]): `rust/` is linked into the app as a shared
-/// library and called over its C ABI. It compiles the floor subset of Himark
-/// itself, so it needs no toolchain and is the only path that exists on a
-/// phone. A rule it cannot compile comes back [EngineStatus.unported].
+/// Two backends exist, and the difference between them is how much of the
+/// *compiler* is reachable — never how the matching is done, which is the same
+/// Rust engine either way:
 ///
-/// **By subprocess**: the repository's portable hand-off — `hejmark emit-json`
-/// runs the ANTLR parser and the L1.5 expander to lower a query to the floor
-/// AST as JSON, and the Rust `find` binary denotes that JSON and matches it,
-/// printing one `start<TAB>end` line (code-point offsets) per non-overlapping
-/// hit. This compiles *all* of L1.5 but needs both toolchains, so it exists
-/// only in a `flutter run -d linux` desktop build inside a checkout.
+/// **On-device** (`native_backend.dart`): `rust/` linked into the app as a
+/// shared library and called over its C ABI. It compiles the floor subset of
+/// Himark, so it needs no toolchain and is the only backend that exists on a
+/// phone.
 ///
-/// So the device engine runs first and the subprocess picks up what it hands
-/// back as `unported` — the fast, always-present path answers the common rule,
-/// and the full compiler answers the rest wherever it happens to be installed.
-/// With neither reachable every entry point degrades to a descriptive
-/// [MatchRun.error] rather than throwing.
+/// **By subprocess** (`subprocess_backend.dart`): `hejmark emit-json` lowers a
+/// rule to floor-AST JSON and the Rust `find` binary matches it. This compiles
+/// *all* of L1.5 but needs both toolchains, so it exists only in a
+/// `flutter run -d linux` desktop build inside a checkout.
+///
+/// A rule goes to the first backend that will **compile** it, which is what
+/// makes the order a preference: the device engine is asked first, and whatever
+/// it refuses as retryable ([CompileRefusal.retryable], the `unported` status
+/// of `rust/src/ffi.rs`) falls through to the full compiler wherever that
+/// happens to be installed. With neither reachable every entry point degrades
+/// to a descriptive [MatchRun.error] rather than throwing.
 class HejmarkBridge implements Bridge {
-  HejmarkBridge();
+  /// Backends are discovered from disk unless [backends] is given.
+  ///
+  /// Passing them is how tests reach the dispatch — the one thing this class
+  /// does that is neither compiling nor matching — with no toolchain
+  /// installed, and it is the same door a future backend comes through.
+  HejmarkBridge({List<Backend>? backends}) : _backendsCache = backends;
 
-  /// How long the Rust matcher may run on one rule before it is killed. The
-  /// port's maximal-munch does not terminate on an unbounded closure (e.g. a
-  /// bare `{X,&X}` Kleene star), so a user-authored pattern can hang; the
-  /// budget turns that into a reported error instead of a frozen UI.
+  /// How long a backend may spend on one rule. The engines' maximal-munch does
+  /// not terminate on an unbounded closure (e.g. a bare `{X,&X}` Kleene star),
+  /// so a user-authored pattern can hang; the budget turns that into a reported
+  /// error instead of a frozen UI.
   static const Duration _findBudget = Duration(seconds: 5);
 
   Directory? _rootCache;
   bool _rootResolved = false;
-
-  /// Floor JSON keyed by rule source, so a rule is re-parsed only when edited.
-  final Map<String, String> _jsonBySource = <String, String>{};
+  List<Backend>? _backendsCache;
 
   /// The repository root: the nearest ancestor holding both `pyproject.toml`
   /// and a `rust/` tree. Null when the app runs outside a checkout.
@@ -93,21 +103,40 @@ class HejmarkBridge implements Bridge {
     return bin.existsSync() ? bin : null;
   }
 
-  /// The engine compiled into the app, where one loaded.
-  NativeEngine? get _native => NativeEngine.instance(root: _root);
+  /// The backends reachable here, in preference order. Resolved once: what is
+  /// installed does not change while the app runs.
+  List<Backend> get _backends {
+    final cached = _backendsCache;
+    if (cached != null) return cached;
+    final backends = <Backend>[];
+    final native = NativeEngine.instance(root: _root);
+    if (native != null) {
+      backends.add(nativeBackend(native, timeout: _findBudget));
+    }
+    final root = _root;
+    final python = _python;
+    final findBin = _findBin;
+    if (root != null && python != null && findBin != null) {
+      backends.add(
+        subprocessBackend(
+          python: python,
+          findBin: findBin,
+          root: root,
+          timeout: _findBudget,
+        ),
+      );
+    }
+    return _backendsCache = backends;
+  }
 
-  /// Whether the full L1.5 compiler is reachable — i.e. a rule the device
-  /// engine refuses as `unported` has somewhere to be retried.
-  bool get _hasCompiler => _python != null && _findBin != null;
-
-  /// Whether any engine can answer at all.
-  bool get available => _native != null || _hasCompiler;
+  /// Whether any backend can answer at all.
+  bool get available => _backends.isNotEmpty;
 
   @override
   Future<MatchRun> matchAll(List<Rule> rules, String content) async {
     if (rules.isEmpty || content.isEmpty) return const MatchRun(<MatchRange>[]);
-    final native = _native;
-    if (native == null && !_hasCompiler) {
+    final backends = _backends;
+    if (backends.isEmpty) {
       return const MatchRun(
         <MatchRange>[],
         error:
@@ -116,152 +145,85 @@ class HejmarkBridge implements Bridge {
       );
     }
 
-    // One crossing for the whole run: the device engine takes every rule at
-    // once, on one background isolate.
-    final replies = native == null
-        ? null
-        : await native.findAll(
-            rules.map((r) => r.source).toList(),
-            content,
-            timeout: _findBudget,
-          );
-
-    final cpSpans = <_Span>[];
+    // Only the first failing rule's message is surfaced, whichever phase it
+    // failed in: one line of chrome cannot explain four broken rules anyway.
     String? error;
-    // Slots the device engine could not compile, each carrying the reason it
-    // gave — which is the message to show if there is no compiler to retry on.
-    final retry = <int, String>{};
-    for (var slot = 0; slot < rules.length; slot++) {
-      final reply = replies?[slot];
-      if (reply == null) {
-        retry[slot] = 'engine unavailable';
-        continue;
-      }
-      switch (reply.status) {
-        case EngineStatus.unported:
-          retry[slot] = reply.message;
-        case EngineStatus.error:
-          error ??= '${rules[slot].label}: ${reply.message}';
-        case EngineStatus.ok:
-          for (final (start, end) in reply.spans) {
-            cpSpans.add(_Span(start, end, slot));
-          }
-      }
-    }
-
-    if (retry.isNotEmpty) {
-      final fallback = await _matchBySubprocess(retry, rules, content);
-      cpSpans.addAll(fallback.spans);
-      error ??= fallback.error;
-    }
+    final compiled = await _compile(rules, backends, (message) {
+      error ??= message;
+    });
+    final cpSpans = await _match(rules, backends, compiled, content, (message) {
+      error ??= message;
+    });
     return MatchRun(_resolve(content, cpSpans), error: error);
   }
 
-  /// Runs the given slots through the full compiler, or explains why it cannot.
+  /// Hands each rule to the first backend that compiles it.
   ///
-  /// [slots] maps each slot to the device engine's reason for passing it on, so
-  /// that reason can be reported verbatim when there is no compiler to retry on
-  /// — "a pipeline needs the full compiler" is the useful message there, and it
-  /// has already been paid for.
-  Future<({List<_Span> spans, String? error})> _matchBySubprocess(
-    Map<int, String> slots,
+  /// Returns the slot's backend index and its program. A retryable refusal
+  /// moves to the next backend; a final one stops, because a rule the compiler
+  /// calls malformed would be called malformed by every other compiler too.
+  /// Either way the *last* refusal is the one reported, which is what puts the
+  /// full compiler's diagnosis in front of the device engine's "needs the full
+  /// compiler" when both were asked.
+  Future<Map<int, (int, String)>> _compile(
     List<Rule> rules,
-    String content,
+    List<Backend> backends,
+    void Function(String) report,
   ) async {
-    final python = _python;
-    final findBin = _findBin;
-    if (python == null || findBin == null) {
-      final slot = slots.keys.first;
-      return (spans: <_Span>[], error: '${rules[slot].label}: ${slots[slot]}');
-    }
-
-    final temp = Directory.systemTemp.createTempSync('hejmark_gui_');
-    try {
-      final target = File('${temp.path}/target.txt')..writeAsStringSync(content);
-      final spans = <_Span>[];
-      String? error;
-      for (final slot in slots.keys) {
-        final rule = rules[slot];
+    final compiled = <int, (int, String)>{};
+    for (var slot = 0; slot < rules.length; slot++) {
+      CompileRefusal? refused;
+      for (var index = 0; index < backends.length; index++) {
         try {
-          final jsonPath = await _emitJson(python, rule.source, temp);
-          final hits = await _find(findBin, jsonPath, target.path);
-          for (final (start, end) in hits) {
-            spans.add(_Span(start, end, slot));
-          }
-        } on _BridgeError catch (e) {
-          error ??= '${rule.label}: ${e.message}';
+          final program = await backends[index].compiler.compile(
+            rules[slot].source,
+          );
+          compiled[slot] = (index, program);
+          refused = null;
+          break;
+        } on CompileRefusal catch (refusal) {
+          refused = refusal;
+          if (!refusal.retryable) break;
         }
       }
-      return (spans: spans, error: error);
-    } finally {
-      temp.deleteSync(recursive: true);
+      if (refused != null) report('${rules[slot].label}: ${refused.message}');
     }
+    return compiled;
   }
 
-  /// Lower a rule's Himark source to floor JSON via the Python parser, caching
-  /// by source so an unchanged rule is parsed once per session.
-  Future<String> _emitJson(File python, String source, Directory temp) async {
-    final cached = _jsonBySource[source];
-    if (cached != null) return _writeJson(cached, source, temp);
-
-    final srcFile = File('${temp.path}/query.hmk')..writeAsStringSync(source);
-    final result = await Process.run(
-      python.path,
-      <String>['-m', 'hejmark', 'emit-json', srcFile.path],
-      workingDirectory: _root!.path,
-    );
-    if (result.exitCode != 0) {
-      throw _BridgeError(_firstLine(result.stderr as String));
-    }
-    final json = (result.stdout as String).trim();
-    _jsonBySource[source] = json;
-    return _writeJson(json, source, temp);
-  }
-
-  String _writeJson(String json, String source, Directory temp) {
-    final path = '${temp.path}/query_${source.hashCode}.json';
-    File(path).writeAsStringSync(json);
-    return path;
-  }
-
-  /// Denote and match one JSON query against the target with the Rust binary,
-  /// returning `(start, end)` code-point spans. Killed past [_findBudget].
-  Future<List<(int, int)>> _find(
-    File findBin,
-    String jsonPath,
-    String targetPath,
+  /// Runs each backend's engine once over every program it compiled.
+  ///
+  /// One crossing per backend rather than per rule: a crossing is the expensive
+  /// part, and both engines are batched for it.
+  Future<List<_Span>> _match(
+    List<Rule> rules,
+    List<Backend> backends,
+    Map<int, (int, String)> compiled,
+    String content,
+    void Function(String) report,
   ) async {
-    final proc = await Process.start(
-      findBin.path,
-      <String>[jsonPath, targetPath],
-      workingDirectory: _root!.path,
-    );
-    final stdoutFuture = proc.stdout.transform(utf8.decoder).join();
-    final stderrFuture = proc.stderr.transform(utf8.decoder).join();
-    const timedOut = -999;
-    final code = await proc.exitCode.timeout(
-      _findBudget,
-      onTimeout: () {
-        proc.kill(ProcessSignal.sigkill);
-        return timedOut;
-      },
-    );
-    final out = await stdoutFuture;
-    final err = await stderrFuture;
-    if (code == timedOut) {
-      throw const _BridgeError('pattern too complex (engine timed out)');
+    final cpSpans = <_Span>[];
+    for (var index = 0; index < backends.length; index++) {
+      final slots = <int>[
+        for (final entry in compiled.entries)
+          if (entry.value.$1 == index) entry.key,
+      ];
+      if (slots.isEmpty) continue;
+      final programs = <String>[for (final slot in slots) compiled[slot]!.$2];
+      final results = await backends[index].engine.findAll(programs, content);
+      for (var i = 0; i < slots.length; i++) {
+        final result = results[i];
+        final failure = result.error;
+        if (failure != null) {
+          report('${rules[slots[i]].label}: $failure');
+          continue;
+        }
+        for (final (start, end) in result.spans) {
+          cpSpans.add(_Span(start, end, slots[i]));
+        }
+      }
     }
-    if (code != 0) throw _BridgeError(_firstLine(err));
-
-    final spans = <(int, int)>[];
-    for (final line in const LineSplitter().convert(out)) {
-      final parts = line.split('\t');
-      if (parts.length != 2) continue;
-      final start = int.tryParse(parts[0]);
-      final end = int.tryParse(parts[1]);
-      if (start != null && end != null) spans.add((start, end));
-    }
-    return spans;
+    return cpSpans;
   }
 
   /// Turn code-point spans into UTF-16 [MatchRange]s over [content], sorted by
@@ -299,12 +261,6 @@ class HejmarkBridge implements Bridge {
   }
 }
 
-String _firstLine(String text) {
-  final trimmed = text.trim();
-  if (trimmed.isEmpty) return 'engine error';
-  return trimmed.split('\n').first;
-}
-
 /// One engine hit before resolution: a code-point span plus the slot of the rule
 /// that produced it.
 class _Span {
@@ -312,10 +268,4 @@ class _Span {
   final int start;
   final int end;
   final int slot;
-}
-
-/// Internal signal that one rule failed; carried to [MatchRun.error].
-class _BridgeError implements Exception {
-  const _BridgeError(this.message);
-  final String message;
 }
