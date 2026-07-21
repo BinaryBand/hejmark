@@ -4,18 +4,27 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:himark_editor/models/native_engine.dart';
 
-// The seeded IPv4 spelling, rebuilt here so the test pins the real engine
-// rather than importing app state.
-const String _octet = r'{{0..9}^3,{0..9}^2,{0..9}}';
-const String _ipv4 = '$_octet{\\.}$_octet{\\.}$_octet{\\.}$_octet';
+/// `{0..9}^4` as `hejmark emit-json` compiles it.
+///
+/// Every fixture here is verbatim compiler output rather than hand-built JSON.
+/// That is the point of the file: the engine is now reachable *only* through a
+/// compiled program, so what needs pinning is that it reads what the compiler
+/// really writes.
+const String _fourDigits =
+    '{"universes": [{"members": [{"kind": "product", "factors": [{"kind": '
+    '"universe", "universe": {"members": [{"kind": "range", "lo": 48, "hi": '
+    '57}]}}, {"kind": "universe", "universe": {"members": [{"kind": "range", '
+    '"lo": 48, "hi": 57}]}}, {"kind": "universe", "universe": {"members": '
+    '[{"kind": "range", "lo": 48, "hi": 57}]}}, {"kind": "universe", '
+    '"universe": {"members": [{"kind": "range", "lo": 48, "hi": 57}]}}]}]}]}';
 
-/// A rule the on-device parser refuses: `where` is a pipeline, and pipelines
-/// are outside the floor subset.
-const String _wherePipeline = '{0..9}[where 8..12]';
+/// A bare range, `{a..e}`.
+const String _letters =
+    '{"universes": [{"members": [{"kind": "range", "lo": 97, "hi": 101}]}]}';
 
-/// The same rule as `hejmark emit-json` compiles it — the program an embedded
-/// CPython hands the engine. Verbatim output, not hand-built: what is being
-/// pinned is that the two halves agree on a real payload.
+/// `{0..9}[where 8..12]` compiled — a value cut, so a pipeline, so a construct
+/// no Rust front end this app ever shipped could have read. Compiled, it is
+/// just a universe, which is the argument for having deleted that front end.
 const String _whereProgram =
     '{"universes": [{"members": [{"kind": "product", "factors": [{"kind": '
     '"universe", "universe": {"members": [{"kind": "face", "text": [48]}, '
@@ -50,78 +59,52 @@ Directory? _root() {
 void main() {
   final engine = NativeEngine.instance(root: _root());
 
-  // This is the engine the APK ships: no Python, no subprocess, just the Rust
-  // library linked into the app. It is skipped where `cargo build` has not run.
+  // This is the engine the APK ships: the Rust library linked into the app,
+  // matching programs a compiler elsewhere produced. Skipped where `cargo
+  // build` has not run.
   bool skipIfAbsent() {
     if (engine != null) return false;
     markTestSkipped('libhejmark absent — run `cargo build --release` in rust/');
     return true;
   }
 
-  test('the seeded IPv4 rule matches with no toolchain in reach', () async {
+  test('a compiled rule matches with no compiler in reach', () async {
     if (skipIfAbsent()) return;
     final replies = await engine!.findAll(<String>[
-      _ipv4,
-    ], 'Server 192.168.1.42 and backup 10.0.0.1 end');
+      _fourDigits,
+    ], 'id 2024 and ticket 1999 here');
     expect(replies.single.status, EngineStatus.ok);
-    expect(replies.single.spans, <(int, int)>[(7, 19), (31, 39)]);
+    expect(replies.single.spans, <(int, int)>[(3, 7), (19, 23)]);
   });
 
-  test('the @hex splice resolves from the on-device std table', () async {
+  test('every program of a run comes back in order', () async {
     if (skipIfAbsent()) return;
     final replies = await engine!.findAll(<String>[
-      r'{\#}{@hex}^6',
-    ], 'bg #ff8800 and fg #1e90ff done');
-    expect(replies.single.status, EngineStatus.ok);
-    expect(replies.single.spans.length, 2);
-  });
-
-  test('every rule of a run comes back in order', () async {
-    if (skipIfAbsent()) return;
-    final replies = await engine!.findAll(<String>[
-      _ipv4,
-      r'{0..9}^4',
-      r'{\#}{@hex}^6',
-    ], 'host 10.0.0.1 ticket 4821');
+      _fourDigits,
+      _letters,
+      _whereProgram,
+    ], '#4821 only');
     expect(replies.length, 3);
-    expect(replies[0].spans.length, 1); // the address
-    expect(replies[1].spans.length, 1); // the ticket number
-    expect(replies[2].spans, isEmpty); // no colour in the text
+    expect(replies[0].spans, <(int, int)>[(1, 5)]); // the four-digit number
+    expect(replies[1].spans, isEmpty); // no a–e anywhere in it
+    expect(replies[2].spans, <(int, int)>[(2, 3)]); // the 8, in 8..12
   });
 
   test('spans are code points, so astral text stays aligned', () async {
     if (skipIfAbsent()) return;
     // Four astral characters ahead of the digits: a UTF-16 host would say 8.
-    final replies = await engine!.findAll(<String>[r'{0..9}^4'], '𝄞𝄞𝄞𝄞2024');
+    final replies = await engine!.findAll(<String>[_fourDigits], '𝄞𝄞𝄞𝄞2024');
     expect(replies.single.spans, <(int, int)>[(4, 8)]);
   });
 
-  test('a malformed rule is an error, not a crash', () {
+  test('a compiled pipeline matches, needing no front end here', () async {
     if (skipIfAbsent()) return;
-    final reply = engine!.check('{a..');
-    expect(reply.status, EngineStatus.error);
-    expect(reply.message, contains('unclosed'));
-  });
-
-  test('a rule outside the floor subset is unported, not an error', () {
-    if (skipIfAbsent()) return;
-    // The status is what the bridge reads to decide whether retrying against
-    // the full Python compiler is worthwhile.
-    expect(engine!.check('{a}[shorter 2]').status, EngineStatus.unported);
-    expect(engine.check(r'{$1}').status, EngineStatus.unported);
-    expect(engine.check('{@padfree}').status, EngineStatus.unported);
-    expect(engine.check(r'{0..9}^4').status, EngineStatus.ok);
-  });
-
-  test('a compiled program matches what this parser refuses', () async {
-    if (skipIfAbsent()) return;
-    // `{0..9}[where 8..12]` is a pipeline, so the line above would call it
-    // unported — and here is the same rule, compiled by the real compiler and
-    // matched by the same library. This is the whole of what embedding CPython
-    // buys, exercised without an Android device in reach.
-    expect(engine!.check(_wherePipeline).status, EngineStatus.unported);
-    final replies = await engine
-        .findAll(<String>[_whereProgram], '7 8 9 10 11 12 13', compiled: true);
+    // The whole of what running the real compiler buys, exercised without an
+    // Android device in reach: `where` is a pipeline, and the engine that
+    // matches it never learned what a pipeline is.
+    final replies = await engine!.findAll(<String>[
+      _whereProgram,
+    ], '7 8 9 10 11 12 13');
     expect(replies.single.status, EngineStatus.ok);
     expect(replies.single.spans, <(int, int)>[
       (2, 3),
@@ -136,7 +119,16 @@ void main() {
     if (skipIfAbsent()) return;
     final replies = await engine!.findAll(<String>[
       '{"universes": 3}',
-    ], 'text', compiled: true);
+    ], 'text');
+    expect(replies.single.status, EngineStatus.error);
+    expect(replies.single.message, contains('invalid query JSON'));
+  });
+
+  test('unexpanded source is not a program, and is refused as one', () async {
+    if (skipIfAbsent()) return;
+    // A host that skipped the compiler gets an error, not a match. There is no
+    // status between the two any more: this library is the end of the line.
+    final replies = await engine!.findAll(<String>[r'{0..9}^4'], 'id 2024');
     expect(replies.single.status, EngineStatus.error);
     expect(replies.single.message, contains('invalid query JSON'));
   });

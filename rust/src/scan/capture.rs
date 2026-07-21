@@ -18,8 +18,8 @@
 
 use crate::floor::reach::{cut_range, reach, tails_of};
 use crate::floor::universe::Universe;
+use crate::scan::error::HimarkScopeError;
 use crate::scan::r#match::{Match, Query};
-use crate::surface::ast::HimarkScopeError;
 
 /// How many entries a canonical-face read streams before giving up.
 ///

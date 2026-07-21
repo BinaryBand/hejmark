@@ -10,11 +10,12 @@
 //! zero-width match).
 //!
 //! A factor here is a denoted [`Universe`]. The Python's `Factor` is a union:
-//! it also admits a back-referencing `Late` factor -- a surface object that
+//! it also admits a back-referencing `Late` factor -- a compiler object that
 //! re-denotes per attempt under the faces bound to its left -- and so
-//! `_try_product` threads those bound faces along. That variant belongs to the
-//! surface layer, which is not yet ported; until it is, a factor is a plain
-//! universe and the bound-face accumulator it needs is left out.
+//! `_try_product` threads those bound faces along. That variant needs a
+//! resolver channel back into a compiler this crate does not have, so a factor
+//! here is a plain universe and the bound-face accumulator it needs is left
+//! out. A program carrying a late slot is one a host must run in Python.
 //!
 //! As everywhere in this crate, text and faces are `[u32]` code points, so a
 //! span is a code-point offset -- matching the Python's per-character indexing.

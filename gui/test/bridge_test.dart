@@ -66,11 +66,11 @@ void main() {
     expect(run.error, isNotNull);
   });
 
-  test('a pipeline rule falls through the device engine to Python', () async {
+  test('a pipeline rule compiles and matches end to end', () async {
     if (skipIfUnavailable()) return;
-    // `[where ...]` is a value cut, which only the full compiler expands: the
-    // device engine reports it `unported` and the bridge retries it here. The
-    // hits prove the retry really happened — the cut excludes 25 and 71.
+    // `[where ...]` is a value cut, which only expansion computes — so this is
+    // the whole compiler running, not a subset of it. The hits prove the cut
+    // was really applied: it excludes 25 and 71.
     final run = await bridge.matchAll(<Rule>[
       _rule(r'{0..9}^2[where 30..59]'),
     ], 'ages 25 42 58 71 done');

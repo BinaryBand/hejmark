@@ -1,9 +1,9 @@
-//! Surface AST errors (the surface layer's first slice).
+//! The scan layer's read refusal.
 //!
-//! Mirrors the error types of `hejmark/core/surface/ast.py`. The full surface
-//! AST -- names, definitions, pipelines, back-references -- is not yet ported;
-//! this module exists so the scan layer can name the scope error it shares with
-//! the surface, exactly as the Python does (`scan` imports it from `surface`).
+//! Mirrors `hejmark/core/ir/errors.py`'s `HimarkScopeError`. The Python keeps it
+//! in the shared stratum both the compiler and the engine can name; this crate
+//! ports only the engine side, so `scan` is that stratum's whole reach here --
+//! and it is also where both raisers live ([`super::capture`], [`super::measure`]).
 
 use std::fmt;
 

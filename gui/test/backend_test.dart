@@ -153,7 +153,7 @@ void main() {
         Backend(
           compiler: _FakeCompiler(<String, Object>{
             'device': 'device',
-            'python': const CompileRefusal('unported', retryable: true),
+            'python': const CompileRefusal('needs another compiler', retryable: true),
           }),
           engine: _FakeEngine(<String, EngineResult>{
             'device': const EngineResult(<(int, int)>[(4, 7)]),

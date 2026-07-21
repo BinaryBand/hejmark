@@ -6,12 +6,12 @@
 /// (`docs/TODO.md`) changes which [Compiler] is constructed and nothing else.
 ///
 /// A program is an opaque string, and **which** string is a property of the
-/// pair, not of this interface: `SubprocessCompiler` emits floor-AST JSON for
-/// `FindBinaryEngine`, while `NativeCompiler` emits the rule source itself,
-/// because `rust/src/ffi.rs` still takes source rather than a compiled program.
-/// So a compiler and an engine are interchangeable *within* a [Backend] today,
-/// not across one. Teaching the FFI to take JSON collapses that difference and
-/// is the point of the second and third items in `docs/TODO.md`.
+/// pair rather than of this interface. In practice every pair now agrees on one
+/// shape — floor-AST JSON, as `hejmark emit-json` writes it — so a compiler and
+/// an engine here really are interchangeable across [Backend]s, which is what
+/// lets `embedded_backend.dart` put the device's compiler in front of the same
+/// [Engine] the desktop uses. That is a fact about today's implementations, not
+/// a promise this interface makes.
 abstract interface class Compiler {
   /// Lowers [source] to a program, or throws [CompileRefusal].
   ///
@@ -55,10 +55,13 @@ class CompileRefusal implements Exception {
 
   /// Whether another compiler might succeed where this one refused.
   ///
-  /// This carries the `unported` status of `rust/src/ffi.rs` — the rule *is*
-  /// well-formed Himark and only this compiler is short — as a flag rather
-  /// than a message, so the retry decision is never a string comparison.
-  /// `false` means the rule is wrong and every compiler would refuse it.
+  /// `false` means the rule is wrong and every compiler would refuse it, which
+  /// is what both compilers shipping today report: each is the whole compiler,
+  /// so there is nothing behind it. The flag survives because it is the only
+  /// thing that makes a *list* of backends more than a list of one, and because
+  /// a partial compiler on a platform neither reaches would need it — carried as
+  /// a flag rather than a message, so the retry decision is never a string
+  /// comparison.
   final bool retryable;
 
   @override

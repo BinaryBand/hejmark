@@ -6,12 +6,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:himark_editor/models/backend.dart';
 import 'package:himark_editor/models/bridge.dart';
 import 'package:himark_editor/models/embedded_backend.dart';
-import 'package:himark_editor/models/native_backend.dart';
 import 'package:himark_editor/models/native_engine.dart';
 import 'package:himark_editor/models/project.dart';
 import 'package:himark_editor/models/subprocess_backend.dart';
 
-/// A pipeline, so outside the floor subset the device's Rust parser reads.
+/// A pipeline: nothing but the real compiler expands it, which is exactly what
+/// this file is checking is on the other end of the channel.
 const String _wherePipeline = '{0..9}[where 8..12]';
 
 Rule _rule(String source) => Rule(id: source, label: 'test', source: source);
@@ -109,9 +109,9 @@ void main() {
   test('the real compiler pairs with the device engine', () async {
     // The device pairing, minus Chaquopy: `emit-json` is the same compiler
     // Chaquopy embeds, and `hejmark_find_json` is the same call the phone
-    // makes. What this pins is that the two halves agree on the payload — a
-    // rule the on-device parser refuses by name, compiled and then matched by
-    // the library the APK ships.
+    // makes. What this pins is that the two halves agree on the payload — and
+    // on a rule that has no other way through, since the engine parses nothing
+    // and there is no longer a second front end to fall back to.
     final root = _root();
     final engine = NativeEngine.instance(root: root);
     final python = root == null ? null : File('${root.path}/.venv/bin/python');
@@ -119,17 +119,11 @@ void main() {
       markTestSkipped('needs a checkout with .venv and a built libhejmark');
       return;
     }
-    expect(engine.check(_wherePipeline).status, EngineStatus.unported);
-
     final bridge = HejmarkBridge(
       backends: <Backend>[
         Backend(
           compiler: SubprocessCompiler(python: python!, root: root),
-          engine: FfiEngine(
-            engine,
-            timeout: const Duration(seconds: 5),
-            compiled: true,
-          ),
+          engine: FfiEngine(engine, timeout: const Duration(seconds: 5)),
         ),
       ],
     );

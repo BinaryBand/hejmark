@@ -24,7 +24,7 @@ use crate::floor::syntax::{Factor, Member};
 use crate::floor::universe::{denote, walk, Amp, Universe};
 use crate::floor::work::charge;
 use crate::scan::capture::BUDGET;
-use crate::surface::ast::HimarkScopeError;
+use crate::scan::error::HimarkScopeError;
 
 /// One face per factor: a tiling of a spelling across a product's factors.
 type Split = Vec<Vec<u32>>;

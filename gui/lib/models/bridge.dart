@@ -3,7 +3,6 @@ import 'dart:io';
 import 'backend.dart';
 import 'embedded_backend.dart';
 import 'matcher.dart';
-import 'native_backend.dart';
 import 'native_engine.dart';
 import 'project.dart';
 import 'subprocess_backend.dart';
@@ -35,31 +34,30 @@ abstract interface class Bridge {
 /// which one takes each rule, and how code-point spans become UTF-16
 /// highlights. It contains no compiling and no matching of its own.
 ///
-/// Two backends exist, and the difference between them is how much of the
-/// *compiler* is reachable — never how the matching is done, which is the same
-/// Rust engine either way:
+/// Two backends exist, and they differ only in **where the compiler runs**.
+/// Both compile all of L1.5 — the same `hejmark emit-json`, the same floor-AST
+/// JSON out — and the matching is the same Rust engine either way:
 ///
-/// **On-device** (`native_backend.dart`): `rust/` linked into the app as a
-/// shared library and called over its C ABI. It compiles the floor subset of
-/// Himark, so it needs no toolchain and is the backend of last resort
-/// everywhere.
+/// **Embedded** (`embedded_backend.dart`, Android): CPython embedded in the app
+/// compiles, and the Rust library linked beside it matches. This is the whole
+/// language on a phone with no toolchain and no network.
 ///
-/// **Embedded** (`embedded_backend.dart`, Android): the real compiler, running
-/// on CPython embedded in the app, emitting the same floor-AST JSON the
-/// subprocess path emits — and the same Rust engine matching it. This is what
-/// gives a phone the whole language.
+/// **By subprocess** (`subprocess_backend.dart`): `hejmark emit-json` in the
+/// checkout's `.venv` compiles, and the Rust `find` binary matches. Needs both
+/// toolchains, so it exists only in a `flutter run -d linux` desktop build
+/// inside a checkout.
 ///
-/// **By subprocess** (`subprocess_backend.dart`): `hejmark emit-json` lowers a
-/// rule to floor-AST JSON and the Rust `find` binary matches it. This compiles
-/// *all* of L1.5 but needs both toolchains, so it exists only in a
-/// `flutter run -d linux` desktop build inside a checkout.
+/// There used to be a third — the Rust library parsing a *subset* of Himark for
+/// itself, so a phone had something. Embedding CPython made it strictly worse
+/// than what stood beside it, and it is gone. What that costs is a platform
+/// neither backend reaches: iOS today, and a packaged Linux build outside a
+/// checkout. Those degrade to a descriptive [MatchRun.error] rather than
+/// throwing, exactly as a machine with nothing installed always did.
 ///
-/// A rule goes to the first backend that will **compile** it, which is what
-/// makes the order a preference: the device engine is asked first, and whatever
-/// it refuses as retryable ([CompileRefusal.retryable], the `unported` status
-/// of `rust/src/ffi.rs`) falls through to the full compiler wherever that
-/// happens to be installed. With neither reachable every entry point degrades
-/// to a descriptive [MatchRun.error] rather than throwing.
+/// A rule goes to the first backend that will **compile** it. No compiler here
+/// produces a retryable refusal any more (both are the full compiler, so a rule
+/// either compiles or is wrong), but the fall-through is what the list means and
+/// is where a third compiler — an iOS one — would arrive.
 class HejmarkBridge implements Bridge {
   /// Backends are discovered from disk unless [backends] is given.
   ///
@@ -115,14 +113,12 @@ class HejmarkBridge implements Bridge {
     final cached = _backendsCache;
     if (cached != null) return cached;
     final backends = <Backend>[];
-    final native = NativeEngine.instance(root: _root);
-    if (native != null) {
-      backends.add(nativeBackend(native, timeout: _findBudget));
-      // Second on the device, not first: the floor subset above answers the
-      // common rule without waking an interpreter, and this one picks up
-      // exactly what that refuses. Android only — Chaquopy is an Android
-      // Gradle plugin, so elsewhere nobody answers the channel.
-      if (Platform.isAndroid) {
+    // Android only: Chaquopy is an Android Gradle plugin, so nowhere else has
+    // an interpreter to answer the channel — and without one the library is an
+    // engine with no compiler to pair with, which is no backend at all.
+    if (Platform.isAndroid) {
+      final native = NativeEngine.instance(root: _root);
+      if (native != null) {
         backends.add(embeddedBackend(native, timeout: _findBudget));
       }
     }
@@ -153,8 +149,9 @@ class HejmarkBridge implements Bridge {
       return const MatchRun(
         <MatchRange>[],
         error:
-            'engine unavailable — no libhejmark to load, and no hejmark '
-            'checkout to fall back on (needs .venv and rust/target/debug/find)',
+            'engine unavailable — no embedded compiler on this platform, and '
+            'no hejmark checkout to fall back on (needs .venv and '
+            'rust/target/debug/find)',
       );
     }
 

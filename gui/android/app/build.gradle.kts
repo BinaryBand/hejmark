@@ -63,29 +63,39 @@ chaquopy {
         }
     }
     // `src/main/python` is the default, and holds two things: the entry point
-    // `himark_compiler.py`, which is committed, and the `hejmark` package,
-    // which is staged there by `tool/stage_python.sh` and gitignored -- the
-    // same generated-not-vendored rule the engine's `.so` files follow.
+    // `himark_compiler.py`, and `hejmark` -- a committed *symlink* to the
+    // package one directory over. Not a copy: Gradle follows the link for its
+    // up-to-date check (verified, not assumed), so the device compiles with
+    // whatever `hejmark/` says today and there is no second tree to go stale.
+    // `cli/` rides along and never loads; nothing imports it, so `typer` still
+    // does not ship.
 }
 
-// An APK with no staged compiler is the same easy mistake as one with no
-// engine: the build succeeds, and the app says "engine unavailable" on a device.
-// The engine's absence at least fails at load; a missing Python package would
-// fail on the first keystroke, in a text field. So it fails here instead.
-val checkStagedCompiler =
-    tasks.register("checkStagedCompiler") {
+// Two ways to build an APK whose app says "engine unavailable" on a device, and
+// neither fails at compile time on its own. A missing package would fail on the
+// first keystroke, in a text field; a missing generated parser would fail on the
+// first import. So they fail here instead.
+val checkCompilerSources =
+    tasks.register("checkCompilerSources") {
         doFirst {
             if (!file("src/main/python/hejmark/__init__.py").exists()) {
                 throw GradleException(
-                    "the Python compiler is not staged: run gui/tool/stage_python.sh " +
-                        "(and gui/tool/build_engine.sh for the engine beside it)",
+                    "src/main/python/hejmark does not resolve: it is a symlink to " +
+                        "<root>/hejmark, and a checkout that dropped it (Windows, or an " +
+                        "export without symlinks) has no compiler to package",
+                )
+            }
+            if (!file("src/main/python/hejmark/adapters/_gen/HimarkParser.py").exists()) {
+                throw GradleException(
+                    "the ANTLR parser is not generated: run `uv run hejmark gen-parser` " +
+                        "in the repository root (and gui/tool/build_engine.sh for the engine)",
                 )
             }
         }
     }
 
 tasks.matching { it.name == "preBuild" }.configureEach {
-    dependsOn(checkStagedCompiler)
+    dependsOn(checkCompilerSources)
 }
 
 kotlin {

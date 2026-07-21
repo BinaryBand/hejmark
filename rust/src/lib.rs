@@ -13,13 +13,14 @@
 //! and the interpreter that denotes those nodes to lazy universes
 //! ([`floor::universe`]). [`scan`] sits above the floor: it matches denoted
 //! universes against text, reads captures off a hit, and compares entry order for
-//! the contracting measure. [`surface`] is only begun -- its scope error, which
-//! the scan layer shares. The surface AST and expansion down to the floor are the
-//! next slices to port.
+//! the contracting measure.
 //!
-//! Because this crate parses no Himark, a host that does (the Python package)
-//! hands it an already-expanded query as JSON: [`floor::json`] reads that back
-//! into the floor AST, and the `find` binary denotes and matches it.
+//! **This crate parses no Himark**, and that is the whole of its interface. A
+//! host that does -- the Python package, wherever it runs, including embedded in
+//! an Android app -- hands it an already-expanded query as JSON: [`floor::json`]
+//! reads that back into the floor AST, and the `find` binary ([`ffi`] behind a C
+//! ABI) denotes and matches it. There is exactly one way in, so there is nothing
+//! here that can be behind the compiler.
 //!
 //! The Python has since partitioned `core/` into compiler and engine, which this
 //! crate does not mirror: it ports only the engine side plus the floor beneath
@@ -37,4 +38,3 @@
 pub mod ffi;
 pub mod floor;
 pub mod scan;
-pub mod surface;

@@ -33,7 +33,7 @@ use std::fmt;
 
 /// Raised when a run spends past the host's work budget.
 ///
-/// Its own type rather than the reads' `HimarkScopeError` (`surface::ast`),
+/// Its own type rather than the reads' `HimarkScopeError` (`scan::error`),
 /// because L2 separates them too: a read that outruns its budget cannot name
 /// an entry, where a run past the work budget could name every one and simply
 /// could not afford to.

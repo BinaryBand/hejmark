@@ -1,7 +1,6 @@
 import 'package:flutter/services.dart';
 
 import 'backend.dart';
-import 'native_backend.dart';
 import 'native_engine.dart';
 
 /// The channel `MainActivity.kt` answers on. One method, `compile`.
@@ -10,12 +9,11 @@ const MethodChannel embeddedChannel = MethodChannel('dev.himark.editor/compiler'
 /// The phone's full backend: the **real** compiler, embedded, over the Rust
 /// engine already linked beside it.
 ///
-/// This is the one that retires the device's compiler gap. `nativeBackend`
-/// compiles the floor subset `rust/src/surface/parse.rs` reads and refuses a
-/// pipeline or a back-reference as `unported`; this one runs `hejmark`'s own
-/// ANTLR parser and L1.5 expansion on CPython embedded in the app (Chaquopy,
-/// configured in `android/app/build.gradle.kts`), so every construct the
-/// language has compiles on a device with no toolchain and no network.
+/// This is the device's only compiler, and it is the whole language: `hejmark`'s
+/// own ANTLR parser and L1.5 expansion, running on CPython embedded in the app
+/// (Chaquopy, configured in `android/app/build.gradle.kts`), with no toolchain
+/// and no network. There used to be a partial Rust front end here for the floor
+/// subset; it was deleted once this could compile everything it could and more.
 ///
 /// The pair is what makes it work: the program is floor-AST JSON, the same
 /// hand-off the desktop's subprocess path uses, and [FfiEngine] takes it
@@ -23,15 +21,15 @@ const MethodChannel embeddedChannel = MethodChannel('dev.himark.editor/compiler'
 /// not — matching stays in Rust, where the battery cares.
 ///
 /// Android only: Chaquopy is an Android Gradle plugin, so on every other
-/// platform the channel has nobody on the other end. [available] is how the
-/// bridge asks rather than assuming.
+/// platform the channel has nobody on the other end and [EmbeddedCompiler]
+/// refuses rather than throwing.
 Backend embeddedBackend(
   NativeEngine engine, {
   required Duration timeout,
   MethodChannel channel = embeddedChannel,
 }) => Backend(
   compiler: EmbeddedCompiler(channel),
-  engine: FfiEngine(engine, timeout: timeout, compiled: true),
+  engine: FfiEngine(engine, timeout: timeout),
 );
 
 /// Compiles on the device by calling the embedded interpreter.
@@ -71,9 +69,9 @@ class EmbeddedCompiler implements Compiler {
     } on MissingPluginException {
       return const CompileRefusal('no embedded compiler on this platform');
     }
-    // The reply shape `rust/src/ffi.rs` defines, reused so both device paths
-    // answer alike. `unported` cannot appear: this is the full compiler, so its
-    // refusals are final and there is nothing further to retry against.
+    // The status-line-then-body shape `rust/src/ffi.rs` defines, reused so the
+    // two halves of the device path answer alike. Every refusal here is final:
+    // this is the full compiler, so nothing further could take the rule.
     final split = reply.indexOf('\n');
     final status = split < 0 ? reply : reply.substring(0, split);
     final body = split < 0 ? '' : reply.substring(split + 1);

@@ -8,24 +8,42 @@ Priority and rationale for outstanding work. This file only ranks what remains a
 
 Ordered by dependency, not by size.
 
-The phone now has the real compiler; what is left of that sequence is the *deletion* it makes possible. `rust/src/surface/parse.rs` is a second, partial front end that existed for exactly one reason -- Android could not spawn `hejmark emit-json` -- and that reason is gone. It can never compile L1.5, since pipelines, definitions, registers and back-references are refused by name as `ParseRefusal::Unported`, and it is a standing divergence risk because it mirrors `emit-json`'s *observable output* by hand rather than deriving it. The second item is independent of it but is what a device `run` additionally needs.
-
-- [ ] **Delete `rust/src/surface/`** -- `ffi.rs` already takes a program as well as source (`hejmark_find_json`, landed below), and the embedded compiler produces one for every rule the language has, so nothing on a device now *needs* the floor-subset parser. What goes: `surface/parse.rs` (650 lines), `surface/std.rs` (86), the `unported` status, the retry branch in `bridge.dart`, `EngineStatus.unported` in `native_engine.dart`, and `nativeBackend` itself. The one entanglement is `HimarkScopeError` in `surface/ast.rs` (26 lines), which `scan/measure.rs` and `scan/capture.rs` import -- move it under `scan/` or `floor/` and the surface layer drops out clean. **What to weigh before deleting:** the subset parser is now the *fallback*, and it is the only compiler that works on a platform Chaquopy does not cover -- which today means the Linux desktop build outside a checkout, and tomorrow means iOS. Deleting it makes an iOS answer load-bearing rather than optional. **Keeping the Rust engine, separately, is a decision about constants, not asymptotics, and the margin is smaller than the port's reputation suggests.** Measured with `uv run pytest -m benchmark`:
-
-  | query | chars | python | rust | speedup |
-  | --- | --- | --- | --- | --- |
-  | `{{cat,feline}}` | 800 | 8.3 ms | 1.6 ms | 5.3x |
-  | `{a, &{b}}` | 9 | 4.0 ms | 1.3 ms | 3.1x |
-  | `{a}` | 800 | 2.5 ms | 1.3 ms | 1.9x |
-  | `{0..9}` | 200 | 1.0 ms | 1.1 ms | 0.9x |
-
-  Both engines now carry the same four rewrites, so the curves have the same shape and Rust wins by a constant of about 2--7x (its column still paying process spawn, Python's still paying parse and expand). That is worth having on a battery-powered device holding a 60 fps editor, and it keeps a second implementation that cross-checks the first -- but it is not the order of magnitude that would make an all-Python device build unthinkable, and the honest fallback if Chaquopy plus a `cdylib` proves too much to carry is to run Python on both sides and delete `rust/` outright.
+The one item left is what a device `run` additionally needs; nothing blocks it but a consumer.
 
 - [ ] **Teach the Rust port the Program wire format** -- `core/ir/wire.py` serializes whole compiled scripts (statements, templates, measures, sentinel table, late slots), versioned from day one; Rust currently reads only the bare-query shape from `core/ir/codec.py`. A Rust reader for the Program format gets it `run` (slot-free scripts) rather than just `find`. Slotted programs additionally need a resolver channel back into the compiler -- design that only when a consumer exists. This is also what a device `run` needs under the sequence above; the alternative there is to leave `run` in the embedded Python and give `Engine` a second method.
 
-The previous eleven are done; **Landed** records what they cost and, where the guess was wrong, what was actually true.
+The previous twelve are done; **Landed** records what they cost and, where the guess was wrong, what was actually true.
 
 ## Landed
+
+### Delete `rust/src/surface/`
+
+Gone: `parse.rs` (650 lines), `std.rs` (86), `ast.rs` (26), the `unported` status, `hejmark_find`, `hejmark_check`, `NativeCompiler`, `nativeBackend`, and `native_backend.dart` with them. `rust/src/lib.rs` now states the interface positively -- *this crate parses no Himark* -- rather than as a slice not yet ported, and `ffi.rs` has one entry point taking the same floor-AST JSON `bin/find.rs` has always read. The scope error moved to `scan/error.rs`, beside its two raisers, and the surface layer dropped out clean exactly as predicted.
+
+**What it costs is the thing this file said to weigh, and the weighing did not change: iOS now has no compiler in reach at all.** Not a degradation to a subset -- a hole. `bridge.dart` builds the embedded backend under `Platform.isAndroid` and the subprocess backend inside a checkout, so iOS and a packaged Linux build report `engine unavailable`. That was already true of iOS's *engine* (nobody has built `rust/` for it), so nothing regressed that worked; what changed is that fixing iOS is now two problems rather than one, and the seam takes an iOS `Compiler` and nothing else.
+
+**`CompileRefusal.retryable` outlived its only producer and was kept.** With both compilers being the whole compiler, every refusal is final and the fall-through in `bridge.dart` never fires. Deleting it would collapse the backend *list* to a list of one, and re-adding it is exactly what a partial iOS compiler would need; `backend_test.dart` pins the mechanism against fakes either way. Four lines, tested, kept -- but stated as having no producer, so it does not read as live machinery.
+
+**The Rust test count fell by 24 (138 to 114) and the Dart count by 2 (45 to 43), and the coverage did not.** What went was a parser's own tests -- 20 in `parse.rs` and `std.rs`, four more in `ffi.rs` that exercised the source entry point. `native_engine_test.dart`'s fixtures are now verbatim `hejmark emit-json` output rather than rule sources, which is the only thing that tests the boundary a host actually crosses: a test that hands the library `{0..9}^4` is now testing an error path, and there is one for that too.
+
+**Keeping the Rust engine, separately, stays a decision about constants, not asymptotics, and the margin is smaller than the port's reputation suggests.** The table this item used to carry, since it is the argument for the half that was *not* deleted -- measured with `uv run pytest -m benchmark`:
+
+| query | chars | python | rust | speedup |
+| --- | --- | --- | --- | --- |
+| `{{cat,feline}}` | 800 | 8.3 ms | 1.6 ms | 5.3x |
+| `{a, &{b}}` | 9 | 4.0 ms | 1.3 ms | 3.1x |
+| `{a}` | 800 | 2.5 ms | 1.3 ms | 1.9x |
+| `{0..9}` | 200 | 1.0 ms | 1.1 ms | 0.9x |
+
+Both engines carry the same four rewrites, so the curves have the same shape and Rust wins by a constant of about 2--7x (its column still paying process spawn, Python's still paying parse and expand). Worth having on a battery-powered device holding a 60 fps editor, and it keeps a second implementation that cross-checks the first -- but it is not the order of magnitude that would make an all-Python device build unthinkable, and the honest fallback if Chaquopy plus a `cdylib` proves too much to carry is to run Python on both sides and delete `rust/` outright.
+
+### Reuse `hejmark/` instead of copying it into `gui/`
+
+`gui/android/app/src/main/python/hejmark` is a **committed symlink** to `<root>/hejmark`, so Chaquopy packages the real source tree. `tool/stage_python.sh` is deleted; its only remaining job (generate the ANTLR parser) moved into the Gradle guard, renamed `checkCompilerSources`, which now also catches a checkout where the symlink did not survive.
+
+**The copy's stated reason was tested and false.** The script said Gradle hashes the source tree and a symlink makes that hash blind to edits behind it. It does not: touching `hejmark/__init__.py` takes `generateDebugPythonSourceAssets` from `UP-TO-DATE` to re-running. That claim was the whole argument for the copy, and nobody had checked it.
+
+**Dropping `cli/` was never what kept `typer` off the device.** Nothing on the device imports it -- `hejmark/__init__.py` reaches `adapters` and `core` only -- so `cli/` rides along as four inert modules and the dependency list is still one pure-Python wheel. Chaquopy also drops the `.pyc` inside any `__pycache__` it finds, leaving empty directory entries; that is the entire cost of packaging the tree whole, and it buys back the failure mode where the device runs a stale copy of the compiler.
 
 ### Compile on device with embedded CPython
 
