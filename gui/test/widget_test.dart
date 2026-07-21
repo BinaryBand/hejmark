@@ -2,11 +2,13 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:himark_editor/app.dart';
 
+import 'fake_bridge.dart';
+
 void main() {
   testWidgets('boots into the demo-set Test screen and finds matches', (
     tester,
   ) async {
-    await tester.pumpWidget(const HimarkApp());
+    await tester.pumpWidget(const HimarkApp(bridge: FakeBridge()));
     await tester.pumpAndSettle();
 
     // Top bar shows the seeded project and the bottom nav is present.
@@ -14,13 +16,14 @@ void main() {
     expect(find.text('Test'), findsOneWidget);
     expect(find.text('Settings'), findsOneWidget);
 
-    // The demo content's email is matched and surfaced in the output sheet.
-    expect(find.text('alice.smith@example.com'), findsOneWidget);
+    // The engine surfaces the demo IPv4 in the output sheet, and the summary
+    // counts every hit the IPv4 + hex-colour rules made.
+    expect(find.text('192.168.1.42'), findsOneWidget);
     expect(find.text('4 matches'), findsOneWidget);
   });
 
   testWidgets('opens Settings and lists appearance controls', (tester) async {
-    await tester.pumpWidget(const HimarkApp());
+    await tester.pumpWidget(const HimarkApp(bridge: FakeBridge()));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Settings'));

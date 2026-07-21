@@ -1,12 +1,12 @@
-/// Kinds of pattern rule the prototype ships. Mirrors the brief's `RULE_*`
-/// tables. `custom` is a user-added rule with no built-in matcher.
-enum RuleKind { email, ipv4, heading, custom }
-
+/// One pattern rule: a human [label] and the real Himark [source] the engine
+/// parses and matches with. `source` is a single query expression fed verbatim
+/// to `hejmark emit-json` (see `HejmarkBridge`).
 class Rule {
-  Rule({required this.id, required this.kind});
+  Rule({required this.id, required this.label, required this.source});
 
   final String id;
-  RuleKind kind;
+  String label;
+  String source;
 }
 
 /// A single test string ("tab" in the brief).
@@ -59,7 +59,9 @@ class Project {
   Project deepCopy({required String newId, required String newName}) => Project(
     id: newId,
     name: newName,
-    rules: rules.map((r) => Rule(id: r.id, kind: r.kind)).toList(),
+    rules: rules
+        .map((r) => Rule(id: r.id, label: r.label, source: r.source))
+        .toList(),
     enabled: Map<String, bool>.from(enabled),
     tabs: tabs.map((t) => t.copyWith()).toList(),
     activeTab: activeTab,

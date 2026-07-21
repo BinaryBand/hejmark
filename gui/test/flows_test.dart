@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:himark_editor/app.dart';
 
+import 'fake_bridge.dart';
+
 /// Pins a realistic phone surface so any RenderFlex overflow surfaces as a test
 /// failure.
 void _usePhone(WidgetTester tester) {
@@ -22,7 +24,7 @@ void _useDesktop(WidgetTester tester) {
 
 Future<void> _boot(WidgetTester tester) async {
   _usePhone(tester);
-  await tester.pumpWidget(const HimarkApp());
+  await tester.pumpWidget(const HimarkApp(bridge: FakeBridge()));
   await tester.pumpAndSettle();
 }
 
@@ -97,7 +99,7 @@ void main() {
     tester,
   ) async {
     _useDesktop(tester);
-    await tester.pumpWidget(const HimarkApp());
+    await tester.pumpWidget(const HimarkApp(bridge: FakeBridge()));
     await tester.pumpAndSettle();
 
     expect(find.byType(NavigationRail), findsOneWidget);
@@ -112,7 +114,7 @@ void main() {
     tester,
   ) async {
     _useDesktop(tester);
-    await tester.pumpWidget(const HimarkApp());
+    await tester.pumpWidget(const HimarkApp(bridge: FakeBridge()));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byIcon(Icons.settings_outlined)); // rail destination

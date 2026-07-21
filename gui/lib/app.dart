@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'models/bridge.dart';
 import 'screens/home_scaffold.dart';
 import 'state/app_state.dart';
 import 'state/scope.dart';
@@ -8,15 +9,20 @@ import 'theme/tokens.dart';
 /// Root of the Himark Editor. Owns the single [AppState], resolves the active
 /// theme (dark / light / system) into a [HimarkTokens] set, and republishes
 /// both through a [HimarkScope] on every change.
+///
+/// [bridge] is the language bridge to the real engines; it defaults to the
+/// live [HejmarkBridge] and is injected only by tests.
 class HimarkApp extends StatefulWidget {
-  const HimarkApp({super.key});
+  const HimarkApp({super.key, this.bridge});
+
+  final Bridge? bridge;
 
   @override
   State<HimarkApp> createState() => _HimarkAppState();
 }
 
 class _HimarkAppState extends State<HimarkApp> {
-  final AppState _state = AppState();
+  late final AppState _state = AppState(bridge: widget.bridge);
 
   @override
   void dispose() {

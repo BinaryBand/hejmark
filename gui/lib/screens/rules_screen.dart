@@ -150,7 +150,7 @@ class RulesScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            ruleLabel(rule.kind),
+                            rule.label,
                             style: TextStyle(
                               fontSize: 12.5,
                               fontWeight: FontWeight.w600,
@@ -159,8 +159,8 @@ class RulesScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           RuleCode(
-                            spans: ruleSpans(
-                              rule.kind,
+                            spans: spansFor(
+                              rule.source,
                               tokens.onSurfaceVariant,
                             ),
                             fontSize: s.editorFontSize.toDouble(),

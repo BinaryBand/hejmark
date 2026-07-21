@@ -211,11 +211,9 @@ class _TestScreenState extends State<TestScreen> {
   // ---------------------------------------------------------------------------
 
   Widget _body(AppState s, HimarkTokens t, Project project, TestString active) {
-    final matches = computeMatches(
-      active.content,
-      project.rules,
-      project.enabled,
-    );
+    // Matches come live from the Python parser + Rust engine bridge, recomputed
+    // (debounced) by AppState whenever the text or rules change.
+    final matches = s.matches;
     return LayoutBuilder(
       builder: (context, box) {
         final sheetHeight = s.sheetExpanded ? box.maxHeight * 0.46 : 45.0;
@@ -389,7 +387,8 @@ class _TestScreenState extends State<TestScreen> {
 
   Widget _sheet(AppState s, HimarkTokens t, List<MatchRange> matches) {
     final count = matches.length;
-    final summary = count == 1 ? '1 match' : '$count matches';
+    final summary = s.matchSummary;
+    final isError = s.engine == EngineState.error;
     final active = s.cur?.active;
     final content = active?.content ?? '';
 
@@ -426,10 +425,14 @@ class _TestScreenState extends State<TestScreen> {
                           padding: const EdgeInsets.only(top: 4),
                           child: Text(
                             summary,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: t.onSurfaceVariant,
+                              color: isError
+                                  ? Syntax.escape
+                                  : t.onSurfaceVariant,
                             ),
                           ),
                         ),

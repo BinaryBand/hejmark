@@ -2,9 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../models/bridge.dart';
+import '../models/matcher.dart';
 import '../models/project.dart';
 
 enum NavTab { rules, test, settings }
+
+/// Lifecycle of the current match run, surfaced in the Test output sheet.
+enum EngineState { idle, running, ready, error }
 
 enum ThemeChoice { dark, light, system }
 
@@ -14,6 +19,18 @@ enum SaveStatus { saved, saving }
 
 /// Which entity an inline-rename / context-menu targets.
 enum MenuScope { tab, project }
+
+/// A single IPv4 octet: 1–3 decimal digits, longest alternative first so
+/// maximal munch takes the whole octet.
+const String _octet = r'{{0..9}^3,{0..9}^2,{0..9}}';
+
+// Real, engine-checked Himark spellings for the seeded rules. Each is one query
+// expression the Rust matcher terminates on — bounded exponents, ranges and the
+// `@hex` splice. (An unbounded `{X,&X}` closure would hang the port's maximal
+// munch, so the seeds stay bounded and the bridge time-budgets the rest.)
+const String _ipv4Source = '$_octet{\\.}$_octet{\\.}$_octet{\\.}$_octet';
+const String _hexColorSource = r'{\#}{@hex}^6';
+const String _numberSource = r'{0..9}^4';
 
 class EditingState {
   EditingState(this.scope, this.id, this.value);
@@ -56,9 +73,12 @@ class SnackState {
 /// state, and every mutation the screens call. Persistence is cosmetic
 /// (a "Saving…"→"Saved" flash), exactly as in the brief.
 class AppState extends ChangeNotifier {
-  AppState() {
+  AppState({Bridge? bridge}) : bridge = bridge ?? HejmarkBridge() {
     _seedDemo();
   }
+
+  /// The language bridge that runs the real Python parser and Rust engine.
+  final Bridge bridge;
 
   // --- navigation / screen ---
   NavTab nav = NavTab.test;
@@ -90,16 +110,24 @@ class AppState extends ChangeNotifier {
   ConfirmState? confirm;
   SnackState? snack;
 
+  // --- engine results (live matches from the Python+Rust bridge) ---
+  List<MatchRange> matches = <MatchRange>[];
+  EngineState engine = EngineState.idle;
+  String? engineError;
+
   int _uid = 1;
   String _newId(String prefix) => '$prefix${_uid++}';
 
   Timer? _saveTimer;
   Timer? _snackTimer;
+  Timer? _matchTimer;
+  int _matchReq = 0;
 
   @override
   void dispose() {
     _saveTimer?.cancel();
     _snackTimer?.cancel();
+    _matchTimer?.cancel();
     super.dispose();
   }
 
@@ -137,6 +165,7 @@ class AppState extends ChangeNotifier {
       mutator(c);
     }
     saveStatus = SaveStatus.saving;
+    _scheduleMatch();
     notifyListeners();
     _saveTimer?.cancel();
     _saveTimer = Timer(const Duration(milliseconds: 800), () {
@@ -173,6 +202,60 @@ class AppState extends ChangeNotifier {
   void dismissSnack() {
     _snackTimer?.cancel();
     snack = null;
+    notifyListeners();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Matching (the live Python parser + Rust engine bridge)
+  // ---------------------------------------------------------------------------
+
+  /// One-line status for the output sheet header.
+  String get matchSummary {
+    if (engine == EngineState.running) return 'Matching…';
+    if (engine == EngineState.error) return engineError ?? 'Engine error';
+    final n = matches.length;
+    return n == 1 ? '1 match' : '$n matches';
+  }
+
+  /// Debounce a fresh match run behind the user's typing/toggling, so we spawn
+  /// the parser and engine once the edits pause rather than per keystroke.
+  void _scheduleMatch() {
+    _matchTimer?.cancel();
+    _matchTimer = Timer(const Duration(milliseconds: 220), _runMatch);
+  }
+
+  /// Run the enabled rules over the active test string through the bridge. A
+  /// monotonic request id drops results from a superseded run.
+  Future<void> _runMatch() async {
+    final c = cur;
+    final active = c?.active;
+    final req = ++_matchReq;
+    if (c == null || active == null) {
+      matches = <MatchRange>[];
+      engine = EngineState.idle;
+      engineError = null;
+      notifyListeners();
+      return;
+    }
+    final rules = c.rules
+        .where((r) => c.enabled[r.id] ?? false)
+        .toList(growable: false);
+    final content = active.content;
+
+    engine = EngineState.running;
+    notifyListeners();
+
+    MatchRun run;
+    try {
+      run = await bridge.matchAll(rules, content);
+    } on Object catch (error) {
+      run = MatchRun(const <MatchRange>[], error: '$error');
+    }
+    if (req != _matchReq) return; // a newer run started while we waited
+
+    matches = run.matches;
+    engineError = run.error;
+    engine = run.error != null ? EngineState.error : EngineState.ready;
     notifyListeners();
   }
 
@@ -216,7 +299,9 @@ class AppState extends ChangeNotifier {
   void addRule() {
     final id = _newId('r');
     touch((c) {
-      c.rules.add(Rule(id: id, kind: RuleKind.custom));
+      c.rules.add(
+        Rule(id: id, label: 'Custom pattern', source: r'{0..9}^2'),
+      );
       c.enabled[id] = true;
     });
   }
@@ -287,6 +372,7 @@ class AppState extends ChangeNotifier {
   void selectProject(String id) {
     currentProject = id;
     shelfOpen = false;
+    _scheduleMatch();
     notifyListeners();
   }
 
@@ -527,30 +613,28 @@ class AppState extends ChangeNotifier {
         id: 'demo-set',
         name: 'demo-set',
         rules: <Rule>[
-          Rule(id: 'r1', kind: RuleKind.email),
-          Rule(id: 'r2', kind: RuleKind.ipv4),
-          Rule(id: 'r3', kind: RuleKind.heading),
+          Rule(id: 'r1', label: 'IPv4 address', source: _ipv4Source),
+          Rule(id: 'r2', label: 'Hex colour', source: _hexColorSource),
+          Rule(id: 'r3', label: '4-digit number', source: _numberSource),
         ],
         enabled: <String, bool>{'r1': true, 'r2': true, 'r3': false},
         activeTab: 't1',
         tabs: <TestString>[
           TestString(
             id: 't1',
-            name: 'contact-log.txt',
+            name: 'infra-log.txt',
             content:
-                'Contact: alice.smith@example.com\n'
-                'Server IP: 192.168.1.42\n'
-                'Backup: 10.0.0.1\n\n'
-                '# Release Notes\n'
-                'Ticket #4821 opened by bob-jones@example.org',
+                'Server IP 192.168.1.42, backup 10.0.0.1\n'
+                'Theme colours #ff8800 and #1e90ff\n'
+                'Ticket 4821 filed for review',
           ),
           TestString(
             id: 't2',
             name: 'sample.md',
             content:
-                '# Sample notes\n'
-                'Reach the team at team@himark.dev\n'
-                'Staging host 10.2.3.4',
+                'Staging host 10.2.3.4\n'
+                'Accent colour #00ffcc\n'
+                'Change 2048 shipped',
           ),
           TestString(id: 't3', name: 'Untitled', content: ''),
         ],
@@ -558,7 +642,7 @@ class AppState extends ChangeNotifier {
       'project-a': Project(
         id: 'project-a',
         name: 'project-a',
-        rules: <Rule>[Rule(id: 'r1', kind: RuleKind.ipv4)],
+        rules: <Rule>[Rule(id: 'r1', label: 'IPv4 address', source: _ipv4Source)],
         enabled: <String, bool>{'r1': true},
         activeTab: 't1',
         tabs: <TestString>[
@@ -578,6 +662,7 @@ class AppState extends ChangeNotifier {
       ),
     };
     currentProject = 'demo-set';
+    unawaited(_runMatch()); // eager first pass; edits below debounce
     notifyListeners();
   }
 }

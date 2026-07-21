@@ -1,12 +1,42 @@
 # Himark Editor — Flutter GUI
 
-A mobile-first Flutter reimplementation of the **Himark Editor** described in
+A Flutter front end for the **Himark Editor** described in
 `docs/.notes/Himark Editor.zip` (design brief + screenshots).
 
-It is a **self-contained UI prototype**: it does not call the Python `hejmark`
-engine. The Test tab matches with the same regex approximations the design brief
-ships. "Saving…" is a cosmetic flash, exactly as in the brief — project data
-lives in memory for the session.
+The Test tab is wired to the **real hejmark engines** by language bridging: each
+rule's Himark source is parsed by the Python package (`hejmark emit-json`, the
+ANTLR parser + L1.5 expander) into the portable floor-AST JSON, and the Rust
+`find` binary denotes that JSON and matches it against the test string. Python
+parses, Rust matches, JSON in between — the same hand-off the repository already
+defines between the two engines (see the root `CLAUDE.md`). "Saving…" is still a
+cosmetic flash and project data lives in memory for the session.
+
+## Engine bridge
+
+`lib/models/bridge.dart` (`HejmarkBridge`) drives both engines as subprocesses:
+
+```text
+rule.source ──emit-json (python)──▶ floor JSON ──find (rust)──▶ start⇥end spans
+```
+
+- It locates the checkout root (nearest ancestor with `pyproject.toml` + `rust/`)
+  and runs `<root>/.venv/bin/python -m hejmark emit-json` and
+  `<root>/rust/target/debug/find`. Floor JSON is cached per rule source, so a
+  rule is re-parsed only when edited.
+- Because both engines are native/interpreted processes, the bridge is a
+  **desktop** capability — use `flutter run -d linux` inside a checkout. Off a
+  checkout (or on a device without the toolchain) the Test tab reports
+  `engine unavailable` rather than matching.
+- The Rust matcher's maximal-munch does not terminate on an unbounded closure
+  (a bare `{X,&X}` Kleene star), so `find` runs under a time budget; a pattern
+  that blows it shows `pattern too complex (engine timed out)`. The seeded rules
+  (IPv4, hex colour, 4-digit number) are all bounded spellings the engine
+  settles on quickly.
+
+The old Dart `RegExp` approximations are gone; matching is the real engine or a
+reported error. Widget tests inject a synchronous `Bridge` fake
+(`test/fake_bridge.dart`) so flows stay deterministic without the toolchain, and
+`test/bridge_test.dart` exercises the live Python+Rust path.
 
 ## Screens
 
@@ -16,7 +46,8 @@ Bottom nav (mobile) / navigation rail (desktop):
   syntax-highlighted Himark source per rule.
 - **Test** — multiple test strings (tabs); a code editor with a line-number
   gutter (edit mode) or a match-highlighted read view (view mode); a
-  collapsible output sheet listing matches with `[range]` and `line:col`.
+  collapsible output sheet whose header reports engine status (`Matching…` /
+  count / error) and lists matches with `[range]` and `line:col`.
 - **Settings** — theme (dark/light/system), density, editor font size,
   whitespace glyphs, tab size, reset.
 
@@ -30,7 +61,8 @@ lib/
   main.dart            entrypoint
   app.dart             root: theme resolution + HimarkScope
   theme/tokens.dart    Material-3 dark/light token sets (from the brief)
-  models/              project, rules (labels/spans/regex), matcher
+  models/              project, rules (source highlighter), matcher, bridge
+  models/bridge.dart   HejmarkBridge: subprocess bridge to the Python+Rust engines
   state/               AppState (ChangeNotifier) + HimarkScope inherited widget
   screens/             home_scaffold + one file per tab
   widgets/             top bar, bottom nav, shelf, overlays, shared widgets
@@ -48,11 +80,15 @@ navigation rail with a multi-pane body (Rules alongside the Test editor).
 ```bash
 cd gui
 flutter pub get
-flutter run -d linux        # desktop preview (enabled)
-flutter run                 # or a connected Android/iOS device / emulator
-flutter test                # widget + phone-size flow tests
+flutter run -d linux        # desktop: the real engine bridge is live here
+flutter test                # widget flows (fake bridge) + live-engine bridge test
 flutter analyze             # clean
 ```
 
-Targets: **Android, iOS, and Linux desktop**. To add web or another desktop,
-run e.g. `flutter create --platforms=web .` first.
+Run from inside a checkout so the bridge can find `.venv` and the Rust `find`
+binary; build them first with `uv sync` and `cargo build` (in `<root>/rust`) if
+needed.
+
+Targets: **Android, iOS, and Linux desktop**. The UI runs on all three, but the
+engine bridge is a desktop capability (it shells out to the Python and Rust
+toolchains); on a device without them the Test tab reports `engine unavailable`.

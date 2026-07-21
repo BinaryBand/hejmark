@@ -1,21 +1,6 @@
 import 'package:flutter/widgets.dart';
 
 import '../theme/tokens.dart';
-import 'project.dart';
-
-/// Human label shown above a rule's code. Mirrors `RULE_LABEL`.
-String ruleLabel(RuleKind kind) {
-  switch (kind) {
-    case RuleKind.email:
-      return 'Slug or handle';
-    case RuleKind.ipv4:
-      return 'IPv4 address';
-    case RuleKind.heading:
-      return 'Fenced heading block';
-    case RuleKind.custom:
-      return 'Custom pattern';
-  }
-}
 
 /// One coloured run of a rule's Himark source.
 @immutable
@@ -25,75 +10,73 @@ class CodeSpan {
   final Color color;
 }
 
-/// The syntax-highlighted spelling of each rule kind. Mirrors `RULE_SPANS`;
-/// [brace] is the token colour used for structural braces (onSurfaceVariant).
-List<CodeSpan> ruleSpans(RuleKind kind, Color brace) {
-  switch (kind) {
-    case RuleKind.email:
-      return <CodeSpan>[
-        CodeSpan('{', brace),
-        const CodeSpan('@l,@d,.,_,-', Syntax.identifier),
-        CodeSpan('}', brace),
-        const CodeSpan('[1..]', Syntax.quantifier),
-        CodeSpan('{', brace),
-        const CodeSpan('@', Syntax.value),
-        CodeSpan('}', brace),
-        CodeSpan('{', brace),
-        const CodeSpan('@l,@d,-', Syntax.identifier),
-        CodeSpan('}', brace),
-        const CodeSpan('[1..]', Syntax.quantifier),
-        CodeSpan('{.}{', brace),
-        const CodeSpan('@l', Syntax.identifier),
-        CodeSpan('}', brace),
-        const CodeSpan('[2..]', Syntax.quantifier),
-      ];
-    case RuleKind.ipv4:
-      return <CodeSpan>[
-        CodeSpan('{', brace),
-        const CodeSpan('@d::0..255', Syntax.value),
-        CodeSpan('}{.}{', brace),
-        const CodeSpan('@d::0..255', Syntax.value),
-        CodeSpan('}{.}{', brace),
-        const CodeSpan('@d::0..255', Syntax.value),
-        CodeSpan('}{.}{', brace),
-        const CodeSpan('@d::0..255', Syntax.value),
-        CodeSpan('}', brace),
-      ];
-    case RuleKind.heading:
-      return <CodeSpan>[
-        CodeSpan('{@<}{', brace),
-        const CodeSpan('#', Syntax.special),
-        CodeSpan('}', brace),
-        const CodeSpan('[1..6]', Syntax.quantifier),
-        CodeSpan('{ }', brace),
-        const CodeSpan('[1..]', Syntax.quantifier),
-        CodeSpan('!{', brace),
-        const CodeSpan(r'\n', Syntax.escape),
-        CodeSpan('}', brace),
-        const CodeSpan('[1..]', Syntax.quantifier),
-        CodeSpan('{@>}', brace),
-      ];
-    case RuleKind.custom:
-      return <CodeSpan>[
-        CodeSpan('{', brace),
-        const CodeSpan('@l,@d', Syntax.identifier),
-        CodeSpan('}', brace),
-        const CodeSpan('[1..]', Syntax.quantifier),
-      ];
+/// Tokenises a rule's real Himark [source] into coloured runs for display.
+///
+/// This is a display-only lexer — it never has to be exact, only readable — so
+/// it classifies char by char: structure (`{ } [ ]` and `,`) takes [brace];
+/// `@name` splices, `\x` escapes, `^n` exponents, digit/range values, and the
+/// `! & _` operators each take their own [Syntax] colour; anything else (a
+/// literal face character) reads as an identifier.
+List<CodeSpan> spansFor(String source, Color brace) {
+  final spans = <CodeSpan>[];
+  void emit(String text, Color color) {
+    if (text.isEmpty) return;
+    // Coalesce adjacent runs of the same colour so the RichText stays compact.
+    if (spans.isNotEmpty && spans.last.color == color) {
+      final prev = spans.removeLast();
+      spans.add(CodeSpan(prev.text + text, color));
+    } else {
+      spans.add(CodeSpan(text, color));
+    }
   }
+
+  var i = 0;
+  while (i < source.length) {
+    final ch = source[i];
+    if (ch == '{' || ch == '}' || ch == '[' || ch == ']' || ch == ',') {
+      emit(ch, brace);
+      i++;
+    } else if (ch == r'\' && i + 1 < source.length) {
+      emit(source.substring(i, i + 2), Syntax.escape);
+      i += 2;
+    } else if (ch == '@') {
+      var j = i + 1;
+      while (j < source.length && _isLetter(source[j])) {
+        j++;
+      }
+      emit(source.substring(i, j), Syntax.identifier);
+      i = j;
+    } else if (ch == '^') {
+      var j = i + 1;
+      while (j < source.length && _isDigit(source[j])) {
+        j++;
+      }
+      emit(source.substring(i, j), Syntax.quantifier);
+      i = j;
+    } else if (_isDigit(ch) || ch == '.') {
+      var j = i;
+      while (j < source.length && (_isDigit(source[j]) || source[j] == '.')) {
+        j++;
+      }
+      emit(source.substring(i, j), Syntax.value);
+      i = j;
+    } else if (ch == '!' || ch == '&' || ch == '_') {
+      emit(ch, Syntax.special);
+      i++;
+    } else {
+      emit(ch, Syntax.identifier);
+      i++;
+    }
+  }
+  return spans;
 }
 
-/// The regex approximation each rule matches with. Mirrors `RULE_RE`. `custom`
-/// has no matcher (returns null), exactly as the brief.
-RegExp? ruleRegExp(RuleKind kind) {
-  switch (kind) {
-    case RuleKind.email:
-      return RegExp(r'[\w.\-]+@[\w\-]+\.[A-Za-z][\w.]*');
-    case RuleKind.ipv4:
-      return RegExp(r'\b(?:\d{1,3}\.){3}\d{1,3}\b');
-    case RuleKind.heading:
-      return RegExp(r'^#{1,6}\s.+$', multiLine: true);
-    case RuleKind.custom:
-      return null;
-  }
+bool _isLetter(String ch) {
+  final c = ch.codeUnitAt(0);
+  return (c >= 0x41 && c <= 0x5a) || (c >= 0x61 && c <= 0x7a);
+}
+
+bool _isDigit(String ch) {
+  final c = ch.codeUnitAt(0);
+  return c >= 0x30 && c <= 0x39;
 }
