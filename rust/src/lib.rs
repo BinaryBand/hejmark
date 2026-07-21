@@ -34,6 +34,7 @@
 //! [`floor::universe`] for why capping it without a budget open was worse than
 //! not capping it at all.
 
+pub mod ffi;
 pub mod floor;
 pub mod scan;
 pub mod surface;

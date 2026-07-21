@@ -43,3 +43,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# The on-device Himark engine: built from <root>/rust by tool/build_engine.sh,
+# never committed. F-Droid builds from source and rejects prebuilt binaries.
+android/app/src/main/jniLibs/

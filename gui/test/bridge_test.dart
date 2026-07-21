@@ -65,4 +65,32 @@ void main() {
     final run = await bridge.matchAll(<Rule>[_rule('{a..')], 'abc');
     expect(run.error, isNotNull);
   });
+
+  test('a pipeline rule falls through the device engine to Python', () async {
+    if (skipIfUnavailable()) return;
+    // `[where ...]` is a value cut, which only the full compiler expands: the
+    // device engine reports it `unported` and the bridge retries it here. The
+    // hits prove the retry really happened — the cut excludes 25 and 71.
+    final run = await bridge.matchAll(<Rule>[
+      _rule(r'{0..9}^2[where 30..59]'),
+    ], 'ages 25 42 58 71 done');
+    expect(run.error, isNull);
+    expect(run.matches.map((m) => m.text), <String>['42', '58']);
+  });
+
+  test('both paths contribute to one run, each keeping its slot', () async {
+    if (skipIfUnavailable()) return;
+    // Slot 0 is floor-subset (device engine), slot 1 is a pipeline (Python).
+    // Colours follow the slot, so the merge must not renumber them.
+    final run = await bridge.matchAll(<Rule>[
+      _rule(r'{\#}{@hex}^6'),
+      _rule(r'{0..9}^2[where 30..59]'),
+    ], 'bg #ff8800 age 42 end');
+    expect(run.error, isNull);
+    final bySlot = <int, String>{
+      for (final m in run.matches) m.slot: m.text,
+    };
+    expect(bySlot[0], '#ff8800');
+    expect(bySlot[1], '42');
+  });
 }

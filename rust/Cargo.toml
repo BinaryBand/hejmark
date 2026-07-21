@@ -11,3 +11,8 @@ publish = false
 [lib]
 name = "hejmark"
 path = "src/lib.rs"
+# `cdylib` is for the Flutter app under gui/: Android cannot spawn the Python
+# compiler, so it links this crate and calls src/ffi.rs over Dart's FFI. `rlib`
+# has to be named alongside it or the `find` binary and the test harness lose
+# the Rust-native library they link against.
+crate-type = ["rlib", "cdylib"]
