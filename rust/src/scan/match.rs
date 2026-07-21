@@ -15,7 +15,8 @@
 //! `_try_product` threads those bound faces along. That variant needs a
 //! resolver channel back into a compiler this crate does not have, so a factor
 //! here is a plain universe and the bound-face accumulator it needs is left
-//! out. A program carrying a late slot is one a host must run in Python.
+//! out. A program carrying a late slot is one a host must run in Python, and
+//! [`super::super::execute`] says so at load rather than leaving it implicit.
 //!
 //! As everywhere in this crate, text and faces are `[u32]` code points, so a
 //! span is a code-point offset -- matching the Python's per-character indexing.

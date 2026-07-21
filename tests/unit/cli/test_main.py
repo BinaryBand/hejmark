@@ -179,3 +179,42 @@ def test_emit_json_rejects_a_back_reference(tmp_path: Path) -> None:
     query.write_text("{a,b}{$1}")
     result = runner.invoke(app, ["emit-json", str(query)])
     assert result.exit_code == 2  # a usage error, the way click reports a bad argument
+
+
+def test_emit_program_prints_the_versioned_program(tmp_path: Path) -> None:
+    script = tmp_path / "s.hmk"
+    script.write_text('{a} => "x"\n')
+    result = runner.invoke(app, ["emit-program", str(script)])
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["format"] == "hejmark-program"
+    assert payload["version"] == 1
+    assert payload["sentinels"] == []
+    assert [step["kind"] for step in payload["statements"][0]["steps"]] == ["query", "template"]
+
+
+def test_emit_program_writes_to_an_out_file(tmp_path: Path) -> None:
+    script = tmp_path / "s.hmk"
+    out = tmp_path / "s.json"
+    script.write_text('{a} => "x"')
+    result = runner.invoke(app, ["emit-program", str(script), "--out", str(out)])
+    assert result.exit_code == 0
+    assert json.loads(out.read_text())["format"] == "hejmark-program"
+    assert "OK" in result.output
+
+
+def test_emit_program_keeps_a_back_reference_where_emit_json_refuses_it(tmp_path: Path) -> None:
+    """A whole script has somewhere to put a late slot; a bare query does not."""
+    script = tmp_path / "s.hmk"
+    script.write_text('{a,b}{$1} => "x"')
+    result = runner.invoke(app, ["emit-program", str(script)])
+    assert result.exit_code == 0
+    factors = json.loads(result.stdout)["statements"][0]["steps"][0]["factors"]
+    assert factors[1]["kind"] == "slot"
+
+
+def test_emit_program_rejects_an_unknown_name(tmp_path: Path) -> None:
+    script = tmp_path / "s.hmk"
+    script.write_text('{@nope} => "x"')
+    result = runner.invoke(app, ["emit-program", str(script)])
+    assert result.exit_code == 2  # a usage error, the way click reports a bad argument

@@ -6,15 +6,29 @@ Priority and rationale for outstanding work. This file only ranks what remains a
 
 ## Do next
 
-Ordered by dependency, not by size.
+**Nothing is ranked here.** The thirteen items this file has carried are done, and what remains is not work waiting on a decision but work waiting on a *consumer* -- three shapes, each of which is a to-do the day something asks for it and speculation until then:
 
-The one item left is what a device `run` additionally needs; nothing blocks it but a consumer.
+- **An iOS compiler.** The one real hole, and the deletion item below is why. `bridge.dart` reaches an embedded compiler on Android and a subprocess one inside a checkout; iOS gets neither and says `engine unavailable`. The seam takes a third `Compiler` and nothing else.
+- **A resolver channel for slotted programs.** A back-referencing factor crosses the wire as a late slot and is refused at load by any engine that is not the compiler that emitted it -- two of the eleven shipped scripts, including the north star. Closing it means a call *back* across the boundary per attempt, which is a protocol and not a format, and is not worth designing against no caller.
+- **A `run` in the GUI.** `hejmark_run_json` exists and is tested; `gui/`'s `Engine` interface is still find-only because the Test tab highlights spans. A second method, or a second `Engine`, the day the app wants to show a rewritten document.
 
-- [ ] **Teach the Rust port the Program wire format** -- `core/ir/wire.py` serializes whole compiled scripts (statements, templates, measures, sentinel table, late slots), versioned from day one; Rust currently reads only the bare-query shape from `core/ir/codec.py`. A Rust reader for the Program format gets it `run` (slot-free scripts) rather than just `find`. Slotted programs additionally need a resolver channel back into the compiler -- design that only when a consumer exists. This is also what a device `run` needs under the sequence above; the alternative there is to leave `run` in the embedded Python and give `Engine` a second method.
-
-The previous twelve are done; **Landed** records what they cost and, where the guess was wrong, what was actually true.
+**Landed** records what the thirteen cost and, where the guess was wrong, what was actually true.
 
 ## Landed
+
+### Teach the Rust port the Program wire format
+
+`rust/src/ir/{program,wire}.rs` reads a whole compiled script -- statements, templates, the contracting measure, the sentinel table, late slots -- and `rust/src/execute.rs` runs it. There is a `run` binary beside `find`, and `hejmark_run_json` beside `hejmark_find_json`, so both of the language's verbs now cross the boundary in both of its shapes. **Nine of the eleven shipped script examples produce byte-identical documents under both engines**, cross-checked in `tests/integration/test_rust_bridge.py` against `hejmark.run` as the oracle rather than against a second copy of the expectations.
+
+**The format had no producer, and that was half the work.** `core/ir/wire.py` has encoded programs since day one and `tests/unit/core/ir/test_wire.py` has covered it -- but nothing in the public API called `encode_program`, so there was no way for a host to *obtain* a program. "Teach Rust the format" turned out to begin in Python: `driver.compile_program`, `hejmark.emit_program`, and a seventh CLI command `emit-program`. A wire format with a decoder on both sides and an encoder nobody reaches is a format in name only, and it had been that way unnoticed because its own tests round-trip through the encoder they test.
+
+**The late slot is where the boundary actually falls, and it is wider than one construct.** The plan said "slot-free scripts", which sounded like an edge case. It is `demos/double-letter.hmk` and `demos/bubble-sort.hmk` -- and the second is the north star. So what Rust gained is `run` for nine of eleven shipped scripts, with the flagship on the far side. The refusal is at *load* and names the factor (`factor 4 back-references, and resolving it needs the compiler that emitted this program`), so a host is told before it spends anything, and `Program::is_late` answers the same question without loading at all. That is the honest shape of the port: not "Rust can run scripts" but "Rust can run scripts that do not read backwards".
+
+**`floor/work.rs`'s missing half closed for free.** Its doc comment has said "a contracting pass has no Rust runner yet" since the budget landed; `execute::iterate` is that runner, opening one budget per pass exactly as `execute._iterate` does. Verified rather than assumed: the two-letter bubble sort over 800 characters unwinds in 17 s with `a contracting pass ran past the host's work budget`, where before it had nothing to charge against.
+
+**A new binary would have shipped a known-bad diagnostic, so the diagnostic got fixed instead.** `find.rs` has always let a budget refusal surface as a raw `Box<dyn Any>` panic -- an existing gap this file recorded twice and never closed. Writing `run.rs` meant either copying it or ending it; `rust/src/diagnose.rs` is the shared flattening (`caught`, plus a `quiet_panics` hook that `RUST_BACKTRACE` turns back off), and both binaries and the FFI now go through one path. The FFI deliberately does not install the hook: a library has no business changing a host process's panic reporting.
+
+**Two smaller surprises.** The floor's scoped JSON reader had no `null` literal, because the floor schema has no optional field -- a slot's `reach` is the first, so the reader grew four characters' worth of parsing. And the engine needed no new algorithms at all: `precedes`, `canonical_face`, `factor_faces` and the matcher were already ported, so the whole item was data plumbing plus a transcription of `execute.py`. Rust tests went 114 to 143, Python 493 to 508.
 
 ### Delete `rust/src/surface/`
 

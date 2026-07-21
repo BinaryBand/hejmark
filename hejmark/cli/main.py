@@ -5,9 +5,11 @@ standard framework: declare commands with @app.command() and describe any
 arguments/options with typing.Annotated so `ty` sees real signatures.
 
 The commands: `find` (scan a target file with a query) and `run` (execute a
-whole script against a target file) are the language; `gen-parser` (rebuild the
-ANTLR parser from the grammars), `parse-file` (dump a parse tree) and `status`
-(version echo) are the tooling around it.
+whole script against a target file) are the language; `emit-json` and
+`emit-program` are the same two, stopped at the compiler so another engine can
+finish them; `gen-parser` (rebuild the ANTLR parser from the grammars),
+`parse-file` (dump a parse tree) and `status` (version echo) are the tooling
+around it.
 """
 
 from __future__ import annotations
@@ -119,6 +121,27 @@ def emit_json(
     else:
         out.write_text(payload)
         typer.echo(f"{query_file}: OK, floor JSON written to {out}")
+
+
+@app.command("emit-program")
+def emit_program(
+    script_file: Annotated[Path, SOURCE_ARG],
+    out: Annotated[
+        Path | None,
+        typer.Option("--out", "-o", help="Write the program JSON here instead of the console."),
+    ] = None,
+) -> None:
+    """Emit a whole script as the versioned Program JSON, the hand-off for a remote run."""
+    try:
+        payload = hejmark.emit_program(script_file.read_text())
+    except ValueError as exc:
+        msg = f"invalid script: {exc}"
+        raise click.UsageError(msg) from exc
+    if out is None:
+        typer.echo(payload)
+    else:
+        out.write_text(payload)
+        typer.echo(f"{script_file}: OK, program JSON written to {out}")
 
 
 @app.command("parse-file")

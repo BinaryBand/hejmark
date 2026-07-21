@@ -1,9 +1,10 @@
-//! The C ABI a non-Rust host calls: a compiled program and text in, spans out.
+//! The C ABI a non-Rust host calls: a compiled program and text in, an answer out.
 //!
-//! `bin/find.rs` is this crate's other entry point and assumes a host that can
-//! spawn processes. An Android app cannot, so it links the crate as a `cdylib`
-//! and calls [`hejmark_find_json`] instead -- the same shape `find` reads, the
-//! same [`crate::floor::json`] decoding it, behind a C ABI rather than a pipe.
+//! `bin/find.rs` and `bin/run.rs` are this crate's other entry points and assume
+//! a host that can spawn processes. An Android app cannot, so it links the crate
+//! as a `cdylib` and calls [`hejmark_find_json`] or [`hejmark_run_json`] instead
+//! -- the same shapes those binaries read, the same decoders reading them,
+//! behind a C ABI rather than a pipe.
 //!
 //! **The program is compiled before it arrives.** This crate parses no Himark
 //! and never has to: the host runs the real compiler and sends floor-AST JSON,
@@ -17,9 +18,15 @@
 //! a status line followed by a body:
 //!
 //! ```text
-//! ok\n                      -- then one "start\tend" line per match
+//! ok\n<body>                -- the body is what the entry point produces
 //! err\n<message>            -- the program is malformed, or the run was unaffordable
 //! ```
+//!
+//! There are two entry points and they differ only in what a program is and
+//! what an `ok` body holds. [`hejmark_find_json`] takes one query's floor AST
+//! and its body is one `start\tend` line per match; [`hejmark_run_json`] takes a
+//! whole compiled script ([`crate::ir::wire`]) and its body is the spliced
+//! document. `find` and `run`, the language's two verbs, over one reply shape.
 //!
 //! Spans are **code-point** offsets, exactly as `find` prints them. A host whose
 //! strings are UTF-16 (Dart, Java, JavaScript) must convert, or astral-plane text
@@ -32,21 +39,21 @@
 //! frames would be undefined behavior. [`catch`] turns each into an `err` reply.
 
 use std::ffi::{c_char, CStr, CString};
-use std::panic::{catch_unwind, AssertUnwindSafe};
 
+use crate::diagnose::caught;
+use crate::execute::run_text;
 use crate::floor::json::query_from_json;
 use crate::floor::syntax::QueryNode;
-use crate::floor::universe::{denote_shared, HimarkUnsettledError, Universe};
-use crate::floor::work::HimarkBudgetError;
+use crate::floor::universe::{denote_shared, Universe};
+use crate::ir::wire::program_from_json;
 use crate::scan::r#match::{finditer, Query};
 
 /// Matches an already-compiled `query` -- floor-AST JSON, as `emit-json` writes
 /// it and [`crate::floor::json`] reads it -- against `target`.
 ///
-/// The one entry point, because a compiled program is the only thing this crate
-/// can be handed: `bin/find.rs` has always taken this shape, and this puts it
-/// behind the C ABI too, for a host that can link a library but not spawn a
-/// process.
+/// One of two, and the narrower: a single query, and the answer is where it
+/// hits. `bin/find.rs` has always taken this shape, and this puts it behind the
+/// C ABI too, for a host that can link a library but not spawn a process.
 ///
 /// # Safety
 ///
@@ -68,7 +75,37 @@ pub unsafe extern "C" fn hejmark_find_json(
     into_c(reply)
 }
 
-/// Releases a string returned by the entry point above.
+/// Runs an already-compiled `program` -- the Program JSON `emit-program` writes
+/// and [`crate::ir::wire`] reads -- over `document`, returning the spliced
+/// result.
+///
+/// The other verb. Where [`hejmark_find_json`] reports where a query hits, this
+/// executes a whole script: statements in order, templates spliced, contracting
+/// statements run to settlement. A program carrying a late slot comes back as an
+/// `err` naming what it needs, because resolving one is a call into the compiler
+/// that emitted it and this library is not that compiler.
+///
+/// # Safety
+///
+/// Both arguments must be NUL-terminated UTF-8 strings that stay valid for the
+/// duration of the call, or null. The returned pointer is owned by the caller
+/// and must be released with [`hejmark_string_free`]; it is never null.
+#[no_mangle]
+pub unsafe extern "C" fn hejmark_run_json(
+    program: *const c_char,
+    document: *const c_char,
+) -> *mut c_char {
+    let reply = catch(|| {
+        let source = borrow(program)?;
+        let text = borrow(document)?;
+        let parsed =
+            program_from_json(source).map_err(|error| format!("invalid program JSON: {error}"))?;
+        run_text(&parsed, text).map_err(|error| error.to_string())
+    });
+    into_c(reply)
+}
+
+/// Releases a string returned by either entry point above.
 ///
 /// # Safety
 ///
@@ -108,28 +145,14 @@ unsafe fn borrow<'a>(text: *const c_char) -> Result<&'a str, String> {
 
 /// Runs `body`, converting both its `Err` and any panic into an `err` reply.
 ///
-/// The two engine errors are named explicitly because their messages are worth
-/// showing a user -- "this pattern costs more than the budget allows" is
-/// actionable where "internal error" is not.
+/// The flattening is [`crate::diagnose::caught`], shared with the two binaries;
+/// what is this module's own is that the result must never unwind past here --
+/// crossing a C ABI mid-unwind is undefined behavior, where a binary would
+/// merely print badly.
 fn catch(body: impl FnOnce() -> Result<String, String>) -> String {
-    let outcome = catch_unwind(AssertUnwindSafe(body));
-    match outcome {
-        Ok(Ok(found)) => format!("ok\n{found}"),
-        Ok(Err(message)) => format!("err\n{message}"),
-        Err(panic) => {
-            let message = if let Some(budget) = panic.downcast_ref::<HimarkBudgetError>() {
-                budget.message.clone()
-            } else if let Some(unsettled) = panic.downcast_ref::<HimarkUnsettledError>() {
-                unsettled.message.clone()
-            } else if let Some(text) = panic.downcast_ref::<String>() {
-                text.clone()
-            } else if let Some(text) = panic.downcast_ref::<&str>() {
-                (*text).to_string()
-            } else {
-                "the engine stopped unexpectedly".to_string()
-            };
-            format!("err\n{message}")
-        }
+    match caught(body) {
+        Ok(found) => format!("ok\n{found}"),
+        Err(message) => format!("err\n{message}"),
     }
 }
 
@@ -149,12 +172,15 @@ fn into_c(reply: String) -> *mut c_char {
 mod tests {
     use super::*;
 
+    /// The shape of both entry points, so one helper drives either.
+    type Entry = unsafe extern "C" fn(*const c_char, *const c_char) -> *mut c_char;
+
     /// Calls across the boundary the way a host does, and frees the reply.
-    fn call(program: &str, target: &str) -> String {
+    fn cross(entry: Entry, program: &str, target: &str) -> String {
         let program = CString::new(program).expect("test input has no NUL");
         let target = CString::new(target).expect("test input has no NUL");
         unsafe {
-            let reply = hejmark_find_json(program.as_ptr(), target.as_ptr());
+            let reply = entry(program.as_ptr(), target.as_ptr());
             let text = CStr::from_ptr(reply)
                 .to_str()
                 .expect("reply is UTF-8")
@@ -162,6 +188,14 @@ mod tests {
             hejmark_string_free(reply);
             text
         }
+    }
+
+    fn call(program: &str, target: &str) -> String {
+        cross(hejmark_find_json, program, target)
+    }
+
+    fn run(program: &str, document: &str) -> String {
+        cross(hejmark_run_json, program, document)
     }
 
     /// `{0..9}^4` as `hejmark emit-json` writes it. The fixtures here are all
@@ -240,5 +274,37 @@ mod tests {
     #[test]
     fn freeing_null_is_a_no_op() {
         unsafe { hejmark_string_free(std::ptr::null_mut()) };
+    }
+
+    /// `uni m = {a, b, &{a,b}}` then `{b}{a} <=>[@m] "{{$2}}{{$1}}"`, verbatim
+    /// from `hejmark emit-program`: a two-letter bubble sort, which is a query,
+    /// a template, a measure and a settlement loop in one program.
+    const BUBBLE: &str = r#"{"format": "hejmark-program", "version": 1, "sentinels": [], "statements": [{"kind": "iter", "query": {"kind": "query", "source": "", "factors": [{"kind": "universe", "universe": {"members": [{"kind": "face", "text": [98]}]}}, {"kind": "universe", "universe": {"members": [{"kind": "face", "text": [97]}]}}]}, "measure_name": "m", "measure": {"members": [{"kind": "face", "text": [97]}, {"kind": "face", "text": [98]}, {"kind": "product", "factors": [{"kind": "closure"}, {"kind": "universe", "universe": {"members": [{"kind": "face", "text": [97]}, {"kind": "face", "text": [98]}]}}]}]}, "template": {"kind": "template", "parts": [{"kind": "capture", "capture": "$2"}, {"kind": "capture", "capture": "$1"}]}}]}"#;
+
+    #[test]
+    fn a_whole_script_runs_and_the_body_is_the_document() {
+        assert_eq!(run(BUBBLE, "bbaa"), "ok\naabb");
+    }
+
+    #[test]
+    fn a_program_is_not_a_query_and_the_two_entry_points_say_so_differently() {
+        // Each refuses the other's payload by name, which is the whole reason
+        // they are two symbols rather than one that guesses.
+        assert!(call(BUBBLE, "bbaa").starts_with("err\ninvalid query JSON:"));
+        assert!(run(FOUR_DIGITS, "id 2024").starts_with("err\ninvalid program JSON:"));
+    }
+
+    #[test]
+    fn a_null_argument_is_refused_by_the_run_entry_point_too() {
+        let document = CString::new("text").expect("literal has no NUL");
+        unsafe {
+            let reply = hejmark_run_json(std::ptr::null(), document.as_ptr());
+            let text = CStr::from_ptr(reply)
+                .to_str()
+                .expect("reply is UTF-8")
+                .to_string();
+            hejmark_string_free(reply);
+            assert_eq!(text, "err\nnull argument");
+        }
     }
 }

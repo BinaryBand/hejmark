@@ -13,6 +13,7 @@ from collections.abc import Iterator
 
 from hejmark.adapters.parser import AntlrParser
 from hejmark.core.compiler.compile import lower as _lower
+from hejmark.core.driver import compile_program as _compile_program
 from hejmark.core.driver import finditer as _finditer
 from hejmark.core.driver import match as _match
 from hejmark.core.driver import parse as _parse
@@ -24,6 +25,7 @@ from hejmark.core.floor.universe import Entry, HimarkUnsettledError, Universe
 from hejmark.core.floor.work import HimarkBudgetError
 from hejmark.core.ir.codec import encode_query as _encode_query
 from hejmark.core.ir.errors import HimarkScopeError
+from hejmark.core.ir.wire import encode_program as _encode_program
 
 _to_ast = AntlrParser().to_ast
 
@@ -58,6 +60,24 @@ def emit_json(source: str) -> str:
     return json.dumps(_encode_query(_lower(_to_ast, source)))
 
 
+def emit_program(source: str) -> str:
+    """Emit a whole compiled script as the versioned Program JSON.
+
+    The script-level companion to :func:`emit_json`. That one emits a single
+    query's floor AST, which is all an engine needs to *find*; this emits the
+    program -- statements, templates, the contracting measure, the sentinel
+    table -- which is what an engine needs to *run*. Both are pure data, so
+    either can cross a process or a language boundary; only this one carries a
+    whole script.
+
+    A back-referencing factor rides the program as a late slot rather than
+    being refused, since the format can express one -- but resolving a slot
+    needs the compiler that emitted it, so a program carrying one executes only
+    in this process.
+    """
+    return json.dumps(_encode_program(_compile_program(_to_ast, source)))
+
+
 __all__ = [
     "Entry",
     "HimarkBudgetError",
@@ -70,6 +90,7 @@ __all__ = [
     "Query",
     "Universe",
     "emit_json",
+    "emit_program",
     "finditer",
     "match",
     "parse",

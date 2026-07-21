@@ -18,6 +18,7 @@ from hejmark.core.engine import execute
 from hejmark.core.engine.scan.match import Match, Query, load_query
 from hejmark.core.engine.scan.match import finditer as _finditer
 from hejmark.core.engine.scan.match import match as _match
+from hejmark.core.ir.program import Program
 
 
 def parse(to_ast: ToAst, source: str) -> Query:
@@ -51,3 +52,17 @@ def run(to_ast: ToAst, source: str, document: str) -> str:
     node, env = script(to_ast, source)
     program, resolver = compile_script(node, env)
     return execute.run(program, document, resolver)
+
+
+def compile_program(to_ast: ToAst, source: str) -> Program:
+    """Compile a whole script to its pure-data program, with no engine attached.
+
+    The same first half :func:`run` performs, stopping where the data is: what
+    comes back is serializable, so this is what a host in another process or
+    another language reads to execute a script itself. The resolver -- the one
+    back edge, and the one thing that is not data -- is dropped here, so a
+    program carrying a late slot is one only an in-process engine can run.
+    """
+    node, env = script(to_ast, source)
+    program, _resolver = compile_script(node, env)
+    return program

@@ -29,6 +29,14 @@
 //! A dependency-free JSON reader keeps the crate's zero-dependency footprint;
 //! the schema is small enough that a scoped reader is less risk than a general
 //! one, and the emitter on the Python side writes exactly this shape.
+//!
+//! This is the Rust end of `hejmark/core/ir/codec.py`, which the Python keeps a
+//! stratum higher than the floor. It stays here because the floor AST is all it
+//! reads -- but [`super::super::ir::wire`], the Program format wrapped *around*
+//! this one, does sit at that higher stratum, and it reads its universes with
+//! the `pub(crate)` half of this module rather than a second reader. One JSON
+//! implementation, two schemas layered on it, which is also why the shapes
+//! below cannot drift apart.
 
 use std::fmt;
 use std::rc::Rc;
@@ -53,7 +61,7 @@ impl fmt::Display for JsonError {
 
 impl std::error::Error for JsonError {}
 
-fn fault(message: impl Into<String>) -> JsonError {
+pub(crate) fn fault(message: impl Into<String>) -> JsonError {
     JsonError {
         message: message.into(),
     }
@@ -92,7 +100,7 @@ fn to_query(json: &Json) -> Result<QueryNode, JsonError> {
 
 /// Every nested node is decoded straight into an [`Rc`], so the tree the engine
 /// denotes is the tree it keys its memos on -- see [`super::universe`].
-fn to_universe(json: &Json) -> Result<Rc<UniverseNode>, JsonError> {
+pub(crate) fn to_universe(json: &Json) -> Result<Rc<UniverseNode>, JsonError> {
     let object = as_object(json)?;
     let members = as_array(field(object, "members")?)?
         .iter()
@@ -132,7 +140,7 @@ fn to_factor(json: &Json) -> Result<Factor, JsonError> {
     }
 }
 
-fn to_code_points(json: &Json) -> Result<Vec<u32>, JsonError> {
+pub(crate) fn to_code_points(json: &Json) -> Result<Vec<u32>, JsonError> {
     as_array(json)?.iter().map(to_code_point).collect()
 }
 
@@ -144,7 +152,7 @@ fn to_code_point(json: &Json) -> Result<u32, JsonError> {
     Ok(value as u32)
 }
 
-fn field<'a>(object: &'a [(String, Json)], key: &str) -> Result<&'a Json, JsonError> {
+pub(crate) fn field<'a>(object: &'a [(String, Json)], key: &str) -> Result<&'a Json, JsonError> {
     object
         .iter()
         .find(|(name, _)| name == key)
@@ -152,28 +160,28 @@ fn field<'a>(object: &'a [(String, Json)], key: &str) -> Result<&'a Json, JsonEr
         .ok_or_else(|| fault(format!("missing field {key:?}")))
 }
 
-fn as_object(json: &Json) -> Result<&[(String, Json)], JsonError> {
+pub(crate) fn as_object(json: &Json) -> Result<&[(String, Json)], JsonError> {
     match json {
         Json::Object(fields) => Ok(fields),
         _ => Err(fault("expected an object")),
     }
 }
 
-fn as_array(json: &Json) -> Result<&[Json], JsonError> {
+pub(crate) fn as_array(json: &Json) -> Result<&[Json], JsonError> {
     match json {
         Json::Array(items) => Ok(items),
         _ => Err(fault("expected an array")),
     }
 }
 
-fn as_str(json: &Json) -> Result<&str, JsonError> {
+pub(crate) fn as_str(json: &Json) -> Result<&str, JsonError> {
     match json {
         Json::Str(text) => Ok(text),
         _ => Err(fault("expected a string")),
     }
 }
 
-fn as_number(json: &Json) -> Result<u64, JsonError> {
+pub(crate) fn as_number(json: &Json) -> Result<u64, JsonError> {
     match json {
         Json::Number(value) => Ok(*value),
         _ => Err(fault("expected a non-negative integer")),
@@ -183,14 +191,15 @@ fn as_number(json: &Json) -> Result<u64, JsonError> {
 // --- a minimal JSON reader -------------------------------------------------
 
 /// The subset of JSON the floor schema uses.
-enum Json {
+pub(crate) enum Json {
+    Null,
     Number(u64),
     Str(String),
     Array(Vec<Json>),
     Object(Vec<(String, Json)>),
 }
 
-fn parse(text: &str) -> Result<Json, JsonError> {
+pub(crate) fn parse(text: &str) -> Result<Json, JsonError> {
     let mut reader = Reader {
         chars: text.chars().collect(),
         pos: 0,
@@ -241,9 +250,21 @@ impl Reader {
             Some('{') => self.object(),
             Some('[') => self.array(),
             Some('"') => Ok(Json::Str(self.string()?)),
+            Some('n') => self.null(),
             Some(c) if c.is_ascii_digit() => self.number(),
             _ => Err(fault("expected a JSON value")),
         }
+    }
+
+    /// The one literal the schema uses: a late slot's absent reach
+    /// (`super::super::ir::wire`). Booleans are not in the schema and are not read.
+    fn null(&mut self) -> Result<Json, JsonError> {
+        for expected in "null".chars() {
+            if self.bump() != Some(expected) {
+                return Err(fault("expected 'null'"));
+            }
+        }
+        Ok(Json::Null)
     }
 
     fn object(&mut self) -> Result<Json, JsonError> {

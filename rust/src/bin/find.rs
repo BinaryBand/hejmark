@@ -10,12 +10,14 @@ use std::env;
 use std::fs;
 use std::process;
 
+use hejmark::diagnose::{caught, quiet_panics};
 use hejmark::floor::json::query_from_json;
 use hejmark::floor::universe::{denote_shared, Universe};
 use hejmark::scan::r#match::{finditer, Query};
 
 fn main() {
-    if let Err(message) = run() {
+    quiet_panics();
+    if let Err(message) = caught(run) {
         eprintln!("{message}");
         process::exit(1);
     }

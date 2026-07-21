@@ -15,11 +15,13 @@
 //! memo hits included, since a run that re-asks a million answered questions
 //! has spent a million questions' worth of clock.
 //!
-//! A budget is opened by the entry point that owns a run -- one per match, so
-//! far, since [`super::super::scan::r#match`] is the only run this crate has
-//! ported; a contracting pass has no Rust runner yet. Where no budget is open,
-//! [`charge`] is free: the budget belongs to the caller that asked for a run,
-//! not to the algebra.
+//! A budget is opened by the entry point that owns a run, and there are now the
+//! same two the Python has: one per match in
+//! [`super::super::scan::r#match`], and one per contracting pass in
+//! [`super::super::execute`]. The outermost open budget is the one that holds,
+//! so a pass is priced whole rather than per match inside it. Where no budget is
+//! open, [`charge`] is free: the budget belongs to the caller that asked for a
+//! run, not to the algebra.
 //!
 //! One divergence from the Python is forced by the language rather than
 //! chosen: the Python raises `HimarkBudgetError` as an ordinary exception a
