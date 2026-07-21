@@ -1,0 +1,18 @@
+// The north star: sort each comma-separated list of numerals by value,
+// preserving each numeral's arrival width. No loops, no arithmetic -- a
+// single adjacent-swap statement iterated under the well-order @sorted,
+// which every pass must strictly descend.
+sentinel start
+sentinel end
+
+uni c      = {@C, !{\n}}
+uni line   = {@c, &@c}
+uni d      = {0..9}
+uni digits = {@d, &@d}
+uni value  = {0..9}[numerals padfree]
+uni list   = {@value, &{\,}{@value}}
+uni sorted = {{@start}{@list}{@end}, &{\n}{@start}{@list}{@end}}
+
+{@line} => "{{@start}}{{$}}{{@end}}"
+{@start,\,}{@digits}{\,}{{0..9}[where 0..$2 padfree], !{{0..9}[where $2 padfree]}}{@end,\,} <=>[@sorted] "{{$1}}{{$4}},{{$2}}{{$5}}"
+{@start,@end} => ""

@@ -1,0 +1,3 @@
+// Flag doubled letters: a letter factor followed by a back-reference to
+// itself matches only equal adjacent pairs.
+{a..z}{$1} => "{{$1}}!"

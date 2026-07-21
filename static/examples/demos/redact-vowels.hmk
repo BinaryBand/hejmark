@@ -1,0 +1,2 @@
+// Delete every vowel: an empty template is a redaction.
+{a,e,i,o,u} => ""

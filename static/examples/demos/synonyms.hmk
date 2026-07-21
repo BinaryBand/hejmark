@@ -1,0 +1,4 @@
+// Normalise any synonym to its canonical spelling: a fold wears every
+// synonym as a face, and the template writes face 0.
+uni animal = {{cat,feline,kitty}}
+{@animal} => "{{$0}}"

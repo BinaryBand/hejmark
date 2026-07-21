@@ -1,0 +1,3 @@
+// Wrap the whole document in <b>...</b> by tiling it as one spelling
+// and re-emitting it around the capture read $.
+{@spellings} => "<b>{{$}}</b>"

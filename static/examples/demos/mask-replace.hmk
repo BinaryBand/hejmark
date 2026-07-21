@@ -1,0 +1,10 @@
+// Replace `cat` only as a whole word. Mask every word between two
+// sentinels, rewrite the masked target, then strip the sentinels -- so
+// `cat` inside `catalog` is never touched.
+sentinel start
+sentinel end
+uni c = {a..z}
+uni word = {@c, &@c}
+{@word} => "{{@start}}{{$}}{{@end}}"
+{@start}{cat}{@end} => "feline"
+{@start,@end} => ""
