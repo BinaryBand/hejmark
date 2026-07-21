@@ -10,41 +10,58 @@ memory for the session.
 
 ## Engine bridge
 
-`lib/models/bridge.dart` (`HejmarkBridge`) has two paths to a match. They differ
-in how much of the *compiler* is in reach; the matching is the same Rust engine
-either way.
+`lib/models/bridge.dart` (`HejmarkBridge`) has three paths to a match. They
+differ in how much of the *compiler* is in reach; the matching is the same Rust
+engine every time. `lib/models/backend.dart` is where that shows: a `Compiler`
+lowers a rule to a program, an `Engine` runs a program over text, and a
+`Backend` is one of each.
 
 ```text
 on-device   rule.source ──libhejmark.so: parse ▸ denote ▸ match──▶ spans
-subprocess  rule.source ──emit-json (python)──▶ floor JSON ──find (rust)──▶ spans
+embedded    rule.source ──emit-json (embedded python)──▶ floor JSON ──┐
+subprocess  rule.source ──emit-json (python subprocess)─▶ floor JSON ─┤
+                                     libhejmark.so / find (rust) ◀────┘──▶ spans
 ```
 
-**On-device** (`lib/models/native_engine.dart`) is the one that works on a
-phone. `<root>/rust` is compiled as a C-ABI shared library (`libhejmark.so`,
-`rust/src/ffi.rs`) and linked into the app, so no toolchain is involved. It
-parses Himark itself — but only the **floor subset**: the brace syntax that
-already is the language's six constructors, plus the `^n` exponent and the
-`@hex` splice. Pipelines, back-references, definitions and registers are
-reported as `unported` rather than mis-parsed.
+**On-device** (`lib/models/native_backend.dart`) needs nothing at all.
+`<root>/rust` is compiled as a C-ABI shared library (`libhejmark.so`,
+`rust/src/ffi.rs`) and linked into the app. It parses Himark itself — but only
+the **floor subset**: the brace syntax that already is the language's six
+constructors, plus the `^n` exponent and the `@hex` splice. Pipelines,
+back-references, definitions and registers are reported as `unported` rather
+than mis-parsed.
 
-**Subprocess** is the repository's portable hand-off, and compiles *all* of
-L1.5: each rule's source goes through the Python package (`hejmark emit-json`,
-the ANTLR parser + L1.5 expander) into floor-AST JSON, and the Rust `find`
-binary denotes that JSON and matches it. Python parses, Rust matches, JSON in
-between — see the root `CLAUDE.md`. It needs `<root>/.venv/bin/python` and
-`<root>/rust/target/debug/find`, so it is a **desktop-inside-a-checkout**
+**Embedded** (`lib/models/embedded_backend.dart`, Android) closes that gap on a
+phone. Chaquopy embeds CPython in the APK, so the repository's *real* compiler —
+ANTLR parser, L1.5 expansion, `emit_json` — runs on the device and emits the
+same floor-AST JSON the desktop emits. The program then goes to
+`hejmark_find_json` in the library already linked beside it: the compiler moved
+onto the device, the engine never left Rust. Dart reaches it over a
+MethodChannel (`android/.../MainActivity.kt`), because there is no C ABI to a
+Python interpreter.
+
+**Subprocess** is the same hand-off with the compiler in another process:
+`<root>/.venv/bin/python -m hejmark emit-json` into `<root>/rust/target/debug/
+find`. It compiles all of L1.5 too, and is a **desktop-inside-a-checkout**
 capability.
 
-The bridge runs the device engine over every rule first, then retries only what
-came back `unported` against the subprocess. So a phone matches the common rule
-with no toolchain at all, a desktop additionally matches everything else, and
-with neither reachable the Test tab reports `engine unavailable`.
+A rule goes to the first backend that will **compile** it, which is what makes
+the list a preference order: the floor subset answers the common rule without
+waking an interpreter, and whatever it refuses as `unported` falls through. So a
+phone now matches *every* rule the language can spell, a desktop does the same
+without Chaquopy, and with nothing reachable the Test tab reports `engine
+unavailable`.
 
-- Build the device engine with `./tool/build_engine.sh` before running or
-  packaging. The `.so` files it produces are **not committed** — F-Droid builds
-  from source and rejects prebuilt binaries — so an APK built without it ships
-  no engine.
-- Floor JSON is cached per rule source, so a rule is re-parsed only when edited.
+- Build the device engine with `./tool/build_engine.sh` and stage the compiler
+  with `./tool/stage_python.sh` before running or packaging. Neither output is
+  committed — F-Droid builds from source and rejects prebuilt binaries — so an
+  APK built without them ships no engine and no compiler. The Gradle build fails
+  loudly on a missing staged compiler; a missing engine it cannot see.
+- Embedding CPython costs about **13.7 MB per ABI** (interpreter, stdlib, and
+  the one pure-Python dependency `antlr4-python3-runtime`). The `cli/` layer is
+  dropped during staging, which is what keeps `typer` off the device.
+- Every `Compiler` caches per rule source, refusals included, so a rule is
+  compiled only when edited.
 - The Rust matcher's maximal-munch does not terminate on an unbounded closure
   (a bare `{X,&X}` Kleene star), so both paths run under a time budget and a
   pattern that blows it shows `pattern too complex`. The device path also runs
@@ -56,7 +73,11 @@ Widget tests inject a synchronous `Bridge` fake (`test/fake_bridge.dart`) so
 flows stay deterministic without any engine — it answers per rule, so switching
 a rule off really does drop its hits. `test/bridge_test.dart` exercises the live
 Python+Rust path and `test/native_engine_test.dart` the on-device library; each
-skips itself when what it needs is absent.
+skips itself when what it needs is absent. `test/backend_test.dart` pins the
+dispatch against fake backends and needs no toolchain at all, and
+`test/embedded_backend_test.dart` fakes the platform channel — plus one live
+test that runs the real `emit-json` output through the real device engine, which
+is the embedded path with only Chaquopy standing in for the transport.
 
 ## Screens
 
@@ -119,25 +140,34 @@ only a placement around `RulesPanel`.
 cd gui
 flutter pub get
 ./tool/build_engine.sh      # the on-device engine — build it first
-flutter run -d linux        # desktop: both engine paths are live here
-flutter test                # widget flows (fake bridge) + both live engine paths
+./tool/stage_python.sh      # the on-device compiler — and this second
+flutter run -d linux        # desktop: both live engine paths run here
+flutter test                # widget flows (fake bridge) + every live path
 flutter analyze             # clean
-flutter build apk --debug   # an APK with the engine inside it
+flutter build apk --debug   # an APK with the engine and the compiler inside it
 ```
 
 `tool/build_engine.sh` needs `cargo`, `cargo-ndk` and the Android NDK, and
 cross-compiles `<root>/rust` for `armeabi-v7a`, `arm64-v8a` and `x86_64`
-(pass `--host-only` to skip Android and build just the desktop library).
+(pass `--host-only` to skip Android and build just the desktop library). Re-run
+it after any change to `rust/src/ffi.rs`: the Dart side binds every C symbol up
+front, so a stale library fails every call rather than only the new one.
+
+`tool/stage_python.sh` copies `<root>/hejmark` into the app's Chaquopy source
+directory, minus `cli/`, generating the ANTLR parser first if it is not there.
+The APK build fails if it has not run.
 
 For the subprocess path, run from inside a checkout so the bridge can find
 `.venv` and the Rust `find` binary; build them first with `uv sync` and
 `cargo build` (in `<root>/rust`) if needed.
 
 Targets: **Android, iOS, and Linux desktop**. The UI runs on all three. Android
-and Linux also match, through the engine linked into the app; the full L1.5
-compiler is a desktop-inside-a-checkout capability on top of that, since it
-shells out to the Python and Rust toolchains. iOS would need the library built
-and linked for it, which has not been done.
+and Linux match through the engine linked into the app, and **Android also
+compiles the whole language on device**, since Chaquopy embeds CPython there.
+Linux gets the same coverage only inside a checkout, by subprocess. iOS has
+neither: it would need the library built and linked for it, and — because
+Chaquopy is Android-only — a separate answer for embedding Python
+(python-apple-support or equivalent). Neither has been done.
 
 ## App identity
 

@@ -60,17 +60,27 @@ class NativeCompiler implements Compiler {
 
 /// Matches compiled programs over the C ABI, on a background isolate.
 class FfiEngine implements Engine {
-  FfiEngine(this._engine, {required this.timeout});
+  FfiEngine(this._engine, {required this.timeout, this.compiled = false});
 
   final NativeEngine _engine;
 
   /// How long to wait on the isolate before reporting the run as too complex.
   final Duration timeout;
 
+  /// Whether the programs are floor-AST JSON rather than Himark source — which
+  /// is to say, which [Compiler] this engine is paired with. The pairing is the
+  /// property, not the engine: the same library answers both.
+  final bool compiled;
+
   @override
   Future<List<EngineResult>> findAll(List<String> programs, String text) async {
     if (programs.isEmpty) return const <EngineResult>[];
-    final replies = await _engine.findAll(programs, text, timeout: timeout);
+    final replies = await _engine.findAll(
+      programs,
+      text,
+      timeout: timeout,
+      compiled: compiled,
+    );
     return <EngineResult>[
       for (final reply in replies)
         switch (reply.status) {

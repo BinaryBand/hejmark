@@ -77,6 +77,12 @@ class EngineReply {
 /// outside that subset comes back [EngineStatus.unported] rather than wrong,
 /// which is what lets the bridge retry it against Python when Python is there.
 ///
+/// That giving-up is avoidable where a real compiler *is* there. `findAll`'s
+/// `compiled` flag takes floor-AST JSON instead of source, which the library
+/// denotes without parsing anything — so the app's embedded CPython
+/// (`embedded_backend.dart`) compiles the whole language and still matches it
+/// here. Same engine, two ways in; only the way in was ever the limit.
+///
 /// Calls run on a background isolate. The engine's work budget bounds a hard
 /// pattern (`rust/src/floor/work.rs`), but "bounded" is millions of membership
 /// questions, so a bad rule can still take real time — off the UI thread it
@@ -138,16 +144,23 @@ class NativeEngine {
   /// Returns one reply per source, in order. A [timeout] abandons the wait; the
   /// isolate itself keeps going until the engine's own budget stops it, which is
   /// why this reports rather than cancels.
+  ///
+  /// [compiled] picks the way in. False, each source is Himark this library
+  /// parses for itself — the floor subset, and all a host without a compiler
+  /// can do. True, each is floor-AST JSON some real compiler already produced,
+  /// which is the same shape the `find` binary reads and carries no `unported`
+  /// answer, since nothing is left to compile. One engine either way.
   Future<List<EngineReply>> findAll(
     List<String> sources,
     String content, {
     Duration timeout = const Duration(seconds: 5),
+    bool compiled = false,
   }) async {
     if (sources.isEmpty) return const <EngineReply>[];
     final path = libraryPath;
     try {
       final replies = await Isolate.run(
-        () => _findAllSync(path, sources, content),
+        () => _findAllSync(path, sources, content, compiled: compiled),
       ).timeout(timeout);
       return replies.map(EngineReply.parse).toList();
     } on TimeoutException {
@@ -182,8 +195,14 @@ class NativeEngine {
 ///
 /// Replies cross as strings because that is trivially sendable and keeps the
 /// parsing — and any future protocol change — on one side of the boundary.
-List<String> _findAllSync(String path, List<String> sources, String content) {
+List<String> _findAllSync(
+  String path,
+  List<String> sources,
+  String content, {
+  required bool compiled,
+}) {
   final symbols = _Symbols.open(path);
+  final entry = compiled ? symbols.findJson : symbols.find;
   final target = content.toNativeUtf8();
   try {
     return <String>[
@@ -191,7 +210,7 @@ List<String> _findAllSync(String path, List<String> sources, String content) {
         () {
           final query = source.toNativeUtf8();
           try {
-            return symbols.take(symbols.find(query, target));
+            return symbols.take(entry(query, target));
           } finally {
             calloc.free(query);
           }
@@ -208,20 +227,26 @@ typedef _CheckC = Pointer<Utf8> Function(Pointer<Utf8> query);
 typedef _FreeC = Void Function(Pointer<Utf8> text);
 typedef _FreeDart = void Function(Pointer<Utf8> text);
 
-/// The three C entry points, bound in whichever isolate needs them.
+/// The C entry points, bound in whichever isolate needs them.
 class _Symbols {
-  _Symbols(this.find, this.check, this._free);
+  _Symbols(this.find, this.findJson, this.check, this._free);
 
   factory _Symbols.open(String path) {
     final library = DynamicLibrary.open(path);
     return _Symbols(
       library.lookupFunction<_FindC, _FindC>('hejmark_find'),
+      library.lookupFunction<_FindC, _FindC>('hejmark_find_json'),
       library.lookupFunction<_CheckC, _CheckC>('hejmark_check'),
       library.lookupFunction<_FreeC, _FreeDart>('hejmark_string_free'),
     );
   }
 
+  /// Himark source in, parsed here against the floor subset.
   final _FindC find;
+
+  /// A compiled floor AST in, parsed by nothing — it is already the AST.
+  final _FindC findJson;
+
   final _CheckC check;
   final _FreeDart _free;
 

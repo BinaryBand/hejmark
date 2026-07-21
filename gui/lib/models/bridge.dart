@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'backend.dart';
+import 'embedded_backend.dart';
 import 'matcher.dart';
 import 'native_backend.dart';
 import 'native_engine.dart';
@@ -40,8 +41,13 @@ abstract interface class Bridge {
 ///
 /// **On-device** (`native_backend.dart`): `rust/` linked into the app as a
 /// shared library and called over its C ABI. It compiles the floor subset of
-/// Himark, so it needs no toolchain and is the only backend that exists on a
-/// phone.
+/// Himark, so it needs no toolchain and is the backend of last resort
+/// everywhere.
+///
+/// **Embedded** (`embedded_backend.dart`, Android): the real compiler, running
+/// on CPython embedded in the app, emitting the same floor-AST JSON the
+/// subprocess path emits — and the same Rust engine matching it. This is what
+/// gives a phone the whole language.
 ///
 /// **By subprocess** (`subprocess_backend.dart`): `hejmark emit-json` lowers a
 /// rule to floor-AST JSON and the Rust `find` binary matches it. This compiles
@@ -112,6 +118,13 @@ class HejmarkBridge implements Bridge {
     final native = NativeEngine.instance(root: _root);
     if (native != null) {
       backends.add(nativeBackend(native, timeout: _findBudget));
+      // Second on the device, not first: the floor subset above answers the
+      // common rule without waking an interpreter, and this one picks up
+      // exactly what that refuses. Android only — Chaquopy is an Android
+      // Gradle plugin, so elsewhere nobody answers the channel.
+      if (Platform.isAndroid) {
+        backends.add(embeddedBackend(native, timeout: _findBudget));
+      }
     }
     final root = _root;
     final python = _python;

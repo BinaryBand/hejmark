@@ -47,3 +47,10 @@ app.*.map.json
 # The on-device Himark engine: built from <root>/rust by tool/build_engine.sh,
 # never committed. F-Droid builds from source and rejects prebuilt binaries.
 android/app/src/main/jniLibs/
+
+# The on-device compiler: <root>/hejmark staged here by tool/stage_python.sh for
+# Chaquopy to package. Generated for the same reason the engine is -- a vendored
+# second copy of the package would go stale, and this one is the real source
+# tree, one directory over. `himark_compiler.py` beside it IS committed: it is
+# the app's own entry point, not a copy of anything.
+android/app/src/main/python/hejmark/

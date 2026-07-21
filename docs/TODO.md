@@ -1,6 +1,6 @@
 # TODO: deferred increments
 
-<!-- cspell:words uncomputable hejmark valueline slugify catchable Chaquopy cdylib Himark unported typer antlr stdlib asymptotics pytest -->
+<!-- cspell:words uncomputable hejmark valueline slugify catchable Chaquopy cdylib Himark unported typer antlr stdlib asymptotics pytest ndk urllib APK MethodChannel -->
 
 Priority and rationale for outstanding work. This file only ranks what remains and says why; two ledgers stay authoritative -- the **"What this does not prove"** section of `static/lean/README.md` for the mechanization, and `docs/foundation/ROADMAP.md` for the layers. When an item lands, update its ledger first.
 
@@ -8,11 +8,9 @@ Priority and rationale for outstanding work. This file only ranks what remains a
 
 Ordered by dependency, not by size.
 
-The first two are one sequence -- **give the phone the real compiler** -- and are ordered so the device never loses a capability it already has. Today `rust/src/surface/parse.rs` is a second, partial front end that exists for exactly one reason: Android cannot spawn `hejmark emit-json`. It can never compile L1.5, since pipelines, definitions, registers and back-references are refused by name as `ParseRefusal::Unported`, and it is a standing divergence risk because it mirrors `emit-json`'s *observable output* by hand rather than deriving it. Embedding CPython on the device retires the whole thing. The third item is independent of the sequence but is what a device `run` additionally needs.
+The phone now has the real compiler; what is left of that sequence is the *deletion* it makes possible. `rust/src/surface/parse.rs` is a second, partial front end that existed for exactly one reason -- Android could not spawn `hejmark emit-json` -- and that reason is gone. It can never compile L1.5, since pipelines, definitions, registers and back-references are refused by name as `ParseRefusal::Unported`, and it is a standing divergence risk because it mirrors `emit-json`'s *observable output* by hand rather than deriving it. The second item is independent of it but is what a device `run` additionally needs.
 
-- [ ] **Compile on device with embedded CPython** -- a `Compiler` implementation backed by Chaquopy, the Gradle plugin that embeds CPython in an Android app; `gui/android/` is already Gradle, and Dart reaches it over a MethodChannel rather than FFI, since there is no C ABI to a Python interpreter. **The dependency footprint is the reason this is tractable at all.** The on-device path needs `adapters.build` -> `core.compiler` -> `emit_json` and nothing else: no CLI, so `typer` does not ship, and the one remaining runtime dependency (`antlr4-python3-runtime`) is pure Python, so there is no native wheel to cross-compile for four ABIs. What it costs is roughly 10--15 MB per ABI of interpreter and stdlib. **iOS is the open question and should be answered before this starts, not after** -- Chaquopy is Android-only, so an iOS build needs python-apple-support or an equivalent, which is a separate lift this item does not price.
-
-- [ ] **Take the FFI to compiled JSON and delete `rust/src/surface/`** -- once the device can compile, `ffi.rs` should take a program rather than source: `hejmark_find_json(program_json, target)` over the reader `floor/json.rs` already has, which is what `bin/find.rs` has always done. Then `surface/parse.rs` (650 lines), `surface/std.rs` (86) and the `unported` status all go, along with the retry branch in `bridge.dart` and `EngineStatus.unported` in `native_engine.dart`. The one entanglement is `HimarkScopeError` in `surface/ast.rs` (26 lines), which `scan/measure.rs` and `scan/capture.rs` import -- move it under `scan/` or `floor/` and the surface layer drops out clean. **Keeping the Rust engine here is a decision about constants, not asymptotics, and the margin is smaller than the port's reputation suggests.** Measured today with `uv run pytest -m benchmark`:
+- [ ] **Delete `rust/src/surface/`** -- `ffi.rs` already takes a program as well as source (`hejmark_find_json`, landed below), and the embedded compiler produces one for every rule the language has, so nothing on a device now *needs* the floor-subset parser. What goes: `surface/parse.rs` (650 lines), `surface/std.rs` (86), the `unported` status, the retry branch in `bridge.dart`, `EngineStatus.unported` in `native_engine.dart`, and `nativeBackend` itself. The one entanglement is `HimarkScopeError` in `surface/ast.rs` (26 lines), which `scan/measure.rs` and `scan/capture.rs` import -- move it under `scan/` or `floor/` and the surface layer drops out clean. **What to weigh before deleting:** the subset parser is now the *fallback*, and it is the only compiler that works on a platform Chaquopy does not cover -- which today means the Linux desktop build outside a checkout, and tomorrow means iOS. Deleting it makes an iOS answer load-bearing rather than optional. **Keeping the Rust engine, separately, is a decision about constants, not asymptotics, and the margin is smaller than the port's reputation suggests.** Measured with `uv run pytest -m benchmark`:
 
   | query | chars | python | rust | speedup |
   | --- | --- | --- | --- | --- |
@@ -25,9 +23,27 @@ The first two are one sequence -- **give the phone the real compiler** -- and ar
 
 - [ ] **Teach the Rust port the Program wire format** -- `core/ir/wire.py` serializes whole compiled scripts (statements, templates, measures, sentinel table, late slots), versioned from day one; Rust currently reads only the bare-query shape from `core/ir/codec.py`. A Rust reader for the Program format gets it `run` (slot-free scripts) rather than just `find`. Slotted programs additionally need a resolver channel back into the compiler -- design that only when a consumer exists. This is also what a device `run` needs under the sequence above; the alternative there is to leave `run` in the embedded Python and give `Engine` a second method.
 
-The previous ten are done; **Landed** records what they cost and, where the guess was wrong, what was actually true.
+The previous eleven are done; **Landed** records what they cost and, where the guess was wrong, what was actually true.
 
 ## Landed
+
+### Compile on device with embedded CPython
+
+Chaquopy 17 embeds CPython 3.11 in the APK; `gui/android/app/src/main/python/himark_compiler.py` calls `hejmark.emit_json`, `MainActivity.kt` carries it over a MethodChannel, and `gui/lib/models/embedded_backend.dart` pairs it with the Rust engine already linked beside it. A phone compiles every construct the language has.
+
+**The stated order was wrong, and item one could not land alone.** This file put "compile on device" before "take the FFI to compiled JSON", so the device would never lose a capability. But a compiler that emits floor-AST JSON needs an engine that *reads* floor-AST JSON, and on the device there was none -- `ffi.rs` took source only. So the additive half of the next item came along: `hejmark_find_json`, twenty lines over the `floor/json.rs` reader `bin/find.rs` has always used, meeting the source path at a shared `scan`. The subtractive half -- deleting `surface/` -- is what actually stayed behind, and it is the better-scoped item for having been separated.
+
+**The footprint estimate held exactly: 13.7 MB per ABI, against a guess of 10--15.** Interpreter, stdlib, and the one pure-Python dependency; the debug APK went 183 MB to 197 MB across three ABIs. `typer` does not ship because `stage_python.sh` drops `cli/` outright, which is what keeps the dependency list at a single wheel with no wheel to cross-compile.
+
+**Chaquopy's documented configuration is Groovy-only.** Every example writes `python { pip { ... } }` inside `defaultConfig`; in Kotlin DSL that is an unresolved reference, and the plugin exposes a top-level `chaquopy { }` extension instead. Ten minutes, and worth writing down.
+
+**The build's own Python leaked into this repository's lint gate.** Chaquopy stages a full pip environment under `gui/build/` per ABI, and `tests/test_lint.py::test_module_length` walks the filesystem rather than git -- so `urllib3` and `pip._vendor` started failing the 400-line rule. Ruff and ast-grep were untouched, because both honour `.gitignore` and the walk does not. `UNCOUNTED_DIRS` now names `build` beside `tests`.
+
+**`gui/tool/build_engine.sh` did not exist.** Three documents described it, `.gitignore` referred to it, and the `.so` files it supposedly produces were there -- built by hand at some point. It had to be written, and this change is exactly when: `native_engine.dart` binds every C symbol up front, so adding one to `ffi.rs` makes a stale library fail *every* call rather than only the new one. It builds all three ABIs through `cargo-ndk` plus the desktop library.
+
+**What is verified, and what is not.** The Rust entry point, the JSON payload, the Dart FFI binding, the compiler-to-engine pairing over the real `emit-json` output, the reply parsing, the caching, the dispatch, the APK's contents and the missing-stage guard are all covered by tests that ran. **Nobody has run the app on a device or emulator.** The one link no test here reaches is Chaquopy actually starting CPython on Android; the pairing test stands in for it by running the same compiler output through the same engine call on the desktop.
+
+**iOS is still unanswered**, and this item did not change that: Chaquopy is an Android Gradle plugin, so `bridge.dart` adds the backend under `Platform.isAndroid` and every other platform falls back to the floor subset. The seam holds -- an iOS answer is a third `Compiler` and nothing else -- but see the deletion item above for why it is now on the critical path.
 
 ### Carry the rewrites into the Rust port
 

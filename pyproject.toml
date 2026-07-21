@@ -89,6 +89,11 @@ ignore = [
 # whose annotations and arity policy (ANN, FBT003, C901) would document nothing.
 "gui/tests/**" = ["S", "PLR2004", "ANN", "D", "INP001", "SLF001"]
 "gui/tool/**" = ["T20", "ANN", "D", "FBT003", "INP001", "C901"]
+# The Android app's on-device compiler entry point, which Chaquopy calls by
+# module name off a directory it puts on sys.path -- so it is not, and cannot
+# be, part of an importable package (INP001). Everything else in the library
+# ruleset applies to it and is met.
+"gui/android/**" = ["INP001"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

@@ -27,6 +27,13 @@ MIRROR_EXEMPT = {"__init__.py", "__main__.py", "ports.py"}
 # rules below just as it is from ruff, ty, vulture, and ast-grep.
 GENERATED = "_gen"
 
+# Directory names whose contents are never authored source. `tests` is
+# free-form by design; `build` is output, and since the Android app embeds
+# CPython, `gui/build/` now holds a whole pip environment (Chaquopy stages one
+# per ABI). Both are gitignored, which is how ruff and ast-grep already skip
+# them -- the walk below reaches the filesystem directly and must be told.
+UNCOUNTED_DIRS = frozenset({"tests", "build"})
+
 
 def _run(cmd: list[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(cmd, capture_output=True, text=True, cwd=ROOT, check=False)
@@ -91,7 +98,7 @@ def test_module_length() -> None:
     offenders: list[str] = []
     for path in sorted(ROOT.rglob("*.py")):
         parts = path.relative_to(ROOT).parts
-        if any(part.startswith(".") for part in parts) or "tests" in parts:
+        if any(part.startswith(".") for part in parts) or UNCOUNTED_DIRS & set(parts):
             continue
         # _gen holds generated ANTLR code: not authored source, unavoidably long.
         if GENERATED in parts:

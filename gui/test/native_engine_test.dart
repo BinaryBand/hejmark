@@ -9,6 +9,32 @@ import 'package:himark_editor/models/native_engine.dart';
 const String _octet = r'{{0..9}^3,{0..9}^2,{0..9}}';
 const String _ipv4 = '$_octet{\\.}$_octet{\\.}$_octet{\\.}$_octet';
 
+/// A rule the on-device parser refuses: `where` is a pipeline, and pipelines
+/// are outside the floor subset.
+const String _wherePipeline = '{0..9}[where 8..12]';
+
+/// The same rule as `hejmark emit-json` compiles it — the program an embedded
+/// CPython hands the engine. Verbatim output, not hand-built: what is being
+/// pinned is that the two halves agree on a real payload.
+const String _whereProgram =
+    '{"universes": [{"members": [{"kind": "product", "factors": [{"kind": '
+    '"universe", "universe": {"members": [{"kind": "face", "text": [48]}, '
+    '{"kind": "product", "factors": [{"kind": "universe", "universe": '
+    '{"members": [{"kind": "face", "text": [49]}, {"kind": "face", "text": '
+    '[50]}, {"kind": "face", "text": [51]}, {"kind": "face", "text": [52]}, '
+    '{"kind": "face", "text": [53]}, {"kind": "face", "text": [54]}, {"kind": '
+    '"face", "text": [55]}, {"kind": "face", "text": [56]}, {"kind": "face", '
+    '"text": [57]}]}}]}, {"kind": "product", "factors": [{"kind": "universe", '
+    '"universe": {"members": [{"kind": "face", "text": [49]}]}}, {"kind": '
+    '"universe", "universe": {"members": [{"kind": "face", "text": [48]}, '
+    '{"kind": "face", "text": [49]}, {"kind": "face", "text": [50]}]}}]}, '
+    '{"kind": "subtract", "universe": {"members": [{"kind": "face", "text": '
+    '[48]}, {"kind": "product", "factors": [{"kind": "universe", "universe": '
+    '{"members": [{"kind": "face", "text": [49]}, {"kind": "face", "text": '
+    '[50]}, {"kind": "face", "text": [51]}, {"kind": "face", "text": [52]}, '
+    '{"kind": "face", "text": [53]}, {"kind": "face", "text": [54]}, {"kind": '
+    '"face", "text": [55]}]}}]}]}}]}}]}]}]}';
+
 /// The repository root, so a desktop test run finds the library `cargo build`
 /// produced. On a device it is resolved from the APK by name and this is null.
 Directory? _root() {
@@ -85,5 +111,33 @@ void main() {
     expect(engine.check(r'{$1}').status, EngineStatus.unported);
     expect(engine.check('{@padfree}').status, EngineStatus.unported);
     expect(engine.check(r'{0..9}^4').status, EngineStatus.ok);
+  });
+
+  test('a compiled program matches what this parser refuses', () async {
+    if (skipIfAbsent()) return;
+    // `{0..9}[where 8..12]` is a pipeline, so the line above would call it
+    // unported — and here is the same rule, compiled by the real compiler and
+    // matched by the same library. This is the whole of what embedding CPython
+    // buys, exercised without an Android device in reach.
+    expect(engine!.check(_wherePipeline).status, EngineStatus.unported);
+    final replies = await engine
+        .findAll(<String>[_whereProgram], '7 8 9 10 11 12 13', compiled: true);
+    expect(replies.single.status, EngineStatus.ok);
+    expect(replies.single.spans, <(int, int)>[
+      (2, 3),
+      (4, 5),
+      (6, 8),
+      (9, 11),
+      (12, 14),
+    ]);
+  });
+
+  test('a malformed program is an error rather than a crash', () async {
+    if (skipIfAbsent()) return;
+    final replies = await engine!.findAll(<String>[
+      '{"universes": 3}',
+    ], 'text', compiled: true);
+    expect(replies.single.status, EngineStatus.error);
+    expect(replies.single.message, contains('invalid query JSON'));
   });
 }
