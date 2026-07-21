@@ -9,7 +9,8 @@ Priority and rationale for outstanding work. This file only ranks what remains a
 Ordered by dependency, not by size.
 
 - [ ] **Carry the rewrites into the Rust port** -- the port is now *slower* than Python on every measured row, and the four rewrites that did it are all portable. Engine performance, below.
-- [ ] **Bound the last split search** -- `capture._splits` is the one that did not get the cut bound, because its factors are a different type. Small and self-contained.
+- [ ] **Bound the last split search** -- `capture._splits` is the one that did not get the cut bound, because its factors are a different type (`Universe | Slot`, and a slot has no reach until its reads bind). The clean fix is now visible: a compiler-computed reach *bound* riding `LateSlot` -- the compiler knows the unit's shape modulo its reads, and a face substitution can only lengthen reach by the read's own length, so a sound bound is computable at compile time and would let `reach.cuts` serve slotted factors.
+- [ ] **Teach the Rust port the Program wire format** -- `core/ir/wire.py` serializes whole compiled scripts (statements, templates, measures, sentinel table, late slots), versioned from day one; Rust currently reads only the bare-query shape from `core/ir/codec.py`. A Rust reader for the Program format gets it `run` (slot-free scripts) rather than just `find`. Slotted programs additionally need a resolver channel back into the compiler -- design that only when a consumer exists.
 - [ ] **Re-time the `programs/` tier** -- its stated blocker was matcher cost, and that blocker is gone. Deferred, below.
 
 The previous four are done; **Landed** records what they cost and, where the guess was wrong, what was actually true.
@@ -18,7 +19,7 @@ The previous four are done; **Landed** records what they cost and, where the gue
 
 ### Refuse past a work budget
 
-`hejmark/core/floor/work.py`. `budgeted` opens a budget over a run and `charge` spends it; `HimarkBudgetError` is the diagnostic, exported beside the other four. `match` and `finditer` open one per match, `emit._iterate` one per contracting pass, and the outermost open budget is the one that holds, so a pass is priced whole rather than per match inside it.
+`hejmark/core/floor/work.py`. `budgeted` opens a budget over a run and `charge` spends it; `HimarkBudgetError` is the diagnostic, exported beside the other four. `match` and `finditer` open one per match, `execute._iterate` one per contracting pass, and the outermost open budget is the one that holds, so a pass is priced whole rather than per match inside it.
 
 **The unit was the surprise, and it decided where the module lives.** The obvious charge is one matcher probe, and that measures nothing: at 120 characters the closure scan below spent **four** probes and eleven seconds, because the cost is *inside* a single `contains`. So the unit is one membership question -- one `Universe.contains` call, memo hits included, since re-asking an answered question still costs the asking -- and the module therefore sits on the floor, the only layer that can see the work. Denotation stays total; a budget decides only whether this host keeps computing, which is exactly L2's remit.
 
@@ -32,7 +33,7 @@ The previous four are done; **Landed** records what they cost and, where the gue
 
 ### Chart memo across start positions
 
-`match._Search.chart`, keyed on `(factor index, start position)` and shared across start positions and across the matches of one `finditer`. `_plain` marks the first depth whose tail carries no `Late`, and only from there down does the chart apply -- a back-referencing factor denotes only under its bindings, so the same depth at the same position is not the same question twice.
+`match._Search.chart`, keyed on `(factor index, start position)` and shared across start positions and across the matches of one `finditer`. `_plain` marks the first depth whose tail carries no `Slot`, and only from there down does the chart apply -- a back-referencing factor denotes only under its bindings, so the same depth at the same position is not the same question twice.
 
 **It does nothing for the queries that looked slow, and everything for a shape nobody had measured.** On two- and three-factor closure queries it is inside the noise, because the membership memo one level down already collapses those subproblems. On a product of many factors it moves the degree exactly as advertised: `{@r}` six times over 32 characters went from **70.2 s to 0.09 s**, and the chart column is flat in the factor count where the plain column grows like $n^{k}$.
 

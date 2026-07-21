@@ -1,4 +1,4 @@
-r"""Walks an ANTLR parse tree into a faithful :mod:`hejmark.core.surface.ast` AST.
+r"""Walks an ANTLR parse tree into a faithful :mod:`hejmark.core.compiler.ast` AST.
 
 The grammar carries the classification, so this module only transcribes: every
 labelled alternative (``# UniDecl``, ``# RangeMember``, ``# QueryStep``, ...)
@@ -15,8 +15,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from hejmark.core.floor.syntax import Closure, Face, Final, HimarkSyntaxError, Range
-from hejmark.core.surface.ast import (
+from hejmark.core.compiler.ast import (
     DefDecl,
     Expr,
     Interp,
@@ -39,6 +38,7 @@ from hejmark.core.surface.ast import (
     UniverseNode,
     ValueCut,
 )
+from hejmark.core.floor.syntax import Closure, Face, Final, HimarkSyntaxError, Range
 
 # The three mnemonic escapes; every other `\x` spells `x` itself. Whitespace
 # is insignificant inside braces and carved out of the face alphabet, so these

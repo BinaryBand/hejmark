@@ -15,8 +15,8 @@ from antlr4 import CommonTokenStream, InputStream
 from antlr4.error.ErrorListener import ErrorListener
 
 from hejmark.adapters.build import build
+from hejmark.core.compiler.ast import ScriptNode
 from hejmark.core.floor.syntax import HimarkSyntaxError
-from hejmark.core.surface.ast import ScriptNode
 
 
 class GeneratedParserMissingError(RuntimeError):
@@ -75,7 +75,7 @@ class AntlrParser:
         return errors
 
     def to_ast(self, source: str) -> ScriptNode:
-        """Parse *source* into a faithful `core.surface` AST.
+        """Parse *source* into a faithful `core.compiler` AST.
 
         Raises:
             GeneratedParserMissingError: `hejmark.adapters._gen` doesn't exist.

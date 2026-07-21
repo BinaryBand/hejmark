@@ -12,20 +12,18 @@ import json
 from collections.abc import Iterator
 
 from hejmark.adapters.parser import AntlrParser
-from hejmark.core import emit
-from hejmark.core.emit import HimarkSentinelError
-from hejmark.core.engine import finditer as _finditer
-from hejmark.core.engine import floor_forms as _floor_forms
-from hejmark.core.engine import match as _match
-from hejmark.core.engine import parse as _parse
-from hejmark.core.engine import script as _script
-from hejmark.core.floor.json import encode_query as _encode_query
+from hejmark.core.compiler.compile import lower as _lower
+from hejmark.core.driver import finditer as _finditer
+from hejmark.core.driver import match as _match
+from hejmark.core.driver import parse as _parse
+from hejmark.core.driver import run as _run
+from hejmark.core.engine.execute import HimarkSentinelError
+from hejmark.core.engine.scan.match import Match, MatchPart, Query
 from hejmark.core.floor.syntax import HimarkSyntaxError
 from hejmark.core.floor.universe import Entry, HimarkUnsettledError, Universe
 from hejmark.core.floor.work import HimarkBudgetError
-from hejmark.core.scan.match import Match, MatchPart, Query
-from hejmark.core.surface.ast import HimarkScopeError
-from hejmark.core.surface.resolve import statements as _statements
+from hejmark.core.ir.codec import encode_query as _encode_query
+from hejmark.core.ir.errors import HimarkScopeError
 
 _to_ast = AntlrParser().to_ast
 
@@ -47,8 +45,7 @@ def finditer(query: Query | str, text: str) -> Iterator[Match]:
 
 def run(source: str, text: str) -> str:
     """Run a whole script against *text*, returning the spliced document."""
-    node, env = _script(_to_ast, source)
-    return emit.run(_statements(node), text, env)
+    return _run(_to_ast, source, text)
 
 
 def emit_json(source: str) -> str:
@@ -58,7 +55,7 @@ def emit_json(source: str) -> str:
     result is the portable hand-off the Rust ``find`` binary reads back. A
     back-referencing query cannot be lowered ahead of a binding and is refused.
     """
-    return json.dumps(_encode_query(_floor_forms(_to_ast, source)))
+    return json.dumps(_encode_query(_lower(_to_ast, source)))
 
 
 __all__ = [

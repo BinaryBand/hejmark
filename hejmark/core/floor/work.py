@@ -1,7 +1,7 @@
 """The work budget: what a run may spend before it is refused rather than waited on.
 
 `L2.md` generalizes a rule the tree already states twice --
-:data:`~hejmark.core.scan.capture.BUDGET` over a factor read,
+:data:`~hejmark.core.engine.scan.capture.BUDGET` over a factor read,
 ``valueline.RADIX_BUDGET`` over a value cut -- to the runs themselves: the host
 holds a work budget over a match and over a contracting pass exactly as it holds
 one over a read. Its *existence* is the contract; its size is a choice.

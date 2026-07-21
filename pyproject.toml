@@ -136,27 +136,81 @@ exhaustive = true
 exhaustive_ignores = ["__main__"]
 
 [[tool.importlinter.contracts]]
-# The pipeline, made structural. The load-bearing rule of the design is that
-# L1.5 never reaches denotation: core.floor implements the six constructors and
-# must not know the surface exists, because expansion's job is to have rewritten
-# the surface away before denote() is ever called. Stating it as layers means
-# `lint-imports` fails the moment anything in floor/ reaches upward, instead of
-# the invariant resting on reviewer attention.
+# The boundary, made structural. compiler and engine are independent siblings
+# ("|" marks two packages sharing one layer): the compiler produces the
+# pure-data Program (core.ir) and the engine consumes it, and the only back
+# edge -- the late resolver -- crosses as a callback value, never an import.
+# Both sit on the shared strata: core.ir (the payload, its codec, the shared
+# exceptions) over core.floor (L1 denotation -- shared because expansion
+# itself performs bounded denotation-time reads: expand._zero,
+# valueline.digits). Only core.driver, the composition root, sees both sides.
 #
-# `exhaustive = true` also forces the placement question to be answered: a new
-# core module that is not named here is a contract violation, so "which stratum
-# does this belong to?" gets decided when the module is written.
-name = "core pipeline"
+# `exhaustive = true` forces the placement question to be answered: a new
+# core package that is not named here is a contract violation, so "which side
+# of the boundary is this?" gets decided when the module is written.
+name = "core partition"
 type = "layers"
 containers = ["hejmark.core"]
 layers = [
-    "emit",
-    "engine",
+    "driver",
+    "compiler | engine",
+    "ir",
+    "floor",
+]
+exhaustive = true
+
+[[tool.importlinter.contracts]]
+# Belt and braces: the sibling independence above, stated as its own contract
+# so weakening the layer list can never silently permit a crossing.
+name = "compiler and engine are independent"
+type = "independence"
+modules = [
+    "hejmark.core.compiler",
+    "hejmark.core.engine",
+]
+
+[[tool.importlinter.contracts]]
+# The compiler's three phases, in order: resolve (P1) under expand and its
+# helpers (P2) under compile (P3). `late` sits above `expand` because slot
+# resolution re-enters expansion; `std` and `ports` are inputs to the driver's
+# use of the compiler and sit above the phases they lean on.
+name = "compiler pipeline"
+type = "layers"
+containers = ["hejmark.core.compiler"]
+layers = [
+    "compile",
     "std",
     "ports",
+    "late",
+    "expand",
+    "valueline",
+    "resolve",
+    "ast",
+]
+exhaustive = true
+
+[[tool.importlinter.contracts]]
+# The engine's two halves: the executor drives the scanner, never the reverse.
+name = "engine pipeline"
+type = "layers"
+containers = ["hejmark.core.engine"]
+layers = [
+    "execute",
     "scan",
-    "surface",
-    "floor",
+]
+exhaustive = true
+
+[[tool.importlinter.contracts]]
+# The boundary stratum itself is layered: the wire format reads the codec,
+# the codec builds the program shapes, and the exceptions sit under everything.
+name = "ir stratum"
+type = "layers"
+containers = ["hejmark.core.ir"]
+layers = [
+    "wire",
+    "codec",
+    "program",
+    "errors",
 ]
 exhaustive = true
 
