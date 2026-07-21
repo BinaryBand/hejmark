@@ -5,7 +5,7 @@ import 'package:himark_editor/app.dart';
 import 'fake_bridge.dart';
 
 void main() {
-  testWidgets('boots into the demo-set Test screen and finds matches', (
+  testWidgets('boots into the demo-set Test screen and counts its matches', (
     tester,
   ) async {
     await tester.pumpWidget(const HimarkApp(bridge: FakeBridge()));
@@ -16,10 +16,10 @@ void main() {
     expect(find.text('Test'), findsOneWidget);
     expect(find.text('Settings'), findsOneWidget);
 
-    // The engine surfaces the demo IPv4 in the output sheet, and the summary
-    // counts every hit the IPv4 + hex-colour rules made.
-    expect(find.text('192.168.1.42'), findsOneWidget);
+    // The output sheet opens collapsed, so the count is the whole report until
+    // the user pulls it up: the IPv4 and hex-colour rules hit twice each.
     expect(find.text('4 matches'), findsOneWidget);
+    expect(find.text('192.168.1.42'), findsNothing);
   });
 
   testWidgets('opens Settings and lists appearance controls', (tester) async {

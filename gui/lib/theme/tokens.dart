@@ -27,8 +27,7 @@ class HimarkTokens {
     required this.errorContainer,
     required this.onErrorContainer,
     required this.tertiary,
-    required this.markBg,
-    required this.markFg,
+    required this.ruleColors,
   });
 
   final Color surface;
@@ -52,9 +51,82 @@ class HimarkTokens {
   final Color errorContainer;
   final Color onErrorContainer;
   final Color tertiary;
-  final Color markBg;
-  final Color markFg;
+
+  /// The brief's `RULE_COLORS` palette: one [RuleColors] per rule, cycled by the
+  /// rule's position in the project.
+  final List<RuleColors> ruleColors;
+
+  /// The colours a rule at [index] paints with, wrapping past the palette's end.
+  RuleColors ruleColorAt(int index) =>
+      ruleColors[index.remainder(ruleColors.length)];
 }
+
+/// The three colours one rule paints with: [dot] marks it in the rules list and
+/// bullets its hits in the output sheet, [background] and [foreground] highlight
+/// the spans it matched in the read view.
+///
+/// The brief keys these by rule kind (`email`, `ipv4`, `heading`, `custom`) and
+/// its `markBg`/`markFg` tokens are exactly the `custom` slot, so they have no
+/// separate existence here. Rules carry no kind in this app, so the palette is
+/// cycled by list position instead — same four slots, same order.
+@immutable
+class RuleColors {
+  const RuleColors({
+    required this.dot,
+    required this.background,
+    required this.foreground,
+  });
+
+  final Color dot;
+  final Color background;
+  final Color foreground;
+}
+
+const List<RuleColors> _darkRuleColors = <RuleColors>[
+  RuleColors(
+    dot: Color(0xFF5B9BF7),
+    background: Color(0xFF1E3A5F),
+    foreground: Color(0xFFBCD7FF),
+  ),
+  RuleColors(
+    dot: Color(0xFF98C379),
+    background: Color(0xFF2C4022),
+    foreground: Color(0xFFD3ECBF),
+  ),
+  RuleColors(
+    dot: Color(0xFFC678DD),
+    background: Color(0xFF3D2A4A),
+    foreground: Color(0xFFE9CDF4),
+  ),
+  RuleColors(
+    dot: Color(0xFFD1B04F),
+    background: Color(0xFF4A431B),
+    foreground: Color(0xFFF4E4A1),
+  ),
+];
+
+const List<RuleColors> _lightRuleColors = <RuleColors>[
+  RuleColors(
+    dot: Color(0xFF2F6FE0),
+    background: Color(0xFFD9E6FD),
+    foreground: Color(0xFF0D3A78),
+  ),
+  RuleColors(
+    dot: Color(0xFF3F7A2A),
+    background: Color(0xFFDDEFD1),
+    foreground: Color(0xFF1E4210),
+  ),
+  RuleColors(
+    dot: Color(0xFF8E3FB8),
+    background: Color(0xFFEFDCF8),
+    foreground: Color(0xFF48195F),
+  ),
+  RuleColors(
+    dot: Color(0xFFB0821F),
+    background: Color(0xFFFDE39A),
+    foreground: Color(0xFF4A3A06),
+  ),
+];
 
 const HimarkTokens darkTokens = HimarkTokens(
   surface: Color(0xFF0C111B),
@@ -78,8 +150,7 @@ const HimarkTokens darkTokens = HimarkTokens(
   errorContainer: Color(0xFF4D1A1F),
   onErrorContainer: Color(0xFFF8C6CA),
   tertiary: Color(0xFF98C379),
-  markBg: Color(0xFF4A431B),
-  markFg: Color(0xFFF4E4A1),
+  ruleColors: _darkRuleColors,
 );
 
 const HimarkTokens lightTokens = HimarkTokens(
@@ -104,8 +175,7 @@ const HimarkTokens lightTokens = HimarkTokens(
   errorContainer: Color(0xFFFBDEDB),
   onErrorContainer: Color(0xFF5C0F0C),
   tertiary: Color(0xFF3F7A2A),
-  markBg: Color(0xFFFDE39A),
-  markFg: Color(0xFF4A3A06),
+  ruleColors: _lightRuleColors,
 );
 
 /// Syntax-highlight palette used when rendering a rule's Himark code. These are

@@ -35,45 +35,65 @@ rule.source ──emit-json (python)──▶ floor JSON ──find (rust)──
 
 The old Dart `RegExp` approximations are gone; matching is the real engine or a
 reported error. Widget tests inject a synchronous `Bridge` fake
-(`test/fake_bridge.dart`) so flows stay deterministic without the toolchain, and
-`test/bridge_test.dart` exercises the live Python+Rust path.
+(`test/fake_bridge.dart`) so flows stay deterministic without the toolchain — it
+answers per rule, so switching a rule off really does drop its hits — and
+`test/bridge_test.dart` exercises the live Python+Rust path, skipping itself
+where that toolchain is absent.
 
 ## Screens
 
-Bottom nav (mobile) / navigation rail (desktop):
-
-- **Rules** — toggle / reorder / add / delete pattern rules, with
-  syntax-highlighted Himark source per rule.
-- **Test** — multiple test strings (tabs); a code editor with a line-number
-  gutter (edit mode) or a match-highlighted read view (view mode); a
-  collapsible output sheet whose header reports engine status (`Matching…` /
-  count / error) and lists matches with `[range]` and `line:col`.
+- **Rules** — an ordered list of pattern rules, one syntax-highlighted Himark
+  source per row. Tap a row to switch it on or off, drag its handle to reorder,
+  swipe it left to delete (with undo). The dot at a row's top-right is the
+  rule's **colour**, and it is the same colour that rule's hits wear in the Test
+  view — so a row is identified by its code and its colour, not by a label.
+- **Test** — multiple test strings (chips); the active one as an editor or a
+  match-highlighted read view, both under a line-number gutter; a collapsible
+  output sheet whose header reports engine status (`Matching…` / count / error)
+  and lists each hit with its rule's colour, `[range]` and `Ln n · Col n`.
 - **Settings** — theme (dark/light/system), density, editor font size,
-  whitespace glyphs, tab size, reset.
+  whitespace glyphs, tab size, restore defaults, reset data.
 
-Plus the shell: a sliding project shelf, per-tab/per-project context menus
+Plus the shell: the project list (sortable by custom order / name / date, each
+project stamped with when it was last edited), per-tab/per-project context menus
 (rename / duplicate / delete), a confirm dialog, and undo snackbars.
+
+### Rule colours
+
+`RULE_COLORS` in the brief keys a four-slot palette by rule kind. Rules here
+carry no kind, so the palette is cycled by a rule's position in the project.
+That position is the one thing the colour must follow, which is why `AppState`
+runs only the *enabled* rules through the bridge but maps the bridge's slots
+back onto full-list positions before publishing them — otherwise switching one
+rule off would recolour every rule under it.
 
 ## Structure
 
 ```text
 lib/
-  main.dart            entrypoint
-  app.dart             root: theme resolution + HimarkScope
-  theme/tokens.dart    Material-3 dark/light token sets (from the brief)
-  models/              project, rules (source highlighter), matcher, bridge
-  models/bridge.dart   HejmarkBridge: subprocess bridge to the Python+Rust engines
-  state/               AppState (ChangeNotifier) + HimarkScope inherited widget
-  screens/             home_scaffold + one file per tab
-  widgets/             top bar, bottom nav, shelf, overlays, shared widgets
+  main.dart               entrypoint
+  app.dart                root: theme resolution + HimarkScope
+  theme/tokens.dart       Material-3 dark/light token sets + the rule palette
+  models/                 project, rules (source highlighter), matcher, bridge
+  models/bridge.dart      HejmarkBridge: subprocess bridge to the two engines
+  state/                  AppState (ChangeNotifier) + HimarkScope
+  screens/                home_scaffold + one file per destination
+  widgets/rail.dart       the desktop icon rail
+  widgets/rules_panel.dart the rules list, shared by sidebar and screen
+  widgets/                top bar, bottom nav, shelf, overlays, shared widgets
 ```
 
 State is a single `AppState extends ChangeNotifier`, mirroring the brief's
 `Component`. The root republishes it through `HimarkScope` on every change.
 
-The shell is **adaptive** (`home_scaffold.dart`): below 840px logical width it
-renders the brief's centred phone frame with a bottom nav; at or above it uses a
-navigation rail with a multi-pane body (Rules alongside the Test editor).
+The shell is **adaptive** (`home_scaffold.dart`). Below 840px logical width it
+renders the brief's centred phone frame: a bottom nav across Rules / Test /
+Settings, with the project list sliding in over the content. At or above it, a
+76px icon rail on the far left opens at most one pinned sidebar — Projects or
+Rules — beside a main column that is the editor (or Settings); pressing the open
+one closes it and gives the width back to the editor. Rules is therefore a
+destination on mobile and a sidebar on desktop, which is why `RulesScreen` is
+only a placement around `RulesPanel`.
 
 ## Run
 

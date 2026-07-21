@@ -8,9 +8,17 @@ import '../theme/tokens.dart';
 import '../widgets/common.dart';
 import '../widgets/rename_field.dart';
 
-/// The Test screen: a strip of test-string tabs, a code editor with a
-/// line-number gutter (edit mode) or a match-highlighted read view (view mode),
-/// and a collapsible output sheet listing the matches.
+/// Width of the line-number gutter, shared by the edit and read views so the
+/// text does not shift when the mode flips.
+const double _gutterWidth = 38;
+
+/// The Test screen: a strip of test-string chips, the active string as either an
+/// editable buffer or a match-highlighted read view, and a collapsible output
+/// sheet listing what the engine found.
+///
+/// Both views carry the same gutter; the read view additionally paints each hit
+/// in the colour of the rule that made it, so overlapping rule sets stay
+/// legible.
 class TestScreen extends StatefulWidget {
   const TestScreen({super.key});
 
@@ -56,7 +64,7 @@ class _TestScreenState extends State<TestScreen> {
       color: t.surface,
       child: Column(
         children: [
-          if (s.tabBarVisible) _tabStrip(context, s, t, project),
+          if (s.tabBarVisible) _tabStrip(s, t, project),
           Expanded(
             child: active == null
                 ? EmptyState(
@@ -76,7 +84,7 @@ class _TestScreenState extends State<TestScreen> {
                       child: const Text('New test string'),
                     ),
                   )
-                : _body(s, t, project!, active),
+                : _body(s, t, active),
           ),
         ],
       ),
@@ -87,31 +95,18 @@ class _TestScreenState extends State<TestScreen> {
   // Tab strip
   // ---------------------------------------------------------------------------
 
-  Widget _tabStrip(
-    BuildContext context,
-    AppState s,
-    HimarkTokens t,
-    Project? project,
-  ) {
+  Widget _tabStrip(AppState s, HimarkTokens t, Project? project) {
     final tabs = project?.tabs ?? const <TestString>[];
     final activeId = project?.activeTab;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: t.surfaceContainer,
         border: Border(bottom: BorderSide(color: t.outlineVariant)),
       ),
       child: Row(
         children: [
-          CircleIconButton(
-            icon: s.editMode ? Icons.edit : Icons.visibility_outlined,
-            tooltip: s.editMode ? 'View mode' : 'Edit mode',
-            background: t.surfaceContainerHigh,
-            color: s.editMode ? t.primary : t.onSurfaceVariant,
-            onTap: s.toggleEditMode,
-          ),
-          _vDivider(t),
           Expanded(
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
@@ -119,15 +114,17 @@ class _TestScreenState extends State<TestScreen> {
                 children: [
                   for (final tab in tabs) ...[
                     _tabChip(s, t, tab, tab.id == activeId),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
                   ],
                 ],
               ),
             ),
           ),
-          _vDivider(t),
+          const SizedBox(width: 6),
           CircleIconButton(
             icon: Icons.add,
+            size: 34,
+            iconSize: 15,
             tooltip: 'New test string',
             background: t.surfaceContainerHigh,
             color: t.onSurfaceVariant,
@@ -138,21 +135,14 @@ class _TestScreenState extends State<TestScreen> {
     );
   }
 
-  Widget _vDivider(HimarkTokens t) => Container(
-    width: 1,
-    height: 24,
-    margin: const EdgeInsets.symmetric(horizontal: 8),
-    color: t.outlineVariant,
-  );
-
   Widget _tabChip(AppState s, HimarkTokens t, TestString tab, bool active) {
     if (s.isEditing(MenuScope.tab, tab.id)) {
       return Container(
-        height: 40,
+        constraints: const BoxConstraints(minHeight: 34),
         padding: const EdgeInsets.only(left: 12, right: 6),
         decoration: BoxDecoration(
           color: t.primaryContainer,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(17),
         ),
         alignment: Alignment.center,
         child: SizedBox(
@@ -170,11 +160,11 @@ class _TestScreenState extends State<TestScreen> {
     return GestureDetector(
       onTap: () => s.selectTab(tab.id),
       child: Container(
-        height: 40,
+        constraints: const BoxConstraints(minHeight: 34),
         padding: EdgeInsets.only(left: 14, right: active ? 6 : 14),
         decoration: BoxDecoration(
           color: active ? t.primaryContainer : t.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(17),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -192,14 +182,17 @@ class _TestScreenState extends State<TestScreen> {
                 ),
               ),
             ),
-            if (active)
+            if (active) ...[
+              const SizedBox(width: 4),
               CircleIconButton(
                 icon: Icons.more_horiz,
-                size: 26,
-                iconSize: 15,
+                size: 24,
+                iconSize: 14,
+                tooltip: 'More',
                 color: t.onPrimaryContainer,
                 onTap: () => s.openMenu(MenuScope.tab, tab.id, tab.name),
               ),
+            ],
           ],
         ),
       ),
@@ -210,7 +203,7 @@ class _TestScreenState extends State<TestScreen> {
   // Editor / read view + output sheet
   // ---------------------------------------------------------------------------
 
-  Widget _body(AppState s, HimarkTokens t, Project project, TestString active) {
+  Widget _body(AppState s, HimarkTokens t, TestString active) {
     // Matches come live from the Python parser + Rust engine bridge, recomputed
     // (debounced) by AppState whenever the text or rules change.
     final matches = s.matches;
@@ -240,18 +233,44 @@ class _TestScreenState extends State<TestScreen> {
     );
   }
 
+  /// The gutter's chrome — the numbers are supplied by each view, because the
+  /// editor translates them under a clip while the read view scrolls them.
+  Widget _gutterFrame(HimarkTokens t, {required Widget child}) {
+    return Container(
+      width: _gutterWidth,
+      decoration: BoxDecoration(
+        color: t.surfaceContainerLowest,
+        border: Border(right: BorderSide(color: t.outlineVariant)),
+      ),
+      padding: const EdgeInsets.fromLTRB(12, 16, 10, 16),
+      child: child,
+    );
+  }
+
+  Widget _lineNumber(HimarkTokens t, double fs, int n) => SizedBox(
+    width: double.infinity,
+    child: Text(
+      '$n',
+      textAlign: TextAlign.right,
+      style: mono(fontSize: fs, color: t.onSurfaceVariant),
+    ),
+  );
+
   Widget _editor(AppState s, HimarkTokens t, TestString active) {
     final fs = s.editorFontSize.toDouble();
-    final lineCount = (active.content.split('\n').length).clamp(1, 1 << 30);
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Line-number gutter, translated to follow the editor's scroll.
-        ClipRect(
-          child: SizedBox(
-            width: 34,
-            child: Padding(
-              padding: const EdgeInsets.only(top: 16, left: 16),
+    final lineCount = active.content.split('\n').length;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: t.surfaceBright,
+        border: Border(top: BorderSide(color: t.primary, width: 2)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // The gutter is a fixed column whose numbers ride the editor's scroll.
+          ClipRect(
+            child: _gutterFrame(
+              t,
               child: AnimatedBuilder(
                 animation: _scroll,
                 builder: (context, _) {
@@ -262,17 +281,7 @@ class _TestScreenState extends State<TestScreen> {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         for (var i = 1; i <= lineCount; i++)
-                          SizedBox(
-                            width: double.infinity,
-                            child: Text(
-                              '$i',
-                              textAlign: TextAlign.right,
-                              style: mono(
-                                fontSize: fs,
-                                color: t.onSurfaceVariant,
-                              ).copyWith(height: 1.7),
-                            ),
-                          ),
+                          _lineNumber(t, fs, i),
                       ],
                     ),
                   );
@@ -280,31 +289,30 @@ class _TestScreenState extends State<TestScreen> {
               ),
             ),
           ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.only(top: 16, right: 16, bottom: 16),
-            child: TextField(
-              controller: _controller,
-              scrollController: _scroll,
-              onChanged: s.setActiveContent,
-              maxLines: null,
-              expands: true,
-              textAlignVertical: TextAlignVertical.top,
-              cursorColor: t.primary,
-              keyboardType: TextInputType.multiline,
-              style: mono(fontSize: fs, color: t.onSurface),
-              decoration: InputDecoration(
-                isCollapsed: true,
-                border: InputBorder.none,
-                hintText: 'Type or paste text to test…',
-                hintStyle: mono(fontSize: fs, color: t.onSurfaceVariant),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 16, 16, 16),
+              child: TextField(
+                controller: _controller,
+                scrollController: _scroll,
+                onChanged: s.setActiveContent,
+                maxLines: null,
+                expands: true,
+                textAlignVertical: TextAlignVertical.top,
+                cursorColor: t.primary,
+                keyboardType: TextInputType.multiline,
+                style: mono(fontSize: fs, color: t.onSurface),
+                decoration: InputDecoration(
+                  isCollapsed: true,
+                  border: InputBorder.none,
+                  hintText: 'Type or paste text to test…',
+                  hintStyle: mono(fontSize: fs, color: t.onSurfaceVariant),
+                ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -329,14 +337,54 @@ class _TestScreenState extends State<TestScreen> {
     String glyphs(String raw) =>
         s.showWhitespace ? raw.replaceAll(' ', '·').replaceAll('\t', '→') : raw;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          for (var li = 0; li < lines.length; li++)
-            _readLine(t, fs, lines[li], lineStarts[li], matches, glyphs),
-        ],
+    // Gutter and text scroll as one column, so a short document still shows the
+    // gutter's full-height band.
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: t.outlineVariant)),
+      ),
+      child: LayoutBuilder(
+        builder: (context, box) => SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: box.maxHeight),
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _gutterFrame(
+                    t,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        for (var i = 1; i <= lines.length; i++)
+                          _lineNumber(t, fs, i),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 16, 16, 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          for (var li = 0; li < lines.length; li++)
+                            _readLine(
+                              t,
+                              fs,
+                              lines[li],
+                              lineStarts[li],
+                              matches,
+                              glyphs,
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -360,13 +408,14 @@ class _TestScreenState extends State<TestScreen> {
       if (a > cursor) {
         spans.add(TextSpan(text: glyphs(line.substring(cursor, a))));
       }
+      final colors = t.ruleColorAt(m.slot);
       spans.add(
         TextSpan(
           text: glyphs(line.substring(a, b)),
           style: mono(
             fontSize: fs,
-            color: t.markFg,
-          ).copyWith(backgroundColor: t.markBg),
+            color: colors.foreground,
+          ).copyWith(backgroundColor: colors.background),
         ),
       );
       cursor = b;
@@ -386,11 +435,9 @@ class _TestScreenState extends State<TestScreen> {
   }
 
   Widget _sheet(AppState s, HimarkTokens t, List<MatchRange> matches) {
-    final count = matches.length;
     final summary = s.matchSummary;
     final isError = s.engine == EngineState.error;
-    final active = s.cur?.active;
-    final content = active?.content ?? '';
+    final content = s.cur?.active?.content ?? '';
 
     return Column(
       children: [
@@ -430,9 +477,7 @@ class _TestScreenState extends State<TestScreen> {
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: isError
-                                  ? Syntax.escape
-                                  : t.onSurfaceVariant,
+                              color: isError ? t.error : t.onSurfaceVariant,
                             ),
                           ),
                         ),
@@ -455,7 +500,7 @@ class _TestScreenState extends State<TestScreen> {
         ),
         if (s.sheetExpanded)
           Expanded(
-            child: count == 0
+            child: matches.isEmpty
                 ? _sheetEmpty(t)
                 : _matchList(s, t, matches, content),
           ),
@@ -520,7 +565,7 @@ class _TestScreenState extends State<TestScreen> {
                   width: 8,
                   height: 8,
                   decoration: BoxDecoration(
-                    color: t.primary,
+                    color: t.ruleColorAt(m.slot).dot,
                     shape: BoxShape.circle,
                   ),
                 ),

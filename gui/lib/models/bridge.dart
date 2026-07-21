@@ -102,12 +102,16 @@ class HejmarkBridge implements Bridge {
     final temp = Directory.systemTemp.createTempSync('hejmark_gui_');
     try {
       final target = File('${temp.path}/target.txt')..writeAsStringSync(content);
-      final cpSpans = <List<int>>[];
+      final cpSpans = <_Span>[];
       String? error;
-      for (final rule in rules) {
+      for (var slot = 0; slot < rules.length; slot++) {
+        final rule = rules[slot];
         try {
           final jsonPath = await _emitJson(python, rule.source, temp);
-          cpSpans.addAll(await _find(findBin, jsonPath, target.path));
+          final hits = await _find(findBin, jsonPath, target.path);
+          for (final (start, end) in hits) {
+            cpSpans.add(_Span(start, end, slot));
+          }
         } on _BridgeError catch (e) {
           error ??= '${rule.label}: ${e.message}';
         }
@@ -146,8 +150,8 @@ class HejmarkBridge implements Bridge {
   }
 
   /// Denote and match one JSON query against the target with the Rust binary,
-  /// returning `[start, end]` code-point spans. Killed past [_findBudget].
-  Future<List<List<int>>> _find(
+  /// returning `(start, end)` code-point spans. Killed past [_findBudget].
+  Future<List<(int, int)>> _find(
     File findBin,
     String jsonPath,
     String targetPath,
@@ -174,21 +178,22 @@ class HejmarkBridge implements Bridge {
     }
     if (code != 0) throw _BridgeError(_firstLine(err));
 
-    final spans = <List<int>>[];
+    final spans = <(int, int)>[];
     for (final line in const LineSplitter().convert(out)) {
       final parts = line.split('\t');
       if (parts.length != 2) continue;
       final start = int.tryParse(parts[0]);
       final end = int.tryParse(parts[1]);
-      if (start != null && end != null) spans.add(<int>[start, end]);
+      if (start != null && end != null) spans.add((start, end));
     }
     return spans;
   }
 
   /// Turn code-point spans into UTF-16 [MatchRange]s over [content], sorted by
   /// start and with overlaps dropped first-wins — the same resolution the old
-  /// regex matcher applied, now over the real engine's hits.
-  List<MatchRange> _resolve(String content, List<List<int>> cpSpans) {
+  /// regex matcher applied, now over the real engine's hits. Each survivor keeps
+  /// the slot of the rule that found it, which is what colours it downstream.
+  List<MatchRange> _resolve(String content, List<_Span> cpSpans) {
     final runes = content.runes.toList();
     // Prefix sum mapping a code-point index to its UTF-16 offset.
     final utf16 = List<int>.filled(runes.length + 1, 0);
@@ -198,12 +203,12 @@ class HejmarkBridge implements Bridge {
 
     final ranges = <MatchRange>[];
     for (final span in cpSpans) {
-      final cs = span[0].clamp(0, runes.length);
-      final ce = span[1].clamp(0, runes.length);
+      final cs = span.start.clamp(0, runes.length);
+      final ce = span.end.clamp(0, runes.length);
       if (ce <= cs) continue;
       final a = utf16[cs];
       final b = utf16[ce];
-      ranges.add(MatchRange(a, b, content.substring(a, b)));
+      ranges.add(MatchRange(a, b, content.substring(a, b), slot: span.slot));
     }
     ranges.sort((a, b) => a.start.compareTo(b.start));
 
@@ -223,6 +228,15 @@ String _firstLine(String text) {
   final trimmed = text.trim();
   if (trimmed.isEmpty) return 'engine error';
   return trimmed.split('\n').first;
+}
+
+/// One engine hit before resolution: a code-point span plus the slot of the rule
+/// that produced it.
+class _Span {
+  const _Span(this.start, this.end, this.slot);
+  final int start;
+  final int end;
+  final int slot;
 }
 
 /// Internal signal that one rule failed; carried to [MatchRun.error].

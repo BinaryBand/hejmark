@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:himark_editor/app.dart';
+import 'package:himark_editor/widgets/rail.dart';
+import 'package:himark_editor/widgets/rule_code.dart';
 
 import 'fake_bridge.dart';
 
@@ -14,7 +16,7 @@ void _usePhone(WidgetTester tester) {
   addTearDown(tester.view.resetDevicePixelRatio);
 }
 
-/// Pins a wide desktop surface so the adaptive layout takes the multi-pane path.
+/// Pins a wide desktop surface so the adaptive layout takes the rail path.
 void _useDesktop(WidgetTester tester) {
   tester.view.devicePixelRatio = 1.0;
   tester.view.physicalSize = const Size(1280, 900);
@@ -22,10 +24,23 @@ void _useDesktop(WidgetTester tester) {
   addTearDown(tester.view.resetDevicePixelRatio);
 }
 
+/// Let every debounced timer land: the 220ms match debounce, the 800ms save
+/// flash, and the 4.5s snackbar. Leaving one pending fails the test at teardown.
+Future<void> _settle(WidgetTester tester) async {
+  await tester.pump(const Duration(seconds: 5));
+  await tester.pumpAndSettle();
+}
+
 Future<void> _boot(WidgetTester tester) async {
   _usePhone(tester);
   await tester.pumpWidget(const HimarkApp(bridge: FakeBridge()));
-  await tester.pumpAndSettle();
+  await _settle(tester);
+}
+
+Future<void> _bootDesktop(WidgetTester tester) async {
+  _useDesktop(tester);
+  await tester.pumpWidget(const HimarkApp(bridge: FakeBridge()));
+  await _settle(tester);
 }
 
 void main() {
@@ -35,44 +50,99 @@ void main() {
     await _boot(tester);
     for (final tab in ['Rules', 'Test', 'Settings']) {
       await tester.tap(find.text(tab));
-      await tester.pumpAndSettle();
+      await _settle(tester);
     }
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('toggling a rule updates the active count', (tester) async {
+  testWidgets('tapping a rule row toggles it and the match count follows', (
+    tester,
+  ) async {
     await _boot(tester);
-    await tester.tap(find.text('Rules'));
-    await tester.pumpAndSettle();
+    // Seeded: IPv4 and hex-colour on, the 4-digit rule off — 2 hits each.
+    expect(find.text('4 matches'), findsOneWidget);
 
-    expect(find.text('2 active'), findsOneWidget);
-    await tester.tap(find.byType(Checkbox).first);
-    await tester.pumpAndSettle();
-    expect(find.text('1 active'), findsOneWidget);
+    await tester.tap(find.text('Rules'));
+    await _settle(tester);
+    await tester.tap(find.byType(RuleCode).first); // the IPv4 rule
+    await _settle(tester);
+
+    await tester.tap(find.text('Test'));
+    await _settle(tester);
+    expect(find.text('2 matches'), findsOneWidget);
   });
 
   testWidgets('shelf opens and switches the active project', (tester) async {
     await _boot(tester);
     await tester.tap(find.byIcon(Icons.menu));
-    await tester.pumpAndSettle();
+    await _settle(tester);
     expect(find.text('PROJECTS'), findsOneWidget);
 
     await tester.tap(find.text('project-a'));
-    await tester.pumpAndSettle();
-    // Top bar now names project-a; its single rule (ipv4) matches hosts.conf.
+    await _settle(tester);
+    // Top bar now names project-a; its single rule (ipv4) hits both hosts.
     expect(find.text('project-a'), findsWidgets);
     expect(find.text('PROJECTS'), findsNothing); // shelf closed
+    expect(find.text('2 matches'), findsOneWidget);
+  });
+
+  testWidgets('the shelf stamps each project and cycles its sort', (
+    tester,
+  ) async {
+    await _boot(tester);
+    await tester.tap(find.byIcon(Icons.menu));
+    await _settle(tester);
+
+    // Seeded edit times, one per relative bucket.
+    expect(find.text('Edited 2h ago'), findsOneWidget);
+    expect(find.text('Edited 1d ago'), findsOneWidget);
+    expect(find.text('Edited 9d ago'), findsNothing); // past a week: a date
+
+    // manual → name → date, and the direction toggle flips independently.
+    expect(find.byIcon(Icons.format_list_bulleted), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.format_list_bulleted));
+    await _settle(tester);
+    expect(find.byIcon(Icons.sort_by_alpha), findsOneWidget);
+
+    expect(find.byIcon(Icons.arrow_upward), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.arrow_upward));
+    await _settle(tester);
+    expect(find.byIcon(Icons.arrow_downward), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('theme switch to light rebuilds without error', (tester) async {
     await _boot(tester);
     await tester.tap(find.text('Settings'));
-    await tester.pumpAndSettle();
+    await _settle(tester);
 
     await tester.tap(find.text('Light'));
-    await tester.pumpAndSettle();
+    await _settle(tester);
     expect(tester.takeException(), isNull);
     expect(find.text('Theme'), findsOneWidget);
+  });
+
+  testWidgets('restoring defaults asks first, then puts font size back', (
+    tester,
+  ) async {
+    await _boot(tester);
+    await tester.tap(find.text('Settings'));
+    await _settle(tester);
+
+    // The page is taller than a phone; bring each control up before pressing.
+    await tester.ensureVisible(find.byIcon(Icons.add));
+    await tester.tap(find.byIcon(Icons.add)); // font size up
+    await _settle(tester);
+    expect(find.text('14px'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Restore'));
+    await tester.tap(find.text('Restore'));
+    await _settle(tester);
+    expect(find.text('Restore default settings?'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Restore'));
+    await _settle(tester);
+    expect(find.text('13px'), findsOneWidget);
   });
 
   testWidgets('test view toggle flips edit/view mode', (tester) async {
@@ -80,47 +150,68 @@ void main() {
     // Starts in edit mode: the toggle shows the pencil icon.
     expect(find.byIcon(Icons.edit), findsOneWidget);
     await tester.tap(find.byIcon(Icons.edit));
-    await tester.pumpAndSettle();
+    await _settle(tester);
     // Now in view mode: the toggle shows the eye icon.
     expect(find.byIcon(Icons.visibility_outlined), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('collapsing the output sheet keeps the summary', (tester) async {
+  testWidgets('the output sheet starts collapsed and expands to the hits', (
+    tester,
+  ) async {
     await _boot(tester);
     expect(find.text('4 matches'), findsOneWidget);
+    expect(find.text('192.168.1.42'), findsNothing); // collapsed
+
     await tester.tap(find.text('4 matches'));
-    await tester.pumpAndSettle();
+    await _settle(tester);
+    expect(find.text('192.168.1.42'), findsOneWidget);
+    expect(find.text('Ln 1 · Col 11'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'wide layout shows the rail with Projects pinned beside the editor',
+    (tester) async {
+      await _bootDesktop(tester);
+
+      expect(find.byType(DeskRail), findsOneWidget);
+      // Projects is the rail's opening state, so the shelf is a column, not a
+      // drawer — and the editor sits beside it with its output sheet.
+      expect(find.text('PROJECTS'), findsOneWidget);
+      expect(find.text('4 matches'), findsOneWidget);
+      expect(find.byIcon(Icons.menu), findsNothing); // the rail owns this job
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('wide layout: the rail swaps sidebars and closes the open one', (
+    tester,
+  ) async {
+    await _bootDesktop(tester);
+
+    await tester.tap(find.widgetWithText(InkWell, 'Rules'));
+    await _settle(tester);
+    expect(find.text('PROJECTS'), findsNothing);
+    expect(find.text('RULES'), findsOneWidget);
+
+    // Pressing the open one again gives the width back to the editor.
+    await tester.tap(find.widgetWithText(InkWell, 'Rules'));
+    await _settle(tester);
+    expect(find.text('RULES'), findsNothing);
     expect(find.text('4 matches'), findsOneWidget);
-    expect(tester.takeException(), isNull);
   });
 
-  testWidgets('wide layout shows the nav rail and Rules|Test two-pane', (
+  testWidgets('wide layout: Settings takes the column and drops the sidebar', (
     tester,
   ) async {
-    _useDesktop(tester);
-    await tester.pumpWidget(const HimarkApp(bridge: FakeBridge()));
-    await tester.pumpAndSettle();
+    await _bootDesktop(tester);
 
-    expect(find.byType(NavigationRail), findsOneWidget);
-    // Default destination is Test: the Rules companion and the editor are both
-    // on screen at once.
-    expect(find.text('2 active'), findsOneWidget); // Rules pane header
-    expect(find.text('4 matches'), findsOneWidget); // Test output sheet
-    expect(tester.takeException(), isNull);
-  });
+    await tester.tap(find.widgetWithText(InkWell, 'Settings'));
+    await _settle(tester);
 
-  testWidgets('wide layout: selecting Settings drops the Rules companion', (
-    tester,
-  ) async {
-    _useDesktop(tester);
-    await tester.pumpWidget(const HimarkApp(bridge: FakeBridge()));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byIcon(Icons.settings_outlined)); // rail destination
-    await tester.pumpAndSettle();
-
-    expect(find.text('2 active'), findsNothing); // companion gone
+    expect(find.text('PROJECTS'), findsNothing); // sidebar gone
+    expect(find.text('Preferences'), findsOneWidget); // app bar title
     expect(find.text('Theme'), findsOneWidget); // Settings pane shown
   });
 }

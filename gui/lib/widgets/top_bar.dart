@@ -4,20 +4,25 @@ import '../state/app_state.dart';
 import '../state/scope.dart';
 import 'common.dart';
 
-/// The 56px top app bar. On Rules/Test it shows the shelf toggle, the
-/// project name and the save status; on Test it also carries the view toggle
-/// (when the tab strip is collapsed) and the collapse-tabs chevron. On Settings
-/// it shows a plain title.
+/// The 56px app bar over the main column.
+///
+/// It names the current project and its save state, and on the Test destination
+/// carries the two controls that change how the editor is framed: the
+/// edit/view toggle and the collapse-tabs chevron. The shelf button is a mobile
+/// affordance only — on desktop the rail already owns that job, so [isDesktop]
+/// drops it.
 class TopBar extends StatelessWidget {
-  const TopBar({super.key});
+  const TopBar({required this.isDesktop, super.key});
+
+  final bool isDesktop;
 
   @override
   Widget build(BuildContext context) {
     final scope = HimarkScope.of(context);
     final s = scope.state;
     final t = scope.tokens;
-    final isSettings = s.nav == NavTab.settings;
-    final isTest = s.nav == NavTab.test;
+    final nav = s.navFor(wide: isDesktop);
+    final isSettings = nav == NavTab.settings;
 
     return Container(
       height: 56,
@@ -28,78 +33,44 @@ class TopBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          CircleIconButton(
-            icon: Icons.menu,
-            tooltip: 'Menu',
-            color: t.onSurfaceVariant,
-            onTap: s.toggleShelf,
-          ),
-          const SizedBox(width: 8),
           if (isSettings)
             Text(
-              'Settings',
+              'Preferences',
               style: TextStyle(
-                fontSize: 15,
+                fontSize: 14.5,
                 fontWeight: FontWeight.w600,
-                color: t.onSurface,
+                color: t.onSurfaceVariant,
               ),
             )
-          else
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    s.currentProjectName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w600,
-                      color: t.onSurface,
-                    ),
-                  ),
-                  const SizedBox(height: 1),
-                  Row(
-                    children: [
-                      if (s.isSaving) ...[
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: BoxDecoration(
-                            color: t.tertiary,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 5),
-                      ],
-                      Text(
-                        s.saveText,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: s.isSaving ? t.tertiary : t.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          if (isSettings) const Spacer(),
-          if (isTest) ...[
-            if (!s.tabBarVisible)
+          else ...[
+            if (!isDesktop) ...[
               CircleIconButton(
-                icon: s.editMode ? Icons.edit : Icons.visibility_outlined,
-                tooltip: s.editMode ? 'View mode' : 'Edit mode',
-                background: t.surfaceContainerHigh,
-                color: s.editMode ? t.primary : t.onSurfaceVariant,
-                onTap: s.toggleEditMode,
+                icon: Icons.menu,
+                tooltip: 'Menu',
+                color: t.onSurfaceVariant,
+                onTap: s.toggleShelf,
               ),
+              const SizedBox(width: 8),
+            ],
+            Flexible(child: _projectTitle(s, scope)),
+          ],
+          const Spacer(),
+          if (nav == NavTab.test) ...[
+            CircleIconButton(
+              icon: s.editMode ? Icons.edit : Icons.visibility_outlined,
+              iconSize: 16,
+              tooltip: s.editMode ? 'View mode' : 'Edit mode',
+              background: s.editMode
+                  ? t.primaryContainer
+                  : t.surfaceContainerHigh,
+              color: s.editMode ? t.onPrimaryContainer : t.onSurfaceVariant,
+              onTap: s.toggleEditMode,
+            ),
             const SizedBox(width: 4),
             CircleIconButton(
               icon: Icons.keyboard_arrow_down,
-              tooltip: 'Collapse tabs',
+              iconSize: 16,
+              tooltip: s.tabBarVisible ? 'Collapse tabs' : 'Show tabs',
               color: t.onSurfaceVariant,
               rotation: s.tabBarVisible ? 0 : 0.5,
               onTap: s.toggleTabBar,
@@ -107,6 +78,50 @@ class TopBar extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+
+  Widget _projectTitle(AppState s, HimarkScope scope) {
+    final t = scope.tokens;
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          s.currentProjectName,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 14.5,
+            fontWeight: FontWeight.w600,
+            color: t.onSurface,
+          ),
+        ),
+        const SizedBox(height: 1),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (s.isSaving) ...[
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: t.tertiary,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 5),
+            ],
+            Text(
+              s.saveText,
+              style: TextStyle(
+                fontSize: 11,
+                color: s.isSaving ? t.tertiary : t.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

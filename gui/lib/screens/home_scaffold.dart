@@ -6,32 +6,26 @@ import '../theme/tokens.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/overlays.dart';
 import '../widgets/project_shelf.dart';
+import '../widgets/rail.dart';
+import '../widgets/rules_panel.dart';
 import '../widgets/top_bar.dart';
 import 'rules_screen.dart';
 import 'settings_screen.dart';
 import 'test_screen.dart';
 
 /// Width at or above which the app switches from the mobile phone frame to the
-/// desktop multi-pane layout.
+/// desktop rail layout.
 const double kDesktopBreakpoint = 840;
 
-/// The app shell. Adaptive: below [kDesktopBreakpoint] it renders the brief's
-/// centred phone frame with a bottom nav; at or above it renders a navigation
-/// rail with a multi-pane body (Rules alongside Test). Overlays (shelf, context
-/// menu, confirm dialog, snackbar) are shared across both.
+/// The app shell.
+///
+/// Below [kDesktopBreakpoint] it is the brief's centred phone frame: a bottom
+/// nav across Rules / Test / Settings, with the project shelf sliding in over
+/// the content. At or above it, an icon rail on the far left opens at most one
+/// pinned sidebar — Projects or Rules — beside a main column that is always the
+/// editor (or Settings). Overlays are shared by both.
 class HomeScaffold extends StatelessWidget {
   const HomeScaffold({super.key});
-
-  Widget _screen(NavTab nav) {
-    switch (nav) {
-      case NavTab.rules:
-        return const RulesScreen();
-      case NavTab.test:
-        return const TestScreen();
-      case NavTab.settings:
-        return const SettingsScreen();
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,10 +43,23 @@ class HomeScaffold extends StatelessWidget {
     );
   }
 
-  /// Overlays layered above the content in both layouts.
-  List<Widget> _overlays(AppState s) => [
+  /// The main column's content, for whichever destination is really in force.
+  Widget _screen(AppState s, {required bool wide}) {
+    switch (s.navFor(wide: wide)) {
+      case NavTab.rules:
+        return const RulesScreen();
+      case NavTab.test:
+        return const TestScreen();
+      case NavTab.settings:
+        return const SettingsScreen();
+    }
+  }
+
+  /// Overlays layered above the content. The shelf is on this list only where it
+  /// is a drawer; on desktop it is a column in the layout instead.
+  List<Widget> _overlays(AppState s, {required bool wide}) => [
     if (s.snack != null) const SnackBarOverlay(),
-    if (s.shelfOpen) const ProjectShelf(),
+    if (!wide && s.shelfOpen) const ProjectShelf(),
     if (s.menu != null) const ActionSheet(),
     if (s.confirm != null) const ConfirmDialog(),
   ];
@@ -81,12 +88,12 @@ class HomeScaffold extends StatelessWidget {
               children: [
                 Column(
                   children: [
-                    const TopBar(),
-                    Expanded(child: _screen(s.nav)),
+                    const TopBar(isDesktop: false),
+                    Expanded(child: _screen(s, wide: false)),
                     const BottomNav(),
                   ],
                 ),
-                ..._overlays(s),
+                ..._overlays(s, wide: false),
               ],
             ),
           ),
@@ -96,7 +103,7 @@ class HomeScaffold extends StatelessWidget {
   }
 
   // ---------------------------------------------------------------------------
-  // Desktop: navigation rail + multi-pane body
+  // Desktop: icon rail + at most one pinned sidebar + main column
   // ---------------------------------------------------------------------------
 
   Widget _desktop(AppState s, HimarkTokens t) {
@@ -106,82 +113,39 @@ class HomeScaffold extends StatelessWidget {
         bottom: false,
         child: Stack(
           children: [
-            Column(
+            Row(
               children: [
-                const TopBar(),
+                const DeskRail(),
+                if (s.deskSidebarActive(DeskSidebar.projects))
+                  const SizedBox(
+                    width: ProjectShelf.desktopWidth,
+                    child: ProjectShelfPanel(),
+                  ),
+                if (s.deskSidebarActive(DeskSidebar.rules))
+                  SizedBox(
+                    width: ProjectShelf.desktopWidth,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        border: Border(
+                          right: BorderSide(color: t.outlineVariant),
+                        ),
+                      ),
+                      child: const RulesPanel(),
+                    ),
+                  ),
                 Expanded(
-                  child: Row(
+                  child: Column(
                     children: [
-                      _rail(s, t),
-                      VerticalDivider(width: 1, color: t.outlineVariant),
-                      Expanded(child: _desktopContent(s, t)),
+                      const TopBar(isDesktop: true),
+                      Expanded(child: _screen(s, wide: true)),
                     ],
                   ),
                 ),
               ],
             ),
-            ..._overlays(s),
+            ..._overlays(s, wide: true),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _rail(AppState s, HimarkTokens t) {
-    NavigationRailDestination dest(IconData icon, String label) =>
-        NavigationRailDestination(icon: Icon(icon), label: Text(label));
-
-    return NavigationRail(
-      backgroundColor: t.surfaceContainer,
-      selectedIndex: s.nav.index,
-      onDestinationSelected: (i) => s.goTo(NavTab.values[i]),
-      labelType: NavigationRailLabelType.all,
-      indicatorColor: t.primaryContainer,
-      selectedIconTheme: IconThemeData(color: t.onPrimaryContainer),
-      unselectedIconTheme: IconThemeData(color: t.onSurfaceVariant),
-      selectedLabelTextStyle: TextStyle(
-        color: t.primary,
-        fontSize: 11,
-        fontWeight: FontWeight.w600,
-      ),
-      unselectedLabelTextStyle: TextStyle(
-        color: t.onSurfaceVariant,
-        fontSize: 11,
-        fontWeight: FontWeight.w600,
-      ),
-      destinations: [
-        dest(Icons.checklist, 'Rules'),
-        dest(Icons.terminal, 'Test'),
-        dest(Icons.settings_outlined, 'Settings'),
-      ],
-    );
-  }
-
-  /// The primary content for the current destination. Test pairs the Rules list
-  /// with the editor; the rest are single, comfortably-capped panes.
-  Widget _desktopContent(AppState s, HimarkTokens t) {
-    switch (s.nav) {
-      case NavTab.test:
-        return Row(
-          children: [
-            SizedBox(width: 360, child: _screen(NavTab.rules)),
-            VerticalDivider(width: 1, color: t.outlineVariant),
-            Expanded(child: _screen(NavTab.test)),
-          ],
-        );
-      case NavTab.rules:
-        return _capped(maxWidth: 640, child: _screen(NavTab.rules));
-      case NavTab.settings:
-        return _capped(maxWidth: 720, child: _screen(NavTab.settings));
-    }
-  }
-
-  Widget _capped({required double maxWidth, required Widget child}) {
-    return Align(
-      alignment: Alignment.topCenter,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: maxWidth),
-        child: child,
       ),
     );
   }

@@ -8,6 +8,17 @@ import '../models/project.dart';
 
 enum NavTab { rules, test, settings }
 
+/// Which panel the desktop icon rail is holding open beside the main column.
+/// Null is a legal third state: both rails toggle off and the editor takes the
+/// full width.
+enum DeskSidebar { projects, rules }
+
+/// What the project shelf orders by. `manual` is the order projects were
+/// created in, which drag-free reordering never disturbs.
+enum ProjectSort { manual, name, date }
+
+enum SortDir { asc, desc }
+
 /// Lifecycle of the current match run, surfaced in the Test output sheet.
 enum EngineState { idle, running, ready, error }
 
@@ -92,17 +103,20 @@ class AppState extends ChangeNotifier {
 
   // --- test screen ui ---
   bool editMode = true;
-  bool sheetExpanded = true;
+  bool sheetExpanded = false;
   bool tabBarVisible = true;
 
   // --- shell ---
   bool shelfOpen = false;
+  DeskSidebar? deskSidebar = DeskSidebar.projects;
   SaveStatus saveStatus = SaveStatus.saved;
 
   // --- data ---
   List<String> order = <String>[];
   Map<String, Project> byId = <String, Project>{};
   String? currentProject;
+  ProjectSort projectSort = ProjectSort.manual;
+  SortDir sortDir = SortDir.asc;
 
   // --- transient overlays ---
   EditingState? editing;
@@ -116,7 +130,15 @@ class AppState extends ChangeNotifier {
   String? engineError;
 
   int _uid = 1;
-  String _newId(String prefix) => '$prefix${_uid++}';
+
+  /// Mint an id for a new rule, tab or project.
+  ///
+  /// The hyphen is load-bearing: the demo seed hard-codes `r1`, `t1` and so on,
+  /// and a bare counter would hand those out a second time — two list rows would
+  /// then share a key, which is an error, not a cosmetic clash. Seeding again
+  /// (Reset app data) does not rewind the counter, so ids stay unique for the
+  /// life of the session either way.
+  String _newId(String prefix) => '$prefix-${_uid++}';
 
   Timer? _saveTimer;
   Timer? _snackTimer;
@@ -151,6 +173,37 @@ class AppState extends ChangeNotifier {
   List<Project> get projectsInOrder =>
       order.map((id) => byId[id]).whereType<Project>().toList();
 
+  /// The shelf's list: [projectsInOrder] under the active sort. `manual` keeps
+  /// creation order, so only the direction toggle moves it.
+  List<Project> get projectsSorted {
+    final list = projectsInOrder;
+    switch (projectSort) {
+      case ProjectSort.manual:
+        break;
+      case ProjectSort.name:
+        list.sort(
+          (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+        );
+      case ProjectSort.date:
+        list.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    }
+    return sortDir == SortDir.desc ? list.reversed.toList() : list;
+  }
+
+  /// Whether the desktop rail is holding [which] open. Settings takes over the
+  /// main column, so no sidebar counts as active while it is up.
+  bool deskSidebarActive(DeskSidebar which) =>
+      nav != NavTab.settings && deskSidebar == which;
+
+  /// The destination the main column actually shows.
+  ///
+  /// Rules is a mobile-only destination — on a wide layout the rail opens it as
+  /// a sidebar instead, so the column falls back to the editor. Resizing a
+  /// phone-width window out to desktop is the case this covers; everything else
+  /// leaves [nav] on test or settings already.
+  NavTab navFor({required bool wide}) =>
+      wide && nav == NavTab.rules ? NavTab.test : nav;
+
   bool isEditing(MenuScope scope, String id) =>
       editing != null && editing!.scope == scope && editing!.id == id;
 
@@ -162,6 +215,7 @@ class AppState extends ChangeNotifier {
     final c = cur;
     if (mutator != null && c != null) {
       c.dirty = true;
+      c.updatedAt = DateTime.now();
       mutator(c);
     }
     saveStatus = SaveStatus.saving;
@@ -237,9 +291,19 @@ class AppState extends ChangeNotifier {
       notifyListeners();
       return;
     }
-    final rules = c.rules
-        .where((r) => c.enabled[r.id] ?? false)
-        .toList(growable: false);
+    // Only enabled rules are run, but a hit's colour comes from its rule's place
+    // in the full list — so carry the original positions and map the bridge's
+    // slots (indices into what it was handed) back onto them. Without this,
+    // switching one rule off would recolour every rule below it.
+    final rules = <Rule>[];
+    final slots = <int>[];
+    for (var i = 0; i < c.rules.length; i++) {
+      final rule = c.rules[i];
+      if (c.enabled[rule.id] ?? false) {
+        rules.add(rule);
+        slots.add(i);
+      }
+    }
     final content = active.content;
 
     engine = EngineState.running;
@@ -253,7 +317,15 @@ class AppState extends ChangeNotifier {
     }
     if (req != _matchReq) return; // a newer run started while we waited
 
-    matches = run.matches;
+    matches = <MatchRange>[
+      for (final m in run.matches)
+        MatchRange(
+          m.start,
+          m.end,
+          m.text,
+          slot: m.slot < slots.length ? slots[m.slot] : 0,
+        ),
+    ];
     engineError = run.error;
     engine = run.error != null ? EngineState.error : EngineState.ready;
     notifyListeners();
@@ -270,6 +342,27 @@ class AppState extends ChangeNotifier {
 
   void toggleShelf() {
     shelfOpen = !shelfOpen;
+    notifyListeners();
+  }
+
+  /// A desktop rail press. It always returns to the workspace, then toggles the
+  /// pressed panel: pressing the open one closes it and gives the width back to
+  /// the editor.
+  void pressRail(DeskSidebar which) {
+    final wasActive = deskSidebarActive(which);
+    nav = NavTab.test;
+    deskSidebar = wasActive ? null : which;
+    notifyListeners();
+  }
+
+  void cycleSortTarget() {
+    const values = ProjectSort.values;
+    projectSort = values[(projectSort.index + 1) % values.length];
+    notifyListeners();
+  }
+
+  void toggleSortDir() {
+    sortDir = sortDir == SortDir.asc ? SortDir.desc : SortDir.asc;
     notifyListeners();
   }
 
@@ -299,9 +392,7 @@ class AppState extends ChangeNotifier {
   void addRule() {
     final id = _newId('r');
     touch((c) {
-      c.rules.add(
-        Rule(id: id, label: 'Custom pattern', source: r'{0..9}^2'),
-      );
+      c.rules.add(Rule(id: id, label: 'Custom pattern', source: r'{0..9}^2'));
       c.enabled[id] = true;
     });
   }
@@ -378,12 +469,15 @@ class AppState extends ChangeNotifier {
 
   void addNewProject() {
     final id = _newId('p');
+    final now = DateTime.now();
     byId[id] = Project(
       id: id,
       name: 'Untitled project',
       rules: <Rule>[],
       enabled: <String, bool>{},
       tabs: <TestString>[],
+      createdAt: now,
+      updatedAt: now,
     );
     order.add(id);
     currentProject = id;
@@ -432,6 +526,7 @@ class AppState extends ChangeNotifier {
         if (p != null) {
           p.name = value;
           p.dirty = false;
+          p.updatedAt = DateTime.now();
           _patchProjects();
         }
       }
@@ -476,7 +571,11 @@ class AppState extends ChangeNotifier {
       final src = byId[id];
       if (src != null) {
         final nid = _newId('p');
-        byId[nid] = src.deepCopy(newId: nid, newName: '${src.name} copy');
+        byId[nid] = src.deepCopy(
+          newId: nid,
+          newName: '${src.name} copy',
+          now: DateTime.now(),
+        );
         order.insert(order.indexOf(id) + 1, nid);
         currentProject = nid;
         _patchProjects();
@@ -585,6 +684,28 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Put every appearance and editor preference back to its shipped value. The
+  /// projects are explicitly untouched — that is [askReset]'s job.
+  void askRestoreDefaults() {
+    confirm = ConfirmState(
+      title: 'Restore default settings?',
+      detail:
+          'Theme, density, font size, whitespace, and tab size will return to '
+          'their defaults. Your projects and test strings are not affected.',
+      label: 'Restore',
+      danger: false,
+      onConfirm: () {
+        theme = ThemeChoice.dark;
+        density = Density.compact;
+        editorFontSize = 13;
+        tabSize = 2;
+        showWhitespace = false;
+        showSnack('Settings restored to defaults');
+      },
+    );
+    notifyListeners();
+  }
+
   void askReset() {
     confirm = ConfirmState(
       title: 'Reset app data?',
@@ -607,11 +728,16 @@ class AppState extends ChangeNotifier {
   // ---------------------------------------------------------------------------
 
   void _seedDemo() {
+    // The brief seeds three projects at spaced edit times so the shelf's
+    // relative stamps ("2h ago", "1d ago", a short date) all show at once.
+    final now = DateTime.now();
     order = <String>['demo-set', 'project-a', 'project-b'];
     byId = <String, Project>{
       'demo-set': Project(
         id: 'demo-set',
         name: 'demo-set',
+        createdAt: now.subtract(const Duration(days: 30)),
+        updatedAt: now.subtract(const Duration(hours: 2)),
         rules: <Rule>[
           Rule(id: 'r1', label: 'IPv4 address', source: _ipv4Source),
           Rule(id: 'r2', label: 'Hex colour', source: _hexColorSource),
@@ -642,7 +768,11 @@ class AppState extends ChangeNotifier {
       'project-a': Project(
         id: 'project-a',
         name: 'project-a',
-        rules: <Rule>[Rule(id: 'r1', label: 'IPv4 address', source: _ipv4Source)],
+        createdAt: now.subtract(const Duration(days: 20)),
+        updatedAt: now.subtract(const Duration(hours: 26)),
+        rules: <Rule>[
+          Rule(id: 'r1', label: 'IPv4 address', source: _ipv4Source),
+        ],
         enabled: <String, bool>{'r1': true},
         activeTab: 't1',
         tabs: <TestString>[
@@ -656,6 +786,8 @@ class AppState extends ChangeNotifier {
       'project-b': Project(
         id: 'project-b',
         name: 'project-b',
+        createdAt: now.subtract(const Duration(days: 10)),
+        updatedAt: now.subtract(const Duration(days: 9)),
         rules: <Rule>[],
         enabled: <String, bool>{},
         tabs: <TestString>[],
