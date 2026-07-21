@@ -2,15 +2,22 @@
 
 Rides the hand-off tests/integration/test_rust_bridge.py already proves correct
 -- ``hejmark.emit_json`` lowers a query to the floor AST as JSON, the Rust
-``find`` binary decodes, denotes and scans -- and times both ends. The spans are
-asserted equal on every row, so a benchmark that drifts out of agreement fails
-rather than quietly comparing two different computations; the timings themselves
-assert nothing, because a wall clock on a loaded machine is not a gate.
+``find`` binary decodes, denotes and scans -- and times both ends.
 
-Both engines are measured cold. Python's ``_contains`` memo is an unbounded-ish
-lru_cache shared across calls, and leaving it warm from a previous case makes a
-scan up to three times faster -- so it is cleared before each timed run, which
-also matches the Rust side, cold by construction in a fresh process.
+Both engines are measured cold. Python's memos are lru_caches shared across
+calls, and leaving one warm from a previous case makes a scan several times
+faster -- so they are cleared before each timed run, which also matches the Rust
+side, cold by construction in a fresh process. The remembered hash on
+``UniverseNode`` needs no clearing: each row re-parses, so its nodes are new.
+
+The sign of the comparison has flipped, and the module says so rather than
+implying otherwise. Rust used to win every non-closure row; Python has since
+taken four rewrites the port does not have -- the two-ended cut bound, the
+chart, the remembered node hash, and the membership memo ``universe.rs``
+already documents omitting -- and now wins every 800-character row. The spans are
+asserted equal on every row, so a benchmark that drifts out of agreement fails;
+the timings themselves still assert nothing, because a wall clock on a loaded
+machine is not a gate.
 """
 
 from __future__ import annotations
@@ -22,7 +29,7 @@ from pathlib import Path
 import pytest
 
 import hejmark
-from hejmark.core.floor import universe
+from hejmark.core.floor import reach, universe
 
 pytestmark = pytest.mark.benchmark
 
@@ -63,6 +70,9 @@ IDS = [f"{source} @{len(text)}" for source, text in CASES]
 def _python_scan(source: str, text: str) -> tuple[list[tuple[int, int]], float]:
     """Scan with the Python engine from a cleared memo; return spans and elapsed ms."""
     universe._contains.cache_clear()
+    universe._spells.cache_clear()
+    reach.reach.cache_clear()
+    reach.suffixes.cache_clear()
     start = time.perf_counter()
     spans = [found.span for found in hejmark.finditer(source, text)]
     return spans, (time.perf_counter() - start) * 1000

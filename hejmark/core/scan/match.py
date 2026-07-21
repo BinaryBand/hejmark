@@ -22,7 +22,9 @@ from __future__ import annotations
 from collections.abc import Iterator
 from dataclasses import dataclass
 
+from hejmark.core.floor.reach import reach
 from hejmark.core.floor.universe import Universe
+from hejmark.core.floor.work import budgeted
 from hejmark.core.surface.ast import HimarkScopeError
 from hejmark.core.surface.late import Late
 
@@ -72,41 +74,118 @@ class Match:
     parts: tuple[MatchPart, ...]
 
 
+def _longest(universe: Universe, remaining: int) -> int:
+    """The longest span worth offering a factor: the text left, capped by its reach.
+
+    A factor cannot wear a face longer than its expression reaches, so a longer
+    span is a probe whose answer is already known. Where the expression is
+    unbounded -- a final segment, a closure -- the remaining text is the only
+    cap there is, which is the honest answer rather than a missing one.
+    """
+    far = reach(universe.node)
+    return remaining if far is None else min(far, remaining)
+
+
+@dataclass(frozen=True)
+class _Search:
+    """One query against one text, with the chart the attempts share.
+
+    ``chart`` remembers what the product from a depth found at a position. The
+    answer is a function of the factors, the text and the two indices -- L2's
+    *equal questions have equal answers* -- so it stands for every start
+    position and for every match of one scan, which is what keeps the whole
+    scan from re-deriving the same tails.
+
+    Not for a back-referencing factor, though: a :class:`Late` denotes only
+    under the faces bound to its left, so the same depth at the same position
+    is not the same question twice. ``plain`` is the first depth whose tail
+    carries no ``Late``; only from there down does the chart apply.
+    """
+
+    factors: tuple[Factor, ...]
+    text: str
+    chart: dict[tuple[int, int], tuple[MatchPart, ...] | None]
+    plain: int
+
+
+def _plain(factors: tuple[Factor, ...]) -> int:
+    """The first depth from which no factor back-references, so the chart holds."""
+    late = [depth for depth, factor in enumerate(factors) if isinstance(factor, Late)]
+    return late[-1] + 1 if late else 0
+
+
 def _try_product(
-    factors: tuple[Factor, ...],
-    text: str,
-    pos: int,
-    depth: int,
-    bound: tuple[str, ...],
-) -> list[MatchPart] | None:
+    search: _Search, pos: int, depth: int, bound: tuple[str, ...]
+) -> tuple[MatchPart, ...] | None:
     """Match the product from ``depth`` onward at ``pos``; ``None`` if it can't."""
-    if depth == len(factors):
-        return []
-    universe = universe_at(factors[depth], bound)
-    for length in range(len(text) - pos, 0, -1):
-        face = text[pos : pos + length]
+    if depth < search.plain:
+        return _probe(search, pos, depth, bound)
+    key = (depth, pos)
+    if key not in search.chart:
+        search.chart[key] = _probe(search, pos, depth, bound)
+    return search.chart[key]
+
+
+def _probe(
+    search: _Search, pos: int, depth: int, bound: tuple[str, ...]
+) -> tuple[MatchPart, ...] | None:
+    """Try each face this factor could wear here, longest first, and recurse."""
+    if depth == len(search.factors):
+        return ()
+    universe = universe_at(search.factors[depth], bound)
+    for length in range(_longest(universe, len(search.text) - pos), 0, -1):
+        face = search.text[pos : pos + length]
         if not universe.contains(face):
             continue
         end = pos + length
-        tail = _try_product(factors, text, end, depth + 1, (*bound, face))
+        tail = _try_product(search, end, depth + 1, (*bound, face))
         if tail is not None:
-            return [MatchPart((pos, end), face), *tail]
+            return (MatchPart((pos, end), face), *tail)
     return None
+
+
+def _leftmost(search: _Search, start: int) -> Match | None:
+    """Walk start positions left to right, returning the first that matches."""
+    for pos in range(start, len(search.text) + 1):
+        parts = _try_product(search, pos, 0, ())
+        if parts is not None:
+            end = parts[-1].span[1] if parts else pos
+            return Match((pos, end), parts)
+    return None
+
+
+def _search(query: Query, text: str) -> _Search:
+    """A fresh search: one chart per query and text, empty until an attempt fills it."""
+    return _Search(query.universes, text, {}, _plain(query.universes))
 
 
 def match(query: Query, text: str, start: int = 0) -> Match | None:
-    """Return the leftmost match at or after ``start``, or ``None`` if there is none."""
-    for pos in range(start, len(text) + 1):
-        parts = _try_product(query.universes, text, pos, 0, ())
-        if parts is not None:
-            end = parts[-1].span[1] if parts else pos
-            return Match((pos, end), tuple(parts))
-    return None
+    """Return the leftmost match at or after ``start``, or ``None`` if there is none.
+
+    Raises:
+        HimarkBudgetError: the match ran past the host's work budget.
+    """
+    with budgeted("a match"):
+        return _leftmost(_search(query, text), start)
 
 
 def finditer(query: Query, text: str) -> Iterator[Match]:
-    """Yield non-overlapping matches left to right, resuming past each span."""
+    """Yield non-overlapping matches left to right, resuming past each span.
+
+    One chart serves the whole scan: the text does not change between matches,
+    so a tail derived for one match answers for the next. Each match carries its
+    own work budget, unless an outer run -- a contracting pass -- holds one over
+    the whole scan.
+
+    Raises:
+        HimarkBudgetError: a match ran past the host's work budget.
+    """
+    search = _search(query, text)
     pos = 0
-    while (found := match(query, text, pos)) is not None:
+    while True:
+        with budgeted("a match"):
+            found = _leftmost(search, pos)
+        if found is None:
+            return
         yield found
         pos = max(found.span[1], pos + 1)

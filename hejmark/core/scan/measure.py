@@ -22,6 +22,7 @@ from typing import assert_never
 
 from hejmark.core.floor.binder import binds
 from hejmark.core.floor.order import spelling_key
+from hejmark.core.floor.reach import cuts, suffixes
 from hejmark.core.floor.syntax import (
     Closure,
     Face,
@@ -34,6 +35,7 @@ from hejmark.core.floor.syntax import (
     UniverseNode,
 )
 from hejmark.core.floor.universe import Adding, Universe, walk
+from hejmark.core.floor.work import charge
 from hejmark.core.scan.capture import BUDGET
 from hejmark.core.surface.ast import HimarkScopeError
 
@@ -98,10 +100,14 @@ def _owner(members: tuple[Member, ...], amp: Universe | None, face: str) -> tupl
     the left already claims it, and no subtraction to the right strips it.
     Dropped faces shift positions but never reorder, so the owner index alone
     carries the member-major half of the order.
+
+    The three walks here go to the member-level oracle rather than through
+    ``contains``, so the open budget is charged for them by hand.
     """
     for index, member in enumerate(members):
         if isinstance(member, Subtract):
             continue
+        charge()
         if not walk((member,), amp, face):
             continue
         if walk(members[:index], amp, face):
@@ -174,20 +180,27 @@ def _lex(
 def _tilings(
     factors: tuple[UniverseNode | Closure, ...], amp: Universe | None, spelling: str
 ) -> list[tuple[str, ...]]:
-    """Every split of *spelling* into consecutive factor faces, empty pieces included."""
+    """Every split of *spelling* into consecutive factor faces, empty pieces included.
+
+    The seating search asks what the floor's own split search asks, so it takes
+    the same permitted rewrite: :func:`~hejmark.core.floor.reach.cuts` reads both
+    ends of the cut range off the expression rather than trying every position.
+    """
     found: list[tuple[str, ...]] = []
+    tails = suffixes(factors)
+    length = len(spelling)
 
     def rest(depth: int, pos: int, acc: tuple[str, ...]) -> None:
         """Extend *acc* with every tiling of ``spelling[pos:]`` from ``depth`` on."""
         if depth == len(factors):
-            if pos == len(spelling):
+            if pos == length:
                 found.append(acc)
                 if len(found) > BUDGET:
                     msg = f"cannot seat {spelling!r} in the measure: more than {BUDGET} splits"
                     raise HimarkScopeError(msg)
             return
         universe = _factor(factors[depth], amp)
-        for end in range(pos, len(spelling) + 1):
+        for end in cuts(factors[depth], tails[depth + 1], pos, length):
             if universe.contains(spelling[pos:end]):
                 rest(depth + 1, end, (*acc, spelling[pos:end]))
 

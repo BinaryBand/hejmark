@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from hejmark import HimarkScopeError, HimarkSentinelError, run
+from hejmark import HimarkBudgetError, HimarkScopeError, HimarkSentinelError, run
 from hejmark.core.emit import Branch
+from hejmark.core.floor import work
 
 
 def test_a_branch_reads_its_span_as_the_bound_face() -> None:
@@ -135,3 +136,11 @@ def test_a_document_the_measure_does_not_spell_is_refused() -> None:
     """The measure must spell what it is asked to seat, before and after a pass."""
     with pytest.raises(HimarkScopeError, match="does not spell the document"):
         run('uni m = {x}\n{a} <=>[@m] "x"', "a")
+
+
+def test_a_pass_past_the_work_budget_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    """One budget covers a whole pass -- its scan and its measure comparison together."""
+    monkeypatch.setattr(work, "BUDGET", 5)
+
+    with pytest.raises(HimarkBudgetError, match="a contracting pass ran past"):
+        run('{ba} <=>[@spellings] "ab"', "bbaa")

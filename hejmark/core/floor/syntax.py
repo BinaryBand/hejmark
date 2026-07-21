@@ -72,6 +72,32 @@ class UniverseNode:
 
     members: tuple[Member, ...]
 
+    def __hash__(self) -> int:
+        """The generated hash, computed once and remembered on the node.
+
+        Membership and its member-level oracle are both memoized on the denoted
+        universe, and every one of those lookups hashes an AST node -- which,
+        generated, walks the whole subtree, so a deep node is re-walked once per
+        question asked of it. A node is immutable and long-lived (parsing builds
+        it once and expansion hands the same object around), so the walk is
+        worth exactly one visit. Remembering it here breaks the recursion at
+        every brace: a member's hash reaches an already-remembered node and
+        stops.
+
+        Deliberately *not* done for :class:`~hejmark.core.floor.universe.
+        Universe`, which is built fresh on nearly every call -- there a
+        remembered hash is never read a second time, and measurably costs more
+        than it saves.
+
+        Equality stays the generated structural one, so two nodes that compare
+        equal still hash equal; only the arithmetic is skipped.
+        """
+        cached: int | None = self.__dict__.get("_hash")
+        if cached is None:
+            cached = hash(self.members)
+            object.__setattr__(self, "_hash", cached)
+        return cached
+
 
 @dataclass(frozen=True)
 class QueryNode:

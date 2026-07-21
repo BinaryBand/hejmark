@@ -25,6 +25,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from hejmark.core.engine import query as _denote_query
+from hejmark.core.floor.work import budgeted
 from hejmark.core.scan.capture import canonical_face, factor_faces
 from hejmark.core.scan.match import Query, finditer
 from hejmark.core.scan.measure import precedes
@@ -197,24 +198,32 @@ def _iterate(stmt: IterStatement, document: str, env: Env) -> str:
     must sit strictly earlier in its entry order -- a well-order, so checked
     descent is the termination proof, not a hope.
 
+    The pass count is finite with no bound stated in advance -- a well-order
+    carries no numeral -- but each pass is priced: one work budget covers the
+    whole pass, its scan and its measure comparison together, and a pass that
+    outspends it is a diagnostic rather than a longer wait.
+
     Raises:
         HimarkScopeError: a pass fails to shrink the measure, or the measure
             does not spell the document it is asked to seat.
+        HimarkBudgetError: a pass ran past the host's work budget.
     """
     measure = _denote_query(Expr((Unit(Ref(stmt.measure)),)), env).universe()
     denoted = _denote_query(stmt.query, env)
     once = Statement((stmt.query, stmt.template))
-    while next(iter(finditer(denoted, document)), None) is not None:
-        result = statement(once, document, env)
-        for text in (document, result):
-            if not measure.contains(text):
-                msg = f"@{stmt.measure} does not spell the document between passes"
+    while True:
+        with budgeted("a contracting pass"):
+            if next(iter(finditer(denoted, document)), None) is None:
+                return document
+            result = statement(once, document, env)
+            for text in (document, result):
+                if not measure.contains(text):
+                    msg = f"@{stmt.measure} does not spell the document between passes"
+                    raise HimarkScopeError(msg)
+            if not precedes(measure, result, document):
+                msg = f"a pass failed to shrink @{stmt.measure}"
                 raise HimarkScopeError(msg)
-        if not precedes(measure, result, document):
-            msg = f"a pass failed to shrink @{stmt.measure}"
-            raise HimarkScopeError(msg)
         document = result
-    return document
 
 
 def _guard(document: str, env: Env | None) -> None:

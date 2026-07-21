@@ -9,9 +9,11 @@ from __future__ import annotations
 
 import pytest
 
+from hejmark.core.floor import work
 from hejmark.core.floor.syntax import Face, Fold, UniverseNode
 from hejmark.core.floor.universe import Universe, denote
-from hejmark.core.scan.match import Query, finditer, match
+from hejmark.core.floor.work import HimarkBudgetError
+from hejmark.core.scan.match import Query, _plain, finditer, match
 from hejmark.core.surface import ast
 from hejmark.core.surface.ast import HimarkScopeError
 from hejmark.core.surface.late import Late
@@ -108,6 +110,48 @@ def test_a_late_factor_expands_under_the_faces_bound_to_its_left() -> None:
     assert found is not None
     assert [part.face for part in found.parts] == ["b", "b"]
     assert match(query, "ab") is None
+
+
+def test_the_chart_covers_a_query_with_no_back_reference() -> None:
+    """Nothing back-references, so every depth's answer stands across positions."""
+    assert _plain((_universe("a"), _universe("b"), _universe("c"))) == 0
+
+
+def test_the_chart_starts_past_the_last_back_reference() -> None:
+    """A late factor's answer depends on its bindings, so only its tail is chartable."""
+    factors = (_universe("a"), _late_echo(), _universe("b"))
+
+    assert _plain(factors) == 2
+
+
+def test_a_late_factor_last_leaves_nothing_chartable() -> None:
+    assert _plain((_universe("a"), _late_echo())) == 2
+
+
+def test_a_scan_past_a_late_factor_still_reads_each_binding() -> None:
+    """The chart covers the plain tail, so the echo must still answer per attempt."""
+    query = Query("<hand-built>", (_universe("a", "b"), _late_echo(), _universe("!")))
+    found = list(finditer(query, "ab! bb! aa!"))
+
+    assert [m.span for m in found] == [(4, 7), (8, 11)]
+    assert [m.parts[1].face for m in found] == ["b", "a"]
+
+
+def test_a_match_past_the_work_budget_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Never a hang: a run the host cannot afford is a diagnostic, not a longer wait."""
+    monkeypatch.setattr(work, "BUDGET", 3)
+    query = _query(_universe("z"))
+
+    with pytest.raises(HimarkBudgetError, match="a match ran past"):
+        match(query, "aaaaaaaaaa")
+
+
+def test_each_match_of_a_scan_carries_its_own_budget(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A scan is many runs, so a long document is not one run that outgrows the budget."""
+    monkeypatch.setattr(work, "BUDGET", 4)
+    found = list(finditer(_query(_universe("a")), "a" * 20))
+
+    assert [m.span for m in found] == [(pos, pos + 1) for pos in range(20)]
 
 
 def test_universe_refuses_a_late_factor() -> None:

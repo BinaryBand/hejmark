@@ -1,6 +1,6 @@
 # TODO: deferred increments
 
-<!-- cspell:words uncomputable hejmark valueline -->
+<!-- cspell:words uncomputable hejmark valueline slugify -->
 
 Priority and rationale for outstanding work. This file only ranks what remains and says why; two ledgers stay authoritative -- the **"What this does not prove"** section of `static/lean/README.md` for the mechanization, and `docs/foundation/ROADMAP.md` for the layers. When an item lands, update its ledger first.
 
@@ -8,44 +8,83 @@ Priority and rationale for outstanding work. This file only ranks what remains a
 
 Ordered by dependency, not by size.
 
-- [ ] **Refuse past a work budget** -- the one place the implementation now contradicts a normative claim. Conformance, below.
-- [ ] **Bound the product probe** -- the largest single measured win, and now a rewrite `L2.md` names. Engine performance, below.
-- [ ] **Chart memo across start positions** -- the change that moves the polynomial degree rather than its constant.
-- [ ] **Price the contraction measure** -- `<=>` is now the most expensive construct in the language, and it is unprofiled.
+- [ ] **Carry the rewrites into the Rust port** -- the port is now *slower* than Python on every measured row, and the four rewrites that did it are all portable. Engine performance, below.
+- [ ] **Bound the last split search** -- `capture._splits` is the one that did not get the cut bound, because its factors are a different type. Small and self-contained.
+- [ ] **Re-time the `programs/` tier** -- its stated blocker was matcher cost, and that blocker is gone. Deferred, below.
 
-Everything under **Deferred** waits on something that does not yet exist: a row, a use that forces a design, or one of the four above.
+The previous four are done; **Landed** records what they cost and, where the guess was wrong, what was actually true.
 
-## Conformance
+## Landed
 
 ### Refuse past a work budget
 
-`L2.md` now states a cost tier, and the implementation meets one half of it and not the other. The **class** holds: matching is polynomial in the text (see below), which is what the contract asks. The **budget** does not exist: a closure query over a long enough document runs until someone kills it, where the contract says a run past the host's work budget is a diagnostic.
+`hejmark/core/floor/work.py`. `budgeted` opens a budget over a run and `charge` spends it; `HimarkBudgetError` is the diagnostic, exported beside the other four. `match` and `finditer` open one per match, `emit._iterate` one per contracting pass, and the outermost open budget is the one that holds, so a pass is priced whole rather than per match inside it.
 
-The shape is already in the tree twice -- `capture.BUDGET` for `$0` and an ambiguous factor split, `valueline.RADIX_BUDGET` for a value cut -- and this is the third instance of the same rule, over a match and over a contracting pass. Note the performance items below **raise the ceiling but never remove this**: there is always a document long enough, so an honest refusal is needed regardless of how fast the matcher gets. The two are complementary.
+**The unit was the surprise, and it decided where the module lives.** The obvious charge is one matcher probe, and that measures nothing: at 120 characters the closure scan below spent **four** probes and eleven seconds, because the cost is *inside* a single `contains`. So the unit is one membership question -- one `Universe.contains` call, memo hits included, since re-asking an answered question still costs the asking -- and the module therefore sits on the floor, the only layer that can see the work. Denotation stays total; a budget decides only whether this host keeps computing, which is exactly L2's remit.
 
-Decided while settling the layer's scope, and worth recording because it sets the target: the line is drawn at **observable versus constant-factor**, three tiers rather than two. Admission rules and cost bounds are normative; a meaning-preserving rewrite is normative as a *permission*, since each is a theorem and `L1.md`'s compression catalog is already a list of exactly that kind; tactics -- memo sizing, the closure seal, window carving -- are out, as constants rather than classes. The guardrail is that the layer states bounds and permissions and never mandates a mechanism, so a host reaching the same bound differently stays conforming and the layer does not churn with each performance patch.
+`HimarkBudgetError` is its own class rather than the reads' `HimarkScopeError`, because L2 separates them too: a read that outruns its budget cannot name an entry, where a run past the work budget could name every one and simply could not afford to.
+
+### Bound the product probe
+
+`hejmark/core/floor/reach.py`, the companion to `ceiling.py`: `reach` measures spellings where `cardinality` counts entries, both structural, both `None` for "no known bound, never a wrong one". `cuts` reads a split range off the expression and is used by all three split searches that took it -- `match._probe`, `universe._splits`, `measure._tilings`.
+
+**Both ends of the cut turned out to matter, and the second end was the whole win.** The factor's own reach caps the cut, which is what `L2.md` named; the reach of the factors *after* it floors the cut, because a cut leaving them more text than they can spell together completes nowhere. That corollary collapses the language's idiomatic closure: in `{@x, &@x}` the `&` reaches nowhere, but the single-character factor beside it pins the cut to one position, turning a scan of every cut into a look at one. `L2.md`'s first permitted rewrite now states both ends.
+
+### Chart memo across start positions
+
+`match._Search.chart`, keyed on `(factor index, start position)` and shared across start positions and across the matches of one `finditer`. `_plain` marks the first depth whose tail carries no `Late`, and only from there down does the chart apply -- a back-referencing factor denotes only under its bindings, so the same depth at the same position is not the same question twice.
+
+**It does nothing for the queries that looked slow, and everything for a shape nobody had measured.** On two- and three-factor closure queries it is inside the noise, because the membership memo one level down already collapses those subproblems. On a product of many factors it moves the degree exactly as advertised: `{@r}` six times over 32 characters went from **70.2 s to 0.09 s**, and the chart column is flat in the factor count where the plain column grows like $n^{k}$.
+
+### Price the contraction measure
+
+Profiled, and the guess in this file was wrong twice over.
+
+`precedes` is **not** the cost. It does not appear in the profile at all -- milliseconds against seconds -- exactly as its documented never-streams property predicts. What a contracting pass actually spends is the **seat**: `measure.contains(document)`, ordinary closure membership over the whole document, run before and after each pass. So contraction was never a construct with its own cost; it was closure membership, priced once per pass, and it fell with everything else.
+
+The profile did surface one thing nothing else would have: `builtins.hash` at **6.4 s of 9.1 s self time**, 11.6 million calls. A generated dataclass hash walks the whole subtree, and every memo lookup hashes an AST node. `UniverseNode.__hash__` now remembers its own hash, which cut hash calls 21-fold. Two details are load-bearing and were measured rather than assumed:
+
+- Doing the same to `Universe` makes things **worse**. A `Universe` is built fresh on nearly every call, so a remembered hash there is never read twice and costs more than it saves. Long-lived nodes remember; ephemeral ones do not.
+- An earlier note rejected this fix as marginal. It was, then. Re-measuring after the cut bounds changed the answer -- which is the argument for profiling each time rather than carrying a verdict forward.
+
+### Keep the descent shallow
+
+Not planned; found by the fix above. Narrowing the cut range moves the *longest* sub-question to the front of the search, and the closure recursion descends one character per level, so the stack blew before the budget did -- a `RecursionError` at 100 characters where the old code reached 160. `universe._shorter_first` answers the shorter prefixes first, so the descent finds its answers in the memo instead of a frame deeper. Only the closure at omega warms; warming its stages too costs four times as much and buys nothing, since answering the omega question at each prefix has already filled their member walks.
+
+This is a tactic, not a rule -- a host whose stack is its memory conforms without it -- and it is worth knowing that it also made the engine *faster*, not just deeper.
 
 ## Engine performance
 
-Measured, not guessed. Growth is **~O(n³·³)** -- polynomial, not exponential. Memoizing `_spells` in `core/floor/universe.py` (landed) cut the constant by ~10x and the whole suite from 120s to 91s, but did not move the degree. Full timings and method are in `docs/.TEMP.md` (local-only; it is gitignored under "Private project files").
+Measured, not guessed. Cold, one workload per process, against `2ab4c14`:
 
-Diagnosis that produced the landed fix, worth keeping: `_contains.cache_info()` showed **1,038,323 hits against 1,250 misses** at 31 characters. The memo was never thrashing -- the recursion simply re-asked memoized questions a million times. Look at call *counts* before cache sizes.
+| workload | before | after | factor |
+| --- | --- | --- | --- |
+| `{\*}{@r}{\*}` @30 | 0.214 s | 0.030 s | 7x |
+| `{\*}{@r}{\*}` @60 | 4.04 s | 0.272 s | 15x |
+| `{\*}{@r}{\*}` @100 | 38.7 s | 1.11 s | 35x |
+| `{\*}{@r}{\*}` @160 | 225.8 s | 5.66 s | 40x |
+| `{@r}`×4 `{\*}` @32 | 5.59 s | 0.077 s | 73x |
+| `{@r}`×6 `{\*}` @32 | 70.2 s | 0.090 s | 780x |
+| bare collapse, 40 dashes | 6.10 s | 0.065 s | 94x |
+| bare collapse, 60 dashes | 17.4 s | 0.152 s | 114x |
+| slugify @37, no collapse | 0.673 s | 0.090 s | 7x |
+| slugify @37, with collapse | 4.76 s | 0.140 s | 34x |
 
-### 1. Bound the product probe
+Read the two halves differently. For a fixed query shape the growth is still **~O(n³·⁵)**, down from ~O(n⁴): the cut bounds and the remembered hash moved the *constant*, by roughly forty. For a product of many factors the chart moved the *degree*, from $n^{k}$ to about $n^2$, which is the 780x row. Both were needed and neither substitutes for the other. Full timings and method are in `docs/.TEMP.md` (local-only; gitignored under "Private project files").
 
-`_try_product` in `core/scan/match.py` probes **every** length at every product position (`for length in range(len(text) - pos, 0, -1)`), including for a factor that can only ever wear a one-character face. A single-face factor therefore costs O(n) `contains` calls where one would do.
+### 1. Carry the rewrites into the Rust port
 
-The fix is a max-face-length analysis: structural, never streaming, `None` when unbounded -- the same shape and spirit as `core/floor/ceiling.py`, which is already the precedent for "price it from the AST or admit you cannot". `L2.md` now names this rewrite under *Permitted rewrites*, so it is licensed rather than merely tempting. Self-contained, and the largest single win still available.
+`tests/benchmarks/` now reports Python **winning every 800-character row**, by up to 5x, and widening with target length -- the exact reversal of what `CLAUDE.md` recorded a week ago, including the direction of the trend. (The 200-character rows still favour Rust, but at that size Python's parse and warm-up dominate its own number, so they say little.) Nothing regressed in Rust; Python simply took four rewrites the port does not have: the two-ended cut bound (`reach.rs`), the chart, the remembered node hash, and the membership memo the port already documents omitting.
 
-### 2. Chart memo across start positions
+The order to port them in is the order they paid here: the cut bound first (it is the largest and it is pure structure over the AST the port already decodes), then the memo, then the hash, then the chart. The benchmark asserts spans rather than timings, so none of this fails a gate -- which is why it needs writing down instead.
 
-`match()` re-runs the whole product search at every start position and shares nothing between them. A memo keyed on `(factor index, span)` is the textbook fix and is what actually lowers the degree rather than the constant. Bigger change than item 1; do it after, so the two wins can be told apart.
+### 2. Bound the last split search
 
-### 3. Price the contraction measure
+`capture._splits` still walks every cut. It missed the sweep for a type reason and not a semantic one: its factors are `Factor` (`Universe | Late`), where `cuts` takes the floor's `UniverseNode | Closure`, and a `Late` has no reach until its reads are bound. Resolving each factor first and reaching the result would fix it. This is the `$1..$n` read path, already budgeted and off the hot loop, so it is small -- but it is the one place the permitted rewrite is stated and not taken.
 
-`<=>` is now the most expensive construct in the language: at 37 characters, slugify costs 0.31s without its collapse statement and 3.95s with it; a bare collapse over 60 dashes costs 13.45s. Each pass compares two documents under a closure-over-`@C` measure, so cost scales with document length *and* pass count.
+### 3. The descent is still linear in the spelling
 
-This is measured but **unprofiled** -- `precedes` in `core/scan/measure.py` has not been looked at, and its documented property is that it never streams, so the cost is presumably in the membership calls underneath. Profile before designing anything.
+`_shorter_first` bounds the stack for the shape that matters -- a closure whose sub-questions are prefixes, which is every `{@x, &@x}` in the std -- but the bound is structural, not general: a closure whose split search asks about suffixes or interior substrings will descend one frame per character again and can still exhaust the interpreter's stack before the work budget fires. A `RecursionError` is not a diagnostic, so this is the one path where "never a hang, never a guess" is met by neither. Worth stating in `L2.md`'s diagnostics only if a real shape hits it; worth fixing properly (a bottom-up table over stage and substring) only if one does.
 
 ## Deferred
 
@@ -53,13 +92,13 @@ This is measured but **unprofiled** -- `precedes` in `core/scan/measure.py` has 
 
 A third example group beside `simple/` and `demos/` -- whole programs rather than feature demos. Planning, the porting-gap analysis against the older iteration's `scripts/`, and four verified-working program sources are parked in `docs/.TEMP.md`.
 
-Blocked on the performance items: the flagship candidate (markdown to HTML) runs correctly but takes 6.26s on a three-line fixture and hangs at six lines, which is too slow for the gate. The closure-free candidates (`html-escape`, `normalize-space`, `wrap`) are fast today and could ship at any time if a smaller tier is wanted sooner.
+**The stated blocker is gone.** It was matcher cost: the flagship candidate (markdown to HTML) took 6.26 s on a three-line fixture and hung at six, and slugify was too slow to ship with its collapse statement. Slugify now runs in 0.140 s at 37 characters *with* the collapse, a 34x change, so the tier's cheap candidates can ship today and the flagship needs re-timing rather than re-architecting. That re-timing is the work: if markdown-to-HTML now runs a six-line fixture inside the gate's patience, the tier ships as planned.
 
 ### Language surface: expressive render layer
 
 **The gap.** A cast by value is uncomputable today. `@lo..hi` cuts one head's value line and names its bounds in that head's own numerals, so writing a bound value under a *second* universe -- decimal to hex, a unary run's length as a decimal numeral -- is value-indexing across two radixes, which no expression computes and no register spells (`docs/foundation/L1_5.md`, Worked derivations).
 
-**The groundwork, landed.** A render that carries a computed value needs somewhere for that value to land, and the natural bound is the target universe's own entry count -- its **ceiling** -- so a value that overflows folds back modulo the ceiling and always names an entry that exists. `hejmark/core/floor/ceiling.py` prices it: `cardinality` computes the count structurally, never streaming an entry, so an astronomically wide field costs nothing to price. It is exact over disjoint faces and ranges and products of those, and returns `None` -- "no known ceiling", never a wrong one -- wherever the collision rule might drop an entry (an overlap, a subtraction) or a member is unbounded (a final segment, a closure). Nothing consumes it yet, by intent.
+**The groundwork, landed.** A render that carries a computed value needs somewhere for that value to land, and the natural bound is the target universe's own entry count -- its **ceiling** -- so a value that overflows folds back modulo the ceiling and always names an entry that exists. `hejmark/core/floor/ceiling.py` prices it: `cardinality` computes the count structurally, never streaming an entry, so an astronomically wide field costs nothing to price. It is exact over disjoint faces and ranges and products of those, and returns `None` -- "no known ceiling", never a wrong one -- wherever the collision rule might drop an entry (an overlap, a subtraction) or a member is unbounded (a final segment, a closure). Nothing consumes it yet, by intent. `reach.py` is now its companion and the precedent is no longer theoretical: a structural price, `None` where it cannot be exact, consumed by the layer above.
 
 **Why it is deferred.** It is a denotational addition, so it grows L1.5 rather than the execution contract -- and a new register faces the scrutiny a new axiom does, since L1.5's finish line is measured by the inventory staying four tokens. The design is not forced yet; the first script that genuinely wants it should settle:
 
