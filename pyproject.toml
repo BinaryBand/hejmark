@@ -20,7 +20,14 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 # importlib mode lets tests/ mirror the package layout without duplicate
 # test-module basenames across layer subdirectories colliding on import.
-addopts = "-v --tb=short --import-mode=importlib"
+# `-m 'not benchmark'` keeps tests/benchmarks/ out of the default gate: those
+# build the Rust binary in release and run the Python engine on targets sized to
+# be slow, which is measurement, not correctness. A command-line -m overrides
+# this one, so `uv run pytest -m benchmark` selects exactly them.
+addopts = "-v --tb=short --import-mode=importlib -m 'not benchmark'"
+markers = [
+    "benchmark: Rust-vs-Python engine timing; deselected by default, run with -m benchmark",
+]
 
 [tool.ruff]
 line-length = 100
