@@ -1,6 +1,6 @@
 //! Leftmost-greedy matcher: set membership over spellings, nothing else.
 //!
-//! A port of `hejmark/core/scan/match.py`. A query is a product of factors. At
+//! A port of `hejmark/core/engine/scan/match.py`. A query is a product of factors. At
 //! each product position the matcher probes prefixes of the remaining text
 //! longest-first (maximal munch): a candidate face is a prefix of `text[pos..]`,
 //! so there are at most `text.len() - pos` of them, and a single `contains`
@@ -19,6 +19,9 @@
 //! As everywhere in this crate, text and faces are `[u32]` code points, so a
 //! span is a code-point offset -- matching the Python's per-character indexing.
 
+use std::collections::HashMap;
+
+use crate::floor::reach::reach;
 use crate::floor::universe::Universe;
 
 /// A denoted query: its source plus one factor per written unit, in order.
@@ -67,55 +70,112 @@ pub struct Match {
     pub parts: Vec<MatchPart>,
 }
 
-/// Match the product from `depth` onward at `pos`; `None` if it cannot.
-fn try_product(
-    factors: &[Universe],
-    text: &[u32],
-    pos: usize,
-    depth: usize,
-) -> Option<Vec<MatchPart>> {
-    if depth == factors.len() {
-        return Some(Vec::new());
+/// The longest span worth offering a factor: the text left, capped by its reach.
+///
+/// A factor cannot wear a face longer than its expression reaches, so a longer
+/// span is a probe whose answer is already known. Where the expression is
+/// unbounded -- a final segment, a closure -- the remaining text is the only cap
+/// there is, which is the honest answer rather than a missing one.
+fn longest(universe: &Universe, remaining: usize) -> usize {
+    match reach(universe.shared_node()) {
+        Some(far) => far.min(remaining),
+        None => remaining,
     }
-    let universe = &factors[depth];
-    for length in (1..=text.len() - pos).rev() {
-        let face = &text[pos..pos + length];
-        if !universe.contains(face) {
-            continue;
-        }
-        let end = pos + length;
-        if let Some(mut tail) = try_product(factors, text, end, depth + 1) {
-            let mut parts = Vec::with_capacity(tail.len() + 1);
-            parts.push(MatchPart {
-                span: (pos, end),
-                face: face.to_vec(),
-            });
-            parts.append(&mut tail);
-            return Some(parts);
+}
+
+/// One query against one text, with the chart the attempts share.
+///
+/// `chart` remembers what the product from a depth found at a position. The
+/// answer is a function of the factors, the text and the two indices -- L2's
+/// *equal questions have equal answers* -- so it stands for every start position
+/// and for every match of one scan, which is what keeps the whole scan from
+/// re-deriving the same tails.
+///
+/// The Python guards the chart with a `plain` depth, because its factors may
+/// include a back-referencing `Slot` that denotes only under the faces bound to
+/// its left -- for those, the same depth at the same position is not the same
+/// question twice. The port has no slot, so the chart holds from depth 0 and
+/// there is no constant to carry.
+struct Search<'a> {
+    factors: &'a [Universe],
+    text: &'a [u32],
+    chart: HashMap<(usize, usize), Option<Vec<MatchPart>>>,
+}
+
+impl<'a> Search<'a> {
+    fn new(query: &'a Query, text: &'a [u32]) -> Search<'a> {
+        Search {
+            factors: &query.universes,
+            text,
+            chart: HashMap::new(),
         }
     }
-    None
+
+    /// Match the product from `depth` onward at `pos`; `None` if it cannot.
+    fn try_product(&mut self, pos: usize, depth: usize) -> Option<Vec<MatchPart>> {
+        if let Some(charted) = self.chart.get(&(depth, pos)) {
+            return charted.clone();
+        }
+        let parts = self.probe(pos, depth);
+        self.chart.insert((depth, pos), parts.clone());
+        parts
+    }
+
+    /// Try each face this factor could wear here, longest first, and recurse.
+    fn probe(&mut self, pos: usize, depth: usize) -> Option<Vec<MatchPart>> {
+        if depth == self.factors.len() {
+            return Some(Vec::new());
+        }
+        let universe = &self.factors[depth];
+        for length in (1..=longest(universe, self.text.len() - pos)).rev() {
+            let face = &self.text[pos..pos + length];
+            if !universe.contains(face) {
+                continue;
+            }
+            let end = pos + length;
+            let face = face.to_vec();
+            if let Some(mut tail) = self.try_product(end, depth + 1) {
+                let mut parts = Vec::with_capacity(tail.len() + 1);
+                parts.push(MatchPart {
+                    span: (pos, end),
+                    face,
+                });
+                parts.append(&mut tail);
+                return Some(parts);
+            }
+        }
+        None
+    }
+
+    /// Walk start positions left to right, returning the first that matches.
+    fn leftmost(&mut self, start: usize) -> Option<Match> {
+        for pos in start..=self.text.len() {
+            if let Some(parts) = self.try_product(pos, 0) {
+                let end = parts.last().map_or(pos, |part| part.span.1);
+                return Some(Match {
+                    span: (pos, end),
+                    parts,
+                });
+            }
+        }
+        None
+    }
 }
 
 /// Return the leftmost match at or after `start`, or `None` if there is none.
 pub fn match_(query: &Query, text: &[u32], start: usize) -> Option<Match> {
-    for pos in start..=text.len() {
-        if let Some(parts) = try_product(&query.universes, text, pos, 0) {
-            let end = parts.last().map_or(pos, |part| part.span.1);
-            return Some(Match {
-                span: (pos, end),
-                parts,
-            });
-        }
-    }
-    None
+    Search::new(query, text).leftmost(start)
 }
 
 /// Yield non-overlapping matches left to right, resuming past each span.
+///
+/// One chart serves the whole scan: the text does not change between matches, so
+/// a tail derived for one match answers for the next.
 pub fn finditer<'a>(query: &'a Query, text: &'a [u32]) -> impl Iterator<Item = Match> + 'a {
+    let mut search = Search::new(query, text);
     let mut pos = 0;
     std::iter::from_fn(move || {
-        let found = match_(query, text, pos)?;
+        let found = search.leftmost(pos)?;
         pos = found.span.1.max(pos + 1);
         Some(found)
     })
@@ -124,6 +184,8 @@ pub fn finditer<'a>(query: &'a Query, text: &'a [u32]) -> impl Iterator<Item = M
 #[cfg(test)]
 mod tests {
     use super::{finditer, match_, Query};
+    use std::rc::Rc;
+
     use crate::floor::syntax::{Member, UniverseNode};
     use crate::floor::universe::{denote, Universe};
 
@@ -190,7 +252,7 @@ mod tests {
     fn zero_width_is_never_accepted() {
         // The unit universe wears only the empty spelling, so no match exists.
         let unit = denote(&UniverseNode {
-            members: vec![Member::Fold(UniverseNode { members: vec![] })],
+            members: vec![Member::Fold(Rc::new(UniverseNode { members: vec![] }))],
         });
         assert!(match_(&query(vec![unit]), &cp("anything"), 0).is_none());
     }
@@ -199,9 +261,9 @@ mod tests {
     fn matching_is_membership_by_any_face() {
         // A fold's alternate spelling hits like any other.
         let folded = denote(&UniverseNode {
-            members: vec![Member::Fold(UniverseNode {
+            members: vec![Member::Fold(Rc::new(UniverseNode {
                 members: vec![Member::Face(cp("cat")), Member::Face(cp("feline"))],
-            })],
+            }))],
         });
         let found = match_(&query(vec![folded]), &cp("a feline"), 0).unwrap();
         assert_eq!(found.parts[0].face, cp("feline"));
@@ -213,6 +275,17 @@ mod tests {
         let text = cp("aaaa");
         let spans: Vec<(usize, usize)> = finditer(&q, &text).map(|m| m.span).collect();
         assert_eq!(spans, vec![(0, 2), (2, 4)]);
+    }
+
+    #[test]
+    fn a_many_factor_product_stays_tractable() {
+        // Six ambiguous factors over a long text: without the chart the search
+        // re-derives each tail once per way of reaching it, which grows like
+        // n^k. The assertion is the spans; the point is that it returns at all.
+        let factors: Vec<Universe> = (0..6).map(|_| universe(&["a", "aa"])).collect();
+        let text = cp(&"a".repeat(32));
+        let spans: Vec<(usize, usize)> = finditer(&query(factors), &text).map(|m| m.span).collect();
+        assert_eq!(spans, vec![(0, 12), (12, 24), (24, 32)]);
     }
 
     #[test]

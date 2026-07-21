@@ -12,6 +12,7 @@
 pub mod binder;
 pub mod json;
 pub mod order;
+pub mod reach;
 pub mod syntax;
 pub mod universe;
 pub mod window;

@@ -1,6 +1,6 @@
 //! The contracting measure's read: which of two spellings sits earlier.
 //!
-//! A port of `hejmark/core/scan/measure.py`. A `<=>` statement settles because
+//! A port of `hejmark/core/engine/scan/measure.py`. A `<=>` statement settles because
 //! every pass strictly descends its declared measure's entry order -- iteration
 //! order, value order as ever, a well-order with no infinite descent. This
 //! module decides the descent: [`precedes`] says whether one spelling's entry
@@ -19,6 +19,7 @@ use std::rc::Rc;
 
 use crate::floor::binder::binds;
 use crate::floor::order::shortlex_cmp;
+use crate::floor::reach::{cuts, suffixes};
 use crate::floor::syntax::{Factor, Member};
 use crate::floor::universe::{denote, walk, Amp, Universe};
 use crate::scan::capture::BUDGET;
@@ -203,31 +204,48 @@ fn lex(
     Ok(Ordering::Equal)
 }
 
+/// What a tiling search carries unchanged as it descends.
+struct Tiling<'a> {
+    factors: &'a [Factor],
+    tails: Vec<Option<usize>>,
+    amp: &'a Amp,
+    spelling: &'a [u32],
+}
+
 /// Every split of `spelling` into consecutive factor faces, empty pieces included.
 fn tilings(
     factors: &[Factor],
     amp: &Amp,
     spelling: &[u32],
 ) -> Result<Vec<Split>, HimarkScopeError> {
+    let search = Tiling {
+        factors,
+        tails: suffixes(factors),
+        amp,
+        spelling,
+    };
     let mut found: Vec<Split> = Vec::new();
-    extend_tilings(factors, amp, spelling, 0, 0, &mut Vec::new(), &mut found)?;
+    extend_tilings(&search, 0, 0, &mut Vec::new(), &mut found)?;
     if found.is_empty() {
         return Err(refuse(spelling));
     }
     Ok(found)
 }
 
-/// Extend `acc` with every tiling of `spelling[pos..]` by `factors[depth..]`.
+/// Extend `acc` with every tiling of `spelling[pos..]` from `depth` on.
+///
+/// The seating search asks what the floor's own split search asks, so it takes
+/// the same permitted rewrite: [`cuts`] reads both ends of the cut range off the
+/// expression rather than trying every position.
 fn extend_tilings(
-    factors: &[Factor],
-    amp: &Amp,
-    spelling: &[u32],
+    search: &Tiling<'_>,
     depth: usize,
     pos: usize,
     acc: &mut Split,
     found: &mut Vec<Split>,
 ) -> Result<(), HimarkScopeError> {
-    if depth == factors.len() {
+    let spelling = search.spelling;
+    if depth == search.factors.len() {
         if pos == spelling.len() {
             found.push(acc.clone());
             if found.len() > BUDGET {
@@ -240,11 +258,12 @@ fn extend_tilings(
         }
         return Ok(());
     }
-    let universe = factor_universe(&factors[depth], amp);
-    for end in pos..=spelling.len() {
+    let factor = &search.factors[depth];
+    let universe = factor_universe(factor, search.amp);
+    for end in cuts(factor, search.tails[depth + 1], pos, spelling.len()) {
         if universe.contains(&spelling[pos..end]) {
             acc.push(spelling[pos..end].to_vec());
-            extend_tilings(factors, amp, spelling, depth + 1, end, acc, found)?;
+            extend_tilings(search, depth + 1, end, acc, found)?;
             acc.pop();
         }
     }
@@ -277,8 +296,12 @@ mod tests {
         s.chars().map(|c| c as u32).collect()
     }
 
-    fn node(members: Vec<Member>) -> UniverseNode {
-        UniverseNode { members }
+    use std::rc::Rc;
+
+    /// Nested positions hold shared nodes, and `&Rc<T>` coerces to `&T`, so one
+    /// helper serves both.
+    fn node(members: Vec<Member>) -> Rc<UniverseNode> {
+        Rc::new(UniverseNode { members })
     }
 
     fn face(text: &str) -> Member {

@@ -10,14 +10,22 @@ faster -- so they are cleared before each timed run, which also matches the Rust
 side, cold by construction in a fresh process. The remembered hash on
 ``UniverseNode`` needs no clearing: each row re-parses, so its nodes are new.
 
-The sign of the comparison has flipped, and the module says so rather than
-implying otherwise. Rust used to win every non-closure row; Python has since
-taken four rewrites the port does not have -- the two-ended cut bound, the
-chart, the remembered node hash, and the membership memo ``universe.rs``
-already documents omitting -- and now wins every 800-character row. The spans are
-asserted equal on every row, so a benchmark that drifts out of agreement fails;
-the timings themselves still assert nothing, because a wall clock on a loaded
-machine is not a gate.
+Rust wins every row again. It briefly did not: Python took four rewrites the
+port lacked, and for a while won every 800-character row. The port has since
+carried all four across -- the two-ended cut bound (``rust/src/floor/reach.rs``),
+the membership memo, the chart, and a node identity that stands in for Python's
+remembered hash -- plus a fifth the Python never needed, since sharing the AST
+behind ``Rc`` removed a deep subtree copy per candidate cut.
+
+Read the two halves differently, and read neither as a measure of the scan. The
+800-character rows now sit near a millisecond, which is process spawn and JSON
+decode rather than matching, so they say only that the scan is no longer the
+cost. The 200-character rows say less still: Python's parse and first-call
+warm-up dominate its own number there.
+
+The spans are asserted equal on every row, so a benchmark that drifts out of
+agreement fails; the timings themselves still assert nothing, because a wall
+clock on a loaded machine is not a gate.
 """
 
 from __future__ import annotations
@@ -55,13 +63,15 @@ SCALING = [
 
 CASES = [(source, _corpus(repeat)) for repeat in (10, 40) for source in SCALING]
 
-# The closure gets its own tiny target, and the size is pinned deliberately.
-# rust/src/floor/universe.rs states that the port omits Python's `_contains`
-# lru_cache ("a performance optimization ... omits it for now"), which leaves
-# closure membership exponential in the target length there and memoized here --
-# the one row where Rust loses, and the point of measuring at all. Nine
-# characters costs the Rust side a few hundred milliseconds; eleven costs
-# seconds, so do not grow this text without re-timing it.
+# The closure gets its own tiny target. It used to be the row where Rust lost --
+# the port had no membership memo, so closure membership was exponential in the
+# target length there and memoized here, and nine characters cost the Rust side
+# a few hundred milliseconds. Both engines now memoize it and the row runs in
+# under a millisecond either way.
+#
+# The target stays small anyway, because the closure at omega is superlinear in
+# both engines however well memoized: `{a, &{a}}` over 400 characters costs Rust
+# 8.5 s and Python considerably more. Do not grow this text without re-timing it.
 CASES.append(("{a, &{b}}", "abbb a ab"))
 
 IDS = [f"{source} @{len(text)}" for source, text in CASES]

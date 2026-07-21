@@ -1,6 +1,6 @@
 //! The capture reads: what `$`, `$0` and `$1..$n` see on a hit.
 //!
-//! A port of `hejmark/core/scan/capture.py`. The floor already carries the
+//! A port of `hejmark/core/engine/scan/capture.py`. The floor already carries the
 //! pair, so a capture is a binding and never a store. `$` is the hit as it hit;
 //! `$0` is its canonical face -- the entry's face 0; `$k` is factor `k` of the
 //! hit, a component of the bound tuple.
@@ -16,6 +16,7 @@
 //! layer, so here every factor is a plain denoted universe and the split need
 //! carry no bindings.
 
+use crate::floor::reach::{cut_range, reach, tails_of};
 use crate::floor::universe::Universe;
 use crate::scan::r#match::{Match, Query};
 use crate::surface::ast::HimarkScopeError;
@@ -62,23 +63,50 @@ pub fn canonical(
     Ok(None)
 }
 
+/// What a split search carries unchanged as it descends: the factors, the text,
+/// and how far each suffix of the factors can spell.
+struct Splitting<'a> {
+    factors: &'a [Universe],
+    tails: Vec<Option<usize>>,
+    text: &'a [u32],
+}
+
 /// Every exact tiling of `text` by the factors, one non-empty face per factor.
 fn splits_of(factors: &[Universe], text: &[u32]) -> Result<Vec<Split>, HimarkScopeError> {
+    let reaches: Vec<Option<usize>> = factors
+        .iter()
+        .map(|universe| reach(universe.shared_node()))
+        .collect();
+    let search = Splitting {
+        factors,
+        tails: tails_of(&reaches),
+        text,
+    };
     let mut found: Vec<Split> = Vec::new();
-    extend_splits(factors, text, 0, 0, &mut Vec::new(), &mut found)?;
+    extend_splits(&search, 0, 0, &mut Vec::new(), &mut found)?;
     Ok(found)
 }
 
-/// Extend `acc` with every tiling of `text[pos..]` by `factors[depth..]`.
+/// Extend `acc` with every tiling of `text[pos..]` by the factors from `depth` on.
+///
+/// This is the one split search the Python leaves walking every cut, and the
+/// reason is a type rather than a semantics: its factors are `Universe | Slot`,
+/// and a back-referencing slot has no reach until its reads are bound. The port
+/// has no slot -- every factor is a plain denoted universe -- so the cut bound
+/// applies here directly, and the permitted rewrite is taken on all four searches
+/// rather than three. Do not "restore" the full walk for symmetry with the Python.
+///
+/// The lower end is nudged past `pos`: a capture binds one *non-empty* face per
+/// factor, where the floor's own split search admits empty pieces.
 fn extend_splits(
-    factors: &[Universe],
-    text: &[u32],
+    search: &Splitting<'_>,
     depth: usize,
     pos: usize,
     acc: &mut Split,
     found: &mut Vec<Split>,
 ) -> Result<(), HimarkScopeError> {
-    if depth == factors.len() {
+    let text = search.text;
+    if depth == search.factors.len() {
         if pos == text.len() {
             found.push(acc.clone());
             if found.len() > BUDGET {
@@ -91,13 +119,20 @@ fn extend_splits(
         }
         return Ok(());
     }
-    for end in (pos + 1)..=text.len() {
+    let factor = &search.factors[depth];
+    let range = cut_range(
+        reach(factor.shared_node()),
+        search.tails[depth + 1],
+        pos,
+        text.len(),
+    );
+    for end in range.start.max(pos + 1)..range.end {
         let face = &text[pos..end];
-        if !factors[depth].contains(face) {
+        if !factor.contains(face) {
             continue;
         }
         acc.push(face.to_vec());
-        extend_splits(factors, text, depth + 1, end, acc, found)?;
+        extend_splits(search, depth + 1, end, acc, found)?;
         acc.pop();
     }
     Ok(())
@@ -199,8 +234,12 @@ mod tests {
         s.chars().map(|c| c as u32).collect()
     }
 
-    fn node(members: Vec<Member>) -> UniverseNode {
-        UniverseNode { members }
+    use std::rc::Rc;
+
+    /// Nested positions hold shared nodes, and `&Rc<T>` coerces to `&T`, so one
+    /// helper serves both.
+    fn node(members: Vec<Member>) -> Rc<UniverseNode> {
+        Rc::new(UniverseNode { members })
     }
 
     fn face(text: &str) -> Member {

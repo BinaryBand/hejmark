@@ -14,6 +14,8 @@
 //! Leaf module: reads [`super::order`] and the AST, and nothing above it. No
 //! universe is denoted to answer these questions.
 
+use std::rc::Rc;
+
 use super::order::{successor, Window};
 use super::syntax::{Member, UniverseNode};
 
@@ -36,7 +38,7 @@ pub fn window_of(member: &Member) -> Option<Window> {
 ///
 /// Operands that are not plainly window-shaped carve nothing here; they are
 /// still applied face by face downstream.
-pub fn carve(window: Window, strips: &[UniverseNode]) -> Vec<Window> {
+pub fn carve(window: Window, strips: &[Rc<UniverseNode>]) -> Vec<Window> {
     let mut pieces = vec![window];
     for operand in strips {
         let Some(cuts) = windows_of(operand) else {
@@ -74,8 +76,10 @@ mod tests {
         s.chars().map(|c| c as u32).collect()
     }
 
-    fn node(members: Vec<Member>) -> UniverseNode {
-        UniverseNode { members }
+    /// Nested positions hold shared nodes, and `&Rc<T>` coerces to `&T`, so one
+    /// helper serves both.
+    fn node(members: Vec<Member>) -> Rc<UniverseNode> {
+        Rc::new(UniverseNode { members })
     }
 
     fn range(lo: char, hi: char) -> Member {

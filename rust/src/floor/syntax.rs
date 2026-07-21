@@ -11,8 +11,48 @@
 //! frozen dataclasses become plain enums and structs: Rust values are immutable
 //! by default and compared structurally via `#[derive(PartialEq, Eq)]`, so the
 //! "frozen, compares by value" behavior holds without any ceremony.
+//!
+//! Nested nodes are held behind [`Rc`] rather than owned outright. Python passes
+//! its AST by reference for free; here an owned tree would be deep-copied every
+//! time a factor or a fold is denoted -- once per candidate cut, inside the split
+//! search's inner loop. Sharing makes that a refcount bump, and it is what gives
+//! a denoted universe a stable node address to key its memo on (see
+//! [`super::universe`]). The tree is immutable once built, so sharing it changes
+//! nothing about the semantics.
 
 use std::fmt;
+use std::hash::{Hash, Hasher};
+use std::rc::Rc;
+
+/// A node compared and hashed by address rather than by structure.
+///
+/// The memo key both [`super::reach`] and [`super::universe`] use. It holds the
+/// [`Rc`] rather than a bare pointer, and that is load-bearing rather than
+/// convenient: an address only identifies a node for as long as the node is
+/// alive, and a freed node's address can be handed straight back to the next
+/// allocation. Keeping the node alive for the key's lifetime is what makes "same
+/// address" mean "same node" -- without it a memo could answer a question about
+/// a tree that no longer exists.
+///
+/// Identity implies structural equality, never the converse, so a memo keyed
+/// this way can miss where a structural one would hit. That is a recomputation,
+/// never a wrong answer.
+#[derive(Debug, Clone)]
+pub struct NodeId(pub Rc<UniverseNode>);
+
+impl PartialEq for NodeId {
+    fn eq(&self, other: &NodeId) -> bool {
+        Rc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+impl Eq for NodeId {}
+
+impl Hash for NodeId {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        (Rc::as_ptr(&self.0) as usize).hash(state);
+    }
+}
 
 /// Signals that Himark source failed to lex or parse.
 ///
@@ -38,7 +78,7 @@ impl std::error::Error for HimarkSyntaxError {}
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Factor {
     /// A nested brace group standing as one factor.
-    Universe(UniverseNode),
+    Universe(Rc<UniverseNode>),
     /// The self-reference token `&`.
     Closure,
 }
@@ -58,9 +98,9 @@ pub enum Member {
     /// A final segment `{a..}`: every spelling from `lo` onward in spelling order.
     Final(Vec<u32>),
     /// A nested universe used as a member -- the quotient constructor.
-    Fold(UniverseNode),
+    Fold(Rc<UniverseNode>),
     /// A `!{...}` member stripping the faces its inner universe spells.
-    Subtract(UniverseNode),
+    Subtract(Rc<UniverseNode>),
     /// Adjacent factors as one member: tuples of entries, spelled by concatenation.
     Product(Vec<Factor>),
     /// The self-reference token `&`: it reads the binder's previous stage.
@@ -78,7 +118,7 @@ pub struct UniverseNode {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct QueryNode {
     /// The juxtaposed universes, in the order they were written.
-    pub universes: Vec<UniverseNode>,
+    pub universes: Vec<Rc<UniverseNode>>,
 }
 
 #[cfg(test)]
@@ -91,6 +131,11 @@ mod tests {
 
     fn node(members: Vec<Member>) -> UniverseNode {
         UniverseNode { members }
+    }
+
+    /// A shared node, as every nested position now holds one.
+    fn rc(members: Vec<Member>) -> Rc<UniverseNode> {
+        Rc::new(node(members))
     }
 
     #[test]
@@ -106,9 +151,9 @@ mod tests {
     #[test]
     fn nodes_nest_without_normalizing() {
         // The AST is faithful: a nested universe is preserved verbatim.
-        let inner = node(vec![Member::Face(cp("a")), Member::Face(cp("a"))]);
+        let inner = rc(vec![Member::Face(cp("a")), Member::Face(cp("a"))]);
         let query = QueryNode {
-            universes: vec![node(vec![
+            universes: vec![rc(vec![
                 Member::Fold(inner.clone()),
                 Member::Range {
                     lo: '0' as u32,
@@ -137,8 +182,8 @@ mod tests {
 
     #[test]
     fn product_holds_factors_in_order() {
-        let left = node(vec![Member::Face(cp("a"))]);
-        let right = node(vec![Member::Face(cp("b"))]);
+        let left = rc(vec![Member::Face(cp("a"))]);
+        let right = rc(vec![Member::Face(cp("b"))]);
         let product = Member::Product(vec![
             Factor::Universe(left.clone()),
             Factor::Closure,

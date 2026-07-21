@@ -31,6 +31,7 @@
 //! one, and the emitter on the Python side writes exactly this shape.
 
 use std::fmt;
+use std::rc::Rc;
 
 use super::syntax::{Factor, Member, QueryNode, UniverseNode};
 
@@ -74,7 +75,7 @@ pub fn query_from_json(text: &str) -> Result<QueryNode, JsonError> {
 ///
 /// Returns a [`JsonError`] on malformed JSON or a document that does not match
 /// the floor schema.
-pub fn universe_from_json(text: &str) -> Result<UniverseNode, JsonError> {
+pub fn universe_from_json(text: &str) -> Result<Rc<UniverseNode>, JsonError> {
     to_universe(&parse(text)?)
 }
 
@@ -89,13 +90,15 @@ fn to_query(json: &Json) -> Result<QueryNode, JsonError> {
     Ok(QueryNode { universes })
 }
 
-fn to_universe(json: &Json) -> Result<UniverseNode, JsonError> {
+/// Every nested node is decoded straight into an [`Rc`], so the tree the engine
+/// denotes is the tree it keys its memos on -- see [`super::universe`].
+fn to_universe(json: &Json) -> Result<Rc<UniverseNode>, JsonError> {
     let object = as_object(json)?;
     let members = as_array(field(object, "members")?)?
         .iter()
         .map(to_member)
         .collect::<Result<_, _>>()?;
-    Ok(UniverseNode { members })
+    Ok(Rc::new(UniverseNode { members }))
 }
 
 fn to_member(json: &Json) -> Result<Member, JsonError> {
@@ -355,8 +358,12 @@ mod tests {
         s.chars().map(|c| c as u32).collect()
     }
 
-    fn node(members: Vec<Member>) -> UniverseNode {
-        UniverseNode { members }
+    use std::rc::Rc;
+
+    /// Nested positions hold shared nodes, and `&Rc<T>` coerces to `&T`, so one
+    /// helper serves both.
+    fn node(members: Vec<Member>) -> Rc<UniverseNode> {
+        Rc::new(UniverseNode { members })
     }
 
     #[test]
@@ -428,7 +435,7 @@ mod tests {
         );
     }
 
-    fn message(result: Result<UniverseNode, JsonError>) -> String {
+    fn message(result: Result<Rc<UniverseNode>, JsonError>) -> String {
         result.unwrap_err().message
     }
 

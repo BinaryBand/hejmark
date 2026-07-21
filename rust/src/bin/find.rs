@@ -11,7 +11,7 @@ use std::fs;
 use std::process;
 
 use hejmark::floor::json::query_from_json;
-use hejmark::floor::universe::{denote, Universe};
+use hejmark::floor::universe::{denote_shared, Universe};
 use hejmark::scan::r#match::{finditer, Query};
 
 fn main() {
@@ -34,7 +34,7 @@ fn run() -> Result<(), String> {
 
     let parsed =
         query_from_json(&query_json).map_err(|error| format!("invalid query JSON: {error}"))?;
-    let factors: Vec<Universe> = parsed.universes.iter().map(denote).collect();
+    let factors: Vec<Universe> = parsed.universes.iter().map(denote_shared).collect();
     let query = Query::new("<json>", factors);
 
     let text: Vec<u32> = target.chars().map(|c| c as u32).collect();

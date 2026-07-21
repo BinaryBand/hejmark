@@ -18,7 +18,15 @@
 //! here) is what keeps this a leaf, and states the real shape of the property --
 //! settledness is syntactic *modulo* an emptiness oracle.
 
+use std::rc::Rc;
+
 use super::syntax::{Factor, Member, UniverseNode};
+
+/// Decides whether a factor's face set holds the empty spelling.
+///
+/// Takes the shared node the AST holds, because the only way to answer is to
+/// denote it, and a denotation keys on the node's address.
+type SpellsEmpty<'a> = &'a dyn Fn(&Rc<UniverseNode>) -> bool;
 
 /// Whether this brace expression is a closure binder: a free `&` in its members.
 pub fn binds(node: &UniverseNode) -> bool {
@@ -40,14 +48,14 @@ pub fn free_amp(member: &Member) -> bool {
 /// Whether every free `&` is guarded, so membership settles by stage len + 1.
 ///
 /// `spells_empty` decides whether a factor's face set holds the empty spelling.
-pub fn settled(node: &UniverseNode, spells_empty: &dyn Fn(&UniverseNode) -> bool) -> bool {
+pub fn settled(node: &UniverseNode, spells_empty: SpellsEmpty<'_>) -> bool {
     node.members
         .iter()
         .all(|member| settled_member(member, spells_empty))
 }
 
 /// Whether this member's free `&` occurrences (if any) are guarded.
-fn settled_member(member: &Member, spells_empty: &dyn Fn(&UniverseNode) -> bool) -> bool {
+fn settled_member(member: &Member, spells_empty: SpellsEmpty<'_>) -> bool {
     match member {
         Member::Closure => false,
         Member::Product(factors) if factors.iter().any(|f| matches!(f, Factor::Closure)) => factors
@@ -63,7 +71,7 @@ fn settled_member(member: &Member, spells_empty: &dyn Fn(&UniverseNode) -> bool)
 }
 
 /// Whether a factor guards its product: no empty face, so every pass lengthens.
-fn guards(factor: &UniverseNode, spells_empty: &dyn Fn(&UniverseNode) -> bool) -> bool {
+fn guards(factor: &Rc<UniverseNode>, spells_empty: SpellsEmpty<'_>) -> bool {
     !spells_empty(factor)
 }
 
@@ -75,12 +83,14 @@ mod tests {
         s.chars().map(|c| c as u32).collect()
     }
 
-    fn node(members: Vec<Member>) -> UniverseNode {
-        UniverseNode { members }
+    /// Nested positions hold shared nodes, and `&Rc<T>` coerces to `&T`, so one
+    /// helper serves both.
+    fn node(members: Vec<Member>) -> Rc<UniverseNode> {
+        Rc::new(UniverseNode { members })
     }
 
     /// A stand-in oracle: a node spells "" exactly when it holds an empty face.
-    fn spells_empty(node: &UniverseNode) -> bool {
+    fn spells_empty(node: &Rc<UniverseNode>) -> bool {
         node.members
             .iter()
             .any(|member| matches!(member, Member::Face(text) if text.is_empty()))

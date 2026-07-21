@@ -1,6 +1,6 @@
 # TODO: deferred increments
 
-<!-- cspell:words uncomputable hejmark valueline slugify -->
+<!-- cspell:words uncomputable hejmark valueline slugify catchable -->
 
 Priority and rationale for outstanding work. This file only ranks what remains and says why; two ledgers stay authoritative -- the **"What this does not prove"** section of `static/lean/README.md` for the mechanization, and `docs/foundation/ROADMAP.md` for the layers. When an item lands, update its ledger first.
 
@@ -8,14 +8,38 @@ Priority and rationale for outstanding work. This file only ranks what remains a
 
 Ordered by dependency, not by size.
 
-- [ ] **Carry the rewrites into the Rust port** -- the port is now *slower* than Python on every measured row, and the four rewrites that did it are all portable. Engine performance, below.
-- [ ] **Bound the last split search** -- `capture._splits` is the one that did not get the cut bound, because its factors are a different type (`Universe | Slot`, and a slot has no reach until its reads bind). The clean fix is now visible: a compiler-computed reach *bound* riding `LateSlot` -- the compiler knows the unit's shape modulo its reads, and a face substitution can only lengthen reach by the read's own length, so a sound bound is computable at compile time and would let `reach.cuts` serve slotted factors.
+- [ ] **Give the Rust port a work budget** -- the newly *un*bounded thing. Its membership memo has no cap, on purpose: every cap tried put a cliff exactly where the work is hardest, because past the cap the closure recursion is simply un-memoized. Python can cap its own at 65536 because it also carries `core/floor/work.py`, so a run that outgrows the memo is *refused* rather than quietly made exponential. Porting `work.rs` bounds the run, which is the thing that actually needs bounding; the memo then caps safely behind it. Engine performance, below.
+- [ ] **Bound the last split search** -- `capture._splits` is the one that did not get the cut bound, because its factors are a different type (`Universe | Slot`, and a slot has no reach until its reads bind). The clean fix is now visible: a compiler-computed reach *bound* riding `LateSlot` -- the compiler knows the unit's shape modulo its reads, and a face substitution can only lengthen reach by the read's own length, so a sound bound is computable at compile time and would let `reach.cuts` serve slotted factors. **The Rust half is done**: the port has no `Slot`, so its factors are plain universes and `capture.rs` took the bound with the other three. This item is now Python-only.
 - [ ] **Teach the Rust port the Program wire format** -- `core/ir/wire.py` serializes whole compiled scripts (statements, templates, measures, sentinel table, late slots), versioned from day one; Rust currently reads only the bare-query shape from `core/ir/codec.py`. A Rust reader for the Program format gets it `run` (slot-free scripts) rather than just `find`. Slotted programs additionally need a resolver channel back into the compiler -- design that only when a consumer exists.
 - [ ] **Re-time the `programs/` tier** -- its stated blocker was matcher cost, and that blocker is gone. Deferred, below.
 
-The previous four are done; **Landed** records what they cost and, where the guess was wrong, what was actually true.
+The previous five are done; **Landed** records what they cost and, where the guess was wrong, what was actually true.
 
 ## Landed
+
+### Carry the rewrites into the Rust port
+
+All four, plus a fifth nobody had named. The port wins every benchmark row again, and the 800-character rows -- the ones it was losing by up to 5x -- now sit at the floor, where process spawn and JSON decode are most of the number:
+
+| workload | before | after | factor |
+| --- | --- | --- | --- |
+| `{a, &{b}}` @9 | 87.4 ms | 0.7 ms | 125x |
+| `{{cat,feline}}` @800 | 18.7 ms | 0.8 ms | 23x |
+| `{a..c, !{b}, b}` @800 | 12.8 ms | 1.0 ms | 13x |
+| `{0..9}` @800 | 9.7 ms | 0.8 ms | 12x |
+| `{a..e}` @800 | 10.3 ms | 1.0 ms | 10x |
+| `{a}{b}` @800 | 3.9 ms | 0.8 ms | 5x |
+| `{a}` @800 | 3.8 ms | 0.9 ms | 4x |
+
+**The stated order was wrong, and following it would have crashed the port.** This file said cut bound first, then the memo. That was the order they paid in *Python*, where the memo already existed. Here the cut bound is what makes the descent deep -- it moves the longest sub-question to the front -- and `_shorter_first` answers that only by warming a memo. Cut bound first would have meant a deep unwarmed descent, and a Rust stack overflow is a hard abort, not a catchable error. The order that works is **memo, then cut bound with the warming attached, then the chart**.
+
+**The fifth rewrite was a deep clone nobody had counted.** `Universe::sealed` rebuilt its whole subtree on every call, and it is called from inside the split search's inner loop -- once per candidate cut. Holding nested nodes behind `Rc` makes it a refcount bump. That alone is most of the `{{cat,feline}}` row, and it is also what gives a node a stable address, so it is the same edit as the memo key.
+
+**The remembered node hash did not need porting at all.** Python remembers a structural hash because it has no node identity to key on; a shared node has an address, so the memo keys on `(node, amp-key, stage)` by pointer and never hashes a subtree. Identity implies equality, so this is sound and strictly cheaper -- the trade is that two structurally equal but separately built nodes miss each other, which is a recomputation and never a wrong answer. The one thing it demands is that the key *hold* the `Rc`: an address identifies a node only while the node is alive, and a freed one's address goes straight to the next allocation.
+
+**A memo that always wins in Python does not always win here.** Memoizing unconditionally made the 800-character rows **78x slower** -- Python's per-call overhead hides a hash lookup, Rust's does not, and the base operation is a slice comparison. The memo is now gated on `amp.is_some() || binds(node)`: a question recurs under a closure and nowhere else. Gated, the closure row is 125x faster and the rest is untouched.
+
+**And capping the memo is worse than not capping it** -- see the new *Do next* item. Clearing wholesale at 65536 answers took `{a, &{a}}` over 400 characters from 8.5 s to past 90 s; filling-and-holding did the same, because past the cap the recursion is un-memoized either way. Unbounded, the curve is smooth (0.7 s at 200 characters, 8.5 s at 400, 70 s at 700) and memory tracks the work rather than the input (14 MB, 92 MB, 470 MB). The right bound is a work budget on the run, not a cap on the memo.
 
 ### Refuse past a work budget
 
@@ -73,15 +97,19 @@ Measured, not guessed. Cold, one workload per process, against `2ab4c14`:
 
 Read the two halves differently. For a fixed query shape the growth is still **~O(n³·⁵)**, down from ~O(n⁴): the cut bounds and the remembered hash moved the *constant*, by roughly forty. For a product of many factors the chart moved the *degree*, from $n^{k}$ to about $n^2$, which is the 780x row. Both were needed and neither substitutes for the other. Full timings and method are in `docs/.TEMP.md` (local-only; gitignored under "Private project files").
 
-### 1. Carry the rewrites into the Rust port
+### 1. Give the Rust port a work budget
 
-`tests/benchmarks/` now reports Python **winning every 800-character row**, by up to 5x, and widening with target length -- the exact reversal of what `CLAUDE.md` recorded a week ago, including the direction of the trend. (The 200-character rows still favour Rust, but at that size Python's parse and warm-up dominate its own number, so they say little.) Nothing regressed in Rust; Python simply took four rewrites the port does not have: the two-ended cut bound (`reach.rs`), the chart, the remembered node hash, and the membership memo the port already documents omitting.
+`rust/src/floor/` now mirrors Python's rewrites, and one Python module it does *not* mirror has become load-bearing by its absence: `core/floor/work.py`. The port's membership memo grows without a cap, because every cap measured put a cliff where the work is hardest, and the measurements are in **Landed** above.
 
-The order to port them in is the order they paid here: the cut bound first (it is the largest and it is pure structure over the AST the port already decodes), then the memo, then the hash, then the chart. The benchmark asserts spans rather than timings, so none of this fails a gate -- which is why it needs writing down instead.
+The shape of the fix is the Python's: charge one `Universe::contains` call, memo hits included, open a budget per match and per contracting pass, and refuse with the port's analogue of `HimarkBudgetError`. Once a run is bounded, the memo can be capped behind it safely -- the cap stops mattering, because a run that would outgrow it is refused first. Doing it in the other order is what does not work.
 
-### 2. Bound the last split search
+Two smaller things ride along. The port has no `charge` point at all, so nothing about it is partial today -- it either finishes or it does not. And `_shorter_first`'s Rust counterpart skips warming an *unsettled* body up front rather than warming until a prefix raises, because unwinding in Rust is costly and loud; the two agree on which answers exist, but the Python's is the more faithful reading of "the real question's job".
 
-`capture._splits` still walks every cut. It missed the sweep for a type reason and not a semantic one: its factors are `Factor` (`Universe | Late`), where `cuts` takes the floor's `UniverseNode | Closure`, and a `Late` has no reach until its reads are bound. Resolving each factor first and reaching the result would fix it. This is the `$1..$n` read path, already budgeted and off the hot loop, so it is small -- but it is the one place the permitted rewrite is stated and not taken.
+### 2. Bound the last split search (Python only)
+
+`capture._splits` still walks every cut. It missed the sweep for a type reason and not a semantic one: its factors are `Factor` (`Universe | Slot`), where `cuts` takes the floor's `UniverseNode | Closure`, and a `Slot` has no reach until its reads are bound. Resolving each factor first and reaching the result would fix it. This is the `$1..$n` read path, already budgeted and off the hot loop, so it is small -- but it is the one place the permitted rewrite is stated and not taken.
+
+The Rust port has no `Slot`, so the question never arises there: `capture.rs` takes the cut bound directly, and the port applies the permitted rewrite on all four of its split searches rather than three. Its docstring says so, so the divergence does not read as an oversight to be tidied away.
 
 ### 3. The descent is still linear in the spelling
 
