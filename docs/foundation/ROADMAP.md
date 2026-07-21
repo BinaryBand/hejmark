@@ -12,9 +12,9 @@
 
 ## Layer 1.5 -- Language Surface (interpretation)
 
-Everything the host implements beyond denotation; the one layer allowed to reject. Its admission rule: a surface construct adds no denotation -- it expands into the floor or it does not enter. The normative surface is `L1_5.md`; the bullets below are its shape, not a second copy.
+Everything the host implements beyond denotation, and where a construct is admitted. Its admission rule: a surface construct adds no denotation -- it expands into the floor or it does not enter. The normative surface is `L1_5.md`; the bullets below are its shape, not a second copy.
 
-L1.5 was two concerns, and the second has been split out. **Denotational admission** -- the mapping below, and the rejections that guard well-formedness (an unknown name, a malformed definition, a factor read past the ones written) -- is L1.5 proper. **The finite-execution contract** -- the bounded reads and their host budgets, decidable matching, the measure a `<=>` pass must strictly descend, the noncharacter boundary hygiene: everything that keeps a total denotation finite to run -- is now its own layer, L2 (`L2.md`). Only observable guards belong there; an optimization that changes speed without changing which programs are admitted (memoization, closure-seal, bounded scans) is an implementation note, never a normative layer.
+L1.5 guards well-formedness only -- an unknown name, a malformed definition, a factor read past the ones written. The refusals that keep a total denotation finite to *run* -- bounded reads and their host budgets, decidable matching, the measure a `<=>` pass must strictly descend, boundary hygiene -- are a layer of their own, L2 (`L2.md`).
 
 - Matching -- query and capture, text membership, maximal munch, zero-width exclusion; the matcher is scoped to guarded closure bodies (the settlement theorem's fragment), and stepping outside that scope is a diagnostic, never a denotation failure.
 - Names -- `uni hex = {0..9,a..f}`: declaration and `@name` splice-by-name (one sigiled namespace whose reserved names are the registers). Pure compression; the floor's splice rule already anticipates the name.
@@ -25,7 +25,7 @@ L1.5 was two concerns, and the second has been split out. **Denotational admissi
 
 > Finish line: the surface suffices to write all of the standard library (L3 below) in-language -- no built-in named modifiers, no host code per entry.
 
-> Frontier: a value cut across two radixes is uncomputable today -- no register spells it (see Emit above). A future surface capability, an expressive render layer that carries a computed value and wraps it against a universe's cardinality (its *ceiling*, priced structurally as groundwork by `core/floor/ceiling.py`), would lift that. It is a denotational addition, so it grows L1.5, not the execution contract.
+> Frontier: a value cut across two radixes is uncomputable today -- no register spells it (see Emit above). A future surface capability -- an expressive render layer that carries a computed value and wraps it against a universe's cardinality (its *ceiling*) -- would lift that. It is a denotational addition, so it grows L1.5, not the execution contract.
 
 ## Layer 2 -- Finite-Execution Contract (operational)
 
@@ -44,4 +44,4 @@ Nothing but in-language declarations over the L1.5 surface: `uni` universes and 
 
 ## Layer 4 -- Presentation
 
-<!-- TBD: formatting and lint style only; nothing semantic. Compiler errors moved to L1.5, where rejection belongs. -->
+<!-- TBD: formatting and lint style only; nothing semantic. -->
