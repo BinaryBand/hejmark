@@ -29,7 +29,7 @@ L1.5 guards well-formedness only -- an unknown name, a malformed definition, a f
 
 ## Layer 2 -- Finite-Execution Contract (operational)
 
-The normative layer is `L2.md`. L1's denotation is total and L1.5's surface adds none, yet execution is finite -- this layer is where that finiteness is enforced: the bounded reads (`$0`, `@lo..hi`, an ambiguous factor split) and their host budgets, the decidable-matching scope, the well-order a `<=>` pass must strictly descend, the noncharacter boundary hygiene. Guards only -- a trick that changes speed, not which programs are admitted, stays in the implementation, never here.
+The normative layer is `L2.md`. L1's denotation is total and L1.5's surface adds none, yet execution is finite -- this layer is where that finiteness is enforced: the bounded reads (`$0`, `@lo..hi`, an ambiguous factor split) and their host budgets, the decidable-matching scope, the well-order a `<=>` pass must strictly descend, the noncharacter boundary hygiene. It carries cost as well as admission -- a guarded query is decided in time polynomial in the text, and a run past the host's work budget is a diagnostic rather than a longer wait -- and licenses the meaning-preserving rewrites that bound reaches. Bounds and permissions, never mechanisms: which rewrites a host takes, and how it sizes a budget, stay in the implementation.
 
 ## Layer 3 -- Standard Library (content)
 

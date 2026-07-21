@@ -1,52 +1,29 @@
 # TODO: deferred increments
 
-<!-- cspell:words uncomputable hejmark -->
+<!-- cspell:words uncomputable hejmark valueline -->
 
 Priority and rationale for outstanding work. This file only ranks what remains and says why; two ledgers stay authoritative -- the **"What this does not prove"** section of `static/lean/README.md` for the mechanization, and `docs/foundation/ROADMAP.md` for the layers. When an item lands, update its ledger first.
 
 ## Do next
 
-Ordered by dependency, not by size. The first two are cheap and unblock judgement about the rest.
+Ordered by dependency, not by size.
 
-1. **Green the gate** -- a permanently red `uv run pytest` cannot tell a regression from the usual noise. Housekeeping, below.
-2. **Settle what L2 covers** -- decides whether the next three items are chasing a stated bound or an unstated preference. Layers, below.
-3. **Bound the product probe** -- the largest single measured win still on the table. Engine performance, below.
-4. **Chart memo across start positions** -- the change that moves the polynomial degree rather than its constant.
-5. **Price the contraction measure** -- `<=>` is now the most expensive construct in the language, and it is unprofiled.
+- [ ] **Refuse past a work budget** -- the one place the implementation now contradicts a normative claim. Conformance, below.
+- [ ] **Bound the product probe** -- the largest single measured win, and now a rewrite `L2.md` names. Engine performance, below.
+- [ ] **Chart memo across start positions** -- the change that moves the polynomial degree rather than its constant.
+- [ ] **Price the contraction measure** -- `<=>` is now the most expensive construct in the language, and it is unprofiled.
 
-Everything under **Deferred** waits on something that does not yet exist: a row, a use that forces a design, or one of the five above.
+Everything under **Deferred** waits on something that does not yet exist: a row, a use that forces a design, or one of the four above.
 
-## Housekeeping
+## Conformance
 
-### Green the gate
+### Refuse past a work budget
 
-`uv run pytest` is the gate, and it has been failing 2 of 407 for reasons unrelated to any current work: `test_ruff_check` and `test_ruff_format`, both only on `gui/`. Every run now needs a human to confirm the two failures are still *the same* two -- which is exactly how a real regression gets waved through.
+`L2.md` now states a cost tier, and the implementation meets one half of it and not the other. The **class** holds: matching is polynomial in the text (see below), which is what the contract asks. The **budget** does not exist: a closure query over a long enough document runs until someone kills it, where the contract says a run past the host's work budget is a diagnostic.
 
-Three parts, none of them deep:
+The shape is already in the tree twice -- `capture.BUDGET` for `$0` and an ambiguous factor split, `valueline.RADIX_BUDGET` for a value cut -- and this is the third instance of the same rule, over a match and over a contracting pass. Note the performance items below **raise the ceiling but never remove this**: there is always a document long enough, so an honest refusal is needed regardless of how fast the matcher gets. The two are complementary.
 
-- `gui/hejmark/` is an **untracked vendored copy** of the package (a build/bundle byproduct) that is *not* gitignored, so ruff lints it. It carries both the `INP001` finding and one of the four format failures. Adding it to `.gitignore` should drop both, since ruff respects gitignore by default.
-- Three committed files need `ruff format`: `gui/tests/benchmarks/conftest.py`, `gui/tests/benchmarks/test_engine_speed.py`, `gui/tool/make_icons.py`.
-- Re-run and confirm 407 pass. If `gui/` is meant to be outside the gate entirely, the honest fix is instead to scope the lint tests' paths and say so in `CLAUDE.md`.
-
-## Layers
-
-### Settle what L2 covers
-
-`L2.md`'s scoping paragraph draws its line at **admission**: a rule that changes which programs are admitted is normative, an optimization that changes only speed "lives nowhere in the foundation" (*Guards, not tricks*). That is narrower than the layer's stated intent, which was to house anything affecting performance or guarding against performance failure.
-
-The proposal on the table is to redraw the line at **observable versus constant-factor**, giving three tiers instead of two:
-
-- **Cost bounds** -- normative, and absent today. "A guarded query against text of length *n* completes in time polynomial in *n*, or is refused." Complexity class is observable: it decides whether a program completes at all. Without a stated bound, the finish line's "never a hang" is unfalsifiable, which is precisely the situation below.
-- **Semantics-preserving rewrites** -- normative as *permissions*. Each is a theorem (`rewrite(e) ≡ e`) whose correctness is a language-level claim, and `L1.md`'s "Compression, not capability" is already exactly such a catalog, so the precedent exists.
-- **Tactics** -- out. Memo sizing, the closure seal, window carving: constants, not classes.
-
-Guardrail if adopted: state permissions and bounds, never mandated mechanisms, so the layer does not churn with every performance patch and a host that reaches the same bound differently stays conforming.
-
-### L2 conformance: the hang
-
-`L2.md` promises "every read the surface admits either completes within a stated bound or is refused with a diagnostic -- never a hang, never a guess." A closure query over a long enough document hangs: not refused, not bounded.
-
-Worth noting that the performance items below **raise the ceiling but never remove this**. There is always a document long enough, so a bound with a diagnostic is needed regardless of how fast the matcher gets -- the shape already exists in `capture.BUDGET` for `$0`. Faster matching and an honest refusal are complementary, not alternatives.
+Decided while settling the layer's scope, and worth recording because it sets the target: the line is drawn at **observable versus constant-factor**, three tiers rather than two. Admission rules and cost bounds are normative; a meaning-preserving rewrite is normative as a *permission*, since each is a theorem and `L1.md`'s compression catalog is already a list of exactly that kind; tactics -- memo sizing, the closure seal, window carving -- are out, as constants rather than classes. The guardrail is that the layer states bounds and permissions and never mandates a mechanism, so a host reaching the same bound differently stays conforming and the layer does not churn with each performance patch.
 
 ## Engine performance
 
@@ -58,7 +35,7 @@ Diagnosis that produced the landed fix, worth keeping: `_contains.cache_info()` 
 
 `_try_product` in `core/scan/match.py` probes **every** length at every product position (`for length in range(len(text) - pos, 0, -1)`), including for a factor that can only ever wear a one-character face. A single-face factor therefore costs O(n) `contains` calls where one would do.
 
-The fix is a max-face-length analysis: structural, never streaming, `None` when unbounded -- the same shape and spirit as `core/floor/ceiling.py`, which is already the precedent for "price it from the AST or admit you cannot". Self-contained, and the largest single win still available.
+The fix is a max-face-length analysis: structural, never streaming, `None` when unbounded -- the same shape and spirit as `core/floor/ceiling.py`, which is already the precedent for "price it from the AST or admit you cannot". `L2.md` now names this rewrite under *Permitted rewrites*, so it is licensed rather than merely tempting. Self-contained, and the largest single win still available.
 
 ### 2. Chart memo across start positions
 
