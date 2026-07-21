@@ -128,8 +128,17 @@ def walk(members: Sequence[Member], amp: Universe | None, spelling: str) -> bool
     return present
 
 
+@lru_cache(maxsize=65536)
 def _spells(member: Adding, amp: Universe | None, spelling: str) -> bool:
-    """Whether the member's face set holds ``spelling`` (claims never shrink it)."""
+    """Whether the member's face set holds ``spelling`` (claims never shrink it).
+
+    Memoized beside :func:`_contains`, and for the same reason one level down: a
+    closure re-walks its whole member list once per stage, so the same member is
+    asked about the same spelling under the same stage from every path that
+    reaches it. The answer is a pure function of the three arguments, so the memo
+    changes no denotation -- it collapses the repeated product splits below,
+    which rebuild their own local memo on every call.
+    """
     match member:
         case Face(text):
             return text == spelling
