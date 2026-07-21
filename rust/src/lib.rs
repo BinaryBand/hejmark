@@ -25,10 +25,14 @@
 //! crate does not mirror: it ports only the engine side plus the floor beneath
 //! both, so the split has nothing to land on yet.
 //!
-//! One divergence is worth knowing before reading anything here. The port has no
-//! work budget -- Python's `core/floor/work.py` is unported -- and its membership
-//! memo is uncapped as a direct consequence. See [`floor::universe`] for why
-//! capping it without a budget is worse than not capping it.
+//! [`floor::work`] is the host's work budget, `core/floor/work.py` ported: a
+//! match (and, once a contracting-pass runner exists here, a pass) opens a
+//! budget, [`floor::universe::Universe::contains`] charges it at the
+//! recursion's one chokepoint, and a run past it unwinds with a
+//! [`floor::work::HimarkBudgetError`] rather than hanging. The membership memo
+//! is capped behind that budget now, which is safe only because of it -- see
+//! [`floor::universe`] for why capping it without a budget open was worse than
+//! not capping it at all.
 
 pub mod floor;
 pub mod scan;

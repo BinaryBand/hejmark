@@ -33,7 +33,7 @@
 //! single entry is the caller's non-terminating loop to ask for.
 
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt;
 use std::rc::Rc;
 
@@ -41,6 +41,7 @@ use super::binder::{binds, settled};
 use super::reach::{cuts, suffixes};
 use super::syntax::{Factor, Member, NodeId, UniverseNode};
 use super::window::{carve, window_of};
+use super::work::charge;
 
 /// The stage a free `&` in some members reads (`None` outside any binder).
 ///
@@ -80,32 +81,41 @@ struct Key {
 /// spelling is as long as the text.
 type Memo = HashMap<Key, HashMap<Vec<u32>, bool>>;
 
+/// How many `(universe, spelling)` answers the memo remembers before it evicts
+/// its oldest, mirroring the Python's `lru_cache(maxsize=65536)`.
+///
+/// **Safe now in a way it was not before this module carried a work budget.**
+/// Both alternatives were once measured on `{a, &{a}}` and both cliffed hard:
+/// clearing wholesale at 65536 answers took a 400-character target from 8.5 s
+/// to past 90 s, and filling-then-holding did the same, because past the cap
+/// the closure recursion was simply un-memoized -- an uncapped run was the
+/// only way to keep the curve smooth. That measurement held only because
+/// nothing bounded the *run*; now [`charge`] does, so a run that would
+/// outgrow this cap hits the work budget and is refused before the eviction
+/// cliff has anywhere to bite. The cap only ever has to absorb memory for a
+/// run cheap enough to finish, which is exactly what it is for.
+const MEMO_CAP: usize = 65_536;
+
+/// The membership memo plus its insertion order, so it can evict its oldest
+/// answer once [`MEMO_CAP`] is reached. FIFO rather than true least-recently-used:
+/// which answer is evicted no longer matters for correctness or for the
+/// exponential-blowup risk (the work budget is what prevents that), only for
+/// how much of a large-but-affordable run's memo survives to be reused.
+struct MemoState {
+    answers: Memo,
+    order: VecDeque<(Key, Vec<u32>)>,
+}
+
 thread_local! {
     /// The membership memo for this thread.
     ///
     /// Membership is a pure function of universe and spelling, so the memo
     /// changes no denotation -- it collapses the sub-questions a closure re-asks
     /// at every stage, which is where the recursion's cost actually sits.
-    ///
-    /// **Unbounded, on purpose, and this is the one place the port knowingly
-    /// differs in kind rather than in detail.** The Python caps the same cache
-    /// at 65536 with an LRU and can afford to, because it also carries
-    /// `core/floor/work.py`: a run that outgrows its memo hits the work budget
-    /// and is *refused*, with a `HimarkBudgetError` naming the reason. The port
-    /// has no work budget yet, so a cap here would bound the wrong thing -- it
-    /// would leave the run going and silently make it exponential again, which
-    /// is the one outcome the budget exists to prevent.
-    ///
-    /// Both alternatives were measured on `{a, &{a}}`, and both cliff hard.
-    /// Clearing wholesale at 65536 answers took a 400-character target from
-    /// 8.5 s to past 90 s; filling and then holding did the same, because past
-    /// the cap the closure recursion is simply un-memoized. Unbounded, the curve
-    /// is smooth -- 0.7 s at 200 characters, 8.5 s at 400, 70 s at 700 -- and
-    /// memory tracks the work rather than the input: 14 MB, 92 MB, 470 MB.
-    ///
-    /// So the memo grows with the run, and bounding the *run* is the fix. Porting
-    /// `work.py` is the item that closes this, and `docs/TODO.md` ranks it.
-    static CONTAINS: RefCell<Memo> = RefCell::new(Memo::new());
+    static CONTAINS: RefCell<MemoState> = RefCell::new(MemoState {
+        answers: Memo::new(),
+        order: VecDeque::new(),
+    });
 }
 
 /// Signals that membership in an unsettled closure cannot be decided.
@@ -202,18 +212,25 @@ impl Universe {
 
     /// Whether some entry of this universe wears `spelling`.
     ///
+    /// The recursion's chokepoint, so an open work budget is charged here --
+    /// memo hit or not, since re-asking an answered question still costs.
+    ///
     /// # Panics
     ///
     /// Unwinds with a [`HimarkUnsettledError`] payload when the node is an
     /// unsettled closure and no stage up to `len(spelling) + 1` shows `spelling`:
-    /// absence then has no bound.
+    /// absence then has no bound. Unwinds with a
+    /// [`super::work::HimarkBudgetError`] payload when an open run has spent
+    /// past its work budget.
     pub fn contains(&self, spelling: &[u32]) -> bool {
+        charge(1);
         if !self.worth_remembering() {
             return self.decide(spelling);
         }
         let key = self.key();
         let remembered = CONTAINS.with(|memo| {
             memo.borrow()
+                .answers
                 .get(&key)
                 .and_then(|answers| answers.get(spelling))
                 .copied()
@@ -225,10 +242,26 @@ impl Universe {
         // through every constructor below, and a live borrow would panic.
         let answer = self.decide(spelling);
         CONTAINS.with(|memo| {
-            memo.borrow_mut()
-                .entry(key)
+            let mut memo = memo.borrow_mut();
+            let is_new = memo
+                .answers
+                .entry(key.clone())
                 .or_default()
-                .insert(spelling.to_vec(), answer);
+                .insert(spelling.to_vec(), answer)
+                .is_none();
+            if is_new {
+                memo.order.push_back((key, spelling.to_vec()));
+                if memo.order.len() > MEMO_CAP {
+                    if let Some((oldest_key, oldest_spelling)) = memo.order.pop_front() {
+                        if let Some(answers) = memo.answers.get_mut(&oldest_key) {
+                            answers.remove(&oldest_spelling);
+                            if answers.is_empty() {
+                                memo.answers.remove(&oldest_key);
+                            }
+                        }
+                    }
+                }
+            }
         });
         answer
     }

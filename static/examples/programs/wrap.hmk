@@ -1,0 +1,7 @@
+// The end-anchor idiom: strip one trailing dash, e.g. slugify's leftover.
+// Tiling the whole document under @spellings gives every rule a fixed
+// point to read from -- the sentinel just placed after the last character.
+sentinel end
+{@spellings} => "{{$}}{{@end}}"
+{-}{@end} => "{{@end}}"
+{@end} => ""

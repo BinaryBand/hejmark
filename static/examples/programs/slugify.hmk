@@ -1,0 +1,10 @@
+// Slugify: fold accented letters to plain ASCII, fold case, replace every
+// remaining non-alphanumeric with a dash, then collapse repeated dashes.
+// {@C, !{a..z,0..9}} is one subtraction member and so cheap regardless of
+// document length; it catches spaces and punctuation in one statement.
+uni ascii = {{a,á,à,â,ä,å,Á,À,Â,Ä,Å},{e,é,è,ê,ë,É,È,Ê,Ë},{i,í,ì,î,ï,Í,Ì,Î,Ï},{o,ó,ò,ô,ö,õ,Ó,Ò,Ô,Ö,Õ},{u,ú,ù,û,ü,Ú,Ù,Û,Ü},{n,ñ,Ñ},{c,ç,Ç}}
+uni lower = {{a,A},{b,B},{c,C},{d,D},{e,E},{f,F},{g,G},{h,H},{i,I},{j,J},{k,K},{l,L},{m,M},{n,N},{o,O},{p,P},{q,Q},{r,R},{s,S},{t,T},{u,U},{v,V},{w,W},{x,X},{y,Y},{z,Z}}
+{@ascii} => "{{$0}}"
+{@lower} => "{{$0}}"
+{@C, !{a..z,0..9}} => "-"
+{-}{-} <=>[@spellings] "-"

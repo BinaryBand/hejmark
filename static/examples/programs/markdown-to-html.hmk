@@ -1,0 +1,26 @@
+// Markdown -> HTML, the tier's flagship: ATX h1/h2 headings, one level of
+// inline emphasis and inline code. This is a deliberately small subset of
+// the older iteration's scripts/md_html.hmk (no lists, tables, links,
+// blockquotes or fenced code) -- the matcher cost that blocked a fuller
+// port is gone (docs/TODO.md), but re-architecting the rest is unstarted.
+//
+// Each line is bracketed in sentinels first, the same masking idiom
+// bubble-sort.hmk uses, so a heading rule can read "the rest of this
+// line" as one bounded factor instead of an anchor the grammar has none of.
+sentinel start
+sentinel end
+
+uni c    = {@C, !{\n}}
+uni line = {@c, &@c}
+
+uni nonStar  = {@C, !{\n,*}}
+uni emBody   = {@nonStar, &@nonStar}
+uni nonTick  = {@C, !{\n,`}}
+uni codeBody = {@nonTick, &@nonTick}
+
+{@line} => "{{@start}}{{$}}{{@end}}"
+{@start}{#}{#}{\ }{@line}{@end} => "<h2>{{$5}}</h2>"
+{@start}{#}{\ }{@line}{@end} => "<h1>{{$4}}</h1>"
+{*}{@emBody}{*} => "<b>{{$2}}</b>"
+{`}{@codeBody}{`} => "<code>{{$2}}</code>"
+{@start,@end} => ""

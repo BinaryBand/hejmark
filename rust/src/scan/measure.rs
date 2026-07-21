@@ -22,6 +22,7 @@ use crate::floor::order::shortlex_cmp;
 use crate::floor::reach::{cuts, suffixes};
 use crate::floor::syntax::{Factor, Member};
 use crate::floor::universe::{denote, walk, Amp, Universe};
+use crate::floor::work::charge;
 use crate::scan::capture::BUDGET;
 use crate::surface::ast::HimarkScopeError;
 
@@ -106,6 +107,10 @@ fn within(
 /// left already claims it, and no subtraction to the right strips it. Dropped
 /// faces shift positions but never reorder, so the owner index carries the
 /// member-major half of the order.
+///
+/// The three walks here go to the member-level oracle rather than through
+/// `contains`, so the open budget is charged for them by hand, exactly as the
+/// Python's `_owner` does.
 fn owner_of<'a>(
     members: &'a [Member],
     amp: &Amp,
@@ -115,6 +120,7 @@ fn owner_of<'a>(
         if matches!(member, Member::Subtract(_)) {
             continue;
         }
+        charge(1);
         if !walk(std::slice::from_ref(member), amp, face) {
             continue;
         }

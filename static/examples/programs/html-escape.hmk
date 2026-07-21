@@ -1,0 +1,7 @@
+// Escape the five characters HTML text needs escaped. Order matters: `&`
+// must go first, or the ampersands the later rules emit get escaped too.
+{\&} => "&amp;"
+{\<} => "&lt;"
+{>} => "&gt;"
+{\"} => "&quot;"
+{'} => "&#39;"

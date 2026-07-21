@@ -14,8 +14,9 @@ from hejmark import finditer, parse, run
 
 EXAMPLES = Path(__file__).resolve().parents[2] / "static" / "examples"
 
-# Examples live in two groups: `simple/` one-expression find queries and
-# `demos/` multi-statement run scripts. Keys are paths relative to EXAMPLES.
+# Examples live in three groups: `simple/` one-expression find queries,
+# `demos/` multi-statement run scripts, and `programs/` whole programs doing
+# a real job. Keys are paths relative to EXAMPLES.
 
 # Query examples: the file, a text to scan, and the leftmost match expected.
 QUERIES = {
@@ -41,6 +42,17 @@ SCRIPTS = {
     "demos/double-letter.hmk": ("book keeper", "bo!k ke!per"),
     "demos/sort-swap.hmk": ("bbaa", "aabb"),
     "demos/bubble-sort.hmk": ("3,1,2", "1,2,3"),
+    "programs/html-escape.hmk": (
+        '<a href="x">Tom & Jerry</a>',
+        "&lt;a href=&quot;x&quot;&gt;Tom &amp; Jerry&lt;/a&gt;",
+    ),
+    "programs/normalize-space.hmk": ("a  \t b\n\nc", "a b c"),
+    "programs/slugify.hmk": ("Héllo, World!", "hello-world-"),
+    "programs/wrap.hmk": ("abcdef-", "abcdef"),
+    "programs/markdown-to-html.hmk": (
+        "# Title\nsome *b* and `c`\n## Sub",
+        "<h1>Title</h1>\nsome <b>b</b> and <code>c</code>\n<h2>Sub</h2>",
+    ),
 }
 
 

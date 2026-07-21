@@ -8,12 +8,10 @@ Priority and rationale for outstanding work. This file only ranks what remains a
 
 Ordered by dependency, not by size.
 
-- [ ] **Give the Rust port a work budget** -- the newly *un*bounded thing. Its membership memo has no cap, on purpose: every cap tried put a cliff exactly where the work is hardest, because past the cap the closure recursion is simply un-memoized. Python can cap its own at 65536 because it also carries `core/floor/work.py`, so a run that outgrows the memo is *refused* rather than quietly made exponential. Porting `work.rs` bounds the run, which is the thing that actually needs bounding; the memo then caps safely behind it. Engine performance, below.
 - [ ] **Bound the last split search** -- `capture._splits` is the one that did not get the cut bound, because its factors are a different type (`Universe | Slot`, and a slot has no reach until its reads bind). The clean fix is now visible: a compiler-computed reach *bound* riding `LateSlot` -- the compiler knows the unit's shape modulo its reads, and a face substitution can only lengthen reach by the read's own length, so a sound bound is computable at compile time and would let `reach.cuts` serve slotted factors. **The Rust half is done**: the port has no `Slot`, so its factors are plain universes and `capture.rs` took the bound with the other three. This item is now Python-only.
 - [ ] **Teach the Rust port the Program wire format** -- `core/ir/wire.py` serializes whole compiled scripts (statements, templates, measures, sentinel table, late slots), versioned from day one; Rust currently reads only the bare-query shape from `core/ir/codec.py`. A Rust reader for the Program format gets it `run` (slot-free scripts) rather than just `find`. Slotted programs additionally need a resolver channel back into the compiler -- design that only when a consumer exists.
-- [ ] **Re-time the `programs/` tier** -- its stated blocker was matcher cost, and that blocker is gone. Deferred, below.
 
-The previous five are done; **Landed** records what they cost and, where the guess was wrong, what was actually true.
+The previous seven are done; **Landed** records what they cost and, where the guess was wrong, what was actually true.
 
 ## Landed
 
@@ -78,6 +76,24 @@ Not planned; found by the fix above. Narrowing the cut range moves the *longest*
 
 This is a tactic, not a rule -- a host whose stack is its memory conforms without it -- and it is worth knowing that it also made the engine *faster*, not just deeper.
 
+### Give the Rust port a work budget
+
+`rust/src/floor/work.rs`, a port of `core/floor/work.py`. `budgeted` opens a per-run budget and `charge` spends it, thread-local and one deep -- a nested call while one is already open rides it rather than opening a second, the same outermost-holds rule the Python's list-based `_OPEN` enforces. `Universe::contains` charges once per call at the top, memo hits included, exactly the chokepoint the Python charges; `measure::owner_of` charges by hand for the three walks that go around `contains`, mirroring `_owner` on the Python side. `match_` and `finditer` each open one budget per match. A contracting pass has no Rust runner yet (there is no `execute.rs`), so that half of the Python's two call sites has nothing to wire today; the module's doc comment says so rather than leaving it looking like an oversight.
+
+**The Rust language forced one honest divergence.** Python raises `HimarkBudgetError` as a catchable exception; Rust has no equivalent control-flow type, so it unwinds via `panic_any` exactly as `HimarkUnsettledError` already does two doors down in `universe.rs` -- a caller recovers it with `catch_unwind` and `downcast_ref::<HimarkBudgetError>()`. Nothing downstream catches it yet (`find.rs` doesn't catch `HimarkUnsettledError` either), so today a budget refusal surfaces as a Rust panic rather than a clean CLI message -- an existing gap this item did not create and did not close.
+
+**The memo is capped now, and only now is that safe.** `Universe`'s membership memo (`CONTAINS`) evicts its oldest `(universe, spelling)` answer past 65536 entries, mirroring the Python's `lru_cache(maxsize=65536)` -- FIFO rather than true LRU, since which answer survives no longer changes correctness or the exponential-blowup risk, only how much of an affordable run's memo is reused. It is safe for the same reason capping it was unsafe before: a run that would outgrow the cap now hits the work budget first and is refused, so the eviction cliff measured in *Carry the rewrites into the Rust port* above never has anywhere to bite. Verified directly: `{a, &{a}}` over 2000 characters, unbounded before this landed, now unwinds cleanly with a `HimarkBudgetError` naming the budget instead of growing memory without end.
+
+### Ship the `programs/` tier
+
+Five files under `static/examples/programs/`: `html-escape`, `normalize-space`, `slugify`, `wrap` -- unchanged from the candidates parked in `docs/.TEMP.md` -- and `markdown-to-html`, rewritten rather than re-timed as-is.
+
+**The flagship needed rewriting, not just re-timing.** The old iteration's `scripts/md_html.hmk` is written against a materially different surface -- `[1..]`-style quantifiers, filter blocks, template pipes, none of which this grammar has (repetition is closure `&` in a named `uni`; see `docs/.TEMP.md`'s porting-gap table, now folded into this entry since that file is deleted). No verified source for the flagship survived alongside the timings, only the fixture: input `# Title`, `some *b* and` a backtick-quoted `c`, `## Sub` (three lines) rendering to `<h1>Title</h1>`, `some <b>b</b> and <code>c</code>`, `<h2>Sub</h2>`. `markdown-to-html.hmk` is a from-scratch subset written to that fixture -- ATX `#`/`##` headings, one level of `*em*`, one level of backtick-quoted code -- using the same per-line sentinel-masking idiom `demos/bubble-sort.hmk` uses for its own line anchor, since the grammar has no `{@<}`/`{@>}`. Lists, tables, links, blockquotes and fenced code are out of scope; re-architecting them (the old `format_html.hmk`'s indentation-via-template-pipe step, especially) is a separate, larger effort this item did not attempt.
+
+**The blocker really is gone.** The fixture above now runs in ~0.09 s, against the old 6.26 s that used to make three lines the practical ceiling. A six-line, 75-character stress fixture (three headings, two inline spans, one deliberately-out-of-scope `###` line) finishes in ~1.3 s and produces the expected output rather than hanging -- slower than the shipped fixture because it does more work, not because anything is exponential again. The four non-flagship candidates are all under 30 ms.
+
+`tests/integration/test_examples.py`'s `SCRIPTS` table grew five entries; the glob-versus-table check means the tier could not ship partially covered.
+
 ## Engine performance
 
 Measured, not guessed. Cold, one workload per process, against `2ab4c14`:
@@ -97,31 +113,17 @@ Measured, not guessed. Cold, one workload per process, against `2ab4c14`:
 
 Read the two halves differently. For a fixed query shape the growth is still **~O(n³·⁵)**, down from ~O(n⁴): the cut bounds and the remembered hash moved the *constant*, by roughly forty. For a product of many factors the chart moved the *degree*, from $n^{k}$ to about $n^2$, which is the 780x row. Both were needed and neither substitutes for the other. Full timings and method are in `docs/.TEMP.md` (local-only; gitignored under "Private project files").
 
-### 1. Give the Rust port a work budget
-
-`rust/src/floor/` now mirrors Python's rewrites, and one Python module it does *not* mirror has become load-bearing by its absence: `core/floor/work.py`. The port's membership memo grows without a cap, because every cap measured put a cliff where the work is hardest, and the measurements are in **Landed** above.
-
-The shape of the fix is the Python's: charge one `Universe::contains` call, memo hits included, open a budget per match and per contracting pass, and refuse with the port's analogue of `HimarkBudgetError`. Once a run is bounded, the memo can be capped behind it safely -- the cap stops mattering, because a run that would outgrow it is refused first. Doing it in the other order is what does not work.
-
-Two smaller things ride along. The port has no `charge` point at all, so nothing about it is partial today -- it either finishes or it does not. And `_shorter_first`'s Rust counterpart skips warming an *unsettled* body up front rather than warming until a prefix raises, because unwinding in Rust is costly and loud; the two agree on which answers exist, but the Python's is the more faithful reading of "the real question's job".
-
-### 2. Bound the last split search (Python only)
+### 1. Bound the last split search (Python only)
 
 `capture._splits` still walks every cut. It missed the sweep for a type reason and not a semantic one: its factors are `Factor` (`Universe | Slot`), where `cuts` takes the floor's `UniverseNode | Closure`, and a `Slot` has no reach until its reads are bound. Resolving each factor first and reaching the result would fix it. This is the `$1..$n` read path, already budgeted and off the hot loop, so it is small -- but it is the one place the permitted rewrite is stated and not taken.
 
 The Rust port has no `Slot`, so the question never arises there: `capture.rs` takes the cut bound directly, and the port applies the permitted rewrite on all four of its split searches rather than three. Its docstring says so, so the divergence does not read as an oversight to be tidied away.
 
-### 3. The descent is still linear in the spelling
+### 2. The descent is still linear in the spelling
 
 `_shorter_first` bounds the stack for the shape that matters -- a closure whose sub-questions are prefixes, which is every `{@x, &@x}` in the std -- but the bound is structural, not general: a closure whose split search asks about suffixes or interior substrings will descend one frame per character again and can still exhaust the interpreter's stack before the work budget fires. A `RecursionError` is not a diagnostic, so this is the one path where "never a hang, never a guess" is met by neither. Worth stating in `L2.md`'s diagnostics only if a real shape hits it; worth fixing properly (a bottom-up table over stage and substring) only if one does.
 
 ## Deferred
-
-### Examples: a `programs/` tier
-
-A third example group beside `simple/` and `demos/` -- whole programs rather than feature demos. Planning, the porting-gap analysis against the older iteration's `scripts/`, and four verified-working program sources are parked in `docs/.TEMP.md`.
-
-**The stated blocker is gone.** It was matcher cost: the flagship candidate (markdown to HTML) took 6.26 s on a three-line fixture and hung at six, and slugify was too slow to ship with its collapse statement. Slugify now runs in 0.140 s at 37 characters *with* the collapse, a 34x change, so the tier's cheap candidates can ship today and the flagship needs re-timing rather than re-architecting. That re-timing is the work: if markdown-to-HTML now runs a six-line fixture inside the gate's patience, the tier ships as planned.
 
 ### Language surface: expressive render layer
 

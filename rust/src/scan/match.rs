@@ -23,6 +23,7 @@ use std::collections::HashMap;
 
 use crate::floor::reach::reach;
 use crate::floor::universe::Universe;
+use crate::floor::work::budgeted;
 
 /// A denoted query: its source plus one factor per written unit, in order.
 #[derive(Clone)]
@@ -163,19 +164,34 @@ impl<'a> Search<'a> {
 }
 
 /// Return the leftmost match at or after `start`, or `None` if there is none.
+///
+/// # Panics
+///
+/// Unwinds with a [`crate::floor::work::HimarkBudgetError`] payload when the
+/// match runs past the host's work budget.
 pub fn match_(query: &Query, text: &[u32], start: usize) -> Option<Match> {
+    let _budget = budgeted("a match");
     Search::new(query, text).leftmost(start)
 }
 
 /// Yield non-overlapping matches left to right, resuming past each span.
 ///
 /// One chart serves the whole scan: the text does not change between matches, so
-/// a tail derived for one match answers for the next.
+/// a tail derived for one match answers for the next. Each match carries its own
+/// work budget, unless an outer run already holds one.
+///
+/// # Panics
+///
+/// Unwinds with a [`crate::floor::work::HimarkBudgetError`] payload when a
+/// match runs past the host's work budget.
 pub fn finditer<'a>(query: &'a Query, text: &'a [u32]) -> impl Iterator<Item = Match> + 'a {
     let mut search = Search::new(query, text);
     let mut pos = 0;
     std::iter::from_fn(move || {
-        let found = search.leftmost(pos)?;
+        let found = {
+            let _budget = budgeted("a match");
+            search.leftmost(pos)
+        }?;
         pos = found.span.1.max(pos + 1);
         Some(found)
     })
