@@ -1,4 +1,4 @@
-"""The L2 standard library, written over the L1.5 surface.
+"""The L3 standard library, written over the L1.5 surface.
 
 :data:`SOURCE` is hejmark, not Python: it is parsed by the same grammar as user
 source and resolved into the same namespace, so nothing in it is special-cased.
