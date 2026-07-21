@@ -17,6 +17,11 @@ import 'test_screen.dart';
 /// desktop rail layout.
 const double kDesktopBreakpoint = 840;
 
+/// The brief's `shellMaxWidth`: the shell is a centred, shadowed card on the
+/// dimmed backdrop at any window width, on desktop as on mobile — it just caps
+/// wider, since the rail and a pinned sidebar need the room.
+const double kDesktopShellMaxWidth = 1280;
+
 /// The app shell.
 ///
 /// Below [kDesktopBreakpoint] it is the brief's centred phone frame: a bottom
@@ -107,44 +112,57 @@ class HomeScaffold extends StatelessWidget {
   // ---------------------------------------------------------------------------
 
   Widget _desktop(AppState s, HimarkTokens t) {
-    return ColoredBox(
-      color: t.surface,
-      child: SafeArea(
-        bottom: false,
-        child: Stack(
-          children: [
-            Row(
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: kDesktopShellMaxWidth),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: t.surface,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.28),
+                blurRadius: 40,
+              ),
+            ],
+          ),
+          child: SafeArea(
+            bottom: false,
+            child: Stack(
               children: [
-                const DeskRail(),
-                if (s.deskSidebarActive(DeskSidebar.projects))
-                  const SizedBox(
-                    width: ProjectShelf.desktopWidth,
-                    child: ProjectShelfPanel(),
-                  ),
-                if (s.deskSidebarActive(DeskSidebar.rules))
-                  SizedBox(
-                    width: ProjectShelf.desktopWidth,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        border: Border(
-                          right: BorderSide(color: t.outlineVariant),
+                Row(
+                  children: [
+                    const DeskRail(),
+                    if (s.deskSidebarActive(DeskSidebar.projects))
+                      const SizedBox(
+                        width: ProjectShelf.desktopWidth,
+                        child: ProjectShelfPanel(),
+                      ),
+                    if (s.deskSidebarActive(DeskSidebar.rules))
+                      SizedBox(
+                        width: ProjectShelf.desktopWidth,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            border: Border(
+                              right: BorderSide(color: t.outlineVariant),
+                            ),
+                          ),
+                          child: const RulesPanel(),
                         ),
                       ),
-                      child: const RulesPanel(),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          const TopBar(isDesktop: true),
+                          Expanded(child: _screen(s, wide: true)),
+                        ],
+                      ),
                     ),
-                  ),
-                Expanded(
-                  child: Column(
-                    children: [
-                      const TopBar(isDesktop: true),
-                      Expanded(child: _screen(s, wide: true)),
-                    ],
-                  ),
+                  ],
                 ),
+                ..._overlays(s, wide: true),
               ],
             ),
-            ..._overlays(s, wide: true),
-          ],
+          ),
         ),
       ),
     );
