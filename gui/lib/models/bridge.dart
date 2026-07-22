@@ -225,38 +225,81 @@ class HejmarkBridge implements Bridge {
     return DocumentRun(null, error: refused?.message ?? 'engine unavailable');
   }
 
-  /// Hands each rule to the first backend that compiles it.
+  /// Hands the rules — all of them, together — to the first backend that
+  /// compiles them.
   ///
-  /// Returns the slot's backend index and its program. A retryable refusal
-  /// moves to the next backend; a final one stops, because a rule the compiler
-  /// calls malformed would be called malformed by every other compiler too.
-  /// Either way the *last* refusal is the one reported, which is what puts the
-  /// full compiler's diagnosis in front of the device engine's "needs the full
-  /// compiler" when both were asked.
+  /// Returns the slot's backend index and its program, for the slots that got
+  /// one. The unit is the whole set because the rules are the lines of one
+  /// script: a name one declares is in scope in the rest, and a rule that only
+  /// declares compiles to no program at all and simply takes no slot here.
+  ///
+  /// The set is what crosses, but the *fall-through is still per rule*: a rule
+  /// one compiler refuses retryably is asked of the next, while its neighbours
+  /// keep the programs they already have. A final refusal stops that rule,
+  /// because a rule one compiler calls malformed would be called malformed by
+  /// every other compiler too. Either way the *last* refusal is the one
+  /// reported, which is what puts the full compiler's diagnosis in front of the
+  /// device engine's "needs the full compiler" when both were asked.
+  ///
+  /// A refusal thrown rather than returned is about the whole set — a name two
+  /// rules declare — and there is then no rule to pin it on, so it is reported
+  /// bare and the next backend gets the same chance.
   Future<Map<int, (int, String)>> _compile(
     List<Rule> rules,
     List<Backend> backends,
     void Function(String) report,
   ) async {
+    final sources = <String>[for (final rule in rules) rule.source];
     final compiled = <int, (int, String)>{};
-    for (var slot = 0; slot < rules.length; slot++) {
-      CompileRefusal? refused;
-      for (var index = 0; index < backends.length; index++) {
-        try {
-          final program = await backends[index].compiler.compile(
-            rules[slot].source,
-          );
-          compiled[slot] = (index, program);
-          refused = null;
-          break;
-        } on CompileRefusal catch (refusal) {
-          refused = refusal;
-          if (!refusal.retryable) break;
-        }
+    final refusals = <int, CompileRefusal>{};
+    var pending = <int>{for (var slot = 0; slot < rules.length; slot++) slot};
+    CompileRefusal? refusedSet;
+    for (var index = 0; index < backends.length && pending.isNotEmpty; index++) {
+      final List<CompiledFragment> fragments;
+      try {
+        fragments = await backends[index].compiler.compileAll(sources);
+      } on CompileRefusal catch (refusal) {
+        refusedSet = refusal;
+        if (!refusal.retryable) break;
+        continue;
       }
-      if (refused != null) report('${rules[slot].label}: ${refused.message}');
+      refusedSet = null;
+      pending = <int>{
+        for (final slot in pending)
+          // A short answer is a broken compiler, not a rule's fault: the rule
+          // stays open for the next backend rather than reading a neighbour's.
+          if (slot >= fragments.length ||
+              _take(fragments[slot], index, slot, compiled, refusals))
+            slot,
+      };
+    }
+    if (refusedSet != null) report(refusedSet.message);
+    for (final slot in refusals.keys.toList()..sort()) {
+      report('${rules[slot].label}: ${refusals[slot]!.message}');
     }
     return compiled;
+  }
+
+  /// Files one rule's fragment, returning whether the rule is still open —
+  /// which only a retryable refusal leaves it. A rule that declared and asked
+  /// nothing is settled with no program and no complaint.
+  static bool _take(
+    CompiledFragment fragment,
+    int index,
+    int slot,
+    Map<int, (int, String)> compiled,
+    Map<int, CompileRefusal> refusals,
+  ) {
+    final program = fragment.program;
+    if (program != null) {
+      compiled[slot] = (index, program);
+      refusals.remove(slot);
+      return false;
+    }
+    final refusal = fragment.refusal;
+    if (refusal == null) return false;
+    refusals[slot] = refusal;
+    return refusal.retryable;
   }
 
   /// Runs each backend's engine once over every program it compiled.

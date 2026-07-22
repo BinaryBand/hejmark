@@ -9,10 +9,12 @@ statements -- against a document.
 from __future__ import annotations
 
 import json
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 
 from hejmark.adapters.parser import AntlrParser
+from hejmark.core.compiler.compile import Fragment
 from hejmark.core.compiler.compile import lower as _lower
+from hejmark.core.compiler.compile import lower_fragments as _lower_fragments
 from hejmark.core.driver import compile_program as _compile_program
 from hejmark.core.driver import finditer as _finditer
 from hejmark.core.driver import match as _match
@@ -60,6 +62,29 @@ def emit_json(source: str) -> str:
     return json.dumps(_encode_query(_lower(_to_ast, source)))
 
 
+def emit_fragments(sources: Sequence[str]) -> str:
+    """Emit the floor AST of each of *sources* as a JSON array, one entry each.
+
+    The fragment form of :func:`emit_json`, for a host that holds one script as
+    separate pieces -- an editor's rule list -- and wants each piece's own
+    program while the names declared in any of them stay in scope across all.
+    A fragment that declares and asks nothing emits ``null``: it contributes
+    names, not a query, which is the whole reason this is not a loop over
+    :func:`emit_json`. One that will not compile emits ``{"error": ...}`` and
+    the rest still emit their programs, so a host editing fragments separately
+    keeps the answers for the ones it is not editing. A refusal about the *set*
+    -- a name two fragments declare -- raises, as it does in :func:`emit_json`.
+    """
+    return json.dumps([_fragment_payload(one) for one in _lower_fragments(_to_ast, sources)])
+
+
+def _fragment_payload(fragment: Fragment) -> dict[str, object] | None:
+    """One fragment's wire entry: its query, its error, or null for a declaration."""
+    if fragment.error is not None:
+        return {"error": fragment.error}
+    return None if fragment.forms is None else _encode_query(fragment.forms)
+
+
 def emit_program(source: str) -> str:
     """Emit a whole compiled script as the versioned Program JSON.
 
@@ -89,6 +114,7 @@ __all__ = [
     "MatchPart",
     "Query",
     "Universe",
+    "emit_fragments",
     "emit_json",
     "emit_program",
     "finditer",

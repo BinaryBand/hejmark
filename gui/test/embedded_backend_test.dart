@@ -42,7 +42,7 @@ void main() {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (call) async {
             methods.add(call.method);
-            calls.add(call.arguments['source'] as String);
+            calls.addAll((call.arguments['sources'] as List).cast<String>());
             return reply;
           });
     });
@@ -52,15 +52,29 @@ void main() {
           .setMockMethodCallHandler(channel, null);
     });
 
-    test('an ok reply yields the program body', () async {
-      reply = 'ok\n{"universes": []}';
+    test('an ok reply yields one program per rule', () async {
+      // Null is the third answer and not a failure: that rule declared names
+      // for its neighbours and asked nothing.
+      reply = 'ok\n[null, {"universes": []}]';
       final compiler = EmbeddedCompiler(channel);
-      expect(await compiler.compile('{a}'), '{"universes": []}');
-      expect(calls, <String>['{a}']);
-      expect(methods, <String>['compile']);
+      final fragments = await compiler.compileAll(<String>['uni d = {a}', '@d']);
+      expect(fragments[0].program, isNull);
+      expect(fragments[0].refusal, isNull);
+      expect(fragments[1].program, '{"universes":[]}');
+      expect(calls, <String>['uni d = {a}', '@d']);
+      expect(methods, <String>['compileFragments']);
     });
 
-    test('a script crosses as compileProgram, cached apart from compile',
+    test('an error entry refuses only its own rule', () async {
+      reply = 'ok\n[{"error": "unclosed brace"}, {"universes": []}]';
+      final compiler = EmbeddedCompiler(channel);
+      final fragments = await compiler.compileAll(<String>['{a', '{b}']);
+      expect(fragments[0].refusal?.message, 'unclosed brace');
+      expect(fragments[0].refusal?.retryable, isFalse);
+      expect(fragments[1].program, isNotNull);
+    });
+
+    test('a script crosses as compileProgram, cached apart from the rules',
         () async {
       // The same text is both a query and a one-statement script, and the two
       // lowerings answer differently — so the caches must not collide.
@@ -71,31 +85,37 @@ void main() {
         '{"format": "hejmark-program"}',
       );
       expect(await compiler.compileScript('{a}'), isNotEmpty);
-      reply = 'ok\n{"universes": []}';
-      expect(await compiler.compile('{a}'), '{"universes": []}');
-      expect(methods, <String>['compileProgram', 'compile']);
+      reply = 'ok\n[{"universes": []}]';
+      expect(
+        (await compiler.compileAll(<String>['{a}'])).single.program,
+        '{"universes":[]}',
+      );
+      expect(methods, <String>['compileProgram', 'compileFragments']);
     });
 
     test('an err reply is a final refusal, never a retryable one', () async {
       // This *is* the full compiler. Nothing downstream could do better, so a
       // bridge that saw `retryable` here would spawn a pointless second attempt.
-      reply = 'err\nunclosed brace';
+      reply = 'err\nduplicate name: d';
       final compiler = EmbeddedCompiler(channel);
       await expectLater(
-        compiler.compile('{a'),
+        compiler.compileAll(<String>['uni d = {a}', 'uni d = {b}']),
         throwsA(
           isA<CompileRefusal>()
-              .having((r) => r.message, 'message', 'unclosed brace')
+              .having((r) => r.message, 'message', 'duplicate name: d')
               .having((r) => r.retryable, 'retryable', isFalse),
         ),
       );
     });
 
     test('both outcomes are cached, so a keystroke crosses once', () async {
-      reply = 'err\nunclosed brace';
+      reply = 'err\nduplicate name: d';
       final compiler = EmbeddedCompiler(channel);
       for (var i = 0; i < 3; i++) {
-        await expectLater(compiler.compile('{a'), throwsA(isA<CompileRefusal>()));
+        await expectLater(
+          compiler.compileAll(<String>['{a']),
+          throwsA(isA<CompileRefusal>()),
+        );
       }
       expect(calls, <String>['{a']);
     });
@@ -104,7 +124,7 @@ void main() {
       reply = 'err\n';
       final compiler = EmbeddedCompiler(channel);
       await expectLater(
-        compiler.compile('{a'),
+        compiler.compileAll(<String>['{a']),
         throwsA(
           isA<CompileRefusal>().having(
             (r) => r.message,
@@ -121,7 +141,7 @@ void main() {
     // stage: the bridge must degrade to an error line, not an exception.
     final compiler = EmbeddedCompiler(const MethodChannel('test/absent'));
     await expectLater(
-      compiler.compile('{a}'),
+      compiler.compileAll(<String>['{a}']),
       throwsA(isA<CompileRefusal>().having((r) => r.retryable, 'retryable', isFalse)),
     );
   });

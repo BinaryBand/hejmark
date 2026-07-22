@@ -7,21 +7,36 @@ import 'package:himark_editor/models/project.dart';
 /// A compiler that answers from a table, so a test can say exactly which rules
 /// a backend takes and which it passes on.
 class _FakeCompiler implements Compiler {
-  _FakeCompiler(this.outcomes);
+  _FakeCompiler(this.outcomes, {this.setRefusal});
 
-  /// Source to outcome: a program string, or the refusal to throw. Shared by
-  /// both verbs, since what the dispatch tests care about is who took the
-  /// source, not which shape came back.
-  final Map<String, Object> outcomes;
+  /// Source to outcome: a program string, a [CompileRefusal] against that one
+  /// rule, or null for "declares only". Shared by both verbs, since what the
+  /// dispatch tests care about is who took the source, not which shape came
+  /// back. A source the table does not mention compiles to itself.
+  final Map<String, Object?> outcomes;
+
+  /// Thrown instead of answering — the refusal that is about the whole set.
+  final CompileRefusal? setRefusal;
+
   final List<String> asked = <String>[];
 
   @override
-  Future<String> compile(String source) => _answer(source);
+  Future<List<CompiledFragment>> compileAll(List<String> sources) async {
+    final refusal = setRefusal;
+    if (refusal != null) throw refusal;
+    asked.addAll(sources);
+    return <CompiledFragment>[
+      for (final source in sources)
+        switch (outcomes.containsKey(source) ? outcomes[source] : source) {
+          final CompileRefusal one => CompiledFragment.refused(one),
+          final String program => CompiledFragment.program(program),
+          _ => const CompiledFragment.declarations(),
+        },
+    ];
+  }
 
   @override
-  Future<String> compileScript(String source) => _answer(source);
-
-  Future<String> _answer(String source) async {
+  Future<String> compileScript(String source) async {
     asked.add(source);
     final outcome = outcomes[source];
     if (outcome is CompileRefusal) throw outcome;
@@ -197,6 +212,55 @@ void main() {
       (1, 'abc'),
       (0, 'def'),
     ]);
+  });
+
+  test('a rule that only declares takes no slot and no blame', () async {
+    // `uni d = {0..9}` is a legal rule: it contributes a name to its
+    // neighbours and asks nothing, so it reaches no engine and reports no
+    // error — the state that has no single-rule spelling at all.
+    final engine = _FakeEngine(const {});
+    final bridge = HejmarkBridge(
+      backends: <Backend>[
+        Backend(
+          compiler: _FakeCompiler(<String, Object?>{'decl': null}),
+          engine: engine,
+        ),
+      ],
+    );
+
+    final run = await bridge.matchAll(<Rule>[
+      _rule('decl'),
+      _rule('query'),
+    ], 'abcdef');
+
+    expect(run.error, isNull);
+    expect(engine.batches, <List<String>>[
+      <String>['query'],
+    ]);
+  });
+
+  test('a refusal about the whole set is reported without a rule', () async {
+    // Two rules declaring one name is nobody's rule to fix, so the message
+    // arrives bare rather than pinned on whichever rule was asked first.
+    final bridge = HejmarkBridge(
+      backends: <Backend>[
+        Backend(
+          compiler: _FakeCompiler(
+            const <String, Object?>{},
+            setRefusal: const CompileRefusal('duplicate name: d'),
+          ),
+          engine: _FakeEngine(const {}),
+        ),
+      ],
+    );
+
+    final run = await bridge.matchAll(<Rule>[
+      _rule('a', label: 'first'),
+      _rule('b', label: 'second'),
+    ], 'abcdef');
+
+    expect(run.error, 'duplicate name: d');
+    expect(run.matches, isEmpty);
   });
 
   test('every rule a backend compiled crosses in one batch', () async {

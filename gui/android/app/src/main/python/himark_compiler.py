@@ -5,7 +5,7 @@ Everything under it is the repository's real package -- ``adapters`` parses with
 ANTLR, ``core.compiler`` expands L1.5 down to the floor's six constructors --
 reached through the committed ``hejmark`` symlink beside this file. So the
 device compiles every construct the language has, and what it emits goes
-straight to the engine linked beside it: one rule's floor-AST JSON to
+straight to the engine linked beside it: one floor-AST JSON per rule to
 ``hejmark_find_json``, or a whole script's Program JSON to ``hejmark_run_json``
 -- the language's two verbs, each with its own program shape.
 
@@ -19,17 +19,24 @@ compiler, so a refusal from it is final.
 import hejmark
 
 
-def compile_query(source: str) -> str:
-    r"""Lower one rule to floor-AST JSON.
+def compile_fragments(sources: list) -> str:
+    r"""Lower a project's rules to one floor-AST JSON each, under shared names.
+
+    The rules of a project are the lines of one script, so a name declared in
+    any of them is in scope in the rest and a rule that only declares lowers to
+    ``null`` rather than an error. A rule that will not compile carries its own
+    ``{"error": ...}`` entry and the rest still lower; only a refusal about the
+    *set* -- a name two rules declare -- fails the call.
 
     Args:
-        source: Himark source for a single query.
+        sources: Himark source for each rule, in the project's order.
 
     Returns:
-        ``ok\n<json>`` where it compiled, ``err\n<message>`` where it did not.
+        ``ok\n<json array>`` where the set compiled, ``err\n<message>`` where
+        it did not.
     """
     try:
-        return "ok\n" + hejmark.emit_json(source)
+        return "ok\n" + hejmark.emit_fragments([str(one) for one in sources])
     except Exception as error:  # noqa: BLE001 -- see below
         # Deliberately blind. This is a boundary: whatever the compiler raises
         # -- a syntax error, a scope error, an unbounded radix, a bug -- must
@@ -40,21 +47,24 @@ def compile_query(source: str) -> str:
         return "err\n" + _first_line(str(error))
 
 
-def compile_program(source: str) -> str:
+def compile_program(sources: list) -> str:
     r"""Lower a whole script to Program JSON, for ``hejmark_run_json``.
 
     Args:
-        source: Himark source for a whole script.
+        sources: a one-element list holding the whole script. A list because
+            both entry points here take one, which is what lets the Kotlin
+            between Dart and this module transport a single argument shape and
+            decide nothing about which verb it is carrying.
 
     Returns:
         ``ok\n<json>`` where it compiled, ``err\n<message>`` where it did not.
-        The same blind catch as :func:`compile_query`, for the same boundary
+        The same blind catch as :func:`compile_fragments`, for the same boundary
         reason. A back-referencing script compiles fine here -- the program
         carries it as a late slot -- and it is the *engine* that refuses it,
         by name, at load.
     """
     try:
-        return "ok\n" + hejmark.emit_program(source)
+        return "ok\n" + hejmark.emit_program(str(sources[0]) if sources else "")
     except Exception as error:  # noqa: BLE001 -- the same boundary as above
         return "err\n" + _first_line(str(error))
 

@@ -16,14 +16,21 @@ restart.
 returns the rewritten document — over two paths that differ only in **where
 the compiler runs**. Both compile all of L1.5, and the engine is the same Rust
 either way. `lib/models/backend.dart` is where that shows: a `Compiler` lowers
-source to a program (`emit-json` for one rule, `emit-program` for a whole
-script), an `Engine` runs programs over text (`findAll` to spans, `run` to a
-document), and a `Backend` is one of each.
+source to a program (`emit-fragments` for the project's rules, `emit-program`
+for a whole script), an `Engine` runs programs over text (`findAll` to spans,
+`run` to a document), and a `Backend` is one of each.
+
+The find side compiles the rules **together**, not one at a time: the rules of a
+project are the lines of one script, so a name declared in any rule is in scope
+in the rest and a rule holding only `uni dec = {0..9}` is legal — it lowers to
+no program, matches nothing, and lends its name to its neighbours. One rule's
+compile error refuses that rule alone; only a refusal about the set (a name two
+rules declare) refuses them all.
 
 ```text
-embedded    rule.source ──emit-json (embedded python)──▶ floor JSON ──┐
-subprocess  rule.source ──emit-json (python subprocess)─▶ floor JSON ─┤
-                                     libhejmark.so / find (rust) ◀────┘──▶ spans
+embedded    rule.sources ──emit-fragments (embedded python)──▶ floor JSON ──┐
+subprocess  rule.sources ──emit-fragments (python subprocess)─▶ floor JSON ─┤
+                                          libhejmark.so / find (rust) ◀────┘──▶ spans
 embedded    script ──emit-program (embedded python)──▶ Program JSON ──┐
 subprocess  script ──emit-program (python subprocess)─▶ Program JSON ─┤
                                       libhejmark.so / run (rust) ◀────┘──▶ document
@@ -31,7 +38,7 @@ subprocess  script ──emit-program (python subprocess)─▶ Program JSON ─
 
 **Embedded** (`lib/models/embedded_backend.dart`, Android) is the phone's whole
 answer. Chaquopy embeds CPython in the APK, so the repository's *real* compiler
-— ANTLR parser, L1.5 expansion, `emit_json` — runs on the device and emits the
+— ANTLR parser, L1.5 expansion, `emit_fragments` — runs on the device and emits the
 same floor-AST JSON the desktop emits. The program then goes to
 `hejmark_find_json` in `libhejmark.so`, linked beside it (`<root>/rust` built as
 a C-ABI shared library, `rust/src/ffi.rs`): the compiler moved onto the device,
@@ -40,8 +47,8 @@ the engine never left Rust. Dart reaches the compiler over a MethodChannel
 interpreter.
 
 **Subprocess** is the same hand-off with the compiler in another process:
-`<root>/.venv/bin/python -m hejmark emit-json` into `<root>/rust/target/debug/
-find`. A **desktop-inside-a-checkout** capability.
+`<root>/.venv/bin/python -m hejmark emit-fragments` into
+`<root>/rust/target/debug/find`. A **desktop-inside-a-checkout** capability.
 
 There used to be a third: the Rust library parsing a *subset* of Himark for
 itself, so a phone had something without an interpreter. Embedding CPython made

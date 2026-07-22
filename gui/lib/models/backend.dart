@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 /// Lowers Himark source to a *program* — whatever the paired [Engine] reads.
 ///
 /// This is one half of the seam. Cutting the bridge here rather than at the run
@@ -13,11 +15,25 @@
 /// [Engine] the desktop uses. That is a fact about today's implementations, not
 /// a promise this interface makes.
 abstract interface class Compiler {
-  /// Lowers [source] to a program, or throws [CompileRefusal].
+  /// Lowers each of [sources] to its own program, one result per source in
+  /// order, or throws [CompileRefusal] when the *set* will not compile.
   ///
-  /// Implementations cache by source: a rule is recompiled only when edited,
-  /// which is what keeps a keystroke in the test pane off the compiler.
-  Future<String> compile(String source);
+  /// The unit is the set rather than the rule because the rules of a project
+  /// are the lines of one script: a name one rule declares is in scope in the
+  /// rest, so a rule holding only `uni d = {0..9}` is legal and lowers to
+  /// [CompiledFragment.declarations] — a contribution of names, matching
+  /// nothing. Compiling rules one at a time cannot express that, which is why
+  /// there is no single-source form here.
+  ///
+  /// A rule that will not compile comes back as [CompiledFragment.refused] and
+  /// the rest still compile: rules are edited one at a time, so one being
+  /// mid-keystroke must not silence the others. Only a refusal about the set —
+  /// a name two rules declare — throws, since there is then no environment to
+  /// lower any of them under.
+  ///
+  /// Implementations cache by the set: it is recompiled only when some rule is
+  /// edited, which is what keeps a keystroke in the test pane off the compiler.
+  Future<List<CompiledFragment>> compileAll(List<String> sources);
 
   /// Lowers a whole script — declarations and statements — to a program for
   /// [Engine.run], or throws [CompileRefusal].
@@ -66,6 +82,45 @@ class Backend {
 
   final Compiler compiler;
   final Engine engine;
+}
+
+/// One rule's outcome from [Compiler.compileAll].
+///
+/// Three answers, not two: a program, a refusal, or neither — the last being a
+/// rule that declared names and asked nothing, which is legal and matches
+/// nothing. A host pairs these back to its rules positionally.
+class CompiledFragment {
+  const CompiledFragment.program(String this.program) : refusal = null;
+
+  const CompiledFragment.refused(CompileRefusal this.refusal) : program = null;
+
+  const CompiledFragment.declarations() : program = null, refusal = null;
+
+  /// What [Engine.findAll] reads, or null where there is no query to run.
+  final String? program;
+
+  /// Why this rule has no program, where that is a failure rather than a
+  /// declaration.
+  final CompileRefusal? refusal;
+}
+
+/// Reads the JSON array both compilers answer [Compiler.compileAll] with.
+///
+/// One entry per source: `null` where the rule declared and asked nothing, an
+/// `{"error": ...}` object where that one rule was refused, and otherwise the
+/// rule's own floor AST — re-encoded on the way out, because an [Engine] reads
+/// one query at a time and knows nothing of the set it came from.
+List<CompiledFragment> parseFragments(String payload) {
+  final entries = jsonDecode(payload) as List<Object?>;
+  return <CompiledFragment>[
+    for (final entry in entries)
+      if (entry == null)
+        const CompiledFragment.declarations()
+      else if ((entry as Map<String, Object?>)['error'] case final String why)
+        CompiledFragment.refused(CompileRefusal(why))
+      else
+        CompiledFragment.program(jsonEncode(entry)),
+  ];
 }
 
 /// Thrown by a [Compiler] that will not compile a rule.

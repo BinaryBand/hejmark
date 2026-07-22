@@ -46,37 +46,55 @@ class SubprocessCompiler implements Compiler {
   /// per keystroke as well as sparing a good one a recompile. The maps are
   /// separate because the same text can be both a query and a script, and
   /// `emit-json` and `emit-program` answer differently.
-  final Map<String, Object> _queryOutcomes = <String, Object>{};
+  final Map<String, Object> _setOutcomes = <String, Object>{};
   final Map<String, Object> _scriptOutcomes = <String, Object>{};
 
+  /// The whole set is one cache entry, keyed on every source at once: what
+  /// each rule lowers to depends on what the others declare, so no rule has an
+  /// answer of its own to remember.
   @override
-  Future<String> compile(String source) =>
-      _cached(_queryOutcomes, 'emit-json', source);
+  Future<List<CompiledFragment>> compileAll(List<String> sources) async {
+    final payload = await _cached(
+      _setOutcomes,
+      'emit-fragments',
+      sources,
+      // Keyed on every source at once, separated by a character no rule's
+      // text can hold, so two different splits never share an entry.
+      sources.join('\u0000'),
+    );
+    return parseFragments(payload);
+  }
 
   @override
   Future<String> compileScript(String source) =>
-      _cached(_scriptOutcomes, 'emit-program', source);
+      _cached(_scriptOutcomes, 'emit-program', <String>[source], source);
 
   Future<String> _cached(
     Map<String, Object> outcomes,
     String command,
-    String source,
+    List<String> sources,
+    String key,
   ) async {
-    final outcome = outcomes[source] ?? await _emit(command, source);
-    outcomes[source] = outcome;
+    final outcome = outcomes[key] ?? await _emit(command, sources);
+    outcomes[key] = outcome;
     if (outcome is CompileRefusal) throw outcome;
     return outcome as String;
   }
 
-  Future<Object> _emit(String command, String source) async {
+  Future<Object> _emit(String command, List<String> sources) async {
     final temp = Directory.systemTemp.createTempSync('hejmark_compile_');
     try {
-      final srcFile = File('${temp.path}/query.hmk')..writeAsStringSync(source);
+      final paths = <String>[];
+      for (var i = 0; i < sources.length; i++) {
+        final srcFile = File('${temp.path}/source_$i.hmk')
+          ..writeAsStringSync(sources[i]);
+        paths.add(srcFile.path);
+      }
       final result = await Process.run(python.path, <String>[
         '-m',
         'hejmark',
         command,
-        srcFile.path,
+        ...paths,
       ], workingDirectory: root.path);
       // The full compiler is the last resort, so its refusal is final: there
       // is nothing left to retry the rule against.
@@ -209,7 +227,22 @@ class BinaryEngine implements Engine {
 }
 
 String _firstLine(String text) {
-  final trimmed = text.trim();
-  if (trimmed.isEmpty) return 'engine error';
-  return trimmed.split('\n').first;
+  final lines = text
+      .trim()
+      .split('\n')
+      .map((line) => line.trim())
+      .where((line) => line.isNotEmpty)
+      .toList();
+  if (lines.isEmpty) return 'engine error';
+  // The Rust binaries print a bare sentence, so the first line is the whole
+  // diagnosis. The Python CLI raises `click.UsageError`, which renders a usage
+  // banner first and puts the sentence in a box below it — that banner names
+  // the CLI rather than the rule, so a boxed line wins wherever there is one.
+  for (final line in lines) {
+    if (line.startsWith('│') && line.endsWith('│')) {
+      final inner = line.substring(1, line.length - 1).trim();
+      if (inner.isNotEmpty) return inner;
+    }
+  }
+  return lines.first;
 }

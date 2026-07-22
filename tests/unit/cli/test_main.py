@@ -10,6 +10,7 @@ from typer.testing import CliRunner
 
 from hejmark.adapters.antlr import AntlrToolNotFoundError
 from hejmark.adapters.parser import GeneratedParserMissingError
+from hejmark.adapters.toolchain import Step, ToolchainError
 from hejmark.cli.main import app
 
 runner = CliRunner()
@@ -150,6 +151,60 @@ def test_run_rejects_an_unknown_name(tmp_path: Path) -> None:
     assert result.exit_code == 2
 
 
+def test_dev_compile_generates_the_parser_then_builds_the_engine(tmp_path: Path) -> None:
+    """One command, in order: the parser this package needs, then the engine."""
+    ran: list[str] = []
+    with (
+        patch("hejmark.cli.main.AntlrGenerator") as generator_cls,
+        patch("hejmark.cli.main.repository_root", return_value=tmp_path),
+        patch("hejmark.cli.main.ToolchainBuilder") as builder_cls,
+    ):
+        builder = builder_cls.return_value
+        builder.steps.return_value = (
+            Step("binaries", ("cargo", "build"), tmp_path),
+            Step("library", ("build_engine.sh",), tmp_path),
+        )
+        builder.run.side_effect = lambda step: ran.append(step.name)
+        result = runner.invoke(app, ["dev", "compile"])
+    assert result.exit_code == 0
+    generator_cls.return_value.generate.assert_called_once()
+    assert ran == ["binaries", "library"]
+    builder.steps.assert_called_once_with(tmp_path, host_only=False)
+
+
+def test_dev_compile_passes_host_only_through(tmp_path: Path) -> None:
+    with (
+        patch("hejmark.cli.main.AntlrGenerator"),
+        patch("hejmark.cli.main.repository_root", return_value=tmp_path),
+        patch("hejmark.cli.main.ToolchainBuilder") as builder_cls,
+    ):
+        builder_cls.return_value.steps.return_value = ()
+        result = runner.invoke(app, ["dev", "compile", "--host-only"])
+    assert result.exit_code == 0
+    builder_cls.return_value.steps.assert_called_once_with(tmp_path, host_only=True)
+
+
+def test_dev_compile_reports_a_failed_step_and_exits_one(tmp_path: Path) -> None:
+    with (
+        patch("hejmark.cli.main.AntlrGenerator"),
+        patch("hejmark.cli.main.repository_root", return_value=tmp_path),
+        patch("hejmark.cli.main.ToolchainBuilder") as builder_cls,
+    ):
+        builder = builder_cls.return_value
+        builder.steps.return_value = (Step("library", ("build_engine.sh",), tmp_path),)
+        builder.run.side_effect = ToolchainError("library: cargo-ndk is not installed")
+        result = runner.invoke(app, ["dev", "compile"])
+    assert result.exit_code == 1
+    assert "cargo-ndk is not installed" in result.output
+
+
+def test_dev_is_hidden_from_the_top_level_help() -> None:
+    """Off the language's surface, but `dev --help` still documents it in full."""
+    listing = runner.invoke(app, ["--help"]).output
+    assert "dev" not in listing
+    assert "compile" in runner.invoke(app, ["dev", "--help"]).output
+
+
 def test_emit_json_prints_the_floor_ast(tmp_path: Path) -> None:
     query = tmp_path / "q.hmk"
     query.write_text("{a,b}\n")  # the trailing newline is stripped before parsing
@@ -179,6 +234,45 @@ def test_emit_json_rejects_a_back_reference(tmp_path: Path) -> None:
     query.write_text("{a,b}{$1}")
     result = runner.invoke(app, ["emit-json", str(query)])
     assert result.exit_code == 2  # a usage error, the way click reports a bad argument
+
+
+def test_emit_fragments_lowers_each_file_under_the_shared_names(tmp_path: Path) -> None:
+    """A declaring fragment emits null; the one using its name emits a query."""
+    decl = tmp_path / "a.hmk"
+    decl.write_text("uni d = {a,b}")
+    query = tmp_path / "b.hmk"
+    query.write_text("@d")
+    result = runner.invoke(app, ["emit-fragments", str(decl), str(query)])
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload[0] is None
+    assert payload[1] == {
+        "universes": [
+            {"members": [{"kind": "face", "text": [97]}, {"kind": "face", "text": [98]}]},
+        ],
+    }
+
+
+def test_emit_fragments_isolates_a_broken_file_from_the_rest(tmp_path: Path) -> None:
+    """A file that will not parse carries its message; its neighbour still compiles."""
+    broken = tmp_path / "a.hmk"
+    broken.write_text("{a")
+    fine = tmp_path / "b.hmk"
+    fine.write_text("{b}")
+    result = runner.invoke(app, ["emit-fragments", str(broken), str(fine)])
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert "error" in payload[0]
+    assert payload[1] == {"universes": [{"members": [{"kind": "face", "text": [98]}]}]}
+
+
+def test_emit_fragments_reports_a_collision_between_two_files(tmp_path: Path) -> None:
+    first = tmp_path / "a.hmk"
+    first.write_text("uni d = {a}")
+    second = tmp_path / "b.hmk"
+    second.write_text("uni d = {b}")
+    result = runner.invoke(app, ["emit-fragments", str(first), str(second)])
+    assert result.exit_code == 2  # a usage error, as every compile refusal is here
 
 
 def test_emit_program_prints_the_versioned_program(tmp_path: Path) -> None:

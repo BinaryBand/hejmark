@@ -8,7 +8,8 @@ import 'package:himark_editor/models/project.dart';
 const String _octet = r'{{0..9}^3,{0..9}^2,{0..9}}';
 const String _ipv4 = '$_octet{\\.}$_octet{\\.}$_octet{\\.}$_octet';
 
-Rule _rule(String source) => Rule(id: 'r', label: 'test', source: source);
+Rule _rule(String source, {String id = 'r'}) =>
+    Rule(id: id, label: 'test', source: source);
 
 void main() {
   final bridge = HejmarkBridge();
@@ -58,6 +59,30 @@ void main() {
     final starts = run.matches.map((m) => m.start).toList();
     final sorted = <int>[...starts]..sort();
     expect(starts, sorted);
+  });
+
+  test('one rule declares a name and the next one uses it', () async {
+    // The rules of a project are the lines of one script: a rule that only
+    // declares is legal, matches nothing, and puts its name in scope for the
+    // rules beside it.
+    if (skipIfUnavailable()) return;
+    final run = await bridge.matchAll(<Rule>[
+      _rule('uni dec = {0..9}', id: 'decl'),
+      _rule('{@dec}^4', id: 'use'),
+    ], 'host 10.0.0.1 ticket 4821');
+    expect(run.error, isNull);
+    expect(run.matches.map((m) => m.text), <String>['4821']);
+    // The declaring rule found nothing, so nothing wears its slot.
+    expect(run.matches.map((m) => m.slot), everyElement(1));
+  });
+
+  test('a name two rules declare is reported without blaming one', () async {
+    if (skipIfUnavailable()) return;
+    final run = await bridge.matchAll(<Rule>[
+      _rule('uni dec = {0..9}', id: 'first'),
+      _rule('uni dec = {a}', id: 'second'),
+    ], 'abc 123');
+    expect(run.error, contains('duplicate name'));
   });
 
   test('a rule the parser rejects surfaces as an engine error', () async {

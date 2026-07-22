@@ -3,8 +3,9 @@ import 'package:flutter/services.dart';
 import 'backend.dart';
 import 'native_engine.dart';
 
-/// The channel `MainActivity.kt` answers on. Two methods, `compile` (a rule to
-/// floor-AST JSON) and `compileProgram` (a script to Program JSON).
+/// The channel `MainActivity.kt` answers on. Two methods, `compileFragments`
+/// (the project's rules to one floor-AST JSON each, under the names any of
+/// them declares) and `compileProgram` (a script to Program JSON).
 const MethodChannel embeddedChannel = MethodChannel('dev.himark.editor/compiler');
 
 /// The phone's full backend: the **real** compiler, embedded, over the Rust
@@ -46,34 +47,48 @@ class EmbeddedCompiler implements Compiler {
   /// change while the source does not, and a keystroke in the test pane should
   /// not cross the platform channel to re-learn it. Separate maps because the
   /// same text answers differently as a query and as a script.
-  final Map<String, Object> _queryOutcomes = <String, Object>{};
+  final Map<String, Object> _setOutcomes = <String, Object>{};
   final Map<String, Object> _scriptOutcomes = <String, Object>{};
 
+  /// One entry for the whole set, keyed on every source at once: what each
+  /// rule lowers to depends on what the others declare, so no rule has an
+  /// answer of its own to remember.
   @override
-  Future<String> compile(String source) =>
-      _cached(_queryOutcomes, 'compile', source);
+  Future<List<CompiledFragment>> compileAll(List<String> sources) async {
+    final payload = await _cached(
+      _setOutcomes,
+      'compileFragments',
+      sources,
+      sources.join('\u0000'),
+    );
+    return parseFragments(payload);
+  }
 
   @override
   Future<String> compileScript(String source) =>
-      _cached(_scriptOutcomes, 'compileProgram', source);
+      _cached(_scriptOutcomes, 'compileProgram', <String>[source], source);
 
   Future<String> _cached(
     Map<String, Object> outcomes,
     String method,
-    String source,
+    List<String> sources,
+    String key,
   ) async {
-    final outcome = outcomes[source] ?? await _invoke(method, source);
-    outcomes[source] = outcome;
+    final outcome = outcomes[key] ?? await _invoke(method, sources);
+    outcomes[key] = outcome;
     if (outcome is CompileRefusal) throw outcome;
     return outcome as String;
   }
 
-  Future<Object> _invoke(String method, String source) async {
+  Future<Object> _invoke(String method, List<String> sources) async {
     final String reply;
     try {
+      // Always a list, even for the one-script verb: the Kotlin transports
+      // what it is handed and the Python decides what to do with it, so one
+      // argument shape keeps the layer between them free of the distinction.
       reply =
-          await _channel.invokeMethod<String>(method, <String, String>{
-            'source': source,
+          await _channel.invokeMethod<String>(method, <String, List<String>>{
+            'sources': sources,
           }) ??
           '';
     } on PlatformException catch (error) {

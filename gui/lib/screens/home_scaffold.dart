@@ -17,10 +17,10 @@ import 'test_screen.dart';
 /// desktop rail layout.
 const double kDesktopBreakpoint = 840;
 
-/// The brief's `shellMaxWidth`: the shell is a centred, shadowed card on the
-/// dimmed backdrop at any window width, on desktop as on mobile — it just caps
-/// wider, since the rail and a pinned sidebar need the room.
-const double kDesktopShellMaxWidth = 1280;
+/// Width of the centred, shadowed phone frame below [kDesktopBreakpoint]. The
+/// desktop layout does not cap: a rail plus a pinned sidebar plus the editor
+/// want every pixel the window has, and a cap only buys letterboxing.
+const double kMobileFrameWidth = 560;
 
 /// The app shell.
 ///
@@ -76,7 +76,7 @@ class HomeScaffold extends StatelessWidget {
   Widget _mobile(AppState s, HimarkTokens t) {
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 560),
+        constraints: const BoxConstraints(maxWidth: kMobileFrameWidth),
         child: DecoratedBox(
           decoration: BoxDecoration(
             color: t.surface,
@@ -112,57 +112,44 @@ class HomeScaffold extends StatelessWidget {
   // ---------------------------------------------------------------------------
 
   Widget _desktop(AppState s, HimarkTokens t) {
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: kDesktopShellMaxWidth),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: t.surface,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.28),
-                blurRadius: 40,
-              ),
-            ],
-          ),
-          child: SafeArea(
-            bottom: false,
-            child: Stack(
+    return DecoratedBox(
+      decoration: BoxDecoration(color: t.surface),
+      child: SafeArea(
+        bottom: false,
+        child: Stack(
+          children: [
+            Row(
               children: [
-                Row(
-                  children: [
-                    const DeskRail(),
-                    if (s.deskSidebarActive(DeskSidebar.projects))
-                      const SizedBox(
-                        width: ProjectShelf.desktopWidth,
-                        child: ProjectShelfPanel(),
-                      ),
-                    if (s.deskSidebarActive(DeskSidebar.rules))
-                      SizedBox(
-                        width: ProjectShelf.desktopWidth,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            border: Border(
-                              right: BorderSide(color: t.outlineVariant),
-                            ),
-                          ),
-                          child: const RulesPanel(),
+                const DeskRail(),
+                if (s.deskSidebarActive(DeskSidebar.projects))
+                  const SizedBox(
+                    width: ProjectShelf.desktopWidth,
+                    child: ProjectShelfPanel(),
+                  ),
+                if (s.deskSidebarActive(DeskSidebar.rules))
+                  SizedBox(
+                    width: ProjectShelf.desktopWidth,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        border: Border(
+                          right: BorderSide(color: t.outlineVariant),
                         ),
                       ),
-                    Expanded(
-                      child: Column(
-                        children: [
-                          const TopBar(isDesktop: true),
-                          Expanded(child: _screen(s, wide: true)),
-                        ],
-                      ),
+                      child: const RulesPanel(),
                     ),
-                  ],
+                  ),
+                Expanded(
+                  child: Column(
+                    children: [
+                      const TopBar(isDesktop: true),
+                      Expanded(child: _screen(s, wide: true)),
+                    ],
+                  ),
                 ),
-                ..._overlays(s, wide: true),
               ],
             ),
-          ),
+            ..._overlays(s, wide: true),
+          ],
         ),
       ),
     );

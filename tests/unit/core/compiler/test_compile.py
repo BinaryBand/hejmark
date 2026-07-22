@@ -5,7 +5,13 @@ from __future__ import annotations
 import pytest
 
 from hejmark.adapters.parser import AntlrParser
-from hejmark.core.compiler.compile import compile_script, lower, script
+from hejmark.core.compiler.compile import (
+    Fragment,
+    compile_script,
+    lower,
+    lower_fragments,
+    script,
+)
 from hejmark.core.floor.syntax import Face, UniverseNode
 from hejmark.core.floor.universe import denote
 from hejmark.core.ir.errors import HimarkScopeError
@@ -104,3 +110,50 @@ def test_lower_refuses_a_back_referencing_factor() -> None:
 def test_lower_refuses_anything_but_a_single_query() -> None:
     with pytest.raises(HimarkScopeError, match="single query expression"):
         lower(_to_ast, "uni d = {a}")
+
+
+def test_fragments_share_the_names_any_of_them_declares() -> None:
+    """A name declared in one fragment is in scope in the next, as in one file."""
+    lowered = lower_fragments(_to_ast, ["uni d = {a,b}", "@d{c}"])
+    assert lowered[0] == Fragment()  # declarations alone: names, not a query
+    forms = lowered[1].forms
+    assert forms is not None
+    assert forms[0].members == (Face("a"), Face("b"))
+    assert denote(forms[1]).contains("c")
+
+
+def test_fragments_read_a_name_declared_after_the_fragment_using_it() -> None:
+    """Collection is over every fragment's lines, so scope is the set, not a prefix."""
+    lowered = lower_fragments(_to_ast, ["@d", "uni d = {a}"])
+    forms = lowered[0].forms
+    assert forms is not None
+    assert denote(forms[0]).contains("a")
+    assert lowered[1] == Fragment()
+
+
+def test_a_broken_fragment_carries_its_message_and_the_others_still_lower() -> None:
+    """One fragment mid-keystroke is not a reason for the rest to stop answering."""
+    lowered = lower_fragments(_to_ast, ["{a", "{b}", "@nope"])
+    assert lowered[0].error is not None
+    assert lowered[1].forms == (UniverseNode((Face("b"),)),)
+    assert lowered[2].error is not None
+    assert "nope" in lowered[2].error
+
+
+def test_fragments_refuse_a_name_two_of_them_declare() -> None:
+    """Two fragments are two lines of one script, so the collision is the script's."""
+    with pytest.raises(HimarkScopeError, match="duplicate name"):
+        lower_fragments(_to_ast, ["uni d = {a}", "uni d = {b}"])
+
+
+def test_fragments_refuse_a_cycle_that_spans_two_of_them() -> None:
+    """Acyclicity is checked over the joined text, which is where the cycle is."""
+    with pytest.raises(HimarkScopeError):
+        lower_fragments(_to_ast, ["uni a = @b", "uni b = @a"])
+
+
+def test_a_fragment_holding_two_queries_is_still_refused() -> None:
+    """Sharing an environment does not make a fragment a script of its own."""
+    error = lower_fragments(_to_ast, ["{a}\n{b}"])[0].error
+    assert error is not None
+    assert "single query expression" in error

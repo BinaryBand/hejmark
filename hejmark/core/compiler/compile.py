@@ -9,6 +9,9 @@ live object a back-referencing program still needs from this side.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from dataclasses import dataclass
+
 from hejmark.core.compiler.ast import (
     Expr,
     Interp,
@@ -123,7 +126,78 @@ def lower(to_ast: ToAst, source: str) -> tuple[UniverseNode, ...]:
             factor reads one to its left.
     """
     node, env = script(to_ast, source)
-    expr = _single_expr(node)
+    return _lower_expr(_single_expr(node), env)
+
+
+@dataclass(frozen=True)
+class Fragment:
+    """One fragment's outcome: its lowered factors, or why there are none.
+
+    Both fields empty is the third answer and not a failure: the fragment
+    declared names and asked nothing.
+    """
+
+    forms: tuple[UniverseNode, ...] | None = None
+    error: str | None = None
+
+
+def lower_fragments(to_ast: ToAst, sources: Sequence[str]) -> tuple[Fragment, ...]:
+    """Lower each of *sources* to its floor AST under one shared environment.
+
+    The fragment form of :func:`lower`. The sources are the lines of a single
+    script that a host holds separately -- an editor's rule list, one rule per
+    fragment -- so a name declared in one is in scope in the rest, exactly as
+    it would be had they arrived as one file. Declarations are collected from
+    every fragment's lines at once, which is what makes a duplicate name or a
+    cycle across fragments the same diagnostic it is within one.
+
+    A fragment holding no statement -- declarations alone, which :func:`lower`
+    refuses -- lowers to an empty :class:`Fragment`: it contributes names, not
+    a query. The result is positional either way, so a host pairs it back to
+    the fragment it came from.
+
+    A fragment that will not parse or will not lower carries its message and
+    the rest still lower, because a host holding fragments separately is a host
+    editing them separately: one being mid-keystroke is not a reason for the
+    others to stop answering. Only a refusal *about the set* -- a name two
+    fragments declare, a cycle between them -- raises, since there is then no
+    environment to lower any of them under.
+
+    Raises:
+        HimarkScopeError: a name collides across fragments, or is cyclic.
+    """
+    parsed = [_parse_fragment(to_ast, source) for source in sources]
+    lines = tuple(line for node in parsed if isinstance(node, ScriptNode) for line in node.lines)
+    env = merge(std_env(to_ast), collect(ScriptNode(lines)))
+    return tuple(_lower_fragment(node, env) for node in parsed)
+
+
+def _parse_fragment(to_ast: ToAst, source: str) -> ScriptNode | str:
+    """Parse one fragment, or return the message saying why it would not."""
+    try:
+        return to_ast(source)
+    except ValueError as exc:
+        return str(exc)
+
+
+def _lower_fragment(node: ScriptNode | str, env: Env) -> Fragment:
+    """Lower one parsed fragment's query, if it has one, under *env*."""
+    if isinstance(node, str):
+        return Fragment(error=node)
+    if not statements(node):
+        return Fragment()
+    try:
+        return Fragment(forms=_lower_expr(_single_expr(node), env))
+    except ValueError as exc:
+        return Fragment(error=str(exc))
+
+
+def _lower_expr(expr: Expr, env: Env) -> tuple[UniverseNode, ...]:
+    """Expand each of *expr*'s factors under *env*, before denotation.
+
+    Raises:
+        HimarkScopeError: a factor back-references one to its left.
+    """
     forms: list[UniverseNode] = []
     for unit in expr.units:
         if reads(unit):

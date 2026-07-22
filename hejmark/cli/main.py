@@ -7,9 +7,12 @@ arguments/options with typing.Annotated so `ty` sees real signatures.
 The commands: `find` (scan a target file with a query) and `run` (execute a
 whole script against a target file) are the language; `emit-json` and
 `emit-program` are the same two, stopped at the compiler so another engine can
-finish them; `gen-parser` (rebuild the ANTLR parser from the grammars),
+finish them, and `emit-fragments` is `emit-json` over a script a host holds in
+pieces -- one AST per piece, one shared set of names; `gen-parser` (rebuild the
+ANTLR parser from the grammars),
 `parse-file` (dump a parse tree) and `status` (version echo) are the tooling
-around it.
+around it. `dev` is a hidden group of build steps for working on hejmark
+itself, off the language's surface but not out of reach.
 """
 
 from __future__ import annotations
@@ -24,8 +27,17 @@ import typer
 import hejmark
 from hejmark.adapters.antlr import AntlrGenerationError, AntlrGenerator, AntlrToolNotFoundError
 from hejmark.adapters.parser import AntlrParser, GeneratedParserMissingError
+from hejmark.adapters.toolchain import ToolchainBuilder, ToolchainError, repository_root
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
+
+# The developer group: build steps, not language verbs. Hidden rather than
+# absent -- `hejmark --help` stays the language's surface, while
+# `hejmark dev --help` documents these in full for whoever needs them. Hiding
+# is the whole access control: nothing here is secret, only uninteresting to
+# someone who came to match text.
+dev_app = typer.Typer(add_completion=False, no_args_is_help=True)
+app.add_typer(dev_app, name="dev", hidden=True, help="Build steps for working on hejmark itself.")
 
 DEFAULT_GRAMMARS = (
     Path("static/grammar/HimarkLexer.g4"),
@@ -123,6 +135,28 @@ def emit_json(
         typer.echo(f"{query_file}: OK, floor JSON written to {out}")
 
 
+@app.command("emit-fragments")
+def emit_fragments(
+    query_files: Annotated[list[Path], SOURCE_ARG],
+    out: Annotated[
+        Path | None,
+        typer.Option("--out", "-o", help="Write the floor JSON array here instead of the console."),
+    ] = None,
+) -> None:
+    """Emit one floor AST per query file, lowered under the names all of them declare."""
+    sources = [path.read_text().strip() for path in query_files]
+    try:
+        payload = hejmark.emit_fragments(sources)
+    except ValueError as exc:
+        msg = f"invalid query: {exc}"
+        raise click.UsageError(msg) from exc
+    if out is None:
+        typer.echo(payload)
+    else:
+        out.write_text(payload)
+        typer.echo(f"{len(sources)} fragment(s): OK, floor JSON written to {out}")
+
+
 @app.command("emit-program")
 def emit_program(
     script_file: Annotated[Path, SOURCE_ARG],
@@ -170,6 +204,31 @@ def parse_file(
     else:
         out.write_text(tree)
         typer.echo(f"{path}: OK, parse tree written to {out}")
+
+
+@dev_app.command()
+def compile(  # noqa: A001 -- the CLI verb; it shadows the builtin in this module only
+    host_only: Annotated[
+        bool, typer.Option("--host-only", help="Skip the Android cross-compile (no NDK needed).")
+    ] = False,
+) -> None:
+    """Build the parser and engine a Flutter bundle is assembled over."""
+    try:
+        AntlrGenerator().generate(list(DEFAULT_GRAMMARS), DEFAULT_OUTPUT_DIR, language="Python3")
+    except (AntlrToolNotFoundError, AntlrGenerationError) as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(f"parser: OK, generated into {DEFAULT_OUTPUT_DIR}")
+    builder = ToolchainBuilder()
+    try:
+        root = repository_root(Path.cwd())
+        for step in builder.steps(root, host_only=host_only):
+            typer.echo(f"{step.name}: {' '.join(step.argv)}")
+            builder.run(step)
+    except ToolchainError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    typer.echo("engine: OK")
 
 
 def main() -> None:
