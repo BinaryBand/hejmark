@@ -77,6 +77,19 @@ class MainActivity : FlutterActivity() {
      * [function] names which lowering: `compile_fragments` for a project's
      * rules, `compile_program` for a whole script.
      *
+     * **The sources cross as a Java array, not as the `List` they arrive in.**
+     * Chaquopy converts a Java array to a `jarray`, which supports the Python
+     * sequence protocol -- iteration, indexing, `len`. Every other Java object,
+     * a `java.util.ArrayList` included, crosses as a `jclass`, which supports
+     * only attribute access, `str` and `==`; the method channel hands us
+     * exactly such an `ArrayList`, so passing it straight through made the
+     * compiler's own `for` loop raise `'ArrayList' object is not iterable` on
+     * the first keystroke. `toTypedArray` is the whole fix, and it belongs here
+     * rather than in Python because this is the side that knows what Chaquopy
+     * converts. Passed unspread on purpose: Kotlin gives a Java varargs method
+     * an array as one argument, which is the single `sources` parameter the
+     * Python functions take.
+     *
      * A failure to *start* Python is reported like a failed compile rather than
      * thrown: an APK built without the staged package is a real and easy
      * mistake (as is one built without the engine), and the app should say so
@@ -89,7 +102,7 @@ class MainActivity : FlutterActivity() {
             }
             Python.getInstance()
                 .getModule(MODULE)
-                .callAttr(function, sources)
+                .callAttr(function, sources.toTypedArray())
                 .toString()
         } catch (error: PyException) {
             "err\n${error.message ?: "the embedded compiler failed"}"

@@ -16,6 +16,8 @@ transports and never decides. There is no ``unported`` here; this *is* the full
 compiler, so a refusal from it is final.
 """
 
+from typing import Any
+
 import hejmark
 
 
@@ -36,7 +38,7 @@ def compile_fragments(sources: list) -> str:
         it did not.
     """
     try:
-        return "ok\n" + hejmark.emit_fragments([str(one) for one in sources])
+        return "ok\n" + hejmark.emit_fragments(_strings(sources))
     except Exception as error:  # noqa: BLE001 -- see below
         # Deliberately blind. This is a boundary: whatever the compiler raises
         # -- a syntax error, a scope error, an unbounded radix, a bug -- must
@@ -64,9 +66,33 @@ def compile_program(sources: list) -> str:
         by name, at load.
     """
     try:
-        return "ok\n" + hejmark.emit_program(str(sources[0]) if sources else "")
+        scripts = _strings(sources)
+        return "ok\n" + hejmark.emit_program(scripts[0] if scripts else "")
     except Exception as error:  # noqa: BLE001 -- the same boundary as above
         return "err\n" + _first_line(str(error))
+
+
+def _strings(sources: Any) -> list:  # noqa: ANN401
+    """The argument Chaquopy handed us, as a plain list of ``str``.
+
+    ``Any`` is the honest annotation: what arrives is a Java proxy object whose
+    Python type depends on what the transport sent, and no stub describes it.
+
+    ``MainActivity`` sends a Java array, which crosses as a ``jarray`` and
+    iterates like any sequence. This function exists for the case where it does
+    not: every *other* Java object -- a ``java.util.ArrayList`` above all --
+    crosses as a ``jclass``, which has no Python iterator, and iterating one
+    raises ``'ArrayList' object is not iterable``. That was a real bug, and it
+    was invisible to the whole test suite because nothing off a device runs
+    Chaquopy. So the conversion is asked for once, here, and a Java collection
+    is read through its own ``size``/``get`` rather than refused.
+    """
+    if sources is None:
+        return []
+    try:
+        return [str(one) for one in sources]
+    except TypeError:
+        return [str(sources.get(i)) for i in range(sources.size())]
 
 
 def _first_line(message: str) -> str:

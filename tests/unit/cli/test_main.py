@@ -6,12 +6,13 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 from typer.testing import CliRunner
 
 from hejmark.adapters.antlr import AntlrToolNotFoundError
 from hejmark.adapters.parser import GeneratedParserMissingError
 from hejmark.adapters.toolchain import Step, ToolchainError
-from hejmark.cli.main import app
+from hejmark.cli.main import DEFAULT_GRAMMARS, DEFAULT_OUTPUT_DIR, app
 
 runner = CliRunner()
 
@@ -43,6 +44,61 @@ def test_gen_parser_runs_generator(tmp_path: Path) -> None:
     assert result.exit_code == 0
     generator_cls.return_value.generate.assert_called_once_with(
         [lexer, parser], output_dir, language="Python3"
+    )
+
+
+def _checkout(root: Path) -> Path:
+    """A directory `repository_root` will accept, with a `gui/` to stand in."""
+    (root / "pyproject.toml").write_text("")
+    (root / "rust").mkdir()
+    (root / "gui").mkdir()
+    return root / "gui"
+
+
+def test_gen_parser_defaults_come_from_the_checkout_not_the_cwd(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Run from `gui/`, the omitted paths still name the checkout's own files.
+
+    They are written relative to a checkout root, so taking them as-is meant
+    looking for `gui/static/grammar` -- a directory that does not exist -- and
+    creating a second `_gen` under `gui/` on the way past.
+    """
+    monkeypatch.chdir(_checkout(tmp_path))
+    with patch("hejmark.cli.main.AntlrGenerator") as generator_cls:
+        result = runner.invoke(app, ["gen-parser"])
+    assert result.exit_code == 0
+    root = tmp_path.resolve()
+    generator_cls.return_value.generate.assert_called_once_with(
+        [root / one for one in DEFAULT_GRAMMARS], root / DEFAULT_OUTPUT_DIR, language="Python3"
+    )
+
+
+def test_gen_parser_says_so_when_a_default_has_no_checkout_to_come_from(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    with patch("hejmark.cli.main.AntlrGenerator") as generator_cls:
+        result = runner.invoke(app, ["gen-parser"])
+    assert result.exit_code == 1
+    assert "not inside a hejmark checkout" in result.output
+    generator_cls.return_value.generate.assert_not_called()
+
+
+def test_gen_parser_keeps_explicit_paths_outside_a_checkout(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Given both, it needs no checkout: those paths are the caller's own."""
+    monkeypatch.chdir(tmp_path)
+    grammar, output_dir = tmp_path / "G.g4", tmp_path / "out"
+    with patch("hejmark.cli.main.AntlrGenerator") as generator_cls:
+        result = runner.invoke(
+            app,
+            ["gen-parser", "--grammar", str(grammar), "--output-dir", str(output_dir)],
+        )
+    assert result.exit_code == 0
+    generator_cls.return_value.generate.assert_called_once_with(
+        [grammar], output_dir, language="Python3"
     )
 
 
@@ -167,9 +223,15 @@ def test_dev_compile_generates_the_parser_then_builds_the_engine(tmp_path: Path)
         builder.run.side_effect = lambda step: ran.append(step.name)
         result = runner.invoke(app, ["dev", "compile"])
     assert result.exit_code == 0
-    generator_cls.return_value.generate.assert_called_once()
     assert ran == ["binaries", "library"]
     builder.steps.assert_called_once_with(tmp_path, host_only=False)
+    # The parser comes out of the same root the engine steps run under, rather
+    # than out of whatever directory the command was typed in.
+    generator_cls.return_value.generate.assert_called_once_with(
+        [tmp_path / one for one in DEFAULT_GRAMMARS],
+        tmp_path / DEFAULT_OUTPUT_DIR,
+        language="Python3",
+    )
 
 
 def test_dev_compile_passes_host_only_through(tmp_path: Path) -> None:

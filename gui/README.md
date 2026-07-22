@@ -89,17 +89,47 @@ Targets: **Android, iOS, and Linux desktop**. The UI runs on all three, but matc
 
 The app ships as **Himark Editor**, application ID `dev.himark.editor` (fixed -- F-Droid keys its listing on it), version from `pubspec.yaml`'s `version:` line (`0.1.0+1` gives versionName `0.1.0`, versionCode `1`).
 
-The launcher icon is generated, not committed art:
+The launcher icon is generated dynamically:
 
 ```bash
 python3 tool/make_icons.py     # stdlib only; no Pillow, no ImageMagick
 ```
 
-It writes every platform's icon from one geometry. On Android: `mipmap/ic_launcher.xml` is the whole mark, background included; `drawable/ic_launcher_foreground.xml` is the adaptive-icon foreground, paired with the background colour in `values/ic_launcher_background.xml` by `mipmap-anydpi-v26/`. On iOS: every PNG slot `AppIcon.appiconset/Contents.json` declares, rendered without an alpha channel because the App Store refuses an icon carrying one. On Linux: the `share/` tree under `linux/packaging/`. Plus the 512px `fastlane` listing raster. Edit the geometry in the script and re-run -- one `_SHAPES` table feeds all of them, so they cannot drift.
+### Icon Generation
 
-The script is four modules with the dependency running one way and no cycle: `make_icons.py` owns the mark, the two placements and the rasteriser; `svgpath.py` knows shapes and no targets; `android.py` and `freedesktop.py` know targets and no shapes, taking marks already placed and choosing only attribute names. The mark's *ink* is what gets centred, not its canvas -- the source art carries about a unit more air on one side, which a round launcher mask makes obvious -- and `FULL_INSET` holds it off the corner curve that every platform masks it with.
+The script generates icons for multiple platforms from a single geometry definition:
 
-**Which launcher drawable a device reads is decided by resource qualifiers alone.** `mipmap-anydpi-v26/` matches only API 26+; below that the unqualified `mipmap/ic_launcher.xml` is what `@mipmap/ic_launcher` resolves to, which is why it carries its own rounded-square background -- there is no launcher mask out there to supply one. That fallback is the entire reason a legacy entry exists, and it used to be the `mipmap-*/ic_launcher.png` density set; a vector serves it because `VectorDrawable` is native from API 21, well under this project's `minSdk` of 24. Keep *some* unqualified `mipmap/ic_launcher` whatever else changes: without one, 24--25 devices have no launcher icon at all, and nothing in the build says so.
+- **Android**: Creates `mipmap/ic_launcher.xml` (whole mark with background) and `drawable/ic_launcher_foreground.xml` (adaptive-icon foreground). Background color is paired with the foreground using `values/ic_launcher_background.xml` via `mipmap-anydpi-v26/`.
+- **iOS**: Produces every PNG slot in `AppIcon.appiconset/Contents.json` without alpha channels (required by the App Store).
+- **Linux**: Outputs icons to the `share/` tree under `linux/packaging/`.
+- **Fastlane**: Generates a 512px raster icon for F-Droid listing purposes.
+
+The script uses a modular approach with four modules:
+
+- **`make_icons.py`**: Handles the mark, placements, and rasterization.
+- **`svgpath.py`**: Manages shapes and knows nothing about targets.
+- **`android.py` and `freedesktop.py`**: Handle platform-specific targets and attribute names.
+
+### Geometry and Transformations
+
+The core logic involves affine transformations and rasterization:
+
+- **`apply_to(xf, x, y)`**: Applies an affine transformation to a point.
+- **`compose(m2, m1)`**: Composes two affine transformations.
+- **`place(subpaths, xf)`**: Transforms every point of every subpath through an affine.
+- **`flatten(subpaths, n=24)`**: Converts subpaths into polylines for rasterization.
+- **`bounds(points, pad=0.0)`**: Computes bounding boxes with padding.
+- **`union(boxes)`**: Combines multiple bounding boxes into one.
+- **`serialise(subpaths, *, close)`**: Converts subpaths back into path data (SVG-compatible).
+
+### Platform-Specific Notes
+
+- **Resource Qualifiers**: Android launcher drawables are chosen based on API qualifiers:
+  - `mipmap-anydpi-v26/` for API 26+, otherwise the unqualified `mipmap/ic_launcher.xml` is used, which includes a rounded-square background.
+  - Legacy fallback: `mipmap/ic_launcher.xml` ensures icons are available for devices with API 24-25.
+- **F-Droid Icon**: The F-Droid listing icon remains a raster (`fastlane/metadata/android/en-US/images/icon.png`) and should not be converted to vector format.
+
+Edit the geometry in the script and re-run to generate updated icons for all platforms.
 
 **The F-Droid listing icon is the one that still has to be a raster.** `fdroidserver` builds a repo's icons by pulling raster entries out of the APK, so the APK's own XML-only icon is not something it can use -- the listing is served instead by `fastlane/metadata/android/en-US/images/icon.png`, which is why that output stays a PNG and must not follow the launcher set into vector form. The SVGs under `docs/.notes/icons/` are sketches, not a source of truth -- nothing reads them.
 
