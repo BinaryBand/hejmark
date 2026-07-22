@@ -224,7 +224,7 @@ def test_dev_compile_generates_the_parser_then_builds_the_engine(tmp_path: Path)
         result = runner.invoke(app, ["dev", "compile"])
     assert result.exit_code == 0
     assert ran == ["binaries", "library"]
-    builder.steps.assert_called_once_with(tmp_path, host_only=False)
+    builder.steps.assert_called_once_with(tmp_path, host_only=False, apk=True)
     # The parser comes out of the same root the engine steps run under, rather
     # than out of whatever directory the command was typed in.
     generator_cls.return_value.generate.assert_called_once_with(
@@ -243,7 +243,37 @@ def test_dev_compile_passes_host_only_through(tmp_path: Path) -> None:
         builder_cls.return_value.steps.return_value = ()
         result = runner.invoke(app, ["dev", "compile", "--host-only"])
     assert result.exit_code == 0
-    builder_cls.return_value.steps.assert_called_once_with(tmp_path, host_only=True)
+    builder_cls.return_value.steps.assert_called_once_with(tmp_path, host_only=True, apk=True)
+    # Asked for and not delivered, which is the builder's call to make -- but
+    # the command must not then claim an APK it never got.
+    assert "apk:" not in result.output
+
+
+def test_dev_compile_passes_no_apk_through(tmp_path: Path) -> None:
+    """The escape for a `rust/` change: build the engine, skip the packaging."""
+    with (
+        patch("hejmark.cli.main.AntlrGenerator"),
+        patch("hejmark.cli.main.repository_root", return_value=tmp_path),
+        patch("hejmark.cli.main.ToolchainBuilder") as builder_cls,
+    ):
+        builder_cls.return_value.steps.return_value = ()
+        result = runner.invoke(app, ["dev", "compile", "--no-apk"])
+    assert result.exit_code == 0
+    builder_cls.return_value.steps.assert_called_once_with(tmp_path, host_only=False, apk=False)
+    assert "apk:" not in result.output
+
+
+def test_dev_compile_names_the_apk_it_built(tmp_path: Path) -> None:
+    """The path is what the publish script reads, so the command hands it over."""
+    with (
+        patch("hejmark.cli.main.AntlrGenerator"),
+        patch("hejmark.cli.main.repository_root", return_value=tmp_path),
+        patch("hejmark.cli.main.ToolchainBuilder") as builder_cls,
+    ):
+        builder_cls.return_value.steps.return_value = ()
+        result = runner.invoke(app, ["dev", "compile"])
+    assert result.exit_code == 0
+    assert str(tmp_path / "gui/build/app/outputs/apk/release/app-release.apk") in result.output
 
 
 def test_dev_compile_reports_a_failed_step_and_exits_one(tmp_path: Path) -> None:

@@ -28,28 +28,6 @@ val signingProperties =
     }
 val releaseKeystore = signingProperties.getProperty("storeFile")
 
-// Where release signing comes from. Every F-Droid client decides "is this an
-// update, or a different app?" on the signing key alone, so the key has to
-// outlive the machine that built the last release. `~/.android/debug.keystore`
-// does not: the SDK regenerates it whenever it is missing, and a regenerated
-// one turns the next release into something no existing install will accept --
-// silently, since the build still succeeds and the repo still indexes it. The
-// real key therefore lives outside the checkout, and `key.properties` (beside
-// this file, gitignored) is the only thing that names it.
-//
-// Its absence is deliberately not an error: a fresh clone, and F-Droid's own
-// builder when it builds this from source and signs with its own key, both
-// still want `--release` to produce something installable. The debug key is
-// right for exactly that and wrong for the APK that goes to the repo, which is
-// why the fallback below announces itself instead of happening quietly.
-
-val signingProperties =
-    Properties().apply {
-        val declared = rootProject.file("key.properties")
-        if (declared.exists()) declared.inputStream().use(::load)
-    }
-val releaseKeystore = signingProperties.getProperty("storeFile")
-
 android {
     namespace = "dev.himark.editor"
     compileSdk = flutter.compileSdkVersion

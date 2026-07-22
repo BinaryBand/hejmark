@@ -18,26 +18,6 @@ embedded    script ──emit-program (embedded python)──▶ Program JSON �
 subprocess  script ──emit-program (python subprocess)─▶ Program JSON ─┤
                                        libhejmark.so / run (rust) ◀────┘──▶ document
 ```
-# Himark Editor -- Flutter GUI
-
-A Flutter front end for the **Himark Editor** described in `docs/.notes/Himark Editor.zip` (design brief + screenshots).
-
-The Test tab is wired to the **real hejmark engines** -- never to a `RegExp` approximation. Matching is the actual denotation and the actual matcher, or a reported error. "Saving..." is no longer cosmetic: the flash's own timer writes the projects and preferences to `shared_preferences`, so a session survives a restart.
-
-## Engine bridge
-
-`lib/models/bridge.dart` (`HejmarkBridge`) carries both of the language's verbs -- `find` highlights where rules hit, `run` executes them as a script and returns the rewritten document -- over two paths that differ only in **where the compiler runs**. Both compile all of L1.5, and the engine is the same Rust either way. `lib/models/backend.dart` is where that shows: a `Compiler` lowers source to a program (`emit-fragments` for the project's rules, `emit-program` for a whole script), an `Engine` runs programs over text (`findAll` to spans, `run` to a document), and a `Backend` is one of each.
-
-The find side compiles the rules **together**, not one at a time: the rules of a project are the lines of one script, so a name declared in any rule is in scope in the rest and a rule holding only `uni dec = {0..9}` is legal -- it lowers to no program, matches nothing, and lends its name to its neighbours. One rule's compile error refuses that rule alone; only a refusal about the set (a name two rules declare) refuses them all.
-
-```text
-embedded    rule.sources ──emit-fragments (embedded python)──▶ floor JSON ──┐
-subprocess  rule.sources ──emit-fragments (python subprocess)─▶ floor JSON ─┤
-                                          libhejmark.so / find (rust) ◀────┘──▶ spans
-embedded    script ──emit-program (embedded python)──▶ Program JSON ──┐
-subprocess  script ──emit-program (python subprocess)─▶ Program JSON ─┤
-                                      libhejmark.so / run (rust) ◀────┘──▶ document
-```
 
 **Embedded** (`lib/models/embedded_backend.dart`, Android) is the phone's whole answer. Chaquopy embeds CPython in the APK, so the repository's *real* compiler -- ANTLR parser, L1.5 expansion, `emit_fragments` -- runs on the device and emits the same floor-AST JSON the desktop emits. The program then goes to `hejmark_find_json` in `libhejmark.so`, linked beside it (`<root>/rust` built as a C-ABI shared library, `rust/src/ffi.rs`): the compiler moved onto the device, the engine never left Rust. Dart reaches the compiler over a MethodChannel (`android/.../MainActivity.kt`), because there is no C ABI to a Python interpreter.
 
@@ -96,6 +76,15 @@ flutter test                # widget flows (fake bridge) + every live path
 flutter analyze             # clean
 flutter build apk --debug   # an APK with the engine and the compiler inside it
 ```
+
+Or in one command from anywhere in the checkout, which is what a release actually runs:
+
+```bash
+hejmark dev compile            # parser, engine, then the signed release APK
+hejmark dev compile --no-apk   # stop after the engine (what a `rust/` change wants)
+```
+
+The order is the point: the APK *packages* the two steps before it -- the cross-compiled engine into `jniLibs/`, and the generated parser through the `python/hejmark` symlink -- so running `flutter build apk` by hand at the wrong moment bundles the previous build's engine. `--host-only` skips the Android cross-compile and therefore skips the APK too, since one built with no engine in it still builds and fails only on a device.
 
 `tool/build_engine.sh` needs `cargo`, `cargo-ndk` and the Android NDK, and cross-compiles `<root>/rust` for `armeabi-v7a`, `arm64-v8a` and `x86_64` (pass `--host-only` to skip Android and build just the desktop library). Re-run it after any change to `rust/src/ffi.rs`: the Dart side binds every C symbol up front, so a stale library fails every call rather than only the new one.
 

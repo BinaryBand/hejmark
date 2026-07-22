@@ -249,12 +249,19 @@ def compile(  # noqa: A001 -- the CLI verb; it shadows the builtin in this modul
     host_only: Annotated[
         bool, typer.Option("--host-only", help="Skip the Android cross-compile (no NDK needed).")
     ] = False,
+    apk: Annotated[
+        bool, typer.Option("--apk/--no-apk", help="Package the release APK after the engine.")
+    ] = True,
 ) -> None:
-    """Build the parser and engine a Flutter bundle is assembled over.
+    """Build the parser, the engine, and the release APK they go into.
 
     Every path it touches hangs off the checkout, found from the current
     directory rather than assumed to be it -- so this is runnable from `gui/`,
     which is where the rest of the app's build is run from.
+
+    `--no-apk` stops after the engine, which is what a change to `rust/` wants:
+    the APK is by far the longest step and packages rather than compiles.
+    `--host-only` implies it, having built no Android engine to package.
     """
     builder = ToolchainBuilder()
     try:
@@ -262,13 +269,17 @@ def compile(  # noqa: A001 -- the CLI verb; it shadows the builtin in this modul
         grammars, generated = _own_paths(root)
         AntlrGenerator().generate(grammars, generated, language="Python3")
         typer.echo(f"parser: OK, generated into {generated}")
-        for step in builder.steps(root, host_only=host_only):
+        for step in builder.steps(root, host_only=host_only, apk=apk):
             typer.echo(f"{step.name}: {' '.join(step.argv)}")
             builder.run(step)
     except (ToolchainError, AntlrToolNotFoundError, AntlrGenerationError) as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
     typer.echo("engine: OK")
+    if apk and not host_only:
+        # Named rather than merely implied: this is the path the publish script
+        # reads, and the one thing a caller does next is hand it over.
+        typer.echo(f"apk: OK, {root / 'gui/build/app/outputs/apk/release/app-release.apk'}")
 
 
 def main() -> None:

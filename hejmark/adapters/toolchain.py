@@ -53,7 +53,7 @@ def repository_root(start: Path) -> Path:
 class ToolchainBuilder:
     """Runs the engine build steps a Flutter bundle is assembled over."""
 
-    def steps(self, root: Path, *, host_only: bool) -> tuple[Step, ...]:
+    def steps(self, root: Path, *, host_only: bool, apk: bool = True) -> tuple[Step, ...]:
         """The steps to run under *root*, in order.
 
         The debug binaries come first because they are what a desktop run uses
@@ -61,13 +61,32 @@ class ToolchainBuilder:
         the shared library second because it is what the *app* loads. With
         *host_only* the second skips the Android cross-compile, which is the
         difference between needing the NDK and not.
+
+        The APK comes last because it packages what the two before it produced:
+        the cross-compiled engine into ``jniLibs/``, and -- through the symlink
+        at ``android/app/src/main/python/hejmark`` -- the generated parser the
+        caller regenerated in front of all of this. Running it any earlier
+        bundles the previous build's engine.
+
+        *host_only* therefore suppresses it outright rather than merely being
+        passed along: an APK assembled with no Android engine still builds, and
+        the app inside it reports ``engine unavailable`` on a device. That is
+        the one failure here nothing downstream catches, so the combination is
+        not offered.
         """
         engine = root / "gui" / "tool" / "build_engine.sh"
         arguments = ("--host-only",) if host_only else ()
-        return (
+        built = (
             Step("engine binaries (debug)", ("cargo", "build"), root / "rust"),
             Step("engine library (release)", (str(engine), *arguments), root),
         )
+        if host_only or not apk:
+            return built
+        # Release, not debug: this is the artefact that gets signed and
+        # published, and a debug APK is a different key and a different
+        # versionCode's worth of nothing.
+        packaged = Step("apk (release)", ("flutter", "build", "apk", "--release"), root / "gui")
+        return (*built, packaged)
 
     def run(self, step: Step) -> None:
         """Run one *step*, raising rather than returning a code.
