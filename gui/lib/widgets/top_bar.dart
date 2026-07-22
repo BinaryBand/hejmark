@@ -7,7 +7,7 @@ import 'common.dart';
 /// The 56px app bar over the main column.
 ///
 /// It names the current project and its save state, and on the Test destination
-/// carries the two controls that change how the editor is framed: the
+/// carries the three controls over the editor: the find/run verb, the
 /// edit/view toggle and the collapse-tabs chevron. The shelf button is a mobile
 /// affordance only — on desktop the rail already owns that job, so [isDesktop]
 /// drops it.
@@ -33,13 +33,20 @@ class TopBar extends StatelessWidget {
       ),
       child: Row(
         children: [
+          // Exactly one child claims the free space, so the controls below sit
+          // hard against the right edge. A `Flexible` title beside a `Spacer`
+          // would not: both carry flex 1, so the row would split the free space
+          // between them and the loose title would hand its half back as a gap
+          // after the last button.
           if (isSettings)
-            Text(
-              'Preferences',
-              style: TextStyle(
-                fontSize: 14.5,
-                fontWeight: FontWeight.w600,
-                color: t.onSurfaceVariant,
+            Expanded(
+              child: Text(
+                'Preferences',
+                style: TextStyle(
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w600,
+                  color: t.onSurfaceVariant,
+                ),
               ),
             )
           else ...[
@@ -52,9 +59,8 @@ class TopBar extends StatelessWidget {
               ),
               const SizedBox(width: 8),
             ],
-            Flexible(child: _projectTitle(s, scope)),
+            Expanded(child: _projectTitle(s, scope)),
           ],
-          const Spacer(),
           if (nav == NavTab.test) ...[
             CircleIconButton(
               icon: Icons.play_arrow_outlined,

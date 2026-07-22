@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'models/bridge.dart';
 import 'screens/home_scaffold.dart';
 import 'state/app_state.dart';
+import 'state/persistence.dart';
 import 'state/scope.dart';
 import 'theme/tokens.dart';
 
@@ -10,19 +11,24 @@ import 'theme/tokens.dart';
 /// theme (dark / light / system) into a [HimarkTokens] set, and republishes
 /// both through a [HimarkScope] on every change.
 ///
-/// [bridge] is the language bridge to the real engines; it defaults to the
-/// live [HejmarkBridge] and is injected only by tests.
+/// [bridge] is the language bridge to the real engines and [store] is where
+/// the session is kept between runs; both default to the live implementation
+/// and are injected only by tests.
 class HimarkApp extends StatefulWidget {
-  const HimarkApp({super.key, this.bridge});
+  const HimarkApp({super.key, this.bridge, this.store});
 
   final Bridge? bridge;
+  final Store? store;
 
   @override
   State<HimarkApp> createState() => _HimarkAppState();
 }
 
 class _HimarkAppState extends State<HimarkApp> {
-  late final AppState _state = AppState(bridge: widget.bridge);
+  late final AppState _state = AppState(
+    bridge: widget.bridge,
+    store: widget.store,
+  );
 
   @override
   void dispose() {

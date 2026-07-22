@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
 import '../models/bridge.dart';
 import '../models/matcher.dart';
 import '../models/project.dart';
+import 'persistence.dart';
 
 enum NavTab { rules, test, settings }
 
@@ -81,15 +83,29 @@ class SnackState {
 
 /// The whole application model. A single [ChangeNotifier] that mirrors the
 /// design brief's `Component`: it owns the project data, the per-session UI
-/// state, and every mutation the screens call. Persistence is cosmetic
-/// (a "Saving…"→"Saved" flash), exactly as in the brief.
+/// state, and every mutation the screens call.
+///
+/// **Saving is real.** The brief's "Saving…"→"Saved" flash is kept as the
+/// visible half, but the timer behind it now writes the session to [store]
+/// before it settles, so the label reports a fact. What is written is the
+/// projects and the preferences — [_snapshot]; the transient UI (which panel
+/// is open, which rule is being edited, the last match run) is not, because it
+/// is either derivable or meaningless on the next launch.
 class AppState extends ChangeNotifier {
-  AppState({Bridge? bridge}) : bridge = bridge ?? HejmarkBridge() {
+  AppState({Bridge? bridge, Store? store})
+    : bridge = bridge ?? HejmarkBridge(),
+      store = store ?? const PrefsStore() {
+    // Seed first, restore second: the demo set is what a first run gets, and
+    // it is also what is on screen for the frame or two the load takes.
     _seedDemo();
+    unawaited(_restore());
   }
 
   /// The language bridge that runs the real Python parser and Rust engine.
   final Bridge bridge;
+
+  /// Where the session is kept between runs.
+  final Store store;
 
   // --- navigation / screen ---
   NavTab nav = NavTab.test;
@@ -125,6 +141,9 @@ class AppState extends ChangeNotifier {
   ProjectSort projectSort = ProjectSort.manual;
   SortDir sortDir = SortDir.asc;
 
+  /// The rule whose source is open in the rules panel's inline editor, if any.
+  String? editingRule;
+
   // --- transient overlays ---
   EditingState? editing;
   MenuState? menu;
@@ -156,8 +175,13 @@ class AppState extends ChangeNotifier {
   Timer? _matchTimer;
   int _matchReq = 0;
 
+  /// Set by [dispose]. The store round trip is the one await here that can
+  /// outlive the notifier, and notifying a disposed one is an error.
+  bool _disposed = false;
+
   @override
   void dispose() {
+    _disposed = true;
     _saveTimer?.cancel();
     _snackTimer?.cancel();
     _matchTimer?.cancel();
@@ -219,9 +243,11 @@ class AppState extends ChangeNotifier {
       editing != null && editing!.scope == scope && editing!.id == id;
 
   // ---------------------------------------------------------------------------
-  // Save plumbing (cosmetic autosave)
+  // Save plumbing (debounced autosave to [store])
   // ---------------------------------------------------------------------------
 
+  /// Record an edit to the current project: stamp it, run the mutator, then
+  /// schedule both the engine pass and the save.
   void touch([void Function(Project cur)? mutator]) {
     final c = cur;
     if (mutator != null && c != null) {
@@ -229,25 +255,99 @@ class AppState extends ChangeNotifier {
       c.updatedAt = DateTime.now();
       mutator(c);
     }
-    saveStatus = SaveStatus.saving;
     _scheduleMatch();
+    _scheduleSave();
+  }
+
+  /// An edit to the project *list* — created, duplicated, deleted, renamed.
+  /// No engine pass follows it, so it only saves.
+  void _patchProjects() => _scheduleSave();
+
+  /// Flash "Saving…", and 800ms after the last edit actually write the session
+  /// out before settling back to "Saved".
+  ///
+  /// The debounce is why the write is cheap enough to sit on every keystroke:
+  /// a burst of typing encodes the snapshot once, when it stops.
+  void _scheduleSave() {
+    saveStatus = SaveStatus.saving;
     notifyListeners();
     _saveTimer?.cancel();
-    _saveTimer = Timer(const Duration(milliseconds: 800), () {
+    _saveTimer = Timer(const Duration(milliseconds: 800), () async {
+      await store.save(jsonEncode(_snapshot()));
+      if (_disposed) return;
       saveStatus = SaveStatus.saved;
       cur?.dirty = false;
       notifyListeners();
     });
   }
 
-  void _patchProjects() {
-    saveStatus = SaveStatus.saving;
+  /// Everything that outlives the process: the preferences, the projects, and
+  /// the id counter — the last so a restored `r-7` is never handed out twice.
+  Map<String, Object?> _snapshot() => <String, Object?>{
+    'version': 1,
+    'uid': _uid,
+    'theme': theme.name,
+    'density': density.name,
+    'editorFontSize': editorFontSize,
+    'tabSize': tabSize,
+    'showWhitespace': showWhitespace,
+    'order': order,
+    'currentProject': currentProject,
+    'projects': <Object?>[for (final p in projectsInOrder) p.toJson()],
+  };
+
+  /// Read the last session back over the demo seed.
+  ///
+  /// Three ways this declines, all of them silently, all of them leaving the
+  /// seed standing: nothing stored (a first run), a payload that will not
+  /// decode (a store written by a version that is not this one), or an edit
+  /// having already landed while the read was in flight — [_saveTimer] is the
+  /// witness for that last one, and restoring over it would throw away work
+  /// the user can see on screen.
+  Future<void> _restore() async {
+    final raw = await store.load();
+    if (raw == null || _disposed || _saveTimer != null) return;
+    final Map<String, Object?> json;
+    try {
+      json = jsonDecode(raw) as Map<String, Object?>;
+      final projects = <String, Project>{
+        for (final p in json['projects'] as List<Object?>? ?? const <Object?>[])
+          (p! as Map<String, Object?>)['id']! as String: Project.fromJson(
+            p as Map<String, Object?>,
+          ),
+      };
+      final restored = <String>[
+        for (final id in json['order'] as List<Object?>? ?? const <Object?>[])
+          if (projects.containsKey(id)) id! as String,
+      ];
+      if (restored.isEmpty) return; // a store with no projects is no store
+      order = restored;
+      byId = projects;
+      final current = json['currentProject'] as String?;
+      currentProject = projects.containsKey(current) ? current : restored.first;
+    } on Object {
+      return; // an unreadable store is a first run
+    }
+    _uid = (json['uid'] as int?) ?? _uid;
+    theme = _named(ThemeChoice.values, json['theme'], theme);
+    density = _named(Density.values, json['density'], density);
+    editorFontSize = ((json['editorFontSize'] as int?) ?? editorFontSize).clamp(
+      12,
+      18,
+    );
+    tabSize = (json['tabSize'] as int?) ?? tabSize;
+    showWhitespace = (json['showWhitespace'] as bool?) ?? showWhitespace;
+    _scheduleMatch();
     notifyListeners();
-    _saveTimer?.cancel();
-    _saveTimer = Timer(const Duration(milliseconds: 800), () {
-      saveStatus = SaveStatus.saved;
-      notifyListeners();
-    });
+  }
+
+  /// An enum by [Enum.name], falling back rather than throwing — a value this
+  /// build does not know is a store from another build, not a crash.
+  static T _named<T extends Enum>(List<T> values, Object? name, T fallback) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return fallback;
   }
 
   void showSnack(
@@ -473,12 +573,39 @@ class AppState extends ChangeNotifier {
     touch((c) => c.enabled[ruleId] = !(c.enabled[ruleId] ?? false));
   }
 
+  /// Open [ruleId]'s source for editing in place. Row-tap still toggles the
+  /// rule, so entering the editor is its own affordance (the pencil), and only
+  /// one rule is open at a time.
+  void startRuleEdit(String ruleId) {
+    editingRule = ruleId;
+    notifyListeners();
+  }
+
+  void endRuleEdit() {
+    if (editingRule == null) return;
+    editingRule = null;
+    notifyListeners();
+  }
+
+  /// Rewrite a rule's Himark source. Goes through [touch], so it schedules the
+  /// debounced engine pass and the save with every other edit.
+  void setRuleSource(String ruleId, String source) {
+    touch((c) {
+      for (final r in c.rules) {
+        if (r.id == ruleId) r.source = source;
+      }
+    });
+  }
+
   void addRule() {
     final id = _newId('r');
     touch((c) {
       c.rules.add(Rule(id: id, label: 'Custom pattern', source: r'{0..9}^2'));
       c.enabled[id] = true;
     });
+    // A rule you cannot read yet is a rule you meant to write: land in the
+    // editor the way a new tab lands in its rename field.
+    startRuleEdit(id);
   }
 
   void removeRule(String ruleId) {
@@ -488,6 +615,7 @@ class AppState extends ChangeNotifier {
     if (idx == -1) return;
     final removed = c.rules[idx];
     final wasEnabled = c.enabled[ruleId] ?? false;
+    if (editingRule == ruleId) editingRule = null;
     touch((p) {
       p.rules.removeAt(idx);
       p.enabled.remove(ruleId);
@@ -547,6 +675,7 @@ class AppState extends ChangeNotifier {
   void selectProject(String id) {
     currentProject = id;
     shelfOpen = false;
+    editingRule = null; // the open editor belongs to the project leaving
     _scheduleMatch();
     notifyListeners();
   }
@@ -743,29 +872,32 @@ class AppState extends ChangeNotifier {
   // Settings
   // ---------------------------------------------------------------------------
 
+  // Each of these ends in [_scheduleSave], which notifies — a preference that
+  // did not outlive the app would be the one setting nobody would trust.
+
   void setTheme(ThemeChoice value) {
     theme = value;
-    notifyListeners();
+    _scheduleSave();
   }
 
   void setDensity(Density value) {
     density = value;
-    notifyListeners();
+    _scheduleSave();
   }
 
   void setFontSize(int value) {
     editorFontSize = value.clamp(12, 18);
-    notifyListeners();
+    _scheduleSave();
   }
 
   void setTabSize(int value) {
     tabSize = value;
-    notifyListeners();
+    _scheduleSave();
   }
 
   void toggleWhitespace() {
     showWhitespace = !showWhitespace;
-    notifyListeners();
+    _scheduleSave();
   }
 
   /// Put every appearance and editor preference back to its shipped value. The
@@ -784,6 +916,7 @@ class AppState extends ChangeNotifier {
         editorFontSize = 13;
         tabSize = 2;
         showWhitespace = false;
+        _scheduleSave();
         showSnack('Settings restored to defaults');
       },
     );
@@ -801,6 +934,9 @@ class AppState extends ChangeNotifier {
       onConfirm: () {
         _seedDemo();
         nav = NavTab.test;
+        // Overwrite the store too, or the demo set would last exactly as long
+        // as this session and the cleared projects would come back.
+        _scheduleSave();
         showSnack('App data reset');
       },
     );
@@ -878,6 +1014,7 @@ class AppState extends ChangeNotifier {
       ),
     };
     currentProject = 'demo-set';
+    editingRule = null;
     unawaited(_runMatch()); // eager first pass; edits below debounce
     notifyListeners();
   }

@@ -5,8 +5,9 @@ A Flutter front end for the **Himark Editor** described in
 
 The Test tab is wired to the **real hejmark engines** — never to a `RegExp`
 approximation. Matching is the actual denotation and the actual matcher, or a
-reported error. "Saving…" is still a cosmetic flash and project data lives in
-memory for the session.
+reported error. "Saving…" is no longer cosmetic: the flash's own timer writes
+the projects and preferences to `shared_preferences`, so a session survives a
+restart.
 
 ## Engine bridge
 
@@ -89,7 +90,8 @@ for the transport.
 
 - **Rules** — an ordered list of pattern rules, one syntax-highlighted Himark
   source per row. Tap a row to switch it on or off, drag its handle to reorder,
-  swipe it left to delete (with undo). The dot at a row's top-right is the
+  swipe it left to delete (with undo), press its pencil to rewrite the source
+  in place — the matches follow as you type. The dot at a row's top-right is the
   rule's **colour**, and it is the same colour that rule's hits wear in the Test
   view — so a row is identified by its code and its colour, not by a label.
 - **Test** — multiple test strings (chips); the active one as an editor or a

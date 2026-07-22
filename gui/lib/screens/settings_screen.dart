@@ -253,7 +253,14 @@ class SettingsScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
       ),
       clipBehavior: Clip.antiAlias,
-      child: Column(children: children),
+      // Stretch, not the default centre: a row that shrink-wraps its width —
+      // the foot's `Wrap` does — would otherwise be centred as a block, so its
+      // title sat inset from the card edge and its button inset from the other,
+      // reading as a cramped pair rather than a title opposite its action.
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: children,
+      ),
     );
   }
 

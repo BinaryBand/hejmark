@@ -1,0 +1,8 @@
+Rules are now editable in place: press a row's pencil and rewrite its Himark
+source, with the matches following as you type.
+
+Your work is also kept between sessions — projects, test strings and settings
+are saved on the device instead of resetting to the demo set on every launch.
+
+Layout fixes: the Test tab's controls sit against the right edge of the bar,
+and the foot of Settings spreads each action out to face its button.

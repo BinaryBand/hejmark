@@ -7,6 +7,18 @@ class Rule {
   final String id;
   String label;
   String source;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'id': id,
+    'label': label,
+    'source': source,
+  };
+
+  static Rule fromJson(Map<String, Object?> json) => Rule(
+    id: json['id']! as String,
+    label: json['label'] as String? ?? '',
+    source: json['source'] as String? ?? '',
+  );
 }
 
 /// A single test string ("tab" in the brief).
@@ -23,6 +35,18 @@ class TestString {
         name: name ?? this.name,
         content: content ?? this.content,
       );
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'id': id,
+    'name': name,
+    'content': content,
+  };
+
+  static TestString fromJson(Map<String, Object?> json) => TestString(
+    id: json['id']! as String,
+    name: json['name'] as String? ?? 'Untitled',
+    content: json['content'] as String? ?? '',
+  );
 }
 
 /// A project bundles an ordered list of rules (with an on/off map) and its
@@ -79,7 +103,58 @@ class Project {
     createdAt: now,
     updatedAt: now,
   );
+
+  /// The project as stored between sessions.
+  ///
+  /// [dirty] is deliberately absent: it means "an autosave is still in
+  /// flight", which cannot outlive the process that scheduled it. Timestamps
+  /// go out as ISO-8601 so the shelf's relative stamps survive a restart
+  /// instead of resetting to "1m ago".
+  Map<String, Object?> toJson() => <String, Object?>{
+    'id': id,
+    'name': name,
+    'rules': <Object?>[for (final r in rules) r.toJson()],
+    'enabled': enabled,
+    'tabs': <Object?>[for (final t in tabs) t.toJson()],
+    'activeTab': activeTab,
+    'createdAt': createdAt.toIso8601String(),
+    'updatedAt': updatedAt.toIso8601String(),
+  };
+
+  static Project fromJson(Map<String, Object?> json) {
+    final rules = <Rule>[
+      for (final r in json['rules'] as List<Object?>? ?? const <Object?>[])
+        Rule.fromJson(r! as Map<String, Object?>),
+    ];
+    final tabs = <TestString>[
+      for (final t in json['tabs'] as List<Object?>? ?? const <Object?>[])
+        TestString.fromJson(t! as Map<String, Object?>),
+    ];
+    final enabled = <String, bool>{
+      for (final entry
+          in (json['enabled'] as Map<Object?, Object?>? ??
+                  const <Object?, Object?>{})
+              .entries)
+        entry.key! as String: entry.value == true,
+    };
+    final activeTab = json['activeTab'] as String?;
+    return Project(
+      id: json['id']! as String,
+      name: json['name'] as String? ?? 'Untitled project',
+      rules: rules,
+      enabled: enabled,
+      tabs: tabs,
+      // A stored `activeTab` naming a tab that is gone would leave the Test
+      // screen empty with tabs on the bar, so it is checked, not trusted.
+      activeTab: tabs.any((t) => t.id == activeTab) ? activeTab : null,
+      createdAt: _time(json['createdAt']),
+      updatedAt: _time(json['updatedAt']),
+    );
+  }
 }
+
+DateTime _time(Object? value) =>
+    DateTime.tryParse(value as String? ?? '') ?? DateTime.now();
 
 /// The shelf's relative timestamp: minutes within the hour, hours within the
 /// day, days within the week, then an absolute short date. A port of the brief's

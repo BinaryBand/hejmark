@@ -14,7 +14,12 @@ import 'rule_code.dart';
 /// label, so the code *is* the identity. Reading a row: the dot at its top-right
 /// is filled in the rule's colour when the rule is on and a hollow ring when it
 /// is off, and that colour is the one its hits wear in the Test view. Tap the
-/// row to toggle it, drag the handle to reorder, swipe it left to delete.
+/// row to toggle it, drag the handle to reorder, swipe it left to delete, and
+/// press the pencil to rewrite its source in place.
+///
+/// Editing is a *separate* affordance from the tap, not a replacement for it:
+/// the code block is the row's whole body, so making it the text field's tap
+/// target would leave no way to toggle a rule off.
 class RulesPanel extends StatelessWidget {
   const RulesPanel({super.key});
 
@@ -86,20 +91,27 @@ class RulesPanel extends StatelessWidget {
       itemBuilder: (context, i) {
         final rule = project.rules[i];
         final enabled = project.enabled[rule.id] ?? false;
+        final editing = s.editingRule == rule.id;
         return Column(
           key: ValueKey(rule.id),
           mainAxisSize: MainAxisSize.min,
           children: [
-            Dismissible(
-              key: ValueKey('dismiss-${rule.id}'),
-              direction: DismissDirection.endToStart,
-              dismissThresholds: const <DismissDirection, double>{
-                DismissDirection.endToStart: 0.3,
-              },
-              background: _deleteReveal(t),
-              onDismissed: (_) => s.removeRule(rule.id),
-              child: _row(s, t, project, rule, enabled, i, rowPad),
-            ),
+            // A row being edited is not swipeable: a horizontal drag inside the
+            // field is a text selection, and losing the rule to it would be a
+            // surprise no `Undo` snack makes up for.
+            if (editing)
+              _row(s, t, project, rule, enabled, i, rowPad, editing: true)
+            else
+              Dismissible(
+                key: ValueKey('dismiss-${rule.id}'),
+                direction: DismissDirection.endToStart,
+                dismissThresholds: const <DismissDirection, double>{
+                  DismissDirection.endToStart: 0.3,
+                },
+                background: _deleteReveal(t),
+                onDismissed: (_) => s.removeRule(rule.id),
+                child: _row(s, t, project, rule, enabled, i, rowPad),
+              ),
             Container(
               height: 1,
               margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -128,59 +140,86 @@ class RulesPanel extends StatelessWidget {
     Rule rule,
     bool enabled,
     int index,
-    EdgeInsets rowPad,
-  ) {
-    return Material(
-      color: t.surfaceContainerLow,
-      child: InkWell(
-        onTap: () => s.toggleRule(rule.id),
-        child: Opacity(
-          opacity: enabled ? 1 : 0.5,
-          child: Padding(
-            padding: rowPad,
-            child: Row(
-              children: [
-                ReorderableDragStartListener(
-                  index: index,
-                  child: MouseRegion(
-                    cursor: SystemMouseCursors.grab,
-                    child: Tooltip(
-                      message: 'Drag to reorder',
-                      child: SizedBox(
-                        width: 20,
-                        height: 36,
-                        child: Icon(
-                          Icons.drag_indicator,
-                          size: 16,
-                          color: t.onSurfaceVariant,
-                        ),
-                      ),
+    EdgeInsets rowPad, {
+    bool editing = false,
+  }) {
+    // An open editor stays fully lit whatever the rule's on/off state: you are
+    // reading what you are typing, not what the engine is running.
+    final body = Opacity(
+      opacity: enabled || editing ? 1 : 0.5,
+      child: Padding(
+        padding: rowPad,
+        child: Row(
+          children: [
+            ReorderableDragStartListener(
+              index: index,
+              child: MouseRegion(
+                cursor: SystemMouseCursors.grab,
+                child: Tooltip(
+                  message: 'Drag to reorder',
+                  child: SizedBox(
+                    width: 20,
+                    height: 36,
+                    child: Icon(
+                      Icons.drag_indicator,
+                      size: 16,
+                      color: t.onSurfaceVariant,
                     ),
                   ),
                 ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      RuleCode(
-                        spans: spansFor(rule.source, t.onSurfaceVariant),
-                        fontSize: s.editorFontSize.toDouble(),
-                        tokens: t,
-                      ),
-                      Positioned(
-                        top: -3,
-                        right: -3,
-                        child: _statusDot(t, enabled, index),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  if (editing)
+                    RuleField(
+                      // Keyed on the rule so switching which row is open
+                      // rebuilds the controller rather than reusing the text.
+                      key: ValueKey('edit-${rule.id}'),
+                      initial: rule.source,
+                      fontSize: s.editorFontSize.toDouble(),
+                      tokens: t,
+                      onChanged: (value) => s.setRuleSource(rule.id, value),
+                      onDone: s.endRuleEdit,
+                    )
+                  else
+                    RuleCode(
+                      spans: spansFor(rule.source, t.onSurfaceVariant),
+                      fontSize: s.editorFontSize.toDouble(),
+                      tokens: t,
+                    ),
+                  Positioned(
+                    top: -3,
+                    right: -3,
+                    child: _statusDot(t, enabled, index),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 4),
+            CircleIconButton(
+              icon: editing ? Icons.check : Icons.edit_outlined,
+              iconSize: 15,
+              size: 32,
+              tooltip: editing ? 'Done editing' : 'Edit rule',
+              color: editing ? t.primary : t.onSurfaceVariant,
+              onTap: editing ? s.endRuleEdit : () => s.startRuleEdit(rule.id),
+            ),
+          ],
         ),
       ),
+    );
+
+    return Material(
+      color: t.surfaceContainerLow,
+      // While the editor is open the row must not swallow taps into a toggle —
+      // reaching past the field to place a cursor would flip the rule instead.
+      child: editing
+          ? body
+          : InkWell(onTap: () => s.toggleRule(rule.id), child: body),
     );
   }
 

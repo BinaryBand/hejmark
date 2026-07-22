@@ -19,7 +19,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # The `+N` is the Android versionCode, and it is what F-Droid clients compare --
 # never the name. It must rise on every published build: the repo already serves
 # versionCode 1, so 0.1.4 shipping as `+0` was invisible to every installed app.
-version: 0.1.6+5
+version: 0.1.7+6
 
 environment:
   sdk: ^3.12.2
@@ -41,6 +41,7 @@ dependencies:
   # Allocation and UTF-8 marshalling for the on-device engine's C ABI
   # (lib/models/native_engine.dart). dart:ffi itself has no allocator.
   ffi: ^2.1.4
+  shared_preferences: ^2.5.5
 
 dev_dependencies:
   flutter_test:

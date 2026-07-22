@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:himark_editor/app.dart';
+import 'package:himark_editor/widgets/common.dart';
 import 'package:himark_editor/widgets/rail.dart';
 import 'package:himark_editor/widgets/rule_code.dart';
+import 'package:himark_editor/widgets/top_bar.dart';
 
 import 'fake_bridge.dart';
 
@@ -53,6 +55,57 @@ void main() {
       await _settle(tester);
     }
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the Test top bar puts its controls against the right edge', (
+    tester,
+  ) async {
+    await _boot(tester);
+
+    // The collapse-tabs chevron is the last control, so its right edge is the
+    // top bar's own right padding and nothing more. This failed while the row
+    // held a flex-1 `Flexible` title beside a flex-1 `Spacer`: the two split
+    // the free space, and the loose title handed its half back as a gap.
+    final last = tester.getRect(
+      find
+          .descendant(
+            of: find.byType(TopBar),
+            matching: find.byType(CircleIconButton),
+          )
+          .last,
+    );
+    final width = tester.view.physicalSize.width / tester.view.devicePixelRatio;
+    expect(last.right, closeTo(width - 8, 0.5));
+  });
+
+  testWidgets('the Settings foot spreads its title against its button', (
+    tester,
+  ) async {
+    await _bootDesktop(tester);
+    await tester.tap(find.byIcon(Icons.settings_outlined));
+    await _settle(tester);
+
+    // The foot's `Wrap` must span the card's whole inner width — the same
+    // inset the dividers wear — so `spaceBetween` has slack to spend and the
+    // title ends up opposite its button. Shrink-wrapped (the bug) the card's
+    // column centred it instead, insetting title and button by equal slack and
+    // reading as a cramped pair adrift in the middle.
+    //
+    // Widths, not the pair's own gap: the test font makes every glyph a
+    // fontSize-wide square, so the run breaks onto a second line here at
+    // widths where real text sits on one, and a gap assertion would measure
+    // the font rather than the layout.
+    final wrap = tester.getRect(find.byType(Wrap).last);
+    final spec = tester.getRect(find.text('View the Himark language spec'));
+    final specEnd = tester.getRect(find.byIcon(Icons.north_east));
+    expect(wrap.left, closeTo(spec.left, 0.5));
+    expect(wrap.right, closeTo(specEnd.right, 0.5));
+
+    // And the title itself sits at that edge rather than inset from it.
+    expect(
+      tester.getRect(find.text('Reset app data')).left,
+      closeTo(wrap.left, 0.5),
+    );
   });
 
   testWidgets('tapping a rule row toggles it and the match count follows', (

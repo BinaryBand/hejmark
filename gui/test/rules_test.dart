@@ -4,8 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:himark_editor/app.dart';
 import 'package:himark_editor/models/project.dart';
 import 'package:himark_editor/state/app_state.dart';
+import 'package:himark_editor/state/persistence.dart';
+import 'package:himark_editor/state/scope.dart';
 import 'package:himark_editor/theme/tokens.dart';
 import 'package:himark_editor/widgets/rule_code.dart';
+import 'package:himark_editor/widgets/rules_panel.dart';
 
 import 'fake_bridge.dart';
 
@@ -43,11 +46,40 @@ void main() {
     expect(find.byType(RuleCode), findsNWidgets(3));
   });
 
-  testWidgets('adding a rule appends one row', (tester) async {
+  testWidgets('adding a rule appends one row, open in its editor', (
+    tester,
+  ) async {
     await _bootToRules(tester);
     await tester.tap(find.byIcon(Icons.add));
     await _settle(tester);
+
+    // Four rules, but the new one wears the field rather than the highlighted
+    // block — a rule you cannot read yet is one you meant to write.
+    expect(find.byType(RuleField), findsOneWidget);
+    expect(find.byType(RuleCode), findsNWidgets(3));
+
+    await tester.tap(find.byIcon(Icons.check));
+    await _settle(tester);
+    expect(find.byType(RuleField), findsNothing);
     expect(find.byType(RuleCode), findsNWidgets(4));
+  });
+
+  testWidgets('the pencil opens a rule and typing rewrites its source', (
+    tester,
+  ) async {
+    await _bootToRules(tester);
+    await tester.tap(find.byIcon(Icons.edit_outlined).first);
+    await _settle(tester);
+    expect(find.byType(RuleField), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), r'{a..z}^3');
+    await _settle(tester);
+
+    final state = HimarkScope.stateOf(tester.element(find.byType(RulesPanel)));
+    expect(state.cur!.rules.first.source, r'{a..z}^3');
+
+    // Tapping an open row must not toggle the rule out from under the cursor.
+    expect(state.cur!.enabled['r1'], isTrue);
   });
 
   test(
@@ -86,6 +118,47 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 400));
     expect(state.runDocument, 'rewritten');
     expect(state.matchSummary, startsWith('Ran — document rewritten'));
+  });
+
+  test(
+    'a session is written to the store and read back by the next one',
+    () async {
+      final store = MemoryStore();
+      final first = AppState(bridge: const FakeBridge(), store: store);
+      await Future<void>.delayed(Duration.zero);
+
+      first.setRuleSource('r1', r'{x}^2');
+      first.toggleRule('r3');
+      first.setFontSize(17);
+      first.setTheme(ThemeChoice.light);
+      await Future<void>.delayed(const Duration(milliseconds: 900)); // debounce
+      first.dispose();
+      expect(store.data, isNotNull);
+
+      final second = AppState(bridge: const FakeBridge(), store: store);
+      addTearDown(second.dispose);
+      // The seed is what is on screen until the read lands, so wait for it.
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(second.cur!.rules.first.source, r'{x}^2');
+      expect(second.cur!.enabled['r3'], isTrue);
+      expect(second.editorFontSize, 17);
+      expect(second.theme, ThemeChoice.light);
+      // Ids keep going up across the restart, so a new rule cannot collide with
+      // a restored one.
+      expect(second.cur!.rules.map((r) => r.id), isNot(contains('r-1')));
+    },
+  );
+
+  test('an unreadable store leaves the demo seed standing', () async {
+    final state = AppState(
+      bridge: const FakeBridge(),
+      store: MemoryStore('not json at all'),
+    );
+    addTearDown(state.dispose);
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    expect(state.cur!.name, 'demo-set');
+    expect(state.cur!.rules.length, 3);
   });
 
   test('the palette cycles rather than running off its end', () {
