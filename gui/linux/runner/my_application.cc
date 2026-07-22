@@ -14,6 +14,31 @@ struct _MyApplication {
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
 
+// Make the app's own icon findable without it having been installed.
+//
+// An icon is looked up by *name* in an icon theme, never by path, so the
+// bundle carries the same share/icons/hicolor tree a package drops into
+// /usr/share and appends it to the search path. An installed copy is found
+// first and simply wins, so this costs nothing once packaged. No index.theme
+// ships with the bundle -- the system's own describes these directories, and
+// shipping a second would overwrite it when the tree is copied over a prefix.
+//
+// This covers X11, where a window carries its icon. On Wayland it cannot: a
+// compositor identifies a window by the application id it declares and finds
+// the icon through <app id>.desktop, so there the entry must really be
+// installed. Both routes read the same name, which is why APPLICATION_ID, the
+// icon file name and the entry's basename are one string.
+static void use_bundled_icons() {
+  g_autofree gchar* exe = g_file_read_link("/proc/self/exe", nullptr);
+  if (exe == nullptr) {
+    return;
+  }
+  g_autofree gchar* dir = g_path_get_dirname(exe);
+  g_autofree gchar* icons = g_build_filename(dir, "share", "icons", nullptr);
+  gtk_icon_theme_append_search_path(gtk_icon_theme_get_default(), icons);
+  gtk_window_set_default_icon_name(APPLICATION_ID);
+}
+
 // Called when first Flutter frame received.
 static void first_frame_cb(MyApplication* self, FlView* view) {
   gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
@@ -103,9 +128,14 @@ static gboolean my_application_local_command_line(GApplication* application,
 static void my_application_startup(GApplication* application) {
   // MyApplication* self = MY_APPLICATION(object);
 
-  // Perform any actions required at application startup.
-
   G_APPLICATION_CLASS(my_application_parent_class)->startup(application);
+
+  // After chaining up, never before: GtkApplication's own startup is what
+  // calls gtk_init, and the icon theme this reaches for is the *default
+  // screen's*. Registering a search path before there is a screen builds a
+  // second theme object that no window ever consults, which looks exactly
+  // like working code and leaves the window with no icon at all.
+  use_bundled_icons();
 }
 
 // Implements GApplication::shutdown.
