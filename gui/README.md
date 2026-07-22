@@ -13,6 +13,26 @@ The find side compiles the rules **together**, not one at a time: the rules of a
 ```text
 embedded    rule.sources ──emit-fragments (embedded python)──▶ floor JSON ──┐
 subprocess  rule.sources ──emit-fragments (python subprocess)─▶ floor JSON ─┤
+                                           libhejmark.so / find (rust) ◀────┘──▶ spans
+embedded    script ──emit-program (embedded python)──▶ Program JSON ──┐
+subprocess  script ──emit-program (python subprocess)─▶ Program JSON ─┤
+                                       libhejmark.so / run (rust) ◀────┘──▶ document
+```
+# Himark Editor -- Flutter GUI
+
+A Flutter front end for the **Himark Editor** described in `docs/.notes/Himark Editor.zip` (design brief + screenshots).
+
+The Test tab is wired to the **real hejmark engines** -- never to a `RegExp` approximation. Matching is the actual denotation and the actual matcher, or a reported error. "Saving..." is no longer cosmetic: the flash's own timer writes the projects and preferences to `shared_preferences`, so a session survives a restart.
+
+## Engine bridge
+
+`lib/models/bridge.dart` (`HejmarkBridge`) carries both of the language's verbs -- `find` highlights where rules hit, `run` executes them as a script and returns the rewritten document -- over two paths that differ only in **where the compiler runs**. Both compile all of L1.5, and the engine is the same Rust either way. `lib/models/backend.dart` is where that shows: a `Compiler` lowers source to a program (`emit-fragments` for the project's rules, `emit-program` for a whole script), an `Engine` runs programs over text (`findAll` to spans, `run` to a document), and a `Backend` is one of each.
+
+The find side compiles the rules **together**, not one at a time: the rules of a project are the lines of one script, so a name declared in any rule is in scope in the rest and a rule holding only `uni dec = {0..9}` is legal -- it lowers to no program, matches nothing, and lends its name to its neighbours. One rule's compile error refuses that rule alone; only a refusal about the set (a name two rules declare) refuses them all.
+
+```text
+embedded    rule.sources ──emit-fragments (embedded python)──▶ floor JSON ──┐
+subprocess  rule.sources ──emit-fragments (python subprocess)─▶ floor JSON ─┤
                                           libhejmark.so / find (rust) ◀────┘──▶ spans
 embedded    script ──emit-program (embedded python)──▶ Program JSON ──┐
 subprocess  script ──emit-program (python subprocess)─▶ Program JSON ─┤
@@ -81,6 +101,22 @@ flutter build apk --debug   # an APK with the engine and the compiler inside it
 
 There is no compiler to stage: `android/app/src/main/python/hejmark` symlinks `<root>/hejmark`. What an APK build does need is the generated ANTLR parser (`hejmark/adapters/_gen`, gitignored) -- `uv run hejmark gen-parser` in the repository root -- and the build fails with that instruction if it is missing.
 
+
+
+**Release signing**
+
+`flutter build apk --release` signs with the key `android/key.properties` names -- gitignored, and pointing outside the checkout:
+
+```properties
+storeFile=/home/you/.keystores/himark-editor.jks
+storePassword=...
+keyAlias=himark
+keyPassword=...
+```
+
+Without that file the build falls back to the **debug** key and warns that it did. The fallback is right for `flutter run --release`, and for F-Droid's own builder when it builds this from source and signs with its own key; it is wrong for anything published to a repo. A client decides "update, or different app?" on the signer alone, and `~/.android/debug.keystore` is not a stable identity -- the SDK regenerates it whenever it goes missing. A release whose signer moved is one no existing install will accept: it has to be uninstalled and installed again, and no version bump undoes that.
+
+So **back up the keystore and `key.properties` together, off this machine**. Losing them ends the update path for every install of `dev.himark.editor` there is; there is no recovery, only a differently-named app.
 For the subprocess path, run from inside a checkout so the bridge can find `.venv` and the Rust `find` binary; build them first with `uv sync` and `cargo build` (in `<root>/rust`) if needed.
 
 Targets: **Android, iOS, and Linux desktop**. The UI runs on all three, but matching needs a compiler in reach. **Android has one on the device** -- Chaquopy embeds CPython -- and matches the whole language with no toolchain and no network. Linux gets the same coverage inside a checkout, by subprocess. **iOS has none**, and since the Rust subset parser was deleted that is now a hole rather than a degradation: it would need `rust/` built and linked for iOS, and -- because Chaquopy is Android-only -- a separate answer for embedding Python (python-apple-support or equivalent). Neither has been done.
@@ -88,6 +124,21 @@ Targets: **Android, iOS, and Linux desktop**. The UI runs on all three, but matc
 ## App identity
 
 The app ships as **Himark Editor**, application ID `dev.himark.editor` (fixed -- F-Droid keys its listing on it), version from `pubspec.yaml`'s `version:` line (`0.1.0+1` gives versionName `0.1.0`, versionCode `1`).
+
+### Release signing
+
+`flutter build apk --release` signs with the key `android/key.properties` names -- gitignored, and pointing outside the checkout:
+
+```properties
+storeFile=/home/you/.keystores/himark-editor.jks
+storePassword=...
+keyAlias=himark
+keyPassword=...
+```
+
+Without that file the build falls back to the **debug** key and warns that it did. The fallback is right for `flutter run --release`, and for F-Droid's own builder when it builds this from source and signs with its own key; it is wrong for anything published to a repo. A client decides "update, or different app?" on the signer alone, and `~/.android/debug.keystore` is not a stable identity -- the SDK regenerates it whenever it goes missing. A release whose signer moved is one no existing install will accept: it has to be uninstalled and installed again, and no version bump undoes that.
+
+So **back up the keystore and `key.properties` together, off this machine**. Losing them ends the update path for every install of `dev.himark.editor` there is; there is no recovery, only a differently-named app.
 
 The launcher icon is generated dynamically:
 
