@@ -7,6 +7,7 @@ import 'package:himark_editor/theme/schemes.dart';
 import 'package:himark_editor/widgets/common.dart';
 import 'package:himark_editor/widgets/rail.dart';
 import 'package:himark_editor/widgets/rule_code.dart';
+import 'package:himark_editor/widgets/rules_panel.dart';
 import 'package:himark_editor/widgets/top_bar.dart';
 
 import 'fake_bridge.dart';
@@ -346,5 +347,65 @@ void main() {
     expect(find.text('PROJECTS'), findsNothing); // sidebar gone
     expect(find.text('Preferences'), findsOneWidget); // app bar title
     expect(find.text('Theme'), findsOneWidget); // Settings pane shown
+  });
+
+  // The rules list must not be built during layout. `ReorderableListView` keys
+  // each row with a GlobalKey carrying its index, so any change to the list
+  // reactivates elements, and reactivating one whose subtree holds an
+  // `OverlayPortal` — every `Tooltip`, and the rule editor's `TextField` —
+  // mutates the overlay's render tree. Inside a `LayoutBuilder` that is
+  // illegal, and it took the whole panel down with an assertion storm. The
+  // shell reads its breakpoint from the media query for exactly this reason.
+  testWidgets('the rules list is not built inside a LayoutBuilder', (
+    tester,
+  ) async {
+    await _bootDesktop(tester);
+    await tester.tap(find.byTooltip('Rules'));
+    await _settle(tester);
+
+    expect(find.byType(RulesPanel), findsOneWidget);
+    final offenders = <String>[];
+    tester.element(find.byType(RulesPanel)).visitAncestorElements((ancestor) {
+      if (ancestor.widget is LayoutBuilder) {
+        offenders.add(ancestor.widget.toStringShort());
+      }
+      return true;
+    });
+    expect(offenders, isEmpty);
+  });
+
+  testWidgets('rules survive add, reorder and delete without an exception', (
+    tester,
+  ) async {
+    await _bootDesktop(tester);
+    await tester.tap(find.byTooltip('Rules'));
+    await _settle(tester);
+
+    final before = find.byType(RuleCode).evaluate().length;
+
+    await tester.tap(find.byTooltip('Add rule'));
+    await _settle(tester);
+    expect(tester.takeException(), isNull);
+
+    // Drag the top row down past its neighbour. The handle is an immediate
+    // drag listener, so the gesture has to break touch slop and then travel.
+    final handle = find.byTooltip('Drag to reorder').first;
+    final drag = await tester.startGesture(tester.getCenter(handle));
+    await tester.pump(const Duration(milliseconds: 20));
+    await drag.moveBy(const Offset(0, 24));
+    await tester.pump(const Duration(milliseconds: 16));
+    for (var step = 0; step < 20; step++) {
+      await drag.moveBy(const Offset(0, 7));
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    await drag.up();
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    await tester.fling(find.byType(RuleCode).at(1), const Offset(-600, 0), 3000);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.byType(RuleCode).evaluate().length, before);
+    await _settle(tester);
   });
 }

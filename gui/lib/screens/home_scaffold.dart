@@ -38,14 +38,21 @@ class HomeScaffold extends StatelessWidget {
     final scope = HimarkScope.of(context);
     final t = scope.tokens;
 
+    // The breakpoint is read from the media query rather than a LayoutBuilder,
+    // and that is load-bearing rather than stylistic. A LayoutBuilder rebuilds
+    // its subtree *during layout*, and this one wrapped the whole app — so the
+    // rules list rebuilt inside `performLayout`. `ReorderableListView` keys
+    // every row with a GlobalKey carrying its index, so any change to the list
+    // reactivates elements; reactivating one whose subtree holds an
+    // `OverlayPortal` (every `Tooltip`, and the rule editor's `TextField`) adds
+    // a child to the overlay's render tree, which is illegal mid-layout and
+    // brought down the panel with an assertion storm. This Scaffold has no app
+    // bar, so the body's constraints were the window's width anyway.
+    final wide = MediaQuery.sizeOf(context).width >= kDesktopBreakpoint;
+
     return Scaffold(
       backgroundColor: t.surfaceDim,
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final wide = constraints.maxWidth >= kDesktopBreakpoint;
-          return wide ? _desktop(scope.state, t) : _mobile(scope.state, t);
-        },
-      ),
+      body: wide ? _desktop(scope.state, t) : _mobile(scope.state, t),
     );
   }
 
