@@ -53,11 +53,12 @@ def run(source: str, text: str) -> str:
 
 
 def emit_json(source: str) -> str:
-    """Emit the expanded floor AST of *source* as JSON, for the Rust port to denote.
+    """Emit the expanded floor AST of *source* as JSON, for another engine to denote.
 
     The query is parsed and rewritten into the floor's six constructors; the
-    result is the portable hand-off the Rust ``find`` binary reads back. A
-    back-referencing query cannot be lowered ahead of a binding and is refused.
+    result is the portable hand-off, stopped at the compiler so a host holding
+    its own engine can finish it. A back-referencing query cannot be lowered
+    ahead of a binding and is refused.
     """
     return json.dumps(_encode_query(_lower(_to_ast, source)))
 

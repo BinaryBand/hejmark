@@ -59,8 +59,23 @@ class Slot:
         return self._cache[key]
 
 
+@dataclass(frozen=True)
+class Eager:
+    """A factor denoted at load: its universe and the reach the compiler priced.
+
+    The reach rides from :class:`~hejmark.core.ir.program.EagerFactor` rather
+    than being measured here, so the engine reads a fact about the expression
+    instead of deriving one. It is the same number
+    :func:`~hejmark.core.floor.reach.reach` would return for ``universe.node``
+    -- the compiler is simply the side that already asked.
+    """
+
+    universe: Universe
+    reach: int | None = None
+
+
 # One product position of a query: denoted, or awaiting its binding.
-Factor = Universe | Slot
+Factor = Eager | Slot
 
 
 @dataclass(frozen=True)
@@ -81,7 +96,7 @@ class Query:
         if isinstance(factor, Slot):
             msg = f"factor {index + 1} back-references: it denotes only under a binding"
             raise HimarkScopeError(msg)
-        return factor
+        return factor.universe
 
 
 def load_query(compiled: CompiledQuery, resolver: LateResolver) -> Query:
@@ -97,7 +112,7 @@ def load_query(compiled: CompiledQuery, resolver: LateResolver) -> Query:
         tuple(
             Slot(factor.slot, factor.needs, resolver, factor.reach)
             if isinstance(factor, LateSlot)
-            else denote(factor)
+            else Eager(denote(factor.node), factor.reach)
             for factor in compiled.factors
         ),
     )
@@ -105,7 +120,7 @@ def load_query(compiled: CompiledQuery, resolver: LateResolver) -> Query:
 
 def universe_at(factor: Factor, bound: tuple[str, ...]) -> Universe:
     """Resolve one factor under the faces bound to its left."""
-    return factor.at(bound) if isinstance(factor, Slot) else factor
+    return factor.at(bound) if isinstance(factor, Slot) else factor.universe
 
 
 @dataclass(frozen=True)
@@ -124,15 +139,22 @@ class Match:
     parts: tuple[MatchPart, ...]
 
 
-def _longest(universe: Universe, remaining: int) -> int:
+def _longest(factor: Factor, universe: Universe, remaining: int) -> int:
     """The longest span worth offering a factor: the text left, capped by its reach.
 
     A factor cannot wear a face longer than its expression reaches, so a longer
     span is a probe whose answer is already known. Where the expression is
     unbounded -- a final segment, a closure -- the remaining text is the only
     cap there is, which is the honest answer rather than a missing one.
+
+    An eager factor carries the bound the compiler priced, so nothing is
+    measured here. A slot cannot: its resolution is a fresh node per binding,
+    so the bound comes off *that* node, which is tighter than the slot's own
+    :attr:`Slot.reach` -- the latter has to hold for every binding, this one
+    only for the binding in hand. That is the one place the matcher still reads
+    the tree, and it is exactly the back edge's own footprint.
     """
-    far = reach(universe.node)
+    far = reach(universe.node) if isinstance(factor, Slot) else factor.reach
     return remaining if far is None else min(far, remaining)
 
 
@@ -182,8 +204,9 @@ def _probe(
     """Try each face this factor could wear here, longest first, and recurse."""
     if depth == len(search.factors):
         return ()
-    universe = universe_at(search.factors[depth], bound)
-    for length in range(_longest(universe, len(search.text) - pos), 0, -1):
+    factor = search.factors[depth]
+    universe = universe_at(factor, bound)
+    for length in range(_longest(factor, universe, len(search.text) - pos), 0, -1):
         face = search.text[pos : pos + length]
         if not universe.contains(face):
             continue

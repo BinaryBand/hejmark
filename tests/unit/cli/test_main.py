@@ -11,7 +11,6 @@ from typer.testing import CliRunner
 
 from hejmark.adapters.antlr import AntlrToolNotFoundError
 from hejmark.adapters.parser import GeneratedParserMissingError
-from hejmark.adapters.toolchain import Step, ToolchainError
 from hejmark.cli.main import DEFAULT_GRAMMARS, DEFAULT_OUTPUT_DIR, app
 
 runner = CliRunner()
@@ -48,21 +47,20 @@ def test_gen_parser_runs_generator(tmp_path: Path) -> None:
 
 
 def _checkout(root: Path) -> Path:
-    """A directory `repository_root` will accept, with a `gui/` to stand in."""
+    """A directory `repository_root` will accept, with a nested directory to run from."""
     (root / "pyproject.toml").write_text("")
-    (root / "rust").mkdir()
-    (root / "gui").mkdir()
-    return root / "gui"
+    (root / "nested").mkdir()
+    return root / "nested"
 
 
 def test_gen_parser_defaults_come_from_the_checkout_not_the_cwd(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Run from `gui/`, the omitted paths still name the checkout's own files.
+    """Run from a nested directory, the omitted paths still name the checkout's own files.
 
     They are written relative to a checkout root, so taking them as-is meant
-    looking for `gui/static/grammar` -- a directory that does not exist -- and
-    creating a second `_gen` under `gui/` on the way past.
+    looking for `nested/static/grammar` -- a directory that does not exist --
+    and creating a second `_gen` under `nested/` on the way past.
     """
     monkeypatch.chdir(_checkout(tmp_path))
     with patch("hejmark.cli.main.AntlrGenerator") as generator_cls:
@@ -207,96 +205,6 @@ def test_run_rejects_an_unknown_name(tmp_path: Path) -> None:
     assert result.exit_code == 2
 
 
-def test_dev_compile_generates_the_parser_then_builds_the_engine(tmp_path: Path) -> None:
-    """One command, in order: the parser this package needs, then the engine."""
-    ran: list[str] = []
-    with (
-        patch("hejmark.cli.main.AntlrGenerator") as generator_cls,
-        patch("hejmark.cli.main.repository_root", return_value=tmp_path),
-        patch("hejmark.cli.main.ToolchainBuilder") as builder_cls,
-    ):
-        builder = builder_cls.return_value
-        builder.steps.return_value = (
-            Step("binaries", ("cargo", "build"), tmp_path),
-            Step("library", ("build_engine.sh",), tmp_path),
-        )
-        builder.run.side_effect = lambda step: ran.append(step.name)
-        result = runner.invoke(app, ["dev", "compile"])
-    assert result.exit_code == 0
-    assert ran == ["binaries", "library"]
-    builder.steps.assert_called_once_with(tmp_path, host_only=False, apk=True)
-    # The parser comes out of the same root the engine steps run under, rather
-    # than out of whatever directory the command was typed in.
-    generator_cls.return_value.generate.assert_called_once_with(
-        [tmp_path / one for one in DEFAULT_GRAMMARS],
-        tmp_path / DEFAULT_OUTPUT_DIR,
-        language="Python3",
-    )
-
-
-def test_dev_compile_passes_host_only_through(tmp_path: Path) -> None:
-    with (
-        patch("hejmark.cli.main.AntlrGenerator"),
-        patch("hejmark.cli.main.repository_root", return_value=tmp_path),
-        patch("hejmark.cli.main.ToolchainBuilder") as builder_cls,
-    ):
-        builder_cls.return_value.steps.return_value = ()
-        result = runner.invoke(app, ["dev", "compile", "--host-only"])
-    assert result.exit_code == 0
-    builder_cls.return_value.steps.assert_called_once_with(tmp_path, host_only=True, apk=True)
-    # Asked for and not delivered, which is the builder's call to make -- but
-    # the command must not then claim an APK it never got.
-    assert "apk:" not in result.output
-
-
-def test_dev_compile_passes_no_apk_through(tmp_path: Path) -> None:
-    """The escape for a `rust/` change: build the engine, skip the packaging."""
-    with (
-        patch("hejmark.cli.main.AntlrGenerator"),
-        patch("hejmark.cli.main.repository_root", return_value=tmp_path),
-        patch("hejmark.cli.main.ToolchainBuilder") as builder_cls,
-    ):
-        builder_cls.return_value.steps.return_value = ()
-        result = runner.invoke(app, ["dev", "compile", "--no-apk"])
-    assert result.exit_code == 0
-    builder_cls.return_value.steps.assert_called_once_with(tmp_path, host_only=False, apk=False)
-    assert "apk:" not in result.output
-
-
-def test_dev_compile_names_the_apk_it_built(tmp_path: Path) -> None:
-    """The path is what the publish script reads, so the command hands it over."""
-    with (
-        patch("hejmark.cli.main.AntlrGenerator"),
-        patch("hejmark.cli.main.repository_root", return_value=tmp_path),
-        patch("hejmark.cli.main.ToolchainBuilder") as builder_cls,
-    ):
-        builder_cls.return_value.steps.return_value = ()
-        result = runner.invoke(app, ["dev", "compile"])
-    assert result.exit_code == 0
-    assert str(tmp_path / "gui/build/app/outputs/apk/release/app-release.apk") in result.output
-
-
-def test_dev_compile_reports_a_failed_step_and_exits_one(tmp_path: Path) -> None:
-    with (
-        patch("hejmark.cli.main.AntlrGenerator"),
-        patch("hejmark.cli.main.repository_root", return_value=tmp_path),
-        patch("hejmark.cli.main.ToolchainBuilder") as builder_cls,
-    ):
-        builder = builder_cls.return_value
-        builder.steps.return_value = (Step("library", ("build_engine.sh",), tmp_path),)
-        builder.run.side_effect = ToolchainError("library: cargo-ndk is not installed")
-        result = runner.invoke(app, ["dev", "compile"])
-    assert result.exit_code == 1
-    assert "cargo-ndk is not installed" in result.output
-
-
-def test_dev_is_hidden_from_the_top_level_help() -> None:
-    """Off the language's surface, but `dev --help` still documents it in full."""
-    listing = runner.invoke(app, ["--help"]).output
-    assert "dev" not in listing
-    assert "compile" in runner.invoke(app, ["dev", "--help"]).output
-
-
 def test_emit_json_prints_the_floor_ast(tmp_path: Path) -> None:
     query = tmp_path / "q.hmk"
     query.write_text("{a,b}\n")  # the trailing newline is stripped before parsing
@@ -374,7 +282,7 @@ def test_emit_program_prints_the_versioned_program(tmp_path: Path) -> None:
     assert result.exit_code == 0
     payload = json.loads(result.stdout)
     assert payload["format"] == "hejmark-program"
-    assert payload["version"] == 1
+    assert payload["version"] == 2
     assert payload["sentinels"] == []
     assert [step["kind"] for step in payload["statements"][0]["steps"]] == ["query", "template"]
 

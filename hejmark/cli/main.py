@@ -11,8 +11,7 @@ finish them, and `emit-fragments` is `emit-json` over a script a host holds in
 pieces -- one AST per piece, one shared set of names; `gen-parser` (rebuild the
 ANTLR parser from the grammars),
 `parse-file` (dump a parse tree) and `status` (version echo) are the tooling
-around it. `dev` is a hidden group of build steps for working on hejmark
-itself, off the language's surface but not out of reach.
+around it.
 """
 
 from __future__ import annotations
@@ -27,17 +26,9 @@ import typer
 import hejmark
 from hejmark.adapters.antlr import AntlrGenerationError, AntlrGenerator, AntlrToolNotFoundError
 from hejmark.adapters.parser import AntlrParser, GeneratedParserMissingError
-from hejmark.adapters.toolchain import ToolchainBuilder, ToolchainError, repository_root
+from hejmark.adapters.toolchain import ToolchainError, repository_root
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
-
-# The developer group: build steps, not language verbs. Hidden rather than
-# absent -- `hejmark --help` stays the language's surface, while
-# `hejmark dev --help` documents these in full for whoever needs them. Hiding
-# is the whole access control: nothing here is secret, only uninteresting to
-# someone who came to match text.
-dev_app = typer.Typer(add_completion=False, no_args_is_help=True)
-app.add_typer(dev_app, name="dev", hidden=True, help="Build steps for working on hejmark itself.")
 
 DEFAULT_GRAMMARS = (
     Path("static/grammar/HimarkLexer.g4"),
@@ -159,7 +150,7 @@ def emit_json(
         typer.Option("--out", "-o", help="Write the floor JSON here instead of the console."),
     ] = None,
 ) -> None:
-    """Emit a query's expanded floor AST as JSON, the portable hand-off to the Rust port."""
+    """Emit a query's expanded floor AST as JSON, the portable hand-off to another engine."""
     source = query_file.read_text().strip()
     try:
         payload = hejmark.emit_json(source)
@@ -242,44 +233,6 @@ def parse_file(
     else:
         out.write_text(tree)
         typer.echo(f"{path}: OK, parse tree written to {out}")
-
-
-@dev_app.command()
-def compile(  # noqa: A001 -- the CLI verb; it shadows the builtin in this module only
-    host_only: Annotated[
-        bool, typer.Option("--host-only", help="Skip the Android cross-compile (no NDK needed).")
-    ] = False,
-    apk: Annotated[
-        bool, typer.Option("--apk/--no-apk", help="Package the release APK after the engine.")
-    ] = True,
-) -> None:
-    """Build the parser, the engine, and the release APK they go into.
-
-    Every path it touches hangs off the checkout, found from the current
-    directory rather than assumed to be it -- so this is runnable from `gui/`,
-    which is where the rest of the app's build is run from.
-
-    `--no-apk` stops after the engine, which is what a change to `rust/` wants:
-    the APK is by far the longest step and packages rather than compiles.
-    `--host-only` implies it, having built no Android engine to package.
-    """
-    builder = ToolchainBuilder()
-    try:
-        root = repository_root(Path.cwd())
-        grammars, generated = _own_paths(root)
-        AntlrGenerator().generate(grammars, generated, language="Python3")
-        typer.echo(f"parser: OK, generated into {generated}")
-        for step in builder.steps(root, host_only=host_only, apk=apk):
-            typer.echo(f"{step.name}: {' '.join(step.argv)}")
-            builder.run(step)
-    except (ToolchainError, AntlrToolNotFoundError, AntlrGenerationError) as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(1) from exc
-    typer.echo("engine: OK")
-    if apk and not host_only:
-        # Named rather than merely implied: this is the path the publish script
-        # reads, and the one thing a caller does next is hand it over.
-        typer.echo(f"apk: OK, {root / 'gui/build/app/outputs/apk/release/app-release.apk'}")
 
 
 def main() -> None:

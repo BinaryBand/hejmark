@@ -8,6 +8,12 @@ naming which factors it reads -- and the engine resolves it per attempt through
 a :data:`LateResolver` callback the compiler provides. A slot-free program
 never invokes the callback and is fully self-contained.
 
+Both factor shapes carry their ``reach``, so the split bounds a search takes
+are read off the program rather than recomputed from the tree: what a factor
+can spell is a fact about the expression, and the compiler is where expression
+facts are settled. The engine still prices the *document* -- where a cut may
+fall depends on the text, which only execution sees.
+
 The sentinel space also lives here: sentinel faces are a boundary fact (the
 program carries the allocations, the engine's exit guard reads the space), so
 :func:`noncharacter` and the allocation base are defined where both sides can
@@ -60,7 +66,25 @@ class LateSlot:
     reach: int | None = None
 
 
-QueryFactor = UniverseNode | LateSlot
+@dataclass(frozen=True)
+class EagerFactor:
+    """A factor lowered ahead of any binding: its floor form and its reach.
+
+    ``reach`` is the longest face *node* can wear, exactly
+    :func:`~hejmark.core.floor.reach.reach` of it, computed once at compile
+    time rather than per scan -- ``None`` where the shape is unbounded, the
+    same convention :class:`LateSlot` and the floor itself keep. Storing it is
+    what lets the engine take its two-ended cut bound without measuring the
+    tree: an over-approximation only costs probes, but an under-approximation
+    would drop a match, so nothing may widen this without the compiler saying
+    so.
+    """
+
+    node: UniverseNode
+    reach: int | None = None
+
+
+QueryFactor = EagerFactor | LateSlot
 
 # The one back edge: given a slot id and the faces bound to its reads -- one
 # per `needs` entry, in order -- return the floor form the substituted unit

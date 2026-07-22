@@ -126,7 +126,7 @@ def test_a_missing_field_is_refused() -> None:
 
 
 def test_a_code_point_past_the_planes_is_refused() -> None:
-    """0x110000 is no code point, exactly as the Rust reader refuses it."""
+    """0x110000 is no code point, and decoding refuses it rather than guessing."""
     with pytest.raises(HimarkPayloadError, match="no code point"):
         decode_member({"kind": "face", "text": [0x110000]})
 

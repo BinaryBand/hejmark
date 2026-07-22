@@ -9,7 +9,7 @@ concern). A program serializes as::
      "statements": [
        {"kind": "statement", "steps": [
          {"kind": "query", "source": "{a}{$1}", "factors": [
-            {"kind": "universe", "universe": {"members": [...]}},
+            {"kind": "universe", "universe": {"members": [...]}, "reach": 1},
             {"kind": "slot", "slot": 0, "needs": [1], "reach": 1}]},
          {"kind": "template", "parts": [
             {"kind": "text", "text": [99, 97, 116]},
@@ -23,6 +23,12 @@ sentinel faces are code-point arrays (the lone-surrogate rule); names, capture
 spellings and the diagnostic ``source`` stay JSON strings. A decoded program
 holding a slot executes only against a resolver honoring its slot ids; a
 slot-free program is fully standalone.
+
+Every factor carries ``reach``, integer or ``null`` -- the split bound the
+compiler priced. It is required rather than defaulted, because a reader that
+guessed ``null`` for an absent one would still *run*, just slower and silently:
+the version tag is what turns that into a refusal, which is why version 2
+exists rather than an optional field.
 """
 
 from __future__ import annotations
@@ -45,6 +51,7 @@ from hejmark.core.ir.program import (
     CompiledStatement,
     CompiledStep,
     CompiledTemplate,
+    EagerFactor,
     LateSlot,
     Program,
     QueryFactor,
@@ -55,7 +62,7 @@ from hejmark.core.ir.program import (
 )
 
 FORMAT = "hejmark-program"
-VERSION = 1
+VERSION = 2
 
 
 def encode_program(program: Program) -> dict[str, object]:
@@ -176,7 +183,11 @@ def _encode_factor(factor: QueryFactor) -> dict[str, object]:
             "needs": list(factor.needs),
             "reach": factor.reach,
         }
-    return {"kind": "universe", "universe": encode_universe(factor)}
+    return {
+        "kind": "universe",
+        "universe": encode_universe(factor.node),
+        "reach": factor.reach,
+    }
 
 
 def _decode_factor(obj: object) -> QueryFactor:
@@ -184,7 +195,10 @@ def _decode_factor(obj: object) -> QueryFactor:
     kind = require_field(obj, "kind", "factor")
     factor: QueryFactor
     if kind == "universe":
-        factor = decode_universe(require_field(obj, "universe", "factor"))
+        factor = EagerFactor(
+            decode_universe(require_field(obj, "universe", "factor")),
+            _int_or_none(require_field(obj, "reach", "factor"), "reach"),
+        )
     elif kind == "slot":
         needs = require_array(require_field(obj, "needs", "slot"), "needs")
         factor = LateSlot(
@@ -258,7 +272,7 @@ def _int(value: object, what: str) -> int:
 
 
 def _int_or_none(value: object, what: str) -> int | None:
-    """Require an integer or JSON ``null`` -- a slot's reach may be unbounded."""
+    """Require an integer or JSON ``null`` -- either factor's reach may be unbounded."""
     if value is None:
         return None
     return _int(value, what)

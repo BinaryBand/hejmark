@@ -12,6 +12,7 @@ from hejmark.core.compiler.compile import (
     lower_fragments,
     script,
 )
+from hejmark.core.floor.reach import reach
 from hejmark.core.floor.syntax import Face, UniverseNode
 from hejmark.core.floor.universe import denote
 from hejmark.core.ir.errors import HimarkScopeError
@@ -21,6 +22,7 @@ from hejmark.core.ir.program import (
     CompiledQuery,
     CompiledStatement,
     CompiledTemplate,
+    EagerFactor,
     LateResolver,
     LateSlot,
     Program,
@@ -38,6 +40,17 @@ def _compile(source: str) -> tuple[Program, LateResolver]:
     return compile_script(node, env)
 
 
+def _queries(program: Program) -> list[CompiledQuery]:
+    """Every compiled query in a program, statements and contractions alike."""
+    found: list[CompiledQuery] = []
+    for line in program.statements:
+        if isinstance(line, CompiledIter):
+            found.append(line.query)
+        else:
+            found.extend(step for step in line.steps if isinstance(step, CompiledQuery))
+    return found
+
+
 def test_script_resolves_declarations_over_the_std() -> None:
     """A script's own names sit alongside the seeded ones."""
     node, env = script(_to_ast, "uni mine = {a}")
@@ -53,7 +66,7 @@ def test_a_statement_lowers_to_queries_and_templates() -> None:
     assert isinstance(line, CompiledStatement)
     query, template = line.steps
     assert isinstance(query, CompiledQuery)
-    assert query.factors == (UniverseNode((Face("a"),)),)
+    assert query.factors == (EagerFactor(UniverseNode((Face("a"),)), 1),)
     assert isinstance(template, CompiledTemplate)
     assert template.parts == (TextPart("x"), CapturePart("$1"), SentinelPart("s"))
 
@@ -89,6 +102,40 @@ def test_the_sentinel_table_rides_the_program() -> None:
     program, _ = _compile("sentinel s\nsentinel t")
     assert [sentinel.name for sentinel in program.sentinels] == ["s", "t"]
     assert all(noncharacter(sentinel.face) for sentinel in program.sentinels)
+
+
+# Scripts whose factors span the shapes `reach` prices differently: bounded
+# faces, a range, a product, an unbounded final segment and closure, a std
+# pipeline, and a back-reference beside an eager factor.
+_REACH_SOURCES = [
+    '{a} => "x"',
+    '{abc}{d,ef} => "x"',
+    '{0..9}{a..z} => "x"',
+    '{a..} => "x"',
+    '{ab,{a}&{b}} => "x"',
+    '{0..9}[numerals] => "x"',
+    '{0..9}[where 8..12] => "x"',
+    '{a,b}{$1} => "x"',
+    '{-}{-} <=>[@spellings] "-"',
+]
+
+
+@pytest.mark.parametrize("source", _REACH_SOURCES)
+def test_a_stored_reach_is_the_reach_the_floor_would_measure(source: str) -> None:
+    """The engine trusts this number instead of measuring; a drift would drop matches.
+
+    Under-approximating a reach silently shortens the matcher's probe range, so
+    this is the invariant that keeps precomputing it sound rather than merely
+    faster. Checked over every eager factor of every query the script compiles.
+    """
+    program, _ = _compile(source)
+    checked = 0
+    for query in _queries(program):
+        for factor in query.factors:
+            if isinstance(factor, EagerFactor):
+                assert factor.reach == reach(factor.node), f"{source}: {factor.node}"
+                checked += 1
+    assert checked, f"{source} compiled no eager factor to check"
 
 
 def test_lower_expands_each_factor_to_its_pre_denotation_ast() -> None:

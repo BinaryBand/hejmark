@@ -2,7 +2,7 @@
 // inline emphasis and inline code. This is a deliberately small subset of
 // the older iteration's scripts/md_html.hmk (no lists, tables, links,
 // blockquotes or fenced code) -- the matcher cost that blocked a fuller
-// port is gone (docs/TODO.md), but re-architecting the rest is unstarted.
+// port is gone, but re-architecting the rest is unstarted.
 //
 // Each line is bracketed in sentinels first, the same masking idiom
 // bubble-sort.hmk uses, so a heading rule can read "the rest of this

@@ -18,8 +18,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 
-from hejmark.core.engine.scan.match import Factor, Match, Query, Slot, universe_at
-from hejmark.core.floor.reach import reach
+from hejmark.core.engine.scan.match import Factor, Match, Query, universe_at
 from hejmark.core.floor.universe import Universe
 from hejmark.core.ir.errors import HimarkScopeError
 
@@ -59,23 +58,19 @@ def canonical(universe: Universe, spelling: str) -> str | None:
     return None
 
 
-def _factor_reach(factor: Factor) -> int | None:
-    """One factor's reach: a slot carries its own compile-time bound already."""
-    return factor.reach if isinstance(factor, Slot) else reach(factor.node)
-
-
 def _suffixes(factors: tuple[Factor, ...]) -> tuple[int | None, ...]:
     """How far each suffix of the factor list reaches; mirrors `reach.suffixes`.
 
-    A slotted factor is a different type from the floor's own ``cuts``/
-    ``suffixes`` (``Universe | Slot`` rather than ``UniverseNode | Closure``),
+    A factor here is a different type from the floor's own ``cuts``/
+    ``suffixes`` (``Eager | Slot`` rather than ``UniverseNode | Closure``),
     which is the type reason this split search missed the sweep the other
-    three took -- see `docs/TODO.md`. A slot's own reach (:attr:`Slot.reach`)
-    stands in exactly where `reach.factor_reach` would read a floor node's.
+    three took -- see `docs/TODO.md`. Both shapes carry their own ``reach``
+    now, priced by the compiler, so this reads the bound where
+    `reach.factor_reach` would measure a floor node.
     """
     tails: list[int | None] = [0]
     for factor in reversed(factors):
-        far = _factor_reach(factor)
+        far = factor.reach
         tail = tails[-1]
         tails.append(None if far is None or tail is None else far + tail)
     return tuple(reversed(tails))
@@ -85,12 +80,12 @@ def _cuts(factor: Factor, tail: int | None, pos: int, length: int) -> range:
     """Where a split search may cut for this factor; mirrors `reach.cuts`.
 
     Both ends are still reach read off the expression, whether the factor is
-    a plain universe or a slot standing on its own compile-time bound. Faces
-    never empty (``capture`` re-splits with the same rule the matcher enforces),
-    so a caller filters out the zero-width candidate this range can still
-    include when nothing floors it from the left.
+    an eager universe or a slot -- both stand on the bound the compiler priced.
+    Faces never empty (``capture`` re-splits with the same rule the matcher
+    enforces), so a caller filters out the zero-width candidate this range can
+    still include when nothing floors it from the left.
     """
-    far = _factor_reach(factor)
+    far = factor.reach
     stop = length if far is None else min(pos + far, length)
     start = pos if tail is None else max(pos, length - tail)
     return range(start, stop + 1)

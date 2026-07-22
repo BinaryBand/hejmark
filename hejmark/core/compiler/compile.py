@@ -39,6 +39,7 @@ from hejmark.core.ir.program import (
     CompiledStatement,
     CompiledStep,
     CompiledTemplate,
+    EagerFactor,
     LateResolver,
     Program,
     QueryFactor,
@@ -80,8 +81,9 @@ def compile_query(expr: Expr, env: Env, table: SlotTable, source: str = "") -> C
             reaches.append(factor.reach)
         else:
             node = expand(Expr((unit,)), Ctx(env))[0]
-            factors.append(node)
-            reaches.append(reach(node))
+            far = reach(node)
+            factors.append(EagerFactor(node, far))
+            reaches.append(far)
     return CompiledQuery(source, tuple(factors))
 
 
@@ -115,11 +117,10 @@ def compile_single(node: ScriptNode, env: Env, source: str) -> tuple[CompiledQue
 def lower(to_ast: ToAst, source: str) -> tuple[UniverseNode, ...]:
     """Parse *source* and expand each factor to its floor AST, before denotation.
 
-    The fully-standalone hand-off (the Rust ``find`` binary reads its encoding
-    back): expansion has rewritten the surface into the six constructors, and
-    the floor AST serializes. A back-referencing factor rides a query as a late
-    slot and cannot be lowered ahead of a binding, so it is refused rather than
-    emitted.
+    The fully-standalone hand-off: expansion has rewritten the surface into the
+    six constructors, and the floor AST serializes for another engine to read
+    back. A back-referencing factor rides a query as a late slot and cannot be
+    lowered ahead of a binding, so it is refused rather than emitted.
 
     Raises:
         HimarkScopeError: *source* is not a single query expression, or a

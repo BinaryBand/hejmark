@@ -1,15 +1,14 @@
 """Encode and decode the floor AST as portable JSON-shaped data.
 
 The compiler lowers to floor nodes; an engine denotes them. They meet at this
-codec, whose tagged tree is read back both by :func:`decode_universe` here and
-by the Rust ``floor::json`` module -- the encoder shapes are that boundary's
-wire contract and must not drift. Spellings are encoded as code-point arrays
-rather than JSON strings, so lone surrogates survive intact.
+codec: :func:`encode_universe` and :func:`decode_universe` are the wire
+contract for any engine on the far side, so the encoder shapes must not drift.
+Spellings are encoded as code-point arrays rather than JSON strings, so lone
+surrogates survive intact.
 
 Decoding refuses rather than guesses: an unknown tag, a missing field or a
 code point past the plane space raises
-:class:`~hejmark.core.ir.errors.HimarkPayloadError`, exactly where the Rust
-reader refuses.
+:class:`~hejmark.core.ir.errors.HimarkPayloadError`.
 """
 
 from __future__ import annotations

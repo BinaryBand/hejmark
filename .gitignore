@@ -26,9 +26,6 @@ hejmark/adapters/_gen/
 static/lean/.lake/
 static/lean/build/
 
-# Rust build artifacts (rust/)
-/rust/target/
-
 # Local environment
 .env
 

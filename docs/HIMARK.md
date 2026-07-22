@@ -154,7 +154,7 @@ These raise a diagnostic past a host budget rather than hang or guess:
 hejmark find query.hmk target.txt     # scan; one line per match, then a count
 hejmark run script.hmk target.txt     # run a whole script, print the spliced document
 hejmark parse-file path.hmk           # dump a parse tree (debugging)
-hejmark emit-json query.hmk           # lower a query to floor-AST JSON (Rust/GUI `find` hand-off)
+hejmark emit-json query.hmk           # lower a query to floor-AST JSON (another engine's `find` hand-off)
 hejmark emit-fragments a.hmk b.hmk    # lower several queries at once, under their declared names
 hejmark emit-program script.hmk       # lower a whole script to Program JSON (the `run` hand-off)
 ```

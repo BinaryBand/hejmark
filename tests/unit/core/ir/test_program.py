@@ -11,6 +11,7 @@ from hejmark.core.ir.program import (
     CompiledQuery,
     CompiledStatement,
     CompiledTemplate,
+    EagerFactor,
     LateResolver,
     LateSlot,
     Program,
@@ -22,7 +23,8 @@ from hejmark.core.ir.program import (
 
 
 def _query() -> CompiledQuery:
-    return CompiledQuery("{a}{$1}", (UniverseNode((Face("a"),)), LateSlot(0, (1,))))
+    eager = EagerFactor(UniverseNode((Face("a"),)), 1)
+    return CompiledQuery("{a}{$1}", (eager, LateSlot(0, (1,))))
 
 
 def test_nodes_are_frozen() -> None:

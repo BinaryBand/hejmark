@@ -28,10 +28,9 @@ MIRROR_EXEMPT = {"__init__.py", "__main__.py", "ports.py"}
 GENERATED = "_gen"
 
 # Directory names whose contents are never authored source. `tests` is
-# free-form by design; `build` is output, and since the Android app embeds
-# CPython, `gui/build/` now holds a whole pip environment (Chaquopy stages one
-# per ABI). Both are gitignored, which is how ruff and ast-grep already skip
-# them -- the walk below reaches the filesystem directly and must be told.
+# free-form by design; `build` is output. Both are gitignored, which is how
+# ruff and ast-grep already skip them -- the walk below reaches the
+# filesystem directly and must be told.
 UNCOUNTED_DIRS = frozenset({"tests", "build"})
 
 

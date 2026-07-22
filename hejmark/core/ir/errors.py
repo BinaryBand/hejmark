@@ -24,6 +24,7 @@ class HimarkPayloadError(ValueError):
     """Raised when a serialized payload does not decode to the IR.
 
     An unknown tag, a missing field, or a code point past the plane space is a
-    malformed payload, never a guess: decoding refuses exactly where the Rust
-    reader does.
+    malformed payload, never a guess: decoding refuses rather than repairing,
+    so a reader on the far side of the wire never runs on something it only
+    half understood.
     """

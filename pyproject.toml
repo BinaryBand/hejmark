@@ -20,14 +20,7 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 # importlib mode lets tests/ mirror the package layout without duplicate
 # test-module basenames across layer subdirectories colliding on import.
-# `-m 'not benchmark'` keeps tests/benchmarks/ out of the default gate: those
-# build the Rust binary in release and run the Python engine on targets sized to
-# be slow, which is measurement, not correctness. A command-line -m overrides
-# this one, so `uv run pytest -m benchmark` selects exactly them.
-addopts = "-v --tb=short --import-mode=importlib -m 'not benchmark'"
-markers = [
-    "benchmark: Rust-vs-Python engine timing; deselected by default, run with -m benchmark",
-]
+addopts = "-v --tb=short --import-mode=importlib"
 
 [tool.ruff]
 line-length = 100
@@ -80,20 +73,6 @@ ignore = [
 # alternatives are the real contract, and build.py dispatches on them. Any is
 # the honest annotation here, so ANN401 is off for this module only.
 "hejmark/adapters/build.py" = ["ANN401"]
-# The Flutter GUI is a sibling project carrying its own pyproject.toml; the
-# Python under it is glue and tooling, never library source, so the library
-# ruleset does not straightforwardly apply. Its benchmark suite earns exactly
-# the latitude `tests/**` earns above. `tool/` is a standalone build script run
-# by hand: printing IS its output channel (T20, as for the CLI), it is not an
-# importable package (INP001), and its renderer takes plain geometry arguments
-# whose annotations and arity policy (ANN, FBT003, C901) would document nothing.
-"gui/tests/**" = ["S", "PLR2004", "ANN", "D", "INP001", "SLF001"]
-"gui/tool/**" = ["T20", "ANN", "D", "FBT003", "INP001", "C901"]
-# The Android app's on-device compiler entry point, which Chaquopy calls by
-# module name off a directory it puts on sys.path -- so it is not, and cannot
-# be, part of an importable package (INP001). Everything else in the library
-# ruleset applies to it and is met.
-"gui/android/**" = ["INP001"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
