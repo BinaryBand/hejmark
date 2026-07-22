@@ -51,12 +51,12 @@ Gone: `parse.rs` (650 lines), `std.rs` (86), `ast.rs` (26), the `unported` statu
 
 **Keeping the Rust engine, separately, stays a decision about constants, not asymptotics, and the margin is smaller than the port's reputation suggests.** The table this item used to carry, since it is the argument for the half that was *not* deleted -- measured with `uv run pytest -m benchmark`:
 
-| query | chars | python | rust | speedup |
-| --- | --- | --- | --- | --- |
-| `{{cat,feline}}` | 800 | 8.3 ms | 1.6 ms | 5.3x |
-| `{a, &{b}}` | 9 | 4.0 ms | 1.3 ms | 3.1x |
-| `{a}` | 800 | 2.5 ms | 1.3 ms | 1.9x |
-| `{0..9}` | 200 | 1.0 ms | 1.1 ms | 0.9x |
+| query            | chars | python | rust   | speedup |
+| ---------------- | ----- | ------ | ------ | ------- |
+| `{{cat,feline}}` | 800   | 8.3 ms | 1.6 ms | 5.3x    |
+| `{a, &{b}}`      | 9     | 4.0 ms | 1.3 ms | 3.1x    |
+| `{a}`            | 800   | 2.5 ms | 1.3 ms | 1.9x    |
+| `{0..9}`         | 200   | 1.0 ms | 1.1 ms | 0.9x    |
 
 Both engines carry the same four rewrites, so the curves have the same shape and Rust wins by a constant of about 2--7x (its column still paying process spawn, Python's still paying parse and expand). Worth having on a battery-powered device holding a 60 fps editor, and it keeps a second implementation that cross-checks the first -- but it is not the order of magnitude that would make an all-Python device build unthinkable, and the honest fallback if Chaquopy plus a `cdylib` proves too much to carry is to run Python on both sides and delete `rust/` outright.
 
@@ -90,15 +90,15 @@ Chaquopy 17 embeds CPython 3.11 in the APK; `gui/android/app/src/main/python/him
 
 All four, plus a fifth nobody had named. The port wins every benchmark row again, and the 800-character rows -- the ones it was losing by up to 5x -- now sit at the floor, where process spawn and JSON decode are most of the number:
 
-| workload | before | after | factor |
-| --- | --- | --- | --- |
-| `{a, &{b}}` @9 | 87.4 ms | 0.7 ms | 125x |
-| `{{cat,feline}}` @800 | 18.7 ms | 0.8 ms | 23x |
-| `{a..c, !{b}, b}` @800 | 12.8 ms | 1.0 ms | 13x |
-| `{0..9}` @800 | 9.7 ms | 0.8 ms | 12x |
-| `{a..e}` @800 | 10.3 ms | 1.0 ms | 10x |
-| `{a}{b}` @800 | 3.9 ms | 0.8 ms | 5x |
-| `{a}` @800 | 3.8 ms | 0.9 ms | 4x |
+| workload               | before  | after  | factor |
+| ---------------------- | ------- | ------ | ------ |
+| `{a, &{b}}` @9         | 87.4 ms | 0.7 ms | 125x   |
+| `{{cat,feline}}` @800  | 18.7 ms | 0.8 ms | 23x    |
+| `{a..c, !{b}, b}` @800 | 12.8 ms | 1.0 ms | 13x    |
+| `{0..9}` @800          | 9.7 ms  | 0.8 ms | 12x    |
+| `{a..e}` @800          | 10.3 ms | 1.0 ms | 10x    |
+| `{a}{b}` @800          | 3.9 ms  | 0.8 ms | 5x     |
+| `{a}` @800             | 3.8 ms  | 0.9 ms | 4x     |
 
 **The stated order was wrong, and following it would have crashed the port.** This file said cut bound first, then the memo. That was the order they paid in *Python*, where the memo already existed. Here the cut bound is what makes the descent deep -- it moves the longest sub-question to the front -- and `_shorter_first` answers that only by warming a memo. Cut bound first would have meant a deep unwarmed descent, and a Rust stack overflow is a hard abort, not a catchable error. The order that works is **memo, then cut bound with the warming attached, then the chart**.
 
@@ -187,18 +187,18 @@ Five files under `static/examples/programs/`: `html-escape`, `normalize-space`, 
 
 Measured, not guessed. Cold, one workload per process, against `2ab4c14`:
 
-| workload | before | after | factor |
-| --- | --- | --- | --- |
-| `{\*}{@r}{\*}` @30 | 0.214 s | 0.030 s | 7x |
-| `{\*}{@r}{\*}` @60 | 4.04 s | 0.272 s | 15x |
-| `{\*}{@r}{\*}` @100 | 38.7 s | 1.11 s | 35x |
-| `{\*}{@r}{\*}` @160 | 225.8 s | 5.66 s | 40x |
-| `{@r}`×4 `{\*}` @32 | 5.59 s | 0.077 s | 73x |
-| `{@r}`×6 `{\*}` @32 | 70.2 s | 0.090 s | 780x |
-| bare collapse, 40 dashes | 6.10 s | 0.065 s | 94x |
-| bare collapse, 60 dashes | 17.4 s | 0.152 s | 114x |
-| slugify @37, no collapse | 0.673 s | 0.090 s | 7x |
-| slugify @37, with collapse | 4.76 s | 0.140 s | 34x |
+| workload                   | before  | after   | factor |
+| -------------------------- | ------- | ------- | ------ |
+| `{\*}{@r}{\*}` @30         | 0.214 s | 0.030 s | 7x     |
+| `{\*}{@r}{\*}` @60         | 4.04 s  | 0.272 s | 15x    |
+| `{\*}{@r}{\*}` @100        | 38.7 s  | 1.11 s  | 35x    |
+| `{\*}{@r}{\*}` @160        | 225.8 s | 5.66 s  | 40x    |
+| `{@r}`×4 `{\*}` @32        | 5.59 s  | 0.077 s | 73x    |
+| `{@r}`×6 `{\*}` @32        | 70.2 s  | 0.090 s | 780x   |
+| bare collapse, 40 dashes   | 6.10 s  | 0.065 s | 94x    |
+| bare collapse, 60 dashes   | 17.4 s  | 0.152 s | 114x   |
+| slugify @37, no collapse   | 0.673 s | 0.090 s | 7x     |
+| slugify @37, with collapse | 4.76 s  | 0.140 s | 34x    |
 
 Read the two halves differently. For a fixed query shape the growth is still **~O(n³·⁵)**, down from ~O(n⁴): the cut bounds and the remembered hash moved the *constant*, by roughly forty. For a product of many factors the chart moved the *degree*, from $n^{k}$ to about $n^2$, which is the 780x row. Both were needed and neither substitutes for the other. Full timings and method are in `docs/.TEMP.md` (local-only; gitignored under "Private project files").
 
