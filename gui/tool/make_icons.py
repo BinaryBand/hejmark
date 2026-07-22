@@ -1,20 +1,31 @@
 """Render the Himark Editor launcher icon.
 
 Pure standard library -- no Pillow, no ImageMagick -- so the icon is
-reproducible from a checkout with nothing but Python. The artwork is four
-round-capped capsules on a rounded square: three "lines of text" with the
-middle one sitting inside a highlighter mark, which is what the app does.
+reproducible from a checkout with nothing but Python. The artwork is the
+"slate" mark (see docs/.notes/icons/slate.svg): a "{Hi}" wordmark on a
+rounded square, built from round-capped capsules -- straight strokes for H
+and i, and each brace approximated as a four-segment zigzag since capsules
+have no curves.
 
-Geometry is written once, in a 1024x1024 canvas, and shared by both outputs:
+Geometry is written once, in a 1024x1024 canvas, and shared by every output:
 
     python3 tool/make_icons.py
 
-    android/app/src/main/res/mipmap-*/ic_launcher.png   legacy, full icon
+    android/app/src/main/res/mipmap/ic_launcher.xml     legacy, full icon
     android/app/src/main/res/drawable/ic_launcher_foreground.xml  adaptive
     fastlane/metadata/android/en-US/images/icon.png     F-Droid listing
 
-The adaptive foreground is the same capsules scaled to the 108-unit viewport;
-they occupy 60 of the 72-unit safe circle, so no launcher mask clips them.
+The two launcher drawables are both vectors, and which one a device reads is
+decided by resource qualifiers alone: API 26 and up resolve `@mipmap/ic_launcher`
+to `mipmap-anydpi-v26/ic_launcher.xml`, the adaptive icon whose foreground is the
+capsules scaled to the 108-unit viewport (their furthest points sit inside a
+~26-unit radius of centre, well within the ~33-36-unit safe circle, so no
+launcher mask clips them); API 24-25 fall through to the unqualified
+`mipmap/ic_launcher.xml`, which is the whole mark -- rounded-square background
+included, since there is no mask out there to supply one. VectorDrawable is
+native from API 21, so the floor this project already sets (minSdk 24) is clear.
+
+Only the F-Droid listing is a raster, because that catalogue takes PNG.
 """
 
 import struct
@@ -22,22 +33,34 @@ import zlib
 from pathlib import Path
 
 CANVAS = 1024.0
-BG = (0x0E, 0x16, 0x26)
-BG_RADIUS = 180.0
-DIM = (0x7A, 0x8C, 0xA9)
-MARK_BG = (0xF4, 0xE4, 0xA1)
-MARK_FG = (0xC7, 0xC7, 0xC7)
+BG = (0x2B, 0x2F, 0x38)
+BG_RADIUS = 205.0
+FG = (0xC7, 0xCD, 0xD9)
 
 # (x1, y1, x2, y2, radius, colour) -- centrelines, drawn back to front.
+# "{Hi}", left to right, baseline-aligned on y 340-660:
 CAPSULES = [
-    (328.0, 512.0, 696.0, 512.0, 104.0, MARK_BG),
-    (292.0, 352.0, 684.0, 352.0, 36.0, DIM),
-    (380.0, 512.0, 644.0, 512.0, 36.0, MARK_FG),
-    (292.0, 672.0, 620.0, 672.0, 36.0, DIM),
+    # opening brace
+    (317.0, 340.0, 287.0, 410.0, 28.0, FG),
+    (287.0, 410.0, 267.0, 500.0, 28.0, FG),
+    (267.0, 500.0, 287.0, 590.0, 28.0, FG),
+    (287.0, 590.0, 317.0, 660.0, 28.0, FG),
+    # H
+    (397.0, 340.0, 397.0, 660.0, 34.0, FG),
+    (527.0, 340.0, 527.0, 660.0, 34.0, FG),
+    (397.0, 500.0, 527.0, 500.0, 30.0, FG),
+    # i (dot is a degenerate capsule -- equal endpoints render as a circle)
+    (627.0, 380.0, 627.0, 380.0, 34.0, FG),
+    (627.0, 460.0, 627.0, 660.0, 30.0, FG),
+    # closing brace
+    (707.0, 340.0, 737.0, 410.0, 28.0, FG),
+    (737.0, 410.0, 757.0, 500.0, 28.0, FG),
+    (757.0, 500.0, 737.0, 590.0, 28.0, FG),
+    (737.0, 590.0, 707.0, 660.0, 28.0, FG),
 ]
 
 ROOT = Path(__file__).resolve().parent.parent
-MIPMAPS = {"mdpi": 48, "hdpi": 72, "xhdpi": 96, "xxhdpi": 144, "xxxhdpi": 192}
+LISTING_SIZE = 512
 SAMPLES = 3
 
 
@@ -112,42 +135,89 @@ def write_png(path, rows):
     )
 
 
-def foreground_vector():
-    """The capsules as an adaptive-icon foreground drawable."""
-    unit = 108.0 / CANVAS
+def _capsule_paths(unit):
+    """The capsules as <path> elements, scaled by `unit` per canvas unit.
+
+    A capsule whose endpoints coincide (the "i" dot) is emitted as a filled circle
+    rather than a zero-length round-capped stroke: the stroke is the same shape in
+    principle, but a zero-length subpath is exactly what a path renderer is free to
+    drop, and losing it would silently take the dot off the "i".
+    """
     paths = []
     for x1, y1, x2, y2, radius, colour in CAPSULES:
+        hexed = f"#{colour[0]:02X}{colour[1]:02X}{colour[2]:02X}"
+        sx, sy, ex, ey = x1 * unit, y1 * unit, x2 * unit, y2 * unit
+        r = radius * unit
+        if (sx, sy) == (ex, ey):
+            paths.append(
+                "    <path\n"
+                f'        android:pathData="M{sx - r:.2f},{sy:.2f} '
+                f"a{r:.2f},{r:.2f} 0 1 0 {2 * r:.2f},0 "
+                f'a{r:.2f},{r:.2f} 0 1 0 {-2 * r:.2f},0 Z"\n'
+                f'        android:fillColor="{hexed}" />'
+            )
+            continue
         paths.append(
             "    <path\n"
-            f'        android:pathData="M{x1 * unit:.2f},{y1 * unit:.2f} '
-            f'L{x2 * unit:.2f},{y2 * unit:.2f}"\n'
-            f'        android:strokeColor="#{colour[0]:02X}{colour[1]:02X}{colour[2]:02X}"\n'
-            f'        android:strokeWidth="{2 * radius * unit:.2f}"\n'
+            f'        android:pathData="M{sx:.2f},{sy:.2f} L{ex:.2f},{ey:.2f}"\n'
+            f'        android:strokeColor="{hexed}"\n'
+            f'        android:strokeWidth="{2 * r:.2f}"\n'
             '        android:strokeLineCap="round" />'
         )
-    body = "\n".join(paths)
+    return paths
+
+
+def _vector(size, viewport, body):
+    """Wrap `body` in a square <vector> of `size` dp over a `viewport`-unit grid."""
     return (
         '<?xml version="1.0" encoding="utf-8"?>\n'
         # No "--" in the comment: aapt2 rejects it.
         "<!-- Generated by tool/make_icons.py; edit the geometry there. -->\n"
         '<vector xmlns:android="http://schemas.android.com/apk/res/android"\n'
-        '    android:width="108dp"\n'
-        '    android:height="108dp"\n'
-        '    android:viewportWidth="108"\n'
-        '    android:viewportHeight="108">\n'
+        f'    android:width="{size:g}dp"\n'
+        f'    android:height="{size:g}dp"\n'
+        f'    android:viewportWidth="{viewport:g}"\n'
+        f'    android:viewportHeight="{viewport:g}">\n'
         f"{body}\n"
         "</vector>\n"
     )
 
 
+def foreground_vector():
+    """The capsules as an adaptive-icon foreground drawable."""
+    return _vector(108.0, 108.0, "\n".join(_capsule_paths(108.0 / CANVAS)))
+
+
+def legacy_vector():
+    """The whole mark -- background included -- for API 24-25, which has no mask.
+
+    Drawn straight in the 1024-unit canvas, so the geometry needs no scaling; the
+    48dp is only the size a launcher asks a legacy icon for, and the viewport
+    carries the artwork at whatever density it is then rasterised to.
+    """
+    r = BG_RADIUS
+    end = CANVAS - r
+    background = (
+        "    <path\n"
+        f'        android:pathData="M{r:.0f},0 H{end:.0f} '
+        f"A{r:.0f},{r:.0f} 0 0 1 {CANVAS:.0f},{r:.0f} V{end:.0f} "
+        f"A{r:.0f},{r:.0f} 0 0 1 {end:.0f},{CANVAS:.0f} H{r:.0f} "
+        f"A{r:.0f},{r:.0f} 0 0 1 0,{end:.0f} V{r:.0f} "
+        f'A{r:.0f},{r:.0f} 0 0 1 {r:.0f},0 Z"\n'
+        f'        android:fillColor="#{BG[0]:02X}{BG[1]:02X}{BG[2]:02X}" />'
+    )
+    return _vector(48.0, CANVAS, "\n".join([background, *_capsule_paths(1.0)]))
+
+
 def main():
     res = ROOT / "android/app/src/main/res"
-    for density, size in MIPMAPS.items():
-        write_png(res / f"mipmap-{density}/ic_launcher.png", render(size, True))
+    legacy = res / "mipmap/ic_launcher.xml"
+    legacy.parent.mkdir(parents=True, exist_ok=True)
+    legacy.write_text(legacy_vector())
     (res / "drawable/ic_launcher_foreground.xml").write_text(foreground_vector())
     listing = ROOT / "fastlane/metadata/android/en-US/images/icon.png"
-    write_png(listing, render(512, True))
-    print(f"wrote {len(MIPMAPS)} mipmaps, the adaptive foreground and {listing.name}")
+    write_png(listing, render(LISTING_SIZE, True))
+    print(f"wrote the legacy and adaptive launcher vectors and {listing.name}")
 
 
 if __name__ == "__main__":

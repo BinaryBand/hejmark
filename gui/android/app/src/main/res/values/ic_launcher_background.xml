@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- darkTokens.surface, from lib/theme/tokens.dart. -->
-    <color name="ic_launcher_background">#0E1626</color>
+    <!-- Slate icon background (see tool/make_icons.py BG / docs/.notes/icons/slate.svg). -->
+    <color name="ic_launcher_background">#2B2F38</color>
 </resources>

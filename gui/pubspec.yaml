@@ -19,7 +19,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # The `+N` is the Android versionCode, and it is what F-Droid clients compare --
 # never the name. It must rise on every published build: the repo already serves
 # versionCode 1, so 0.1.4 shipping as `+0` was invisible to every installed app.
-version: 0.1.4+3
+version: 0.1.6+5
 
 environment:
   sdk: ^3.12.2

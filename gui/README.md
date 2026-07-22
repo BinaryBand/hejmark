@@ -194,17 +194,30 @@ The launcher icon is generated, not committed art:
 python3 tool/make_icons.py     # stdlib only; no Pillow, no ImageMagick
 ```
 
-It writes the legacy `mipmap-*/ic_launcher.png` set, the adaptive-icon
-foreground `drawable/ic_launcher_foreground.xml` (paired with the background
-colour in `values/ic_launcher_background.xml` by `mipmap-anydpi-v26/`), and the
-512px listing icon. Edit the geometry in the script and re-run.
+It writes two launcher vectors and one raster. `mipmap/ic_launcher.xml` is the
+whole mark, background included; `drawable/ic_launcher_foreground.xml` is the
+adaptive-icon foreground, paired with the background colour in
+`values/ic_launcher_background.xml` by `mipmap-anydpi-v26/`. The 512px
+`fastlane` listing icon is the raster. Edit the geometry in the script and
+re-run — one `CAPSULES` table feeds all three, so they cannot drift.
 
-**The raster set is not redundant with the adaptive icon**, and dropping it
-breaks two things quietly. `mipmap-anydpi-v26/` matches only API 26+, so on the
-24--25 devices `minSdk` still admits there is no `mipmap/ic_launcher` at all;
-and `fdroidserver` builds a repo's icons by pulling raster entries out of the
-APK, so an XML-only icon leaves the F-Droid listing blank. Neither fails the
-build. The SVGs under `docs/.notes/icons/` are sketches, not a source of
+**Which launcher drawable a device reads is decided by resource qualifiers
+alone.** `mipmap-anydpi-v26/` matches only API 26+; below that the unqualified
+`mipmap/ic_launcher.xml` is what `@mipmap/ic_launcher` resolves to, which is why
+it carries its own rounded-square background — there is no launcher mask out
+there to supply one. That fallback is the entire reason a legacy entry exists,
+and it used to be the `mipmap-*/ic_launcher.png` density set; a vector serves it
+because `VectorDrawable` is native from API 21, well under this project's
+`minSdk` of 24. Keep *some* unqualified `mipmap/ic_launcher` whatever else
+changes: without one, 24--25 devices have no launcher icon at all, and nothing
+in the build says so.
+
+**The F-Droid listing icon is the one that still has to be a raster.**
+`fdroidserver` builds a repo's icons by pulling raster entries out of the APK,
+so the APK's own XML-only icon is not something it can use — the listing is
+served instead by `fastlane/metadata/android/en-US/images/icon.png`, which is
+why that output stays a PNG and must not follow the launcher set into vector
+form. The SVGs under `docs/.notes/icons/` are sketches, not a source of
 truth — nothing reads them.
 
 `fastlane/metadata/android/en-US/` is the F-Droid listing (title, descriptions,
