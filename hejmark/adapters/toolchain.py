@@ -44,7 +44,7 @@ def repository_root(start: Path) -> Path:
         ToolchainError: no ancestor of *start* is a hejmark checkout.
     """
     for directory in [start.resolve(), *start.resolve().parents]:
-        if (directory / "pyproject.toml").is_file() and (directory / "rust").is_dir():
+        if (directory / "pyproject.toml").is_file():
             return directory
     msg = f"{start} is not inside a hejmark checkout (needs pyproject.toml beside rust/)"
     raise ToolchainError(msg)
