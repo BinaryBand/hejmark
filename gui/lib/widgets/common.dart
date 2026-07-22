@@ -125,13 +125,18 @@ class SectionLabel extends StatelessWidget {
         fontSize: 12,
         fontWeight: FontWeight.w700,
         letterSpacing: 0.6,
-        color: tokens.onSurfaceVariant,
+        color: tokens.primary,
       ),
     );
   }
 }
 
 /// A centered empty-state block: round icon, title, and a hint line.
+///
+/// [accent] paints the icon disc in the primary container rather than a plain
+/// surface. The design uses it for the one empty state that has an action under
+/// it — "No test string open" — and leaves the rules list's quiet, so the two do
+/// not compete for the eye.
 class EmptyState extends StatelessWidget {
   const EmptyState({
     required this.icon,
@@ -139,6 +144,7 @@ class EmptyState extends StatelessWidget {
     required this.hint,
     required this.tokens,
     this.action,
+    this.accent = false,
     super.key,
   });
 
@@ -147,6 +153,7 @@ class EmptyState extends StatelessWidget {
   final String hint;
   final HimarkTokens tokens;
   final Widget? action;
+  final bool accent;
 
   @override
   Widget build(BuildContext context) {
@@ -160,10 +167,18 @@ class EmptyState extends StatelessWidget {
               width: 56,
               height: 56,
               decoration: BoxDecoration(
-                color: tokens.surfaceContainer,
+                color: accent
+                    ? tokens.primaryContainer
+                    : tokens.surfaceContainer,
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, size: 26, color: tokens.onSurfaceVariant),
+              child: Icon(
+                icon,
+                size: 26,
+                color: accent
+                    ? tokens.onPrimaryContainer
+                    : tokens.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 12),
             Text(

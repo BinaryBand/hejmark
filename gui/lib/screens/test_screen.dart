@@ -31,6 +31,26 @@ class _TestScreenState extends State<TestScreen> {
   final ScrollController _scroll = ScrollController();
   String? _syncedTabId;
 
+  /// The scope of the frame being built, so the highlight helpers below can
+  /// resolve a rule's pinned swatch without every intermediate signature having
+  /// to carry it. Only ever read from inside [build]'s synchronous call tree.
+  HimarkScope? _scope;
+
+  /// The colours the rule at [slot] paints its hits with — its pinned swatch if
+  /// it has one, otherwise the slot its position cycles onto.
+  RuleColors _slotColors(int slot) {
+    final scope = _scope;
+    if (scope == null) {
+      return const RuleColors(
+        dot: Color(0xFF000000),
+        background: Color(0x00000000),
+        foreground: Color(0xFF000000),
+      );
+    }
+    final rules = scope.state.cur?.rules ?? const <Rule>[];
+    return scope.colorsFor(slot < rules.length ? rules[slot] : null, slot);
+  }
+
   @override
   void dispose() {
     _controller.dispose();
@@ -54,6 +74,7 @@ class _TestScreenState extends State<TestScreen> {
   @override
   Widget build(BuildContext context) {
     final scope = HimarkScope.of(context);
+    _scope = scope;
     final s = scope.state;
     final t = scope.tokens;
     final project = s.cur;
@@ -72,6 +93,7 @@ class _TestScreenState extends State<TestScreen> {
                     icon: Icons.description_outlined,
                     title: 'No test string open',
                     hint: 'Create a test string to run your rules against it.',
+                    accent: true,
                     action: FilledButton(
                       onPressed: s.addTab,
                       style: FilledButton.styleFrom(
@@ -123,11 +145,11 @@ class _TestScreenState extends State<TestScreen> {
           const SizedBox(width: 6),
           CircleIconButton(
             icon: Icons.add,
-            size: 34,
+            size: 44,
             iconSize: 15,
             tooltip: 'New test string',
-            background: t.surfaceContainerHigh,
-            color: t.onSurfaceVariant,
+            background: t.primaryContainer,
+            color: t.onPrimaryContainer,
             onTap: s.addTab,
           ),
         ],
@@ -138,11 +160,11 @@ class _TestScreenState extends State<TestScreen> {
   Widget _tabChip(AppState s, HimarkTokens t, TestString tab, bool active) {
     if (s.isEditing(MenuScope.tab, tab.id)) {
       return Container(
-        constraints: const BoxConstraints(minHeight: 34),
+        constraints: const BoxConstraints(minHeight: 44),
         padding: const EdgeInsets.only(left: 12, right: 6),
         decoration: BoxDecoration(
           color: t.primaryContainer,
-          borderRadius: BorderRadius.circular(17),
+          borderRadius: BorderRadius.circular(22),
         ),
         alignment: Alignment.center,
         child: SizedBox(
@@ -160,11 +182,11 @@ class _TestScreenState extends State<TestScreen> {
     return GestureDetector(
       onTap: () => s.selectTab(tab.id),
       child: Container(
-        constraints: const BoxConstraints(minHeight: 34),
+        constraints: const BoxConstraints(minHeight: 44),
         padding: EdgeInsets.only(left: 14, right: active ? 6 : 14),
         decoration: BoxDecoration(
           color: active ? t.primaryContainer : t.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(17),
+          borderRadius: BorderRadius.circular(22),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -186,7 +208,7 @@ class _TestScreenState extends State<TestScreen> {
               const SizedBox(width: 4),
               CircleIconButton(
                 icon: Icons.more_horiz,
-                size: 24,
+                size: 32,
                 iconSize: 14,
                 tooltip: 'More',
                 color: t.onPrimaryContainer,
@@ -412,7 +434,7 @@ class _TestScreenState extends State<TestScreen> {
       if (a > cursor) {
         spans.add(TextSpan(text: glyphs(line.substring(cursor, a))));
       }
-      final colors = t.ruleColorAt(m.slot);
+      final colors = _slotColors(m.slot);
       spans.add(
         TextSpan(
           text: glyphs(line.substring(a, b)),
@@ -600,7 +622,8 @@ class _TestScreenState extends State<TestScreen> {
         ),
         itemBuilder: (context, i) {
           final m = matches[i];
-          return Padding(
+          return Container(
+            constraints: const BoxConstraints(minHeight: 44),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               children: [
@@ -608,7 +631,7 @@ class _TestScreenState extends State<TestScreen> {
                   width: 8,
                   height: 8,
                   decoration: BoxDecoration(
-                    color: t.ruleColorAt(m.slot).dot,
+                    color: _slotColors(m.slot).dot,
                     shape: BoxShape.circle,
                   ),
                 ),

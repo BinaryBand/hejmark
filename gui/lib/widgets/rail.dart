@@ -99,7 +99,7 @@ class _RailButton extends StatelessWidget {
                 Text(
                   label,
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: 11,
                     fontWeight: FontWeight.w600,
                     letterSpacing: 0.2,
                     color: color,

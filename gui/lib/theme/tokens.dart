@@ -1,8 +1,9 @@
 import 'package:flutter/widgets.dart';
 
-/// Material-3 style token set, transcribed verbatim from the Himark GUI design
-/// brief (`Himark GUI Redesign.dc.html`). Two frozen instances -- [darkTokens]
-/// and [lightTokens] -- are the only sources of colour in the app.
+/// Material-3 style token set, transcribed verbatim from the Himark GUI design.
+/// The instances live in `schemes.dart` — three schemes (ocean, airy, joplin)
+/// each with a dark and a light face — and `tokensFor` is the only way to
+/// reach one.
 @immutable
 class HimarkTokens {
   const HimarkTokens({
@@ -28,6 +29,7 @@ class HimarkTokens {
     required this.onErrorContainer,
     required this.tertiary,
     required this.ruleColors,
+    required this.syntax,
   });
 
   final Color surface;
@@ -52,9 +54,14 @@ class HimarkTokens {
   final Color onErrorContainer;
   final Color tertiary;
 
-  /// The brief's `RULE_COLORS` palette: one [RuleColors] per rule, cycled by the
-  /// rule's position in the project.
+  /// The scheme's `RULE_COLORS` palette: one [RuleColors] per rule, cycled by
+  /// the rule's position in the project unless the rule pins a swatch.
   final List<RuleColors> ruleColors;
+
+  /// The colours a rule's Himark source is highlighted with. Theme-dependent
+  /// rather than fixed, because the light faces of `airy` and `joplin` are far
+  /// brighter than the original's and washed the dark-tuned hexes out.
+  final SyntaxColors syntax;
 
   /// The colours a rule at [index] paints with, wrapping past the palette's end.
   RuleColors ruleColorAt(int index) =>
@@ -65,7 +72,7 @@ class HimarkTokens {
 /// bullets its hits in the output sheet, [background] and [foreground] highlight
 /// the spans it matched in the read view.
 ///
-/// The brief keys these by rule kind (`email`, `ipv4`, `heading`, `custom`) and
+/// The design keys these by rule kind (`email`, `ipv4`, `heading`, `custom`) and
 /// its `markBg`/`markFg` tokens are exactly the `custom` slot, so they have no
 /// separate existence here. Rules carry no kind in this app, so the palette is
 /// cycled by list position instead — same four slots, same order.
@@ -82,115 +89,25 @@ class RuleColors {
   final Color foreground;
 }
 
-const List<RuleColors> _darkRuleColors = <RuleColors>[
-  RuleColors(
-    dot: Color(0xFF5B9BF7),
-    background: Color(0xFF1E3A5F),
-    foreground: Color(0xFFBCD7FF),
-  ),
-  RuleColors(
-    dot: Color(0xFF98C379),
-    background: Color(0xFF2C4022),
-    foreground: Color(0xFFD3ECBF),
-  ),
-  RuleColors(
-    dot: Color(0xFFC678DD),
-    background: Color(0xFF3D2A4A),
-    foreground: Color(0xFFE9CDF4),
-  ),
-  RuleColors(
-    dot: Color(0xFFD1B04F),
-    background: Color(0xFF4A431B),
-    foreground: Color(0xFFF4E4A1),
-  ),
-];
+/// Syntax-highlight palette used when rendering a rule's Himark code.
+@immutable
+class SyntaxColors {
+  const SyntaxColors({
+    required this.identifier,
+    required this.quantifier,
+    required this.value,
+    required this.special,
+    required this.escape,
+  });
 
-const List<RuleColors> _lightRuleColors = <RuleColors>[
-  RuleColors(
-    dot: Color(0xFF2F6FE0),
-    background: Color(0xFFD9E6FD),
-    foreground: Color(0xFF0D3A78),
-  ),
-  RuleColors(
-    dot: Color(0xFF3F7A2A),
-    background: Color(0xFFDDEFD1),
-    foreground: Color(0xFF1E4210),
-  ),
-  RuleColors(
-    dot: Color(0xFF8E3FB8),
-    background: Color(0xFFEFDCF8),
-    foreground: Color(0xFF48195F),
-  ),
-  RuleColors(
-    dot: Color(0xFFB0821F),
-    background: Color(0xFFFDE39A),
-    foreground: Color(0xFF4A3A06),
-  ),
-];
-
-const HimarkTokens darkTokens = HimarkTokens(
-  surface: Color(0xFF0C111B),
-  surfaceDim: Color(0xFF05070C),
-  surfaceBright: Color(0xFF1B2434),
-  surfaceContainerLowest: Color(0xFF070A10),
-  surfaceContainerLow: Color(0xFF0F1623),
-  surfaceContainer: Color(0xFF131C2C),
-  surfaceContainerHigh: Color(0xFF1A2436),
-  surfaceContainerHighest: Color(0xFF212D42),
-  onSurface: Color(0xFFDBE4F0),
-  onSurfaceVariant: Color(0xFF93A4BF),
-  primary: Color(0xFF5B9BF7),
-  onPrimary: Color(0xFF062544),
-  primaryContainer: Color(0xFF1E3A5F),
-  onPrimaryContainer: Color(0xFFBCD7FF),
-  outline: Color(0xFF425169),
-  outlineVariant: Color(0xFF1E2736),
-  error: Color(0xFFE8828A),
-  onError: Color(0xFF4A0D12),
-  errorContainer: Color(0xFF4D1A1F),
-  onErrorContainer: Color(0xFFF8C6CA),
-  tertiary: Color(0xFF98C379),
-  ruleColors: _darkRuleColors,
-);
-
-const HimarkTokens lightTokens = HimarkTokens(
-  surface: Color(0xFFF7F8FB),
-  surfaceDim: Color(0xFFC9D0DC),
-  surfaceBright: Color(0xFFFFFFFF),
-  surfaceContainerLowest: Color(0xFFFFFFFF),
-  surfaceContainerLow: Color(0xFFEEF1F6),
-  surfaceContainer: Color(0xFFE7EBF3),
-  surfaceContainerHigh: Color(0xFFDDE3EE),
-  surfaceContainerHighest: Color(0xFFD2DAE8),
-  onSurface: Color(0xFF1A2130),
-  onSurfaceVariant: Color(0xFF54637D),
-  primary: Color(0xFF2F6FE0),
-  onPrimary: Color(0xFFFFFFFF),
-  primaryContainer: Color(0xFFD9E6FD),
-  onPrimaryContainer: Color(0xFF0D3A78),
-  outline: Color(0xFFB7C1D3),
-  outlineVariant: Color(0xFFDBE1EC),
-  error: Color(0xFFC4342F),
-  onError: Color(0xFFFFFFFF),
-  errorContainer: Color(0xFFFBDEDB),
-  onErrorContainer: Color(0xFF5C0F0C),
-  tertiary: Color(0xFF3F7A2A),
-  ruleColors: _lightRuleColors,
-);
-
-/// Syntax-highlight palette used when rendering a rule's Himark code. These are
-/// theme-independent in the brief (fixed hex per token class); only the brace
-/// colour tracks [HimarkTokens.onSurfaceVariant].
-class Syntax {
-  const Syntax._();
-  static const Color identifier = Color(0xFF61AFEF); // @l, @d
-  static const Color quantifier = Color(0xFFD19A66); // [1..]
-  static const Color value = Color(0xFFE5C07B); // @, @d::0..255
-  static const Color special = Color(0xFFC678DD); // #
-  static const Color escape = Color(0xFFE06C75); // \n
+  final Color identifier; // @l, @d
+  final Color quantifier; // [1..]
+  final Color value; // @, @d::0..255
+  final Color special; // #
+  final Color escape; // \n
 }
 
-/// Shared monospace text family. Prefers Roboto Mono (the brief's font, present
+/// Shared monospace text family. Prefers Roboto Mono (the design's font, present
 /// on mobile), falling back to fonts installed on Linux/macOS/Windows so the app
 /// needs no bundled font files.
 const String kMonoFamily = 'Roboto Mono';
@@ -202,7 +119,7 @@ const List<String> kMonoFallback = <String>[
   'monospace',
 ];
 
-/// Shared sans family and fallback, mirroring the brief's Roboto with clean
+/// Shared sans family and fallback, mirroring the design's Roboto with clean
 /// cross-platform substitutes.
 const String kSansFamily = 'Roboto';
 const List<String> kSansFallback = <String>[

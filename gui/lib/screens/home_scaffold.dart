@@ -4,6 +4,7 @@ import '../state/app_state.dart';
 import '../state/scope.dart';
 import '../theme/tokens.dart';
 import '../widgets/bottom_nav.dart';
+import '../widgets/cheat_sheet.dart';
 import '../widgets/overlays.dart';
 import '../widgets/project_shelf.dart';
 import '../widgets/rail.dart';
@@ -62,10 +63,15 @@ class HomeScaffold extends StatelessWidget {
 
   /// Overlays layered above the content. The shelf is on this list only where it
   /// is a drawer; on desktop it is a column in the layout instead.
+  ///
+  /// Order is z-order: the cheat sheet sits above the menu it can be opened
+  /// from, and the confirm dialog above everything but nothing.
   List<Widget> _overlays(AppState s, {required bool wide}) => [
     if (s.snack != null) const SnackBarOverlay(),
     if (!wide && s.shelfOpen) const ProjectShelf(),
     if (s.menu != null) const ActionSheet(),
+    if (s.colorPick != null) const ColorPickSheet(),
+    if (s.cheatOpen) CheatSheet(isDesktop: wide),
     if (s.confirm != null) const ConfirmDialog(),
   ];
 

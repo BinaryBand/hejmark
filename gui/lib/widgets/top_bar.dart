@@ -61,6 +61,18 @@ class TopBar extends StatelessWidget {
             ],
             Expanded(child: _projectTitle(s, scope)),
           ],
+          // The cheat sheet is reachable from every workspace destination, not
+          // only Test — a rule is written on the Rules screen, which is exactly
+          // where the syntax reference is wanted.
+          if (!isSettings) ...[
+            CircleIconButton(
+              icon: Icons.menu_book_outlined,
+              tooltip: 'Himark syntax cheat sheet',
+              color: t.onSurfaceVariant,
+              onTap: s.openCheat,
+            ),
+            const SizedBox(width: 4),
+          ],
           if (nav == NavTab.test) ...[
             CircleIconButton(
               icon: Icons.play_arrow_outlined,

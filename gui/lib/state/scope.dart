@@ -1,5 +1,7 @@
 import 'package:flutter/widgets.dart';
 
+import '../models/project.dart';
+import '../theme/schemes.dart';
 import '../theme/tokens.dart';
 import 'app_state.dart';
 
@@ -10,12 +12,26 @@ class HimarkScope extends InheritedWidget {
   const HimarkScope({
     required this.state,
     required this.tokens,
+    required this.brightness,
     required super.child,
     super.key,
   });
 
   final AppState state;
   final HimarkTokens tokens;
+
+  /// Which face of the scheme [tokens] came from. Carried because a pinned
+  /// highlight swatch is looked up by brightness, not by token — the swatch
+  /// palette is shared across all three schemes.
+  final Brightness brightness;
+
+  /// The colours [rule] paints with: its pinned swatch where it has one, and
+  /// otherwise the slot its position [index] cycles onto.
+  RuleColors colorsFor(Rule? rule, int index) {
+    final pinned = rule?.color;
+    if (pinned != null) return swatchColors(pinned, brightness);
+    return tokens.ruleColorAt(index);
+  }
 
   static HimarkScope of(BuildContext context) {
     final scope = context.dependOnInheritedWidgetOfExactType<HimarkScope>();

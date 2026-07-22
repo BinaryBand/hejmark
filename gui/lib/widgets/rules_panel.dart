@@ -47,7 +47,7 @@ class RulesPanel extends StatelessWidget {
                         'Add a pattern rule to start matching against your '
                         'test strings.',
                   )
-                : _list(s, t, project!),
+                : _list(scope, s, t, project!),
           ),
         ],
       ),
@@ -73,7 +73,7 @@ class RulesPanel extends StatelessWidget {
     );
   }
 
-  Widget _list(AppState s, HimarkTokens t, Project project) {
+  Widget _list(HimarkScope scope, AppState s, HimarkTokens t, Project project) {
     final rowPad = s.density == Density.compact
         ? const EdgeInsets.symmetric(horizontal: 12, vertical: 6)
         : const EdgeInsets.symmetric(horizontal: 16, vertical: 10);
@@ -92,6 +92,7 @@ class RulesPanel extends StatelessWidget {
         final rule = project.rules[i];
         final enabled = project.enabled[rule.id] ?? false;
         final editing = s.editingRule == rule.id;
+        final dot = scope.colorsFor(rule, i).dot;
         return Column(
           key: ValueKey(rule.id),
           mainAxisSize: MainAxisSize.min,
@@ -100,7 +101,7 @@ class RulesPanel extends StatelessWidget {
             // field is a text selection, and losing the rule to it would be a
             // surprise no `Undo` snack makes up for.
             if (editing)
-              _row(s, t, project, rule, enabled, i, rowPad, editing: true)
+              _row(s, t, rule, enabled, i, rowPad, dot, editing: true)
             else
               Dismissible(
                 key: ValueKey('dismiss-${rule.id}'),
@@ -110,7 +111,7 @@ class RulesPanel extends StatelessWidget {
                 },
                 background: _deleteReveal(t),
                 onDismissed: (_) => s.removeRule(rule.id),
-                child: _row(s, t, project, rule, enabled, i, rowPad),
+                child: _row(s, t, rule, enabled, i, rowPad, dot),
               ),
             Container(
               height: 1,
@@ -136,11 +137,11 @@ class RulesPanel extends StatelessWidget {
   Widget _row(
     AppState s,
     HimarkTokens t,
-    Project project,
     Rule rule,
     bool enabled,
     int index,
-    EdgeInsets rowPad, {
+    EdgeInsets rowPad,
+    Color dot, {
     bool editing = false,
   }) {
     // An open editor stays fully lit whatever the rule's on/off state: you are
@@ -187,27 +188,41 @@ class RulesPanel extends StatelessWidget {
                     )
                   else
                     RuleCode(
-                      spans: spansFor(rule.source, t.onSurfaceVariant),
+                      spans: spansFor(
+                        rule.source,
+                        t.onSurfaceVariant,
+                        t.syntax,
+                      ),
                       fontSize: s.editorFontSize.toDouble(),
                       tokens: t,
                     ),
                   Positioned(
                     top: -3,
                     right: -3,
-                    child: _statusDot(t, enabled, index),
+                    child: _statusDot(t, enabled, dot),
                   ),
                 ],
               ),
             ),
             const SizedBox(width: 4),
-            CircleIconButton(
-              icon: editing ? Icons.check : Icons.edit_outlined,
-              iconSize: 15,
-              size: 32,
-              tooltip: editing ? 'Done editing' : 'Edit rule',
-              color: editing ? t.primary : t.onSurfaceVariant,
-              onTap: editing ? s.endRuleEdit : () => s.startRuleEdit(rule.id),
-            ),
+            if (editing)
+              CircleIconButton(
+                icon: Icons.check,
+                iconSize: 15,
+                size: 44,
+                tooltip: 'Done editing',
+                color: t.primary,
+                onTap: s.endRuleEdit,
+              )
+            else
+              CircleIconButton(
+                icon: Icons.more_vert,
+                iconSize: 15,
+                size: 44,
+                tooltip: 'More',
+                color: t.onSurfaceVariant,
+                onTap: () => s.openMenu(MenuScope.rule, rule.id, 'Rule'),
+              ),
           ],
         ),
       ),
@@ -225,7 +240,7 @@ class RulesPanel extends StatelessWidget {
 
   /// Filled in the rule's own colour when it is on; a hollow ring in the muted
   /// outline when it is off.
-  Widget _statusDot(HimarkTokens t, bool enabled, int index) {
+  Widget _statusDot(HimarkTokens t, bool enabled, Color dot) {
     if (!enabled) {
       return Container(
         width: 9,
@@ -251,7 +266,7 @@ class RulesPanel extends StatelessWidget {
           width: 10,
           height: 10,
           decoration: BoxDecoration(
-            color: t.ruleColorAt(index).dot,
+            color: dot,
             shape: BoxShape.circle,
           ),
         ),

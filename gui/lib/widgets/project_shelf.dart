@@ -53,6 +53,44 @@ class ProjectShelf extends StatelessWidget {
   }
 }
 
+/// The shelf's density-driven spacing, the Dart face of the design's
+/// `--sec-pad` / `--list-pad` / `--row-pad` / `--row-gap` custom properties.
+///
+/// The design hard-codes the loose set and keeps the tighter one as the CSS
+/// fallback; here the Density preference chooses between them, which is what
+/// makes that setting mean something outside the rules list.
+@immutable
+class ShelfMetrics {
+  const ShelfMetrics({
+    required this.sectionPad,
+    required this.listPad,
+    required this.rowPad,
+    required this.rowGap,
+  });
+
+  final EdgeInsets sectionPad;
+  final EdgeInsets listPad;
+  final EdgeInsets rowPad;
+  final double rowGap;
+
+  static ShelfMetrics of(Density density) =>
+      density == Density.comfortable ? _loose : _tight;
+
+  static const ShelfMetrics _loose = ShelfMetrics(
+    sectionPad: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    listPad: EdgeInsets.all(10),
+    rowPad: EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+    rowGap: 5,
+  );
+
+  static const ShelfMetrics _tight = ShelfMetrics(
+    sectionPad: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    listPad: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+    rowPad: EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+    rowGap: 1,
+  );
+}
+
 /// The panel itself: a header carrying the sort controls and the new-project
 /// action, then one row per project.
 class ProjectShelfPanel extends StatelessWidget {
@@ -64,6 +102,10 @@ class ProjectShelfPanel extends StatelessWidget {
     final s = scope.state;
     final t = scope.tokens;
     final projects = s.projectsSorted;
+    final m = ShelfMetrics.of(s.density);
+    // Only `manual` can be dragged: the other two sorts derive the order from a
+    // field, so a drop would snap straight back.
+    final reorderable = s.projectSort == ProjectSort.manual;
 
     return Material(
       color: t.surfaceContainerLow,
@@ -73,23 +115,36 @@ class ProjectShelfPanel extends StatelessWidget {
         ),
         child: Column(
           children: [
-            _header(s, t),
+            _header(s, t, m),
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                children: [
-                  for (final p in projects) ...[
-                    _projectRow(s, t, p),
-                    Container(
-                      height: 1,
-                      margin: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 4,
+              child: ReorderableListView.builder(
+                padding: m.listPad,
+                buildDefaultDragHandles: false,
+                onReorderItem: s.reorderProject,
+                proxyDecorator: (child, index, animation) => Material(
+                  color: t.surfaceContainerHigh,
+                  borderRadius: BorderRadius.circular(10),
+                  child: child,
+                ),
+                itemCount: projects.length,
+                itemBuilder: (context, i) {
+                  final p = projects[i];
+                  return Column(
+                    key: ValueKey(p.id),
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _projectRow(s, t, p, m, i, reorderable),
+                      Container(
+                        height: 1,
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
+                        color: t.outlineVariant,
                       ),
-                      color: t.outlineVariant,
-                    ),
-                  ],
-                ],
+                    ],
+                  );
+                },
               ),
             ),
           ],
@@ -98,9 +153,9 @@ class ProjectShelfPanel extends StatelessWidget {
     );
   }
 
-  Widget _header(AppState s, HimarkTokens t) {
+  Widget _header(AppState s, HimarkTokens t, ShelfMetrics m) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: m.sectionPad,
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: t.outlineVariant)),
       ),
@@ -110,7 +165,7 @@ class ProjectShelfPanel extends StatelessWidget {
           CircleIconButton(
             icon: _sortTargetIcon(s.projectSort),
             iconSize: 14,
-            size: 28,
+            size: 44,
             tooltip: _sortTargetTooltip(s.projectSort),
             color: t.onSurfaceVariant,
             onTap: s.cycleSortTarget,
@@ -120,7 +175,7 @@ class ProjectShelfPanel extends StatelessWidget {
                 ? Icons.arrow_upward
                 : Icons.arrow_downward,
             iconSize: 14,
-            size: 28,
+            size: 44,
             tooltip: s.sortDir == SortDir.asc ? 'Ascending' : 'Descending',
             color: t.onSurfaceVariant,
             onTap: s.toggleSortDir,
@@ -134,7 +189,7 @@ class ProjectShelfPanel extends StatelessWidget {
           CircleIconButton(
             icon: Icons.add,
             iconSize: 13,
-            size: 28,
+            size: 44,
             tooltip: 'New project',
             color: t.onSurfaceVariant,
             onTap: s.addNewProject,
@@ -168,11 +223,19 @@ class ProjectShelfPanel extends StatelessWidget {
     }
   }
 
-  Widget _projectRow(AppState s, HimarkTokens t, Project p) {
+  Widget _projectRow(
+    AppState s,
+    HimarkTokens t,
+    Project p,
+    ShelfMetrics m,
+    int index,
+    bool reorderable,
+  ) {
     final isCurrent = s.currentProject == p.id;
+    final outer = EdgeInsets.fromLTRB(4, 1, 4, 1 + m.rowGap);
     if (s.isEditing(MenuScope.project, p.id)) {
       return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+        padding: outer,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
@@ -192,9 +255,28 @@ class ProjectShelfPanel extends StatelessWidget {
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+      padding: outer,
       child: Row(
         children: [
+          if (reorderable)
+            ReorderableDragStartListener(
+              index: index,
+              child: Tooltip(
+                message: 'Drag to reorder',
+                child: Opacity(
+                  opacity: 0.55,
+                  child: SizedBox(
+                    width: 18,
+                    height: 34,
+                    child: Icon(
+                      Icons.drag_indicator,
+                      size: 14,
+                      color: t.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           Expanded(
             child: Material(
               color: isCurrent ? t.primaryContainer : Colors.transparent,
@@ -203,10 +285,7 @@ class ProjectShelfPanel extends StatelessWidget {
               child: InkWell(
                 onTap: () => s.selectProject(p.id),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 7,
-                  ),
+                  padding: m.rowPad,
                   child: Row(
                     children: [
                       Expanded(
@@ -266,7 +345,7 @@ class ProjectShelfPanel extends StatelessWidget {
           CircleIconButton(
             icon: Icons.more_vert,
             iconSize: 15,
-            size: 30,
+            size: 44,
             tooltip: 'More',
             color: t.onSurfaceVariant,
             onTap: () => s.openMenu(MenuScope.project, p.id, p.name),

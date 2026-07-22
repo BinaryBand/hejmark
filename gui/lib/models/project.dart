@@ -1,24 +1,47 @@
+import '../theme/schemes.dart';
+
 /// One pattern rule: a human [label] and the real Himark [source] the engine
 /// parses and matches with. `source` is a single query expression fed verbatim
-/// to `hejmark emit-json` (see `HejmarkBridge`).
+/// to `hejmark emit-fragments` (see `HejmarkBridge`).
 class Rule {
-  Rule({required this.id, required this.label, required this.source});
+  Rule({
+    required this.id,
+    required this.label,
+    required this.source,
+    this.color,
+  });
 
   final String id;
   String label;
   String source;
 
+  /// The swatch this rule is pinned to, or null to take the colour its position
+  /// in the project gives it. Null is the norm — a pin only exists where the
+  /// user overrode the cycle from the row menu.
+  HighlightSwatch? color;
+
   Map<String, Object?> toJson() => <String, Object?>{
     'id': id,
     'label': label,
     'source': source,
+    if (color != null) 'color': color!.name,
   };
 
   static Rule fromJson(Map<String, Object?> json) => Rule(
     id: json['id']! as String,
     label: json['label'] as String? ?? '',
     source: json['source'] as String? ?? '',
+    color: _swatch(json['color']),
   );
+
+  /// A stored swatch name this build does not know reads as no pin, the same
+  /// way an unknown enum elsewhere falls back rather than throwing.
+  static HighlightSwatch? _swatch(Object? name) {
+    for (final value in HighlightSwatch.values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
 }
 
 /// A single test string ("tab" in the brief).
@@ -95,7 +118,10 @@ class Project {
     id: newId,
     name: newName,
     rules: rules
-        .map((r) => Rule(id: r.id, label: r.label, source: r.source))
+        .map(
+          (r) =>
+              Rule(id: r.id, label: r.label, source: r.source, color: r.color),
+        )
         .toList(),
     enabled: Map<String, bool>.from(enabled),
     tabs: tabs.map((t) => t.copyWith()).toList(),

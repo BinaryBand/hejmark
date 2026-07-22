@@ -15,9 +15,12 @@ class CodeSpan {
 /// This is a display-only lexer — it never has to be exact, only readable — so
 /// it classifies char by char: structure (`{ } [ ]` and `,`) takes [brace];
 /// `@name` splices, `\x` escapes, `^n` exponents, digit/range values, and the
-/// `! & _` operators each take their own [Syntax] colour; anything else (a
-/// literal face character) reads as an identifier.
-List<CodeSpan> spansFor(String source, Color brace) {
+/// `! & _` operators each take their own [SyntaxColors] colour; anything else
+/// (a literal face character) reads as an identifier.
+///
+/// [syntax] rides the active theme rather than being fixed, so the same rule
+/// stays legible on `airy`'s near-white surface and `ocean`'s near-black one.
+List<CodeSpan> spansFor(String source, Color brace, SyntaxColors syntax) {
   final spans = <CodeSpan>[];
   void emit(String text, Color color) {
     if (text.isEmpty) return;
@@ -37,34 +40,34 @@ List<CodeSpan> spansFor(String source, Color brace) {
       emit(ch, brace);
       i++;
     } else if (ch == r'\' && i + 1 < source.length) {
-      emit(source.substring(i, i + 2), Syntax.escape);
+      emit(source.substring(i, i + 2), syntax.escape);
       i += 2;
     } else if (ch == '@') {
       var j = i + 1;
       while (j < source.length && _isLetter(source[j])) {
         j++;
       }
-      emit(source.substring(i, j), Syntax.identifier);
+      emit(source.substring(i, j), syntax.identifier);
       i = j;
     } else if (ch == '^') {
       var j = i + 1;
       while (j < source.length && _isDigit(source[j])) {
         j++;
       }
-      emit(source.substring(i, j), Syntax.quantifier);
+      emit(source.substring(i, j), syntax.quantifier);
       i = j;
     } else if (_isDigit(ch) || ch == '.') {
       var j = i;
       while (j < source.length && (_isDigit(source[j]) || source[j] == '.')) {
         j++;
       }
-      emit(source.substring(i, j), Syntax.value);
+      emit(source.substring(i, j), syntax.value);
       i = j;
     } else if (ch == '!' || ch == '&' || ch == '_') {
-      emit(ch, Syntax.special);
+      emit(ch, syntax.special);
       i++;
     } else {
-      emit(ch, Syntax.identifier);
+      emit(ch, syntax.identifier);
       i++;
     }
   }

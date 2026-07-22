@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import '../models/bridge.dart';
 import '../models/matcher.dart';
 import '../models/project.dart';
+import '../theme/schemes.dart';
 import 'persistence.dart';
 
 enum NavTab { rules, test, settings }
@@ -31,7 +32,10 @@ enum Density { compact, comfortable }
 enum SaveStatus { saved, saving }
 
 /// Which entity an inline-rename / context-menu targets.
-enum MenuScope { tab, project }
+///
+/// [rule] takes no rename — a rule's identity is its source, so its menu offers
+/// *Edit pattern* where the other two offer *Rename*.
+enum MenuScope { tab, project, rule }
 
 /// A single IPv4 octet: 1–3 decimal digits, longest alternative first so
 /// maximal munch takes the whole octet.
@@ -112,7 +116,11 @@ class AppState extends ChangeNotifier {
 
   // --- appearance / editor settings ---
   ThemeChoice theme = ThemeChoice.dark;
-  Density density = Density.compact;
+
+  /// Which surface palette the whole app wears. The design defaults to `airy`
+  /// and that default is carried here rather than reinterpreted.
+  AppScheme scheme = AppScheme.airy;
+  Density density = Density.comfortable;
   int editorFontSize = 13;
   int tabSize = 2;
   bool showWhitespace = false;
@@ -149,6 +157,13 @@ class AppState extends ChangeNotifier {
   MenuState? menu;
   ConfirmState? confirm;
   SnackState? snack;
+
+  /// The rule whose highlight colour is being picked, if the swatch sheet is
+  /// open.
+  String? colorPick;
+
+  /// Whether the Himark cheat sheet is open over everything else.
+  bool cheatOpen = false;
 
   // --- engine results (live matches from the Python+Rust bridge) ---
   List<MatchRange> matches = <MatchRange>[];
@@ -287,6 +302,7 @@ class AppState extends ChangeNotifier {
     'version': 1,
     'uid': _uid,
     'theme': theme.name,
+    'scheme': scheme.name,
     'density': density.name,
     'editorFontSize': editorFontSize,
     'tabSize': tabSize,
@@ -330,6 +346,7 @@ class AppState extends ChangeNotifier {
     }
     _uid = (json['uid'] as int?) ?? _uid;
     theme = _named(ThemeChoice.values, json['theme'], theme);
+    scheme = _named(AppScheme.values, json['scheme'], scheme);
     density = _named(Density.values, json['density'], density);
     editorFontSize = ((json['editorFontSize'] as int?) ?? editorFontSize).clamp(
       12,
@@ -701,6 +718,27 @@ class AppState extends ChangeNotifier {
     );
   }
 
+  /// Move a project within [order], using [ReorderableListView.onReorderItem]
+  /// semantics ([newIndex] already adjusted for the removal).
+  ///
+  /// Only legal under [ProjectSort.manual]: the other two sorts derive the
+  /// shelf's order from a field, so a drag under them would snap straight back.
+  /// The shelf hides the handle there rather than relying on this guard, but
+  /// the guard is what makes the method safe to call from anywhere.
+  ///
+  /// The indices are into what the shelf *shows*, which under [SortDir.desc] is
+  /// [order] reversed — so the move is made on the shown list and unreversed on
+  /// the way back, not applied to [order] directly.
+  void reorderProject(int oldIndex, int newIndex) {
+    if (projectSort != ProjectSort.manual) return;
+    final shown = projectsSorted.map((p) => p.id).toList();
+    if (oldIndex < 0 || oldIndex >= shown.length) return;
+    final moved = shown.removeAt(oldIndex);
+    shown.insert(newIndex.clamp(0, shown.length), moved);
+    order = sortDir == SortDir.desc ? shown.reversed.toList() : shown;
+    _patchProjects();
+  }
+
   // ---------------------------------------------------------------------------
   // Inline rename
   // ---------------------------------------------------------------------------
@@ -767,7 +805,75 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Copy a rule in place, below the one it came from, enabled to match.
+  ///
+  /// The copy keeps the original's pinned colour if it has one; without a pin
+  /// it takes the colour its new position gives it, which is the whole point of
+  /// position-cycled slots.
+  void duplicateRule(String ruleId) {
+    final nid = _newId('r');
+    touch((c) {
+      final idx = c.rules.indexWhere((r) => r.id == ruleId);
+      if (idx == -1) return;
+      final src = c.rules[idx];
+      c.rules.insert(
+        idx + 1,
+        Rule(id: nid, label: src.label, source: src.source, color: src.color),
+      );
+      c.enabled[nid] = c.enabled[ruleId] ?? true;
+    });
+    menu = null;
+    notifyListeners();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Highlight colour
+  // ---------------------------------------------------------------------------
+
+  /// Open the swatch sheet over [ruleId].
+  void openColorPick(String ruleId) {
+    menu = null;
+    colorPick = ruleId;
+    notifyListeners();
+  }
+
+  void closeColorPick() {
+    colorPick = null;
+    notifyListeners();
+  }
+
+  /// Pin [ruleId] to [swatch], or hand it back to the position-cycled palette
+  /// when [swatch] is null (the sheet's AUTO).
+  void setRuleColor(String ruleId, HighlightSwatch? swatch) {
+    touch((c) {
+      for (final r in c.rules) {
+        if (r.id == ruleId) r.color = swatch;
+      }
+    });
+    colorPick = null;
+    notifyListeners();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Cheat sheet
+  // ---------------------------------------------------------------------------
+
+  void openCheat() {
+    menu = null;
+    cheatOpen = true;
+    notifyListeners();
+  }
+
+  void closeCheat() {
+    cheatOpen = false;
+    notifyListeners();
+  }
+
   void duplicate(MenuScope scope, String id) {
+    if (scope == MenuScope.rule) {
+      duplicateRule(id);
+      return;
+    }
     if (scope == MenuScope.tab) {
       touch((c) {
         final idx = c.tabs.indexWhere((x) => x.id == id);
@@ -800,6 +906,13 @@ class AppState extends ChangeNotifier {
 
   void requestDelete(MenuScope scope, String id) {
     menu = null;
+    if (scope == MenuScope.rule) {
+      // A rule's delete already offers Undo, so it needs no confirm dialog —
+      // the same reason its swipe does not ask either.
+      removeRule(id);
+      notifyListeners();
+      return;
+    }
     if (scope == MenuScope.tab) {
       final c = cur;
       if (c == null) return;
@@ -880,6 +993,11 @@ class AppState extends ChangeNotifier {
     _scheduleSave();
   }
 
+  void setScheme(AppScheme value) {
+    scheme = value;
+    _scheduleSave();
+  }
+
   void setDensity(Density value) {
     density = value;
     _scheduleSave();
@@ -906,13 +1024,15 @@ class AppState extends ChangeNotifier {
     confirm = ConfirmState(
       title: 'Restore default settings?',
       detail:
-          'Theme, density, font size, whitespace, and tab size will return to '
-          'their defaults. Your projects and test strings are not affected.',
+          'Theme, colour scheme, density, font size, whitespace, and tab size '
+          'will return to their defaults. Your projects and test strings are '
+          'not affected.',
       label: 'Restore',
       danger: false,
       onConfirm: () {
         theme = ThemeChoice.dark;
-        density = Density.compact;
+        scheme = AppScheme.airy;
+        density = Density.comfortable;
         editorFontSize = 13;
         tabSize = 2;
         showWhitespace = false;

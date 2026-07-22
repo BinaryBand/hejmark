@@ -6,7 +6,7 @@ import 'package:himark_editor/models/project.dart';
 import 'package:himark_editor/state/app_state.dart';
 import 'package:himark_editor/state/persistence.dart';
 import 'package:himark_editor/state/scope.dart';
-import 'package:himark_editor/theme/tokens.dart';
+import 'package:himark_editor/theme/schemes.dart';
 import 'package:himark_editor/widgets/rule_code.dart';
 import 'package:himark_editor/widgets/rules_panel.dart';
 
@@ -68,7 +68,11 @@ void main() {
     tester,
   ) async {
     await _bootToRules(tester);
-    await tester.tap(find.byIcon(Icons.edit_outlined).first);
+    // The row's own affordance is the overflow menu now; Edit pattern is its
+    // first item, standing where the other scopes put Rename.
+    await tester.tap(find.byIcon(Icons.more_vert).first);
+    await _settle(tester);
+    await tester.tap(find.text('Edit pattern'));
     await _settle(tester);
     expect(find.byType(RuleField), findsOneWidget);
 
@@ -80,6 +84,52 @@ void main() {
 
     // Tapping an open row must not toggle the rule out from under the cursor.
     expect(state.cur!.enabled['r1'], isTrue);
+  });
+
+  testWidgets('the row menu pins a highlight colour, and AUTO unpins it', (
+    tester,
+  ) async {
+    await _bootToRules(tester);
+    final state = HimarkScope.stateOf(tester.element(find.byType(RulesPanel)));
+    expect(state.cur!.rules.first.color, isNull);
+
+    await tester.tap(find.byIcon(Icons.more_vert).first);
+    await _settle(tester);
+    await tester.tap(find.text('Highlight colour'));
+    await _settle(tester);
+
+    // Six swatches plus AUTO, and nothing pinned yet.
+    expect(find.text('AUTO'), findsOneWidget);
+    await tester.tap(find.byTooltip('teal'));
+    await _settle(tester);
+    expect(state.cur!.rules.first.color, HighlightSwatch.teal);
+    expect(state.colorPick, isNull); // picking closes the sheet
+
+    // AUTO hands the rule back to its position in the palette.
+    await tester.tap(find.byIcon(Icons.more_vert).first);
+    await _settle(tester);
+    await tester.tap(find.text('Highlight colour'));
+    await _settle(tester);
+    await tester.tap(find.text('AUTO'));
+    await _settle(tester);
+    expect(state.cur!.rules.first.color, isNull);
+  });
+
+  test('a pinned colour and a scheme survive a save and restore', () async {
+    final store = MemoryStore();
+    final state = AppState(bridge: const FakeBridge(), store: store);
+    addTearDown(state.dispose);
+    await Future<void>.delayed(Duration.zero); // let the seed land
+
+    state.setRuleColor('r1', HighlightSwatch.purple);
+    state.setScheme(AppScheme.joplin);
+    await Future<void>.delayed(const Duration(milliseconds: 900)); // debounce
+
+    final next = AppState(bridge: const FakeBridge(), store: store);
+    addTearDown(next.dispose);
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    expect(next.cur!.rules.first.color, HighlightSwatch.purple);
+    expect(next.scheme, AppScheme.joplin);
   });
 
   test(
@@ -162,8 +212,22 @@ void main() {
   });
 
   test('the palette cycles rather than running off its end', () {
-    expect(darkTokens.ruleColorAt(0), same(darkTokens.ruleColors[0]));
-    expect(darkTokens.ruleColorAt(4), same(darkTokens.ruleColors[0]));
-    expect(lightTokens.ruleColorAt(5), same(lightTokens.ruleColors[1]));
+    final dark = tokensFor(AppScheme.airy, Brightness.dark);
+    final light = tokensFor(AppScheme.airy, Brightness.light);
+    expect(dark.ruleColorAt(0), same(dark.ruleColors[0]));
+    expect(dark.ruleColorAt(4), same(dark.ruleColors[0]));
+    expect(light.ruleColorAt(5), same(light.ruleColors[1]));
+  });
+
+  test('every scheme carries a full four-slot palette on both faces', () {
+    for (final scheme in AppScheme.values) {
+      for (final brightness in Brightness.values) {
+        expect(
+          tokensFor(scheme, brightness).ruleColors,
+          hasLength(4),
+          reason: '\$scheme/\$brightness',
+        );
+      }
+    }
   });
 }

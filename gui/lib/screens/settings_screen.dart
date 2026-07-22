@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../state/app_state.dart';
 import '../state/scope.dart';
+import '../theme/schemes.dart';
 import '../theme/tokens.dart';
 import '../widgets/common.dart';
 
@@ -69,6 +70,22 @@ class SettingsScreen extends StatelessWidget {
                     _divider(t),
                     _row(
                       t,
+                      title: 'Colour scheme',
+                      subtitle: 'Surface palette the whole app wears',
+                      trailing: Segmented<AppScheme>(
+                        tokens: t,
+                        value: s.scheme,
+                        onChanged: s.setScheme,
+                        options: const [
+                          (AppScheme.airy, 'Airy'),
+                          (AppScheme.ocean, 'Ocean'),
+                          (AppScheme.joplin, 'Joplin'),
+                        ],
+                      ),
+                    ),
+                    _divider(t),
+                    _row(
+                      t,
                       title: 'Density',
                       subtitle: 'Row height and tap target size',
                       trailing: Segmented<Density>(
@@ -124,23 +141,36 @@ class SettingsScreen extends StatelessWidget {
                     'Reference material and data management.',
                   ),
                   _card(t, [
+                    // The design replaced a link out to the spec with the
+                    // sheet: a phone has no checkout to link to, and the
+                    // reference is wanted beside a half-written rule anyway.
                     InkWell(
-                      onTap: () =>
-                          s.showSnack('Opens https://example.com/himark-spec'),
-                      child: Padding(
+                      onTap: s.openCheat,
+                      child: Container(
+                        constraints: const BoxConstraints(minHeight: 44),
                         padding: const EdgeInsets.all(16),
                         child: Row(
                           children: [
+                            Icon(
+                              Icons.menu_book_outlined,
+                              size: 17,
+                              color: t.primary,
+                            ),
+                            const SizedBox(width: 12),
                             Expanded(
                               child: Text(
-                                'View the Himark language spec',
+                                'View the syntax cheat sheet',
                                 style: TextStyle(
                                   fontSize: 13.5,
                                   color: t.primary,
                                 ),
                               ),
                             ),
-                            Icon(Icons.north_east, size: 14, color: t.primary),
+                            Icon(
+                              Icons.chevron_right,
+                              size: 16,
+                              color: t.onSurfaceVariant,
+                            ),
                           ],
                         ),
                       ),
@@ -356,7 +386,7 @@ class SettingsScreen extends StatelessWidget {
             style: OutlinedButton.styleFrom(
               foregroundColor: color,
               side: BorderSide(color: borderColor),
-              minimumSize: const Size(0, 40),
+              minimumSize: const Size(0, 44),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(18),
               ),

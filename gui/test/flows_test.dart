@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:himark_editor/app.dart';
+import 'package:himark_editor/state/scope.dart';
+import 'package:himark_editor/theme/schemes.dart';
 import 'package:himark_editor/widgets/common.dart';
 import 'package:himark_editor/widgets/rail.dart';
 import 'package:himark_editor/widgets/rule_code.dart';
@@ -96,8 +98,11 @@ void main() {
     // widths where real text sits on one, and a gap assertion would measure
     // the font rather than the layout.
     final wrap = tester.getRect(find.byType(Wrap).last);
-    final spec = tester.getRect(find.text('View the Himark language spec'));
-    final specEnd = tester.getRect(find.byIcon(Icons.north_east));
+    // Anchored on the row's leading icon, not its text: the cheat-sheet entry
+    // carries an icon before the label, so the text is legitimately inset from
+    // the card edge while the row itself is not.
+    final spec = tester.getRect(find.byIcon(Icons.menu_book_outlined));
+    final specEnd = tester.getRect(find.byIcon(Icons.chevron_right));
     expect(wrap.left, closeTo(spec.left, 0.5));
     expect(wrap.right, closeTo(specEnd.right, 0.5));
 
@@ -274,6 +279,45 @@ void main() {
     await _settle(tester);
     expect(find.text('RULES'), findsNothing);
     expect(find.text('4 matches'), findsOneWidget);
+  });
+
+  testWidgets('the app bar book opens the cheat sheet and closes it again', (
+    tester,
+  ) async {
+    await _boot(tester);
+
+    expect(find.text('Himark cheat sheet'), findsNothing);
+    await tester.tap(find.byIcon(Icons.menu_book_outlined));
+    await _settle(tester);
+
+    expect(find.text('Himark cheat sheet'), findsOneWidget);
+    // A section heading and a row spelling, so this pins the content and not
+    // just the frame.
+    expect(find.text('THE SIX CONSTRUCTORS (L1)'), findsOneWidget);
+    expect(find.text('{a,b,c}'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.close));
+    await _settle(tester);
+    expect(find.text('Himark cheat sheet'), findsNothing);
+  });
+
+  testWidgets('the colour scheme is a settings choice and repaints the app', (
+    tester,
+  ) async {
+    await _boot(tester);
+    await tester.tap(find.text('Settings'));
+    await _settle(tester);
+
+    expect(find.text('Colour scheme'), findsOneWidget);
+    // Airy is the shipped default, so switching lands somewhere else. The row
+    // sits below the phone's fold, so it has to be scrolled to first.
+    await tester.ensureVisible(find.text('Joplin'));
+    await _settle(tester);
+    await tester.tap(find.text('Joplin'));
+    await _settle(tester);
+
+    final state = HimarkScope.stateOf(tester.element(find.byType(TopBar)));
+    expect(state.scheme, AppScheme.joplin);
   });
 
   testWidgets('wide layout: Settings takes the column and drops the sidebar', (
