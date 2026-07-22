@@ -13,23 +13,42 @@ import 'package:himark_editor/models/project.dart';
 class FakeBridge implements Bridge {
   const FakeBridge();
 
-  static const String _octet = r'{{0..9}^3,{0..9}^2,{0..9}}';
-  static const String _ipv4 = '$_octet{\\.}$_octet{\\.}$_octet{\\.}$_octet';
+  /// The five `html-escape` statements `AppState` seeds, in order. A statement
+  /// finds by its *query*, so each answers the one character it escapes.
+  static const List<String> escapeRules = <String>[
+    r'{\&} => "&amp;"',
+    r'{\<} => "&lt;"',
+    r'{>} => "&gt;"',
+    r'{\"} => "&quot;"',
+    '''{'} => "&#39;"''',
+  ];
 
   /// Literal hits per rule source, keyed by the sources `AppState` seeds.
-  static const Map<String, List<String>> tokensBySource =
-      <String, List<String>>{
-        _ipv4: <String>['192.168.1.42', '10.0.0.1', '10.2.3.4', '10.0.0.2'],
-        r'{\#}{@hex}^6': <String>['#ff8800', '#1e90ff', '#00ffcc'],
-        r'{0..9}^4': <String>['4821', '2048'],
-      };
+  static const Map<String, List<String>>
+  tokensBySource = <String, List<String>>{
+    r'{\&} => "&amp;"': <String>['&'],
+    r'{\<} => "&lt;"': <String>['<'],
+    r'{>} => "&gt;"': <String>['>'],
+    r'{\"} => "&quot;"': <String>['"'],
+    '''{'} => "&#39;"''': <String>["'"],
+    // markdown-to-html's two inline statements, over its seeded note.
+    r'{*}{@emBody}{*} => "<b>{{$2}}</b>"': <String>['*pointed*'],
+    r'{`}{@codeBody}{`} => "<code>{{$2}}</code>"': <String>['`{a}&{b}`'],
+  };
 
   /// Literal rewrites per script source, keyed on the joined enabled-rule
   /// sources `AppState` sends. Anything unlisted comes back unchanged, which
   /// is what the real engine does for a script of bare queries — they refine
   /// and write nothing.
-  static const Map<String, String> documentsByScript = <String, String>{
-    // The flows' one rewriting script: swap every a for a b.
+  ///
+  /// The `html-escape` answer is **verbatim from the real engine** — the Rust
+  /// `run` binary over `hejmark emit-program`'s output for those five rules and
+  /// that test string — so the flows assert against what the app really shows.
+  static final Map<String, String> documentsByScript = <String, String>{
+    escapeRules.join('\n'):
+        'Tom &amp; Jerry&#39;s &lt;b&gt;show&lt;/b&gt;\n'
+        'if (a &lt; b &amp;&amp; c &gt; d) { say(&quot;hi&quot;); }',
+    // The flows' one hand-written script: swap every a for a b.
     '{a} => "b"': 'rewritten',
   };
 

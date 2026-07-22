@@ -7,8 +7,9 @@ import 'common.dart';
 /// The 56px app bar over the main column.
 ///
 /// It names the current project and its save state, and on the Test destination
-/// carries the three controls over the editor: the find/run verb, the
-/// edit/view toggle and the collapse-tabs chevron. The shelf button is a mobile
+/// carries the two controls over the editor: the edit/view toggle and the
+/// collapse-tabs chevron. There is no separate run button — view mode runs the
+/// rules and shows what they wrote. The shelf button is a mobile
 /// affordance only — on desktop the rail already owns that job, so [isDesktop]
 /// drops it.
 class TopBar extends StatelessWidget {
@@ -74,17 +75,6 @@ class TopBar extends StatelessWidget {
             const SizedBox(width: 4),
           ],
           if (nav == NavTab.test) ...[
-            CircleIconButton(
-              icon: Icons.play_arrow_outlined,
-              iconSize: 16,
-              tooltip: s.runMode ? 'Find matches' : 'Run as script',
-              background: s.runMode
-                  ? t.primaryContainer
-                  : t.surfaceContainerHigh,
-              color: s.runMode ? t.onPrimaryContainer : t.onSurfaceVariant,
-              onTap: s.toggleRunMode,
-            ),
-            const SizedBox(width: 4),
             CircleIconButton(
               icon: s.editMode ? Icons.edit : Icons.visibility_outlined,
               iconSize: 16,

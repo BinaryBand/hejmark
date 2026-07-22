@@ -2,9 +2,14 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:himark_editor/models/bridge.dart';
 import 'package:himark_editor/models/project.dart';
+import 'package:himark_editor/state/app_state.dart';
+import 'package:himark_editor/state/persistence.dart';
 
-// The seeded IPv4 spelling, rebuilt here so the test pins the real hand-off
-// rather than importing app state.
+import 'fake_bridge.dart';
+
+// An IPv4 spelling: bounded exponents and ranges, enough of the surface to pin
+// the real hand-off. Written here rather than taken from the seeds, which are
+// whole scripts.
 const String _octet = r'{{0..9}^3,{0..9}^2,{0..9}}';
 const String _ipv4 = '$_octet{\\.}$_octet{\\.}$_octet{\\.}$_octet';
 
@@ -25,10 +30,9 @@ void main() {
 
   test('IPv4 rule matches through the Python parser and Rust engine', () async {
     if (skipIfUnavailable()) return;
-    final run = await bridge.matchAll(
-      <Rule>[_rule(_ipv4)],
-      'Server 192.168.1.42 and backup 10.0.0.1 end',
-    );
+    final run = await bridge.matchAll(<Rule>[
+      _rule(_ipv4),
+    ], 'Server 192.168.1.42 and backup 10.0.0.1 end');
     expect(run.error, isNull);
     expect(
       run.matches.map((m) => m.text),
@@ -38,10 +42,9 @@ void main() {
 
   test('a hex-colour rule using the @hex std splice matches', () async {
     if (skipIfUnavailable()) return;
-    final run = await bridge.matchAll(
-      <Rule>[_rule(r'{\#}{@hex}^6')],
-      'bg #ff8800 and fg #1e90ff done',
-    );
+    final run = await bridge.matchAll(<Rule>[
+      _rule(r'{\#}{@hex}^6'),
+    ], 'bg #ff8800 and fg #1e90ff done');
     expect(run.error, isNull);
     expect(
       run.matches.map((m) => m.text),
@@ -51,10 +54,10 @@ void main() {
 
   test('multiple rules resolve to sorted, non-overlapping hits', () async {
     if (skipIfUnavailable()) return;
-    final run = await bridge.matchAll(
-      <Rule>[_rule(_ipv4), _rule(r'{0..9}^4')],
-      'host 10.0.0.1 ticket 4821',
-    );
+    final run = await bridge.matchAll(<Rule>[
+      _rule(_ipv4),
+      _rule(r'{0..9}^4'),
+    ], 'host 10.0.0.1 ticket 4821');
     expect(run.error, isNull);
     final starts = run.matches.map((m) => m.start).toList();
     final sorted = <int>[...starts]..sort();
@@ -134,6 +137,54 @@ void main() {
     expect(run.error, contains('back-reference'));
   });
 
+  test('the seeded html-escape rules rewrite their seeded test string', () async {
+    if (skipIfUnavailable()) return;
+    // The seeds are real scripts from `static/examples/`, and this is what pins
+    // them to the real engine: the fake bridge answers this exact document
+    // verbatim, so a seed edited without re-checking it here fails there.
+    final state = AppState(bridge: const FakeBridge(), store: MemoryStore());
+    addTearDown(state.dispose);
+    final project = state.byId['html-escape']!;
+    final sources = <String>[for (final rule in project.rules) rule.source];
+    expect(sources, FakeBridge.escapeRules);
+
+    final run = await bridge.runScript(
+      sources.join('\n'),
+      project.tabs.first.content,
+    );
+    expect(run.error, isNull);
+    expect(run.document, FakeBridge.documentsByScript[sources.join('\n')]);
+  });
+
+  test(
+    'every seeded project runs on the real engine',
+    () async {
+      if (skipIfUnavailable()) return;
+      // The other half of the seed contract: whatever the app opens on must
+      // actually execute. `demos/bubble-sort.hmk` is the reason this test exists —
+      // it compiles and is then refused by the engine for its back-reference, so
+      // "it is a real example" is not by itself enough to seed something.
+      final state = AppState(bridge: const FakeBridge(), store: MemoryStore());
+      addTearDown(state.dispose);
+
+      final expected = <String, String>{
+        'html-escape': '&amp;',
+        'markdown-to-html': '<h1>Himark</h1>',
+        'slugify': 'creme-brulee-recipe-12-',
+      };
+      for (final entry in expected.entries) {
+        final project = state.byId[entry.key]!;
+        final run = await bridge.runScript(
+          <String>[for (final rule in project.rules) rule.source].join('\n'),
+          project.tabs.first.content,
+        );
+        expect(run.error, isNull, reason: '${entry.key} failed to run');
+        expect(run.document, contains(entry.value), reason: entry.key);
+      }
+    },
+    timeout: const Timeout(Duration(minutes: 2)),
+  );
+
   test('a script of bare queries leaves the document unchanged', () async {
     if (skipIfUnavailable()) return;
     // A one-step statement refines and writes nothing, so find-shaped rules
@@ -153,9 +204,7 @@ void main() {
       _rule(r'{0..9}^2[where 30..59]'),
     ], 'bg #ff8800 age 42 end');
     expect(run.error, isNull);
-    final bySlot = <int, String>{
-      for (final m in run.matches) m.slot: m.text,
-    };
+    final bySlot = <int, String>{for (final m in run.matches) m.slot: m.text};
     expect(bySlot[0], '#ff8800');
     expect(bySlot[1], '42');
   });

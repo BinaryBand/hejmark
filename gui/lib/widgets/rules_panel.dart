@@ -13,13 +13,13 @@ import 'rule_code.dart';
 /// A row is its own Himark source and nothing else — the brief drops the prose
 /// label, so the code *is* the identity. Reading a row: the dot at its top-right
 /// is filled in the rule's colour when the rule is on and a hollow ring when it
-/// is off, and that colour is the one its hits wear in the Test view. Tap the
-/// row to toggle it, drag the handle to reorder, swipe it left to delete, and
-/// press the pencil to rewrite its source in place.
+/// is off, and that colour is the one its hits wear in the Test view.
 ///
-/// Editing is a *separate* affordance from the tap, not a replacement for it:
-/// the code block is the row's whole body, so making it the text field's tap
-/// target would leave no way to toggle a rule off.
+/// Tap the row to edit its source in place, swipe it right to switch it on or
+/// off, swipe it left to delete it, and drag the handle to reorder. Editing is
+/// the tap because it is the frequent act; toggling has the whole row's width of
+/// gesture to itself, and both stay in the overflow menu for anyone who would
+/// rather not swipe.
 class RulesPanel extends StatelessWidget {
   const RulesPanel({super.key});
 
@@ -105,11 +105,23 @@ class RulesPanel extends StatelessWidget {
             else
               Dismissible(
                 key: ValueKey('dismiss-${rule.id}'),
-                direction: DismissDirection.endToStart,
+                direction: DismissDirection.horizontal,
                 dismissThresholds: const <DismissDirection, double>{
+                  DismissDirection.startToEnd: 0.3,
                   DismissDirection.endToStart: 0.3,
                 },
-                background: _deleteReveal(t),
+                background: _toggleReveal(t, enabled),
+                secondaryBackground: _deleteReveal(t),
+                // Only the leftward swipe really dismisses. A rightward one
+                // toggles and answers false, so the row springs back to a list
+                // it never left — the toggle is a gesture, not a removal.
+                confirmDismiss: (direction) async {
+                  if (direction == DismissDirection.startToEnd) {
+                    s.toggleRule(rule.id);
+                    return false;
+                  }
+                  return true;
+                },
                 onDismissed: (_) => s.removeRule(rule.id),
                 child: _row(s, t, rule, enabled, i, rowPad, dot),
               ),
@@ -124,7 +136,32 @@ class RulesPanel extends StatelessWidget {
     );
   }
 
-  /// What sits under a row while it is swiped aside.
+  /// What sits under a row while it is swiped rightward: the switch it is about
+  /// to throw, named by the state the rule is *in* now.
+  Widget _toggleReveal(HimarkTokens t, bool enabled) {
+    return Container(
+      color: t.primaryContainer,
+      alignment: Alignment.centerLeft,
+      padding: const EdgeInsets.symmetric(horizontal: 22),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.power_settings_new, size: 18, color: t.onPrimaryContainer),
+          const SizedBox(width: 8),
+          Text(
+            enabled ? 'Disable' : 'Enable',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: t.onPrimaryContainer,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// What sits under a row while it is swiped leftward.
   Widget _deleteReveal(HimarkTokens t) {
     return Container(
       color: t.errorContainer,
@@ -230,11 +267,11 @@ class RulesPanel extends StatelessWidget {
 
     return Material(
       color: t.surfaceContainerLow,
-      // While the editor is open the row must not swallow taps into a toggle —
-      // reaching past the field to place a cursor would flip the rule instead.
+      // An open editor is already the tap's destination, so the row must not sit
+      // a second gesture over the field it opened.
       child: editing
           ? body
-          : InkWell(onTap: () => s.toggleRule(rule.id), child: body),
+          : InkWell(onTap: () => s.startRuleEdit(rule.id), child: body),
     );
   }
 
@@ -265,10 +302,7 @@ class RulesPanel extends StatelessWidget {
         child: Container(
           width: 10,
           height: 10,
-          decoration: BoxDecoration(
-            color: dot,
-            shape: BoxShape.circle,
-          ),
+          decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
         ),
       ),
     );

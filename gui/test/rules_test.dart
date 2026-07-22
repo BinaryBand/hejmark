@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:himark_editor/app.dart';
+import 'package:himark_editor/models/diff.dart';
 import 'package:himark_editor/models/project.dart';
 import 'package:himark_editor/state/app_state.dart';
 import 'package:himark_editor/state/persistence.dart';
@@ -34,16 +35,16 @@ void main() {
     tester,
   ) async {
     await _bootToRules(tester);
-    expect(find.byType(RuleCode), findsNWidgets(3));
+    expect(find.byType(RuleCode), findsNWidgets(5));
 
     await tester.drag(find.byType(RuleCode).first, const Offset(-400, 0));
     await tester.pumpAndSettle();
-    expect(find.byType(RuleCode), findsNWidgets(2));
+    expect(find.byType(RuleCode), findsNWidgets(4));
     expect(find.text('Rule removed'), findsOneWidget);
 
     await tester.tap(find.text('Undo'));
     await _settle(tester);
-    expect(find.byType(RuleCode), findsNWidgets(3));
+    expect(find.byType(RuleCode), findsNWidgets(5));
   });
 
   testWidgets('adding a rule appends one row, open in its editor', (
@@ -53,23 +54,24 @@ void main() {
     await tester.tap(find.byIcon(Icons.add));
     await _settle(tester);
 
-    // Four rules, but the new one wears the field rather than the highlighted
+    // Six rules, but the new one wears the field rather than the highlighted
     // block — a rule you cannot read yet is one you meant to write.
     expect(find.byType(RuleField), findsOneWidget);
-    expect(find.byType(RuleCode), findsNWidgets(3));
+    expect(find.byType(RuleCode), findsNWidgets(5));
 
     await tester.tap(find.byIcon(Icons.check));
     await _settle(tester);
     expect(find.byType(RuleField), findsNothing);
-    expect(find.byType(RuleCode), findsNWidgets(4));
+    expect(find.byType(RuleCode), findsNWidgets(6));
   });
 
-  testWidgets('the pencil opens a rule and typing rewrites its source', (
+  testWidgets('the menu opens a rule and typing rewrites its source', (
     tester,
   ) async {
     await _bootToRules(tester);
-    // The row's own affordance is the overflow menu now; Edit pattern is its
-    // first item, standing where the other scopes put Rename.
+    // The row tap opens the same editor; this pins the menu's route to it,
+    // which is what a user who would rather not swipe or tap the code reaches
+    // for. Edit pattern is its first item, where the other scopes put Rename.
     await tester.tap(find.byIcon(Icons.more_vert).first);
     await _settle(tester);
     await tester.tap(find.text('Edit pattern'));
@@ -139,19 +141,19 @@ void main() {
       addTearDown(state.dispose);
       await Future<void>.delayed(Duration.zero); // let the eager first run land
 
-      // Seeded order is IPv4 (slot 0), hex colour (slot 1), 4-digit (slot 2, off).
-      expect(state.matches.map((m) => m.slot).toSet(), <int>{0, 1});
+      // Seeded html-escape: five statements, one hit each, in list order.
+      expect(state.matches.map((m) => m.slot).toSet(), <int>{0, 1, 2, 3, 4});
 
-      // Switching the first rule off must not slide the hex rule into slot 0 —
-      // its hits would silently change colour.
+      // Switching the first rule off must not slide the rest up a slot — their
+      // hits would silently change colour.
       state.toggleRule('r1');
       await Future<void>.delayed(const Duration(milliseconds: 400));
       expect(state.matches, isNotEmpty);
-      expect(state.matches.map((m) => m.slot).toSet(), <int>{1});
+      expect(state.matches.map((m) => m.slot).toSet(), <int>{1, 2, 3, 4});
     },
   );
 
-  test('run mode executes the enabled rules as one script', () async {
+  test('view mode executes the enabled rules as one script', () async {
     final state = AppState(bridge: const FakeBridge());
     addTearDown(state.dispose);
     await Future<void>.delayed(Duration.zero); // let the eager first run land
@@ -163,12 +165,39 @@ void main() {
     c.rules.add(Rule(id: 'rs', label: 'swap', source: '{a} => "b"'));
     c.enabled['rs'] = true;
 
-    state.toggleRunMode();
-    expect(state.editMode, isFalse); // running is for seeing the document
+    state.toggleEditMode();
+    expect(state.editMode, isFalse);
     await Future<void>.delayed(const Duration(milliseconds: 400));
     expect(state.runDocument, 'rewritten');
-    expect(state.matchSummary, startsWith('Ran — document rewritten'));
+    // Both verbs report, run first: the pane is showing the run's answer.
+    expect(state.matchSummary, startsWith('rewritten '));
+    expect(state.matchSummary, endsWith('matches'));
   });
+
+  test(
+    'view mode paints what the script wrote, over the run\'s output',
+    () async {
+      final state = AppState(bridge: const FakeBridge());
+      addTearDown(state.dispose);
+      await Future<void>.delayed(Duration.zero);
+
+      state.toggleEditMode();
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+
+      // The seeded html-escape rewrites its test string, so the diff has spans —
+      // over the *rewritten* document, which is what the read view shows.
+      final document = state.runDocument!;
+      expect(document, contains('&amp;'));
+      expect(state.rewrites, isNotEmpty);
+      for (final span in state.rewrites) {
+        expect(span.slot, kRewriteSlot);
+        expect(document.substring(span.start, span.end), span.text);
+      }
+      // Every entity the script wrote is inside some rewrite span.
+      final written = state.rewrites.map((s) => s.text).join();
+      expect(written, contains('amp;'));
+    },
+  );
 
   test(
     'a session is written to the store and read back by the next one',
@@ -178,7 +207,7 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       first.setRuleSource('r1', r'{x}^2');
-      first.toggleRule('r3');
+      first.toggleRule('r3'); // seeded on, so this writes it off
       first.setFontSize(17);
       first.setTheme(ThemeChoice.light);
       await Future<void>.delayed(const Duration(milliseconds: 900)); // debounce
@@ -191,7 +220,7 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 50));
 
       expect(second.cur!.rules.first.source, r'{x}^2');
-      expect(second.cur!.enabled['r3'], isTrue);
+      expect(second.cur!.enabled['r3'], isFalse);
       expect(second.editorFontSize, 17);
       expect(second.theme, ThemeChoice.light);
       // Ids keep going up across the restart, so a new rule cannot collide with
@@ -200,15 +229,15 @@ void main() {
     },
   );
 
-  test('an unreadable store leaves the demo seed standing', () async {
+  test('an unreadable store leaves the example seed standing', () async {
     final state = AppState(
       bridge: const FakeBridge(),
       store: MemoryStore('not json at all'),
     );
     addTearDown(state.dispose);
     await Future<void>.delayed(const Duration(milliseconds: 50));
-    expect(state.cur!.name, 'demo-set');
-    expect(state.cur!.rules.length, 3);
+    expect(state.cur!.name, 'html-escape');
+    expect(state.cur!.rules.length, 5);
   });
 
   test('the palette cycles rather than running off its end', () {

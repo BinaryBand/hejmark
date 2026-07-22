@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import '../models/bridge.dart';
+import '../models/diff.dart';
 import '../models/matcher.dart';
 import '../models/project.dart';
 import '../theme/schemes.dart';
@@ -36,18 +37,6 @@ enum SaveStatus { saved, saving }
 /// [rule] takes no rename — a rule's identity is its source, so its menu offers
 /// *Edit pattern* where the other two offer *Rename*.
 enum MenuScope { tab, project, rule }
-
-/// A single IPv4 octet: 1–3 decimal digits, longest alternative first so
-/// maximal munch takes the whole octet.
-const String _octet = r'{{0..9}^3,{0..9}^2,{0..9}}';
-
-// Real, engine-checked Himark spellings for the seeded rules. Each is one query
-// expression the Rust matcher terminates on — bounded exponents, ranges and the
-// `@hex` splice. (An unbounded `{X,&X}` closure would hang the port's maximal
-// munch, so the seeds stay bounded and the bridge time-budgets the rest.)
-const String _ipv4Source = '$_octet{\\.}$_octet{\\.}$_octet{\\.}$_octet';
-const String _hexColorSource = r'{\#}{@hex}^6';
-const String _numberSource = r'{0..9}^4';
 
 class EditingState {
   EditingState(this.scope, this.id, this.value);
@@ -126,16 +115,15 @@ class AppState extends ChangeNotifier {
   bool showWhitespace = false;
 
   // --- test screen ui ---
+  /// The Test screen's one mode switch, and with it the verb. Edit mode types
+  /// into the test string and finds over it; view mode runs the enabled rules,
+  /// in order, as one script and then finds over the document that came back —
+  /// so the highlights address the text actually on screen. A rule that is a
+  /// bare query is a one-step statement that refines and writes nothing, so a
+  /// find-only project views as an unchanged document rather than an error.
   bool editMode = true;
   bool sheetExpanded = false;
   bool tabBarVisible = true;
-
-  /// The Test screen's verb. Find highlights where the enabled rules hit; Run
-  /// executes them, in order, as one script and shows the rewritten document.
-  /// A rule that is a bare query is a one-step statement that refines and
-  /// writes nothing, so a find-only project runs as an unchanged document
-  /// rather than an error.
-  bool runMode = false;
 
   // --- shell ---
   bool shelfOpen = false;
@@ -170,9 +158,21 @@ class AppState extends ChangeNotifier {
   EngineState engine = EngineState.idle;
   String? engineError;
 
-  /// The rewritten document the last run produced, shown by the read view in
-  /// run mode. Null until a run has answered for the active tab.
+  /// The rewritten document the last run produced, shown by the read view. Null
+  /// until a run has answered for the active tab.
   String? runDocument;
+
+  /// The run's own state, kept apart from [engine] on purpose: view mode asks
+  /// both verbs, and an unbounded rule that costs find its budget must not take
+  /// the rewritten document down with it. Either half can fail alone and the
+  /// other half still reports.
+  EngineState runState = EngineState.idle;
+  String? runError;
+
+  /// Where [runDocument] differs from the text that went in, as spans over the
+  /// rewritten document. Empty in edit mode, and whenever the script left the
+  /// document alone.
+  List<MatchRange> rewrites = <MatchRange>[];
 
   int _uid = 1;
 
@@ -392,58 +392,78 @@ class AppState extends ChangeNotifier {
   // ---------------------------------------------------------------------------
 
   /// One-line status for the output sheet header.
+  ///
+  /// In view mode it reports both verbs, because both ran: the run's answer
+  /// first (it is what the pane is showing) and the find's after it. Either can
+  /// be a failure without silencing the other, which is the whole reason the two
+  /// states are separate — an unbounded rule costs the highlights, not the
+  /// document.
   String get matchSummary {
-    if (runMode) {
-      if (engine == EngineState.running) return 'Running…';
-      if (engine == EngineState.error) return engineError ?? 'Engine error';
-      final document = runDocument;
-      if (document == null) return 'Not run yet';
-      if (document == (cur?.active?.content ?? '')) {
-        return 'Ran — document unchanged';
-      }
-      return 'Ran — document rewritten '
-          '(${(cur?.active?.content ?? '').runes.length} → '
-          '${document.runes.length} characters)';
-    }
+    if (editMode) return _findSummary;
+    if (runState == EngineState.running) return 'Running…';
+    return '$_runSummary · $_findSummary';
+  }
+
+  String get _findSummary {
     if (engine == EngineState.running) return 'Matching…';
-    if (engine == EngineState.error) return engineError ?? 'Engine error';
+    if (engine == EngineState.error) {
+      final why = engineError ?? 'engine error';
+      return editMode ? why : 'highlighting unavailable: $why';
+    }
     final n = matches.length;
     return n == 1 ? '1 match' : '$n matches';
   }
 
-  /// Debounce a fresh engine pass behind the user's typing/toggling, so we
-  /// spawn the compiler and engine once the edits pause rather than per
-  /// keystroke. Which verb runs is [runMode]'s call.
-  void _scheduleMatch() {
-    _matchTimer?.cancel();
-    _matchTimer = Timer(
-      const Duration(milliseconds: 220),
-      () => runMode ? _runScript() : _runMatch(),
-    );
+  String get _runSummary {
+    if (runState == EngineState.error) {
+      return 'run failed: ${runError ?? 'engine error'}';
+    }
+    final document = runDocument;
+    if (document == null) return 'not run yet';
+    final before = cur?.active?.content ?? '';
+    if (document == before) return 'document unchanged';
+    return 'rewritten ${before.runes.length} → '
+        '${document.runes.length} characters';
   }
 
-  /// Flip the Test screen between finding and running. Turning run mode on
-  /// also leaves edit mode: the point of running is to see the document.
-  void toggleRunMode() {
-    runMode = !runMode;
-    if (runMode) editMode = false;
-    engine = EngineState.idle;
-    engineError = null;
-    _scheduleMatch();
-    notifyListeners();
+  /// Debounce a fresh engine pass behind the user's typing/toggling, so we spawn
+  /// the compiler and engine once the edits pause rather than per keystroke.
+  void _scheduleMatch() {
+    _matchTimer?.cancel();
+    _matchTimer = Timer(const Duration(milliseconds: 220), _refresh);
+  }
+
+  /// One pass of whichever verbs the current mode asks for.
+  ///
+  /// View mode runs the script *before* it finds, and hands find the document
+  /// that came back: the spans have to address the text on screen, not the text
+  /// that produced it. Both halves share the one request id taken here, so an
+  /// edit landing between them drops the pair rather than half of it.
+  Future<void> _refresh() async {
+    final req = ++_matchReq;
+    if (editMode) {
+      rewrites = const <MatchRange>[];
+      runState = EngineState.idle;
+      runError = null;
+      await _runMatch(req, cur?.active?.content ?? '');
+      return;
+    }
+    await _runScript(req);
+    if (req != _matchReq) return;
+    await _runMatch(req, runDocument ?? cur?.active?.content ?? '');
   }
 
   /// Run the enabled rules, in order, as one script over the active test
-  /// string, and publish the rewritten document. The same debounce and
-  /// request-id discipline as [_runMatch].
-  Future<void> _runScript() async {
+  /// string, and publish the rewritten document and the spans the script wrote.
+  /// The request id is [_refresh]'s, so the find pass behind it shares one.
+  Future<void> _runScript(int req) async {
     final c = cur;
     final active = c?.active;
-    final req = ++_matchReq;
     if (c == null || active == null) {
       runDocument = null;
-      engine = EngineState.idle;
-      engineError = null;
+      rewrites = const <MatchRange>[];
+      runState = EngineState.idle;
+      runError = null;
       notifyListeners();
       return;
     }
@@ -456,13 +476,14 @@ class AppState extends ChangeNotifier {
       // An empty script leaves any document alone, and no engine runs over an
       // empty one — answer without crossing.
       runDocument = content;
-      engine = EngineState.ready;
-      engineError = null;
+      rewrites = const <MatchRange>[];
+      runState = EngineState.ready;
+      runError = null;
       notifyListeners();
       return;
     }
 
-    engine = EngineState.running;
+    runState = EngineState.running;
     notifyListeners();
 
     DocumentRun run;
@@ -474,17 +495,21 @@ class AppState extends ChangeNotifier {
     if (req != _matchReq) return; // a newer pass started while we waited
 
     runDocument = run.document;
-    engineError = run.error;
-    engine = run.error != null ? EngineState.error : EngineState.ready;
+    // A failed run has no document to diff against, and an unchanged one has
+    // nothing to paint — `rewriteSpans` answers empty for both.
+    rewrites = rewriteSpans(content, run.document ?? content);
+    runError = run.error;
+    runState = run.error != null ? EngineState.error : EngineState.ready;
     notifyListeners();
   }
 
-  /// Run the enabled rules over the active test string through the bridge. A
-  /// monotonic request id drops results from a superseded run.
-  Future<void> _runMatch() async {
+  /// Find the enabled rules' hits in [content] through the bridge. The target is
+  /// passed in rather than read off the tab because view mode finds over the
+  /// *rewritten* document. [req] is [_refresh]'s id, and drops the result of a
+  /// superseded pass.
+  Future<void> _runMatch(int req, String content) async {
     final c = cur;
     final active = c?.active;
-    final req = ++_matchReq;
     if (c == null || active == null) {
       matches = <MatchRange>[];
       engine = EngineState.idle;
@@ -505,7 +530,6 @@ class AppState extends ChangeNotifier {
         slots.add(i);
       }
     }
-    final content = active.content;
 
     engine = EngineState.running;
     notifyListeners();
@@ -567,8 +591,15 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Flip the Test screen between editing the input and viewing what the rules
+  /// did to it. The verbs differ per mode, so the pass is re-asked rather than
+  /// reused: view mode needs a run the edit-mode pass never made, and edit mode
+  /// needs the find to address the original text again.
   void toggleEditMode() {
     editMode = !editMode;
+    engine = EngineState.idle;
+    engineError = null;
+    _scheduleMatch();
     notifyListeners();
   }
 
@@ -1048,7 +1079,7 @@ class AppState extends ChangeNotifier {
       title: 'Reset app data?',
       detail:
           'This clears all projects, rules, and test strings and restores the '
-          'demo set. This cannot be undone.',
+          'three example programs. This cannot be undone.',
       label: 'Reset',
       danger: true,
       onConfirm: () {
@@ -1064,78 +1095,207 @@ class AppState extends ChangeNotifier {
   }
 
   // ---------------------------------------------------------------------------
-  // Seed data (verbatim from the brief's initialData)
+  // Seed data (the repository's own examples, from static/examples/)
   // ---------------------------------------------------------------------------
 
+  /// Seed the three example programs, at spaced edit times so the shelf's
+  /// relative stamps ("2h ago", "1d ago", a short date) all show at once.
+  ///
+  /// Each is a real script from `static/examples/`, transcribed rule for rule:
+  /// the file's declarations are grouped into one rule each and every statement
+  /// gets its own, so the rules list reads as the script it is. The file's
+  /// leading comment becomes the rules' labels rather than source, and every
+  /// rule is enabled — a seed the user has to switch on says nothing.
+  ///
+  /// `html-escape` opens first because it is bounded end to end: both verbs
+  /// answer instantly on it. `markdown-to-html` carries a free line closure
+  /// (`uni line = {@c, &@c}`), which the find pass cannot bound — it runs
+  /// correctly and reports its highlights unavailable, which is why the two
+  /// engine states are separate.
+  ///
+  /// **No back-references.** `demos/bubble-sort.hmk` is the language's north
+  /// star and is deliberately *not* here: its `where 0..$2` compiles to a late
+  /// slot, whose resolution is a call back into the compiler, and the Rust
+  /// engine every path in this app ends at has none. It refuses such a program
+  /// by name at load — the resolver-channel gap the repository's `docs` rank.
   void _seedDemo() {
-    // The brief seeds three projects at spaced edit times so the shelf's
-    // relative stamps ("2h ago", "1d ago", a short date) all show at once.
     final now = DateTime.now();
-    order = <String>['demo-set', 'project-a', 'project-b'];
+    order = <String>['html-escape', 'markdown-to-html', 'slugify'];
     byId = <String, Project>{
-      'demo-set': Project(
-        id: 'demo-set',
-        name: 'demo-set',
+      'html-escape': Project(
+        id: 'html-escape',
+        name: 'html-escape',
         createdAt: now.subtract(const Duration(days: 30)),
         updatedAt: now.subtract(const Duration(hours: 2)),
         rules: <Rule>[
-          Rule(id: 'r1', label: 'IPv4 address', source: _ipv4Source),
-          Rule(id: 'r2', label: 'Hex colour', source: _hexColorSource),
-          Rule(id: 'r3', label: '4-digit number', source: _numberSource),
+          Rule(
+            id: 'r1',
+            label: 'Ampersand — first, or it escapes its own output',
+            source: r'{\&} => "&amp;"',
+          ),
+          Rule(id: 'r2', label: 'Less-than', source: r'{\<} => "&lt;"'),
+          Rule(id: 'r3', label: 'Greater-than', source: r'{>} => "&gt;"'),
+          Rule(id: 'r4', label: 'Double quote', source: r'{\"} => "&quot;"'),
+          Rule(id: 'r5', label: 'Apostrophe', source: '''{'} => "&#39;"'''),
         ],
-        enabled: <String, bool>{'r1': true, 'r2': true, 'r3': false},
+        enabled: <String, bool>{
+          'r1': true,
+          'r2': true,
+          'r3': true,
+          'r4': true,
+          'r5': true,
+        },
         activeTab: 't1',
         tabs: <TestString>[
           TestString(
             id: 't1',
-            name: 'infra-log.txt',
+            name: 'snippet.html',
             content:
-                'Server IP 192.168.1.42, backup 10.0.0.1\n'
-                'Theme colours #ff8800 and #1e90ff\n'
-                'Ticket 4821 filed for review',
+                'Tom & Jerry\'s <b>show</b>\n'
+                'if (a < b && c > d) { say("hi"); }',
           ),
           TestString(
             id: 't2',
-            name: 'sample.md',
-            content:
-                'Staging host 10.2.3.4\n'
-                'Accent colour #00ffcc\n'
-                'Change 2048 shipped',
+            name: 'already-escaped.txt',
+            content: '&amp; &lt;p&gt; — escaping twice is the hazard r1 avoids',
           ),
-          TestString(id: 't3', name: 'Untitled', content: ''),
         ],
       ),
-      'project-a': Project(
-        id: 'project-a',
-        name: 'project-a',
+      'markdown-to-html': Project(
+        id: 'markdown-to-html',
+        name: 'markdown-to-html',
         createdAt: now.subtract(const Duration(days: 20)),
         updatedAt: now.subtract(const Duration(hours: 26)),
         rules: <Rule>[
-          Rule(id: 'r1', label: 'IPv4 address', source: _ipv4Source),
+          Rule(
+            id: 'r1',
+            label: 'Sentinels bracketing each line',
+            source: 'sentinel start\nsentinel end',
+          ),
+          Rule(
+            id: 'r2',
+            label: 'A line: any run of non-newline characters',
+            source: 'uni c    = {@C, !{\\n}}\nuni line = {@c, &@c}',
+          ),
+          Rule(
+            id: 'r3',
+            label: 'Emphasis and code bodies',
+            source:
+                'uni nonStar  = {@C, !{\\n,*}}\n'
+                'uni emBody   = {@nonStar, &@nonStar}\n'
+                'uni nonTick  = {@C, !{\\n,`}}\n'
+                'uni codeBody = {@nonTick, &@nonTick}',
+          ),
+          Rule(
+            id: 'r4',
+            label: 'Mask every line, so a heading can read to its end',
+            source: r'{@line} => "{{@start}}{{$}}{{@end}}"',
+          ),
+          Rule(
+            id: 'r5',
+            label: 'ATX h2',
+            source: r'{@start}{#}{#}{\ }{@line}{@end} => "<h2>{{$5}}</h2>"',
+          ),
+          Rule(
+            id: 'r6',
+            label: 'ATX h1',
+            source: r'{@start}{#}{\ }{@line}{@end} => "<h1>{{$4}}</h1>"',
+          ),
+          Rule(
+            id: 'r7',
+            label: 'Inline emphasis',
+            source: r'{*}{@emBody}{*} => "<b>{{$2}}</b>"',
+          ),
+          Rule(
+            id: 'r8',
+            label: 'Inline code',
+            source: r'{`}{@codeBody}{`} => "<code>{{$2}}</code>"',
+          ),
+          Rule(
+            id: 'r9',
+            label: 'Strip the sentinels back out',
+            source: r'{@start,@end} => ""',
+          ),
         ],
-        enabled: <String, bool>{'r1': true},
+        enabled: <String, bool>{for (var i = 1; i <= 9; i++) 'r$i': true},
+        activeTab: 't1',
+        tabs: <TestString>[
+          // Deliberately three short lines. Every statement here masks whole
+          // lines through a free closure, and the desktop path runs the
+          // *debug* engine — the same note at seven lines costs 12s there and
+          // is killed by the bridge's 5s budget, where this one takes 0.5s.
+          TestString(
+            id: 't1',
+            name: 'notes.md',
+            content:
+                '# Himark\n'
+                '## Closure\n'
+                'A *pointed* set: `{a}&{b}`.',
+          ),
+        ],
+      ),
+      'slugify': Project(
+        id: 'slugify',
+        name: 'slugify',
+        createdAt: now.subtract(const Duration(days: 10)),
+        updatedAt: now.subtract(const Duration(days: 9)),
+        rules: <Rule>[
+          Rule(
+            id: 'r1',
+            label: 'Accented letters, folded onto their plain face',
+            source:
+                'uni ascii = {{a,á,à,â,ä,å,Á,À,Â,Ä,Å},{e,é,è,ê,ë,É,È,Ê,Ë},'
+                '{i,í,ì,î,ï,Í,Ì,Î,Ï},{o,ó,ò,ô,ö,õ,Ó,Ò,Ô,Ö,Õ},'
+                '{u,ú,ù,û,ü,Ú,Ù,Û,Ü},{n,ñ,Ñ},{c,ç,Ç}}',
+          ),
+          Rule(
+            id: 'r2',
+            label: 'Each letter folded with its capital',
+            source:
+                'uni lower = {{a,A},{b,B},{c,C},{d,D},{e,E},{f,F},{g,G},{h,H},'
+                '{i,I},{j,J},{k,K},{l,L},{m,M},{n,N},{o,O},{p,P},{q,Q},{r,R},'
+                '{s,S},{t,T},{u,U},{v,V},{w,W},{x,X},{y,Y},{z,Z}}',
+          ),
+          Rule(
+            id: 'r3',
+            label: 'Write face 0 — the plain letter',
+            source: r'{@ascii} => "{{$0}}"',
+          ),
+          Rule(
+            id: 'r4',
+            label: 'Write face 0 — the lowercase letter',
+            source: r'{@lower} => "{{$0}}"',
+          ),
+          Rule(
+            id: 'r5',
+            label: 'Everything else becomes a dash (one subtraction member)',
+            source: r'{@C, !{a..z,0..9}} => "-"',
+          ),
+          Rule(
+            id: 'r6',
+            label: 'Collapse repeated dashes — a contraction under @spellings',
+            source: r'{-}{-} <=>[@spellings] "-"',
+          ),
+        ],
+        enabled: <String, bool>{for (var i = 1; i <= 6; i++) 'r$i': true},
         activeTab: 't1',
         tabs: <TestString>[
           TestString(
             id: 't1',
-            name: 'hosts.conf',
-            content: '10.0.0.1\n10.0.0.2\nlocalhost',
+            name: 'title.txt',
+            content: 'Crème Brûlée --- Recipe #12!',
+          ),
+          TestString(
+            id: 't2',
+            name: 'heading.txt',
+            content: 'Añejo & Piñata: A Señor Cañón Story',
           ),
         ],
       ),
-      'project-b': Project(
-        id: 'project-b',
-        name: 'project-b',
-        createdAt: now.subtract(const Duration(days: 10)),
-        updatedAt: now.subtract(const Duration(days: 9)),
-        rules: <Rule>[],
-        enabled: <String, bool>{},
-        tabs: <TestString>[],
-      ),
     };
-    currentProject = 'demo-set';
+    currentProject = 'html-escape';
     editingRule = null;
-    unawaited(_runMatch()); // eager first pass; edits below debounce
+    unawaited(_refresh()); // eager first pass; edits below debounce
     notifyListeners();
   }
 }

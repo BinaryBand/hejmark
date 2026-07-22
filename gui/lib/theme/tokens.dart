@@ -66,6 +66,19 @@ class HimarkTokens {
   /// The colours a rule at [index] paints with, wrapping past the palette's end.
   RuleColors ruleColorAt(int index) =>
       ruleColors[index.remainder(ruleColors.length)];
+
+  /// The colours the Test view paints a *rewrite* with — the regions view mode's
+  /// script wrote, as opposed to the spans a rule matched.
+  ///
+  /// Derived from [tertiary] rather than added to every scheme's palette,
+  /// because it must read as "not one of the rule colours" in all six token
+  /// sets, and the accent is already the one colour each scheme reserves for
+  /// something the app did rather than something the user wrote.
+  RuleColors get rewriteColors => RuleColors(
+    dot: tertiary,
+    background: tertiary.withValues(alpha: 0.24),
+    foreground: onSurface,
+  );
 }
 
 /// The three colours one rule paints with: [dot] marks it in the rules list and

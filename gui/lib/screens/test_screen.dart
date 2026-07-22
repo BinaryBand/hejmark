@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../models/diff.dart';
 import '../models/matcher.dart';
 import '../models/project.dart';
 import '../state/app_state.dart';
@@ -37,9 +38,14 @@ class _TestScreenState extends State<TestScreen> {
   HimarkScope? _scope;
 
   /// The colours the rule at [slot] paints its hits with — its pinned swatch if
-  /// it has one, otherwise the slot its position cycles onto.
+  /// it has one, otherwise the slot its position cycles onto. [kRewriteSlot] is
+  /// not a rule at all and takes the accent the view reserves for what the
+  /// script wrote.
   RuleColors _slotColors(int slot) {
     final scope = _scope;
+    if (slot == kRewriteSlot && scope != null) {
+      return scope.tokens.rewriteColors;
+    }
     if (scope == null) {
       return const RuleColors(
         dot: Color(0xFF000000),
@@ -227,13 +233,13 @@ class _TestScreenState extends State<TestScreen> {
 
   Widget _body(AppState s, HimarkTokens t, TestString active) {
     // Matches come live from the Python parser + Rust engine bridge, recomputed
-    // (debounced) by AppState whenever the text or rules change. In run mode
-    // the read view shows the rewritten document instead — a run has no spans
-    // to paint, its answer *is* the text.
-    final matches = s.runMode ? const <MatchRange>[] : s.matches;
-    final readText = s.runMode
-        ? (s.runDocument ?? active.content)
-        : active.content;
+    // (debounced) by AppState whenever the text or rules change. View mode reads
+    // the *rewritten* document, and both kinds of span address it: what the
+    // script wrote, and what the rules still match in what it wrote.
+    final readText = s.editMode
+        ? active.content
+        : (s.runDocument ?? active.content);
+    final matches = s.editMode ? s.matches : _painted(s);
     return LayoutBuilder(
       builder: (context, box) {
         final sheetHeight = s.sheetExpanded ? box.maxHeight * 0.46 : 45.0;
@@ -252,12 +258,39 @@ class _TestScreenState extends State<TestScreen> {
                 color: t.surfaceContainerLow,
                 border: Border(top: BorderSide(color: t.outlineVariant)),
               ),
-              child: _sheet(s, t, matches),
+              child: _sheet(s, t, matches, readText),
             ),
           ],
         );
       },
     );
+  }
+
+  /// View mode's spans over the rewritten document: the script's rewrites and
+  /// the rules' surviving hits, in one ascending list.
+  ///
+  /// The two can overlap — a rule may well match text the script just wrote —
+  /// and rewrites win, by the same first-wins rule `bridge.dart` resolves hits
+  /// with. A region the script wrote should read as written whatever else also
+  /// claims it.
+  List<MatchRange> _painted(AppState s) {
+    final all = <MatchRange>[...s.rewrites, ...s.matches];
+    all.sort((a, b) {
+      final byStart = a.start.compareTo(b.start);
+      if (byStart != 0) return byStart;
+      // A tie goes to the rewrite, which is what makes this first-wins.
+      return (a.slot == kRewriteSlot ? 0 : 1) -
+          (b.slot == kRewriteSlot ? 0 : 1);
+    });
+    final merged = <MatchRange>[];
+    var lastEnd = -1;
+    for (final span in all) {
+      if (span.start >= lastEnd) {
+        merged.add(span);
+        lastEnd = span.end;
+      }
+    }
+    return merged;
   }
 
   /// The gutter's chrome — the numbers are supplied by each view, because the
@@ -460,10 +493,18 @@ class _TestScreenState extends State<TestScreen> {
     );
   }
 
-  Widget _sheet(AppState s, HimarkTokens t, List<MatchRange> matches) {
+  /// The output sheet. [content] is the text the spans address — the test
+  /// string in edit mode, the rewritten document in view mode — so the `Ln · Col`
+  /// column reports a position in the text on screen.
+  Widget _sheet(
+    AppState s,
+    HimarkTokens t,
+    List<MatchRange> matches,
+    String content,
+  ) {
     final summary = s.matchSummary;
-    final isError = s.engine == EngineState.error;
-    final content = s.cur?.active?.content ?? '';
+    final isError =
+        s.engine == EngineState.error || s.runState == EngineState.error;
 
     return Column(
       children: [
@@ -526,18 +567,25 @@ class _TestScreenState extends State<TestScreen> {
         ),
         if (s.sheetExpanded)
           Expanded(
-            child: s.runMode
-                ? _sheetRun(s, t)
-                : matches.isEmpty
-                ? _sheetEmpty(t)
+            child: matches.isEmpty
+                ? _sheetEmpty(s, t)
                 : _matchList(s, t, matches, content),
           ),
       ],
     );
   }
 
-  Widget _sheetRun(AppState s, HimarkTokens t) {
-    final isError = s.engine == EngineState.error;
+  Widget _sheetEmpty(AppState s, HimarkTokens t) {
+    final runFailed = s.runState == EngineState.error;
+    final title = runFailed
+        ? 'Run failed'
+        : (s.editMode ? 'No matches' : 'Nothing to show');
+    final hint = runFailed
+        ? (s.runError ?? 'Engine error')
+        : (s.editMode
+              ? 'Enable a rule or edit the text to find matches.'
+              : 'The rules wrote nothing and matched nothing in the '
+                    'document. Switch to edit mode to change the input.');
     return Container(
       decoration: BoxDecoration(
         border: Border(top: BorderSide(color: t.outlineVariant)),
@@ -549,20 +597,16 @@ class _TestScreenState extends State<TestScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                isError ? 'Run failed' : 'Run mode',
+                title,
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: isError ? t.error : t.onSurfaceVariant,
+                  color: runFailed ? t.error : t.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: 6),
               Text(
-                isError
-                    ? (s.engineError ?? 'Engine error')
-                    : 'The enabled rules run in order as one script; the view '
-                          'shows the rewritten document. Switch to edit mode '
-                          'to change the input.',
+                hint,
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 11.5, color: t.onSurfaceVariant),
               ),
@@ -573,30 +617,32 @@ class _TestScreenState extends State<TestScreen> {
     );
   }
 
-  Widget _sheetEmpty(HimarkTokens t) {
+  /// Names the accent colour the read view paints rewrites in, so the one colour
+  /// that belongs to no rule is not left unexplained.
+  Widget _rewriteLegend(HimarkTokens t) {
     return Container(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: t.outlineVariant)),
+        border: Border(bottom: BorderSide(color: t.outlineVariant)),
       ),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              'No matches',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: t.onSurfaceVariant,
-              ),
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: t.rewriteColors.dot,
+              shape: BoxShape.circle,
             ),
-            const SizedBox(height: 6),
-            Text(
-              'Enable a rule or edit the text to find matches.',
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'written by the script',
               style: TextStyle(fontSize: 11.5, color: t.onSurfaceVariant),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -608,61 +654,77 @@ class _TestScreenState extends State<TestScreen> {
     String content,
   ) {
     final fs = s.editorFontSize.toDouble();
+    final legend = matches.any((m) => m.slot == kRewriteSlot);
     return Container(
       decoration: BoxDecoration(
         border: Border(top: BorderSide(color: t.outlineVariant)),
       ),
-      child: ListView.separated(
-        padding: EdgeInsets.zero,
-        itemCount: matches.length,
-        separatorBuilder: (_, _) => Container(
-          height: 1,
-          margin: const EdgeInsets.symmetric(horizontal: 16),
-          color: t.outlineVariant,
-        ),
-        itemBuilder: (context, i) {
-          final m = matches[i];
-          return Container(
-            constraints: const BoxConstraints(minHeight: 44),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: _slotColors(m.slot).dot,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    m.text,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: mono(fontSize: fs, color: t.onSurface, height: 1.2),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      '[${m.start}–${m.end}]',
-                      style: TextStyle(fontSize: 11, color: t.onSurfaceVariant),
-                    ),
-                    Text(
-                      posOf(content, m.start),
-                      style: TextStyle(fontSize: 11, color: t.onSurfaceVariant),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          );
-        },
+      child: Column(
+        children: [
+          if (legend) _rewriteLegend(t),
+          Expanded(child: _matchRows(s, t, matches, content, fs)),
+        ],
       ),
+    );
+  }
+
+  Widget _matchRows(
+    AppState s,
+    HimarkTokens t,
+    List<MatchRange> matches,
+    String content,
+    double fs,
+  ) {
+    return ListView.separated(
+      padding: EdgeInsets.zero,
+      itemCount: matches.length,
+      separatorBuilder: (_, _) => Container(
+        height: 1,
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        color: t.outlineVariant,
+      ),
+      itemBuilder: (context, i) {
+        final m = matches[i];
+        return Container(
+          constraints: const BoxConstraints(minHeight: 44),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: _slotColors(m.slot).dot,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  m.text,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: mono(fontSize: fs, color: t.onSurface, height: 1.2),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '[${m.start}–${m.end}]',
+                    style: TextStyle(fontSize: 11, color: t.onSurfaceVariant),
+                  ),
+                  Text(
+                    posOf(content, m.start),
+                    style: TextStyle(fontSize: 11, color: t.onSurfaceVariant),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

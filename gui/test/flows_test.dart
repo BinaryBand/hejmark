@@ -113,21 +113,41 @@ void main() {
     );
   });
 
-  testWidgets('tapping a rule row toggles it and the match count follows', (
+  testWidgets('tapping a rule row opens its editor rather than toggling it', (
     tester,
   ) async {
     await _boot(tester);
-    // Seeded: IPv4 and hex-colour on, the 4-digit rule off — 2 hits each.
-    expect(find.text('4 matches'), findsOneWidget);
+    expect(find.text('5 matches'), findsOneWidget);
 
     await tester.tap(find.text('Rules'));
     await _settle(tester);
-    await tester.tap(find.byType(RuleCode).first); // the IPv4 rule
+    await tester.tap(find.byType(RuleCode).first); // the ampersand rule
     await _settle(tester);
 
+    // The row wears the field, and the rule is still on: editing is the tap's
+    // whole job now.
+    expect(find.byType(RuleField), findsOneWidget);
     await tester.tap(find.text('Test'));
     await _settle(tester);
-    expect(find.text('2 matches'), findsOneWidget);
+    expect(find.text('5 matches'), findsOneWidget);
+  });
+
+  testWidgets('swiping a rule row rightward toggles it, and it stays', (
+    tester,
+  ) async {
+    await _boot(tester);
+    await tester.tap(find.text('Rules'));
+    await _settle(tester);
+    expect(find.byType(RuleCode), findsNWidgets(5));
+
+    await tester.drag(find.byType(RuleCode).first, const Offset(400, 0));
+    await _settle(tester);
+
+    // Five rows still — a rightward swipe throws the switch, it does not remove.
+    expect(find.byType(RuleCode), findsNWidgets(5));
+    await tester.tap(find.text('Test'));
+    await _settle(tester);
+    expect(find.text('4 matches'), findsOneWidget);
   });
 
   testWidgets('shelf opens and switches the active project', (tester) async {
@@ -136,10 +156,11 @@ void main() {
     await _settle(tester);
     expect(find.text('PROJECTS'), findsOneWidget);
 
-    await tester.tap(find.text('project-a'));
+    await tester.tap(find.text('markdown-to-html'));
     await _settle(tester);
-    // Top bar now names project-a; its single rule (ipv4) hits both hosts.
-    expect(find.text('project-a'), findsWidgets);
+    // Top bar now names it; its two inline statements hit the note's emphasis
+    // and its inline code.
+    expect(find.text('markdown-to-html'), findsWidgets);
     expect(find.text('PROJECTS'), findsNothing); // shelf closed
     expect(find.text('2 matches'), findsOneWidget);
   });
@@ -203,35 +224,29 @@ void main() {
     expect(find.text('13px'), findsOneWidget);
   });
 
-  testWidgets('test view toggle flips edit/view mode', (tester) async {
-    await _boot(tester);
-    // Starts in edit mode: the toggle shows the pencil icon.
-    expect(find.byIcon(Icons.edit), findsOneWidget);
-    await tester.tap(find.byIcon(Icons.edit));
-    await _settle(tester);
-    // Now in view mode: the toggle shows the eye icon.
-    expect(find.byIcon(Icons.visibility_outlined), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('run mode runs the rules as a script and back again', (
+  testWidgets('view mode runs the rules and shows what they wrote', (
     tester,
   ) async {
     await _boot(tester);
-    expect(find.text('4 matches'), findsOneWidget);
+    // Starts in edit mode: the toggle shows the pencil, and the summary is the
+    // find count alone — there is no run button to press any more.
+    expect(find.byIcon(Icons.edit), findsOneWidget);
+    expect(find.byIcon(Icons.play_arrow_outlined), findsNothing);
+    expect(find.text('5 matches'), findsOneWidget);
 
-    // The play toggle flips the Test screen's verb and leaves edit mode; the
-    // seeded rules are bare queries, so the fake — like the real engine —
-    // returns the document unchanged.
-    await tester.tap(find.byIcon(Icons.play_arrow_outlined));
+    await tester.tap(find.byIcon(Icons.edit));
     await _settle(tester);
-    expect(find.text('Ran — document unchanged'), findsOneWidget);
+
+    // View mode is one mode doing both verbs: the pane shows the rewritten
+    // document and the summary reports the run and the find together.
     expect(find.byIcon(Icons.visibility_outlined), findsOneWidget);
+    expect(find.textContaining('rewritten'), findsOneWidget);
+    expect(find.textContaining('&amp;'), findsWidgets);
 
-    // Back to find mode: the match count returns.
-    await tester.tap(find.byIcon(Icons.play_arrow_outlined));
+    // And back: the original text returns with its own count.
+    await tester.tap(find.byIcon(Icons.visibility_outlined));
     await _settle(tester);
-    expect(find.text('4 matches'), findsOneWidget);
+    expect(find.text('5 matches'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -239,13 +254,13 @@ void main() {
     tester,
   ) async {
     await _boot(tester);
-    expect(find.text('4 matches'), findsOneWidget);
-    expect(find.text('192.168.1.42'), findsNothing); // collapsed
+    expect(find.text('5 matches'), findsOneWidget);
+    expect(find.text('Ln 1 · Col 5'), findsNothing); // collapsed
 
-    await tester.tap(find.text('4 matches'));
+    await tester.tap(find.text('5 matches'));
     await _settle(tester);
-    expect(find.text('192.168.1.42'), findsOneWidget);
-    expect(find.text('Ln 1 · Col 11'), findsOneWidget);
+    // The ampersand rule's hit, at the one `&` outside the `&&`.
+    expect(find.text('Ln 1 · Col 5'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -258,7 +273,7 @@ void main() {
       // Projects is the rail's opening state, so the shelf is a column, not a
       // drawer — and the editor sits beside it with its output sheet.
       expect(find.text('PROJECTS'), findsOneWidget);
-      expect(find.text('4 matches'), findsOneWidget);
+      expect(find.text('5 matches'), findsOneWidget);
       expect(find.byIcon(Icons.menu), findsNothing); // the rail owns this job
       expect(tester.takeException(), isNull);
     },
@@ -278,7 +293,7 @@ void main() {
     await tester.tap(find.widgetWithText(InkWell, 'Rules'));
     await _settle(tester);
     expect(find.text('RULES'), findsNothing);
-    expect(find.text('4 matches'), findsOneWidget);
+    expect(find.text('5 matches'), findsOneWidget);
   });
 
   testWidgets('the app bar book opens the cheat sheet and closes it again', (
