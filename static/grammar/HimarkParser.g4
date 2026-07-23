@@ -33,7 +33,7 @@ statement : step (NL* ARROW step)* ;
 // A contracting statement `query <=>[@m] template`: the one iterated form.
 // The measure is a declared name riding the arrow the way a pipeline rides a
 // unit; the bracket lexes in ARGS mode, so the reference is one ARG token.
-contract : expr NL* IARROW LBRACK ARG RBRACK template ;
+contract : expr NL* IARROW LBRACK A_WS? ARG A_WS? RBRACK template ;
 
 step
     : expr        # QueryStep
@@ -63,11 +63,12 @@ exponent
 // The modifier pipeline `A[f x g y]`: stages left to right. Stage names and
 // arguments lex alike; binding splits the flat item list by each
 // definition's arity.
-pipeline : LBRACK pipeItem+ RBRACK ;
+pipeline : LBRACK A_WS? pipeItem (A_WS pipeItem)* A_WS? RBRACK ;
 
-pipeItem : pipeArg (RANGE pipeArg)? ;
+pipeItem : pipeArg (RANGE pipeArg?)? ;
 
-// An argument, or a back-reference standing as one (`where 0..$2`).
+// An argument, or a back-reference standing as one (`where 0..$2`). A trailing
+// `..` with no second argument is the open pair (`where 0..`).
 pipeArg : ARG | CAPTURE ;
 
 universe : LBRACE (member (COMMA member)*)? RBRACE ;
@@ -75,14 +76,15 @@ universe : LBRACE (member (COMMA member)*)? RBRACE ;
 member
     : face RANGE face      # RangeMember
     | face RANGE           # FinalMember
-    | REF RANGE valueBound # ValueMember
-    | BANG universe        # SubtractMember
-    | segment+             # SegmentsMember
+    | REF RANGE valueBound? # ValueMember
+    | BANG universe         # SubtractMember
+    | segment+              # SegmentsMember
     ;
 
 // The value family `@lo..hi`: the head's value line cut by value. The low bound
 // rides the REF sigil (`@0`, or `@lo` naming a numeral parameter); the high
-// bound is a numeral, a parameter, or a back-reference standing as one.
+// bound is a numeral, a parameter, or a back-reference standing as one. An
+// absent bound is the open case `@lo..`: the whole value tail from `lo`.
 valueBound : face | CAPTURE ;
 
 // One adjacent piece of a member: a brace group, the closure token, a

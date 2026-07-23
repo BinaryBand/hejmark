@@ -54,14 +54,14 @@ def test_closure_order_is_stage_major() -> None:
 
 def test_value_order_beats_spelling_order() -> None:
     """The value line orders `9` before `10`; raw shortlex would not."""
-    universe = _universe("{0..9}[numerals padfree]")
+    universe = _universe("{0..9}[where 0.. padfree]")
     assert precedes(universe, "9", "10")
     assert not precedes(universe, "10", "9")
 
 
 def test_paddings_of_one_value_are_one_entry() -> None:
     """`padfree` hangs every padding on the value's entry, so `05` sits at 5."""
-    universe = _universe("{0..9}[numerals padfree]")
+    universe = _universe("{0..9}[where 0.. padfree]")
     assert not precedes(universe, "05", "5")
     assert not precedes(universe, "5", "05")
     assert precedes(universe, "05", "9")

@@ -149,7 +149,7 @@ def test_a_template_separates_text_from_interpolation() -> None:
 
 def test_a_reference_drops_its_sigil() -> None:
     """The sigil keeps a name from reading as a spelling; it is not part of the name."""
-    line = _line("{@spellings}")
+    line = _line("{@str}")
     assert isinstance(line, Statement)
     step = line.steps[0]
     assert isinstance(step, Expr)
@@ -157,7 +157,7 @@ def test_a_reference_drops_its_sigil() -> None:
     assert isinstance(base, UniverseNode)
     member = base.members[0]
     assert isinstance(member, Segments)
-    assert member.segments[0] == Unit(Ref("spellings"))
+    assert member.segments[0] == Unit(Ref("str"))
 
 
 def test_a_syntax_error_is_raised_not_collected() -> None:

@@ -56,7 +56,7 @@ def test_script_resolves_declarations_over_the_std() -> None:
     node, env = script(_to_ast, "uni mine = {a}")
     assert len(node.lines) == 1
     assert "mine" in env.unis
-    assert "spellings" in env.unis
+    assert "str" in env.unis
 
 
 def test_a_statement_lowers_to_queries_and_templates() -> None:
@@ -84,10 +84,10 @@ def test_a_back_reference_lowers_to_a_slot_and_its_resolver_answers() -> None:
 
 def test_a_contract_expands_its_measure_at_compile_time() -> None:
     """The measure crosses as a floor node; only its name survives for diagnostics."""
-    program, _ = _compile('{ba} <=>[@spellings] "ab"')
+    program, _ = _compile('{ba} <=>[@str] "ab"')
     line = program.statements[0]
     assert isinstance(line, CompiledIter)
-    assert line.measure_name == "spellings"
+    assert line.measure_name == "str"
     assert isinstance(line.measure, UniverseNode)
 
 
@@ -113,10 +113,10 @@ _REACH_SOURCES = [
     '{0..9}{a..z} => "x"',
     '{a..} => "x"',
     '{ab,{a}&{b}} => "x"',
-    '{0..9}[numerals] => "x"',
+    '{0..9}[where 0..] => "x"',
     '{0..9}[where 8..12] => "x"',
     '{a,b}{$1} => "x"',
-    '{-}{-} <=>[@spellings] "-"',
+    '{-}{-} <=>[@str] "-"',
 ]
 
 

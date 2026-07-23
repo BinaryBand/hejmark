@@ -76,7 +76,9 @@ mode ARGS;
 
 RBRACK  : ']'  -> popMode ;
 A_RANGE : '..' -> type(RANGE) ;
-A_WS    : [ \t\r\n]+ -> skip ;
+// Emitted, not skipped: whitespace separates pipeline items, which is what
+// keeps an open bound (`where 0..`) from grabbing the next stage as its `hi`.
+A_WS    : [ \t\r\n]+ ;
 // A back-reference standing as an argument (`where 0..$2`). Listed before ARG
 // so the exact spelling `$k` lexes as a read; anything longer stays an ARG.
 A_CAPTURE : '$' [1-9] [0-9]* -> type(CAPTURE) ;

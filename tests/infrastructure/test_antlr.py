@@ -73,7 +73,7 @@ NORTH_STAR_ROWS = (
 # table (an empty input is likewise a legal, empty script).
 L1_5_ROWS = (
     "uni d = {0..9}",  # declaration
-    "uni spellings = {{{}}, &@C}",  # the seeded std universe
+    "uni str = {{{}}, &@char}",  # the seeded std universe
     "fill := {{{}, @0}}",  # zero-parameter definition over a register
     "nonzero := {@, !{@0}}",  # bare head register
     "where lo..hi := {@lo..hi}",  # pair parameter over the value family
@@ -81,12 +81,12 @@ L1_5_ROWS = (
     "{0..9}[where 8..12 pad 1..2]",  # modifier pipeline
     '{{cat,feline}} => "{{$0}}"',  # emit: canonical-face rewrite
     '{a,e,i,o,u} => ""',  # emit: deletion
-    '{@spellings} => "<b>{{$}}</b>"',  # emit: whole-document idiom
+    '{@str} => "<b>{{$}}</b>"',  # emit: whole-document idiom
     '"seed" => {e} => "E"',  # emit: detached string chain
     '{a,ab}{c,bc} => "{{$2}}"',  # emit: factor read
     '{a,b}{$1} => "{{$1}}!"',  # back-reference standing as a factor
     "{1,2}{0..9}[where 0..$1 padfree]",  # back-reference as a range bound
-    '{ba} <=>[@spellings] "ab"',  # contracting statement, measure on the arrow
+    '{ba} <=>[@str] "ab"',  # contracting statement, measure on the arrow
     'uni d = {0..9}\n{a} => {b}\n  => "x"',  # line discipline + arrow continuation
     "",  # the empty script
 )

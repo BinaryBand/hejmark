@@ -10,12 +10,12 @@
 sentinel start
 sentinel end
 
-uni c    = {@C, !{\n}}
+uni c    = {@char, !{\n}}
 uni line = {@c, &@c}
 
-uni nonStar  = {@C, !{\n,*}}
+uni nonStar  = {@char, !{\n,*}}
 uni emBody   = {@nonStar, &@nonStar}
-uni nonTick  = {@C, !{\n,`}}
+uni nonTick  = {@char, !{\n,`}}
 uni codeBody = {@nonTick, &@nonTick}
 
 {@line} => "{{@start}}{{$}}{{@end}}"

@@ -14,8 +14,6 @@ def test_the_std_declares_the_derivations_l1_5_spells() -> None:
     env = std_env(_to_ast)
     assert set(env.defs) == {
         "fill",
-        "nonzero",
-        "numerals",
         "shorter",
         "upto",
         "longer",
@@ -25,7 +23,7 @@ def test_the_std_declares_the_derivations_l1_5_spells() -> None:
         "zfold",
         "padfree",
     }
-    assert set(env.unis) == {"hex", "spellings", "C"}
+    assert set(env.unis) == {"hex", "str", "char"}
 
 
 def test_hex_is_the_l2_radix() -> None:
@@ -34,11 +32,20 @@ def test_hex_is_the_l2_radix() -> None:
     assert [entry.faces[0] for entry in universe.entries()] == list("0123456789abcdef")
 
 
-def test_numerals_stands_alone_as_the_uncut_value_line() -> None:
-    """A zero-arg definition is a pipeline stage: `where 0..` with no cap is no cut."""
-    universe = parse("{0..9}[numerals]").universe()
+def test_the_open_cut_is_the_uncut_value_line() -> None:
+    """`where 0..` is the open value cut: the whole value line, no cap, canonical faces."""
+    universe = parse("{0..9}[where 0..]").universe()
     assert universe.contains("10")
     assert not universe.contains("07")
+
+
+def test_the_open_cut_composes_with_a_following_stage() -> None:
+    """`where 0.. padfree`: the open bound stops at the space, `padfree` is its own stage."""
+    universe = parse("{0..9}[where 0.. padfree]").universe()
+    assert universe.contains("7")
+    assert universe.contains("007")
+    assert universe.contains("10")
+    assert not universe.contains("")
 
 
 def test_padfree_wears_every_zero_padding() -> None:
@@ -52,15 +59,15 @@ def test_padfree_wears_every_zero_padding() -> None:
     assert not universe.contains("")
 
 
-def test_the_code_point_set_is_seeded_not_written() -> None:
-    """`C` is the one `uni` the spec seeds: the surface spells no code point."""
-    assert "uni C" not in SOURCE
-    assert "C" in std_env(_to_ast).unis
+def test_the_alphabet_is_seeded_not_written() -> None:
+    """`char` is the one `uni` the spec seeds: the surface spells no code point."""
+    assert "uni char" not in SOURCE
+    assert "char" in std_env(_to_ast).unis
 
 
 def test_the_alphabet_excludes_the_sentinel_space() -> None:
-    """`C` subtracts the noncharacters, so no `@C`-derived universe holds one."""
-    universe = parse("{@C}").universe()
+    """`char` subtracts the noncharacters, so no `@char`-derived universe holds one."""
+    universe = parse("{@char}").universe()
     assert universe.contains("a")
     assert universe.contains("\ufdcf")
     assert not universe.contains("\ufdd0")
@@ -70,7 +77,7 @@ def test_the_alphabet_excludes_the_sentinel_space() -> None:
 
 def test_the_std_parses_as_ordinary_source() -> None:
     """Nothing in the std is special-cased; it goes through the same grammar."""
-    assert len(_to_ast(SOURCE).lines) == 13
+    assert len(_to_ast(SOURCE).lines) == 11
 
 
 def test_the_std_is_resolved_once() -> None:

@@ -51,7 +51,7 @@ def test_statements_run_in_source_order() -> None:
 
 def test_the_empty_document_offers_only_the_empty_spelling() -> None:
     """Zero-width never matches, so nothing fires and nothing changes."""
-    assert run('{@spellings} => "X"', "") == ""
+    assert run('{@str} => "X"', "") == ""
 
 
 def test_a_factor_read_takes_the_floors_split() -> None:
@@ -112,7 +112,7 @@ def test_a_range_bound_back_reference_cuts_by_the_bound_value() -> None:
 
 def test_a_contracting_statement_settles_when_no_pass_matches() -> None:
     """The measured letter sort: three descending passes, then nothing to rewrite."""
-    assert run('{ba} <=>[@spellings] "ab"', "bbaa") == "aabb"
+    assert run('{ba} <=>[@str] "ab"', "bbaa") == "aabb"
 
 
 def test_a_contracting_statement_that_never_matches_returns_the_document() -> None:
@@ -121,15 +121,15 @@ def test_a_contracting_statement_that_never_matches_returns_the_document() -> No
 
 
 def test_a_pass_that_fails_to_shrink_the_measure_is_refused() -> None:
-    """`b` sits after `a` in `@spellings`, so the first pass already grows."""
+    """`b` sits after `a` in `@str`, so the first pass already grows."""
     with pytest.raises(HimarkScopeError, match="failed to shrink"):
-        run('{a} <=>[@spellings] "b"', "a")
+        run('{a} <=>[@str] "b"', "a")
 
 
 def test_a_pass_that_rewrites_in_place_is_refused() -> None:
     """Matching without moving is the livelock the measure exists to surface."""
     with pytest.raises(HimarkScopeError, match="failed to shrink"):
-        run('{a} <=>[@spellings] "a"', "a")
+        run('{a} <=>[@str] "a"', "a")
 
 
 def test_a_document_the_measure_does_not_spell_is_refused() -> None:
@@ -143,4 +143,4 @@ def test_a_pass_past_the_work_budget_is_refused(monkeypatch: pytest.MonkeyPatch)
     monkeypatch.setattr(work, "BUDGET", 5)
 
     with pytest.raises(HimarkBudgetError, match="a contracting pass ran past"):
-        run('{ba} <=>[@spellings] "ab"', "bbaa")
+        run('{ba} <=>[@str] "ab"', "bbaa")

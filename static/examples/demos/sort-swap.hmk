@@ -1,4 +1,4 @@
 // The smallest sort: swap every `ba` to `ab` until none remain. The
-// measure @spellings is a well-order every pass must strictly descend,
+// measure @str is a well-order every pass must strictly descend,
 // which is the termination proof.
-{ba} <=>[@spellings] "ab"
+{ba} <=>[@str] "ab"

@@ -28,9 +28,11 @@ from typing import NoReturn
 
 from hejmark.core.compiler import valueline
 from hejmark.core.compiler.ast import (
+    OPEN,
     DefDecl,
     Expr,
     Member,
+    Open,
     Operand,
     Param,
     Read,
@@ -71,10 +73,21 @@ class Ctx:
     env: Env
     head: syntax.UniverseNode | None = None
     operand: syntax.UniverseNode | None = None
-    bindings: dict[str, str] | None = None
+    bindings: dict[str, str | Open] | None = None
 
     def spell(self, text: str) -> str:
-        """Substitute a parameter name for the spelling bound to it, if any."""
+        """Substitute a parameter name for the spelling bound to it, if any.
+
+        An open-pair binding never stands where a plain spelling is read, so it
+        falls through to the name itself here; :meth:`spell_bound` is the read
+        that sees it, and only the value cut calls that.
+        """
+        bindings = self.bindings or {}
+        bound = bindings.get(text, text)
+        return bound if isinstance(bound, str) else text
+
+    def spell_bound(self, text: str) -> str | Open:
+        """A value bound's substitution: a spelling, or :data:`OPEN` for ``lo..``."""
         bindings = self.bindings or {}
         return bindings.get(text, text)
 
@@ -149,14 +162,16 @@ def _register(name: str, ctx: Ctx) -> syntax.UniverseNode:
     return UNIT if zero is None else syntax.UniverseNode((syntax.Face(zero),))
 
 
-def _value_cut(lo: str, hi: str | Read, ctx: Ctx) -> tuple[syntax.Member, ...]:
+def _value_cut(lo: str, hi: str | Read | Open, ctx: Ctx) -> tuple[syntax.Member, ...]:
     """Expand the value family ``@lo..hi``: the head's value line cut by value.
 
     Both bounds are spellings in the head radix -- a written numeral, or a
     parameter naming one -- so each rides ``spell`` the way a range endpoint
-    does. A read still standing here crossed a declaration and is refused, as
-    one in any other position is. The cut rides a one-factor product so that a
-    sibling member never falls inside its subtraction.
+    does. An absent ``hi`` (``OPEN``, written ``@lo..``) is the open case: the
+    value line from ``lo`` on, the closure that generates it. A read still
+    standing here crossed a declaration and is refused, as one in any other
+    position is. The cut rides a one-factor product so that a sibling member
+    never falls inside its subtraction.
 
     Raises:
         HimarkScopeError: the family stands outside a definition body, or a
@@ -165,39 +180,46 @@ def _value_cut(lo: str, hi: str | Read, ctx: Ctx) -> tuple[syntax.Member, ...]:
     if isinstance(hi, Read):
         _refuse_read(f"${hi.index}")
     if ctx.head is None:
-        msg = f"register @{lo}..{hi} outside a definition body"
+        msg = f"register @{lo}..{'' if isinstance(hi, Open) else hi} outside a definition body"
         raise HimarkScopeError(msg)
-    node = valueline.cut(ctx.head, ctx.spell(lo), ctx.spell(hi))
+    bound = hi if isinstance(hi, Open) else ctx.spell_bound(hi)
+    high = None if isinstance(bound, Open) else bound
+    node = valueline.cut(ctx.head, ctx.spell(lo), high)
     return (syntax.Product((node,)),)
 
 
 def _bind_params(
     params: tuple[Param, ...], arguments: tuple[Binding, ...], zero: str | None
-) -> dict[str, str]:
+) -> dict[str, str | Open]:
     """Bind a definition's parameters to an application's literal arguments.
 
-    A pair parameter takes one argument, which may be written ``lo..hi`` or --
-    the degenerate case -- a lone numeral standing for ``n..n``. Arguments
-    canonicalize in the head radix, so ``aa`` binds as ``a``.
+    A pair parameter takes one argument, which may be written ``lo..hi``, ``lo..``
+    (the open pair, ``hi`` binds :data:`OPEN`), or -- the degenerate case -- a
+    lone numeral standing for ``n..n``. Arguments canonicalize in the head
+    radix, so ``aa`` binds as ``a``; an open bound has no numeral to canonicalize.
 
     Raises:
         HimarkScopeError: a pair argument is given to a single parameter.
     """
-    bindings: dict[str, str] = {}
+    bindings: dict[str, str | Open] = {}
     for param, argument in zip(params, arguments, strict=True):
         for spelling in (argument.lo, argument.hi):
-            if spelling is not None and read_index(spelling) is not None:
+            if isinstance(spelling, str) and read_index(spelling) is not None:
                 _refuse_read(spelling)
         lo = canonicalize(argument.lo, zero) if zero else argument.lo
-        hi = argument.hi if argument.hi is not None else argument.lo
         if param.hi is None:
             if argument.hi is not None:
-                msg = f"{param.lo} is a single parameter, got the pair {argument.lo}..{argument.hi}"
+                shown = "" if isinstance(argument.hi, Open) else argument.hi
+                msg = f"{param.lo} is a single parameter, got the pair {argument.lo}..{shown}"
                 raise HimarkScopeError(msg)
             bindings[param.lo] = lo
         else:
+            hi = argument.hi if argument.hi is not None else argument.lo
             bindings[param.lo] = lo
-            bindings[param.hi] = canonicalize(hi, zero) if zero else hi
+            if isinstance(hi, Open):
+                bindings[param.hi] = OPEN
+            else:
+                bindings[param.hi] = canonicalize(hi, zero) if zero else hi
     return bindings
 
 

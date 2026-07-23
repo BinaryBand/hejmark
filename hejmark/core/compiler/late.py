@@ -62,7 +62,7 @@ def _unit_reads(unit: Unit) -> list[int]:
             found.extend(_member_reads(member))
     for item in unit.pipeline:
         for text in (item.lo, item.hi):
-            index = read_index(text) if text is not None else None
+            index = read_index(text) if isinstance(text, str) else None
             if index is not None:
                 found.append(index)
     return found
@@ -168,7 +168,10 @@ def _sub_unit(unit: Unit, bound: tuple[str, ...]) -> Unit:
     """Rebuild *unit* with every read replaced by the face it binds."""
     base = _sub_universe(unit.base, bound) if isinstance(unit.base, UniverseNode) else unit.base
     pipeline = tuple(
-        PipeItem(_sub_text(item.lo, bound), _sub_text(item.hi, bound) if item.hi else item.hi)
+        PipeItem(
+            _sub_text(item.lo, bound),
+            _sub_text(item.hi, bound) if isinstance(item.hi, str) else item.hi,
+        )
         for item in unit.pipeline
     )
     return Unit(base, unit.exponent, pipeline)

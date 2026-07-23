@@ -16,10 +16,12 @@ from __future__ import annotations
 from typing import Any
 
 from hejmark.core.compiler.ast import (
+    OPEN,
     DefDecl,
     Expr,
     Interp,
     IterStatement,
+    Open,
     Operand,
     Param,
     PipeItem,
@@ -81,7 +83,12 @@ def _pipeline(ctx: Any) -> tuple[PipeItem, ...]:
     items = []
     for item in ctx.pipeItem():
         args = item.pipeArg()
-        hi = _unescape(args[1].getText()) if len(args) > 1 else None
+        if len(args) > 1:
+            hi: str | Open | None = _unescape(args[1].getText())
+        elif item.RANGE() is not None:
+            hi = OPEN  # a trailing `..` with no second argument: the open pair
+        else:
+            hi = None
         items.append(PipeItem(_unescape(args[0].getText()), hi))
     return tuple(items)
 
@@ -126,12 +133,15 @@ def _member(ctx: Any) -> Any:
             return Final(_face(ctx.face()).text)
         case "ValueMemberContext":
             bound = ctx.valueBound()
-            capture = bound.CAPTURE()
-            hi: str | Read = (
-                Read(int(capture.getText()[1:]))
-                if capture is not None
-                else _face(bound.face()).text
-            )
+            if bound is None:
+                hi: str | Read | Open = OPEN  # `@lo..`: the open value cut
+            else:
+                capture = bound.CAPTURE()
+                hi = (
+                    Read(int(capture.getText()[1:]))
+                    if capture is not None
+                    else _face(bound.face()).text
+                )
             return ValueCut(ctx.REF().getText()[1:], hi)
         case "SubtractMemberContext":
             return Subtract(_universe(ctx.universe()))

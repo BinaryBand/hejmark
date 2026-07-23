@@ -37,12 +37,12 @@ PIPELINE_ROWS = (
 EMIT_ROWS = (
     ('{{cat,feline}} => "{{$0}}"', "my feline", "my cat"),
     ('{a,e,i,o,u} => ""', "pattern", "pttrn"),
-    ('{@spellings} => "<b>{{$}}</b>"', "abc", "<b>abc</b>"),
+    ('{@str} => "<b>{{$}}</b>"', "abc", "<b>abc</b>"),
     ("{a} => {b}", "banana", "banana"),
     ('"seed" => {e} => "E"', "anything", "anything"),
     ('{a,ab}{c,bc} => "{{$2}}"', "abc", "bc"),
     ('{a,b}{$1} => "{{$1}}!"', "aa ab", "a! ab"),
-    ('{ba} <=>[@spellings] "ab"', "bbaa", "aabb"),
+    ('{ba} <=>[@str] "ab"', "bbaa", "aabb"),
 )
 
 # The bubble sort, verbatim from L1_5.md's north-star section: the layer's
@@ -51,11 +51,11 @@ SORT = r"""
 sentinel start
 sentinel end
 
-uni c      = {@C, !{\n}}
+uni c      = {@char, !{\n}}
 uni line   = {@c, &@c}
 uni d      = {0..9}
 uni digits = {@d, &@d}
-uni value  = {0..9}[numerals padfree]
+uni value  = {0..9}[where 0.. padfree]
 uni list   = {@value, &{\,}{@value}}
 uni sorted = {{@start}{@list}{@end}, &{\n}{@start}{@list}{@end}}
 
@@ -106,7 +106,7 @@ def test_a_leading_template_never_touches_the_document() -> None:
 
 def test_the_whole_document_idiom_does_not_fire_on_an_empty_document() -> None:
     """The only face on offer is the empty spelling, and zero-width never matches."""
-    assert run('{@spellings} => "<b>{{$}}</b>"', "") == ""
+    assert run('{@str} => "<b>{{$}}</b>"', "") == ""
 
 
 def test_declarations_resolve_before_statements() -> None:
