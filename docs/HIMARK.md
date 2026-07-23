@@ -25,24 +25,26 @@ Empty universe `{}` / `{a,!{a}}`: no entries, legal. Unit `{{}}`: one entry, one
 
 | Syntax       | Expands to                                                           |
 | ------------ | -------------------------------------------------------------------- |
-| `{a..z}`     | `{a.., !{s..}}` (`s` = shortlex successor of `z`)                    |
+| `{a..z}`     | `{a..,!{s..}}` (`s` = shortlex successor of `z`)                     |
 | `{cat}{dog}` | `{catdog}` (finite adjacency)                                        |
 | `A^n`        | `A` written adjacent `n` times (iterated product; `A^0` is the unit) |
-| `A \ B`      | `{...A..., !{...B...}}`                                              |
+| `A \ B`      | `{...A...,!{...B...}}`                                               |
 | `A ∩ B`      | `A \ (A \ B)`                                                        |
-| `{w..}`      | `{{{}}, &C} \ {predecessors of w}` (`C` = code-point set)            |
+| `{w..}`      | `{{{}},&C} \ {predecessors of w}` (`C` = code-point set)             |
 
 ## Names and definitions (L1.5)
 
 ```text
 uni name = {...}          // declaration; splices entry-wise wherever a universe stands
 @name                     // reference; sigil keeps a name from reading as a spelling
-name params := body       // definition; applied via the pipeline
+name params := body       // definition
 A[f x g y]                // modifier pipeline: stages left to right, each result feeds the next
+@name(args)               // prefix application: invoke a definition with its arguments
 ```
 
 - Acyclic: a name (or definition) can't reach itself through its own declaration. `&` is the only self-reference, and it lives on the floor.
-- `_` is the pipeline operand token -- bound only at application; a definition invoked bare inside another body gets no `_`.
+- Inside `{}` whitespace is literal (a space is a face character): members divide on `,` alone (`{cat,dog}`), and a definition is applied with `@name(args)`, never a space. Adjacency `@a@b` is always a product.
+- `_` is the pipeline operand token -- bound only at a pipeline application; a definition invoked prefix (`@name(args)`) inside another body gets no `_`.
 - **Head**: registers read the pipeline *head*, not the current stage -- `{0..9}[where 8..12 pad 1..2]` fills with `0` because the head is `{0..9}`.
 - Numeral parameters canonicalize in the head radix (`aa` binds as `a`); a lone numeral argument binds a pair parameter as `n..n`.
 
@@ -106,18 +108,18 @@ Declares a name denoting one entry, one face: a host-allocated noncharacter (U+F
 
 ```text
 uni hex         = {0..9,a..f}                                 -- the hex radix
-uni spellings   = {{{}}, &@C}                                 -- every spelling, in shortlex
-fill            := {{{}, @0}}                                 -- one entry, faced empty and zero
-nonzero         := {@, !{@0}}
-numerals        := {@0, {@nonzero, &@}}                       -- the value line of the head radix
-shorter w       := {@spellings, !{@C^w @spellings}}           -- widths below w
-upto w          := {@shorter w, @C^w}                         -- widths at most w
-longer w        := {@spellings, !{@upto w}}                   -- widths above w
+uni spellings   = {{{}},&@C}                                  -- every spelling, in shortlex
+fill            := {{{},@0}}                                  -- one entry, faced empty and zero
+nonzero         := {@,!{@0}}
+numerals        := {@0,{@nonzero,&@}}                         -- the value line of the head radix
+shorter w       := {@spellings,!{@C^w@spellings}}             -- widths below w
+upto w          := {@shorter(w),@C^w}                         -- widths at most w
+longer w        := {@spellings,!{@upto(w)}}                   -- widths above w
 where lo..hi    := {@lo..hi}                                  -- the value line cut by value
-pad w..w'       := {@fill^{w'} _, !{@shorter w}, !{@longer w'}}
-zeros           := {{{}}, &@0}                                -- the zero-runs of the head, empty included
+pad w..w'       := {@fill^{w'}_,!{@shorter(w)},!{@longer(w')}}
+zeros           := {{{}},&@0}                                 -- the zero-runs of the head, empty included
 zfold           := {{@zeros}}                                 -- folded: one entry wearing every zero-run
-padfree         := {@zfold _}                                 -- every entry at every zero-padding
+padfree         := {@zfold_}                                  -- every entry at every zero-padding
 ```
 
 | Expression                     | Denotes                             |
@@ -167,12 +169,12 @@ Sentinels mask each line, factor reads and a back-reference spell an adjacent ou
 sentinel start
 sentinel end
 
-uni c      = {@C, !{\n}}
-uni line   = {@c, &@c}
+uni c      = {@C,!{\n}}
+uni line   = {@c,&@c}
 uni d      = {0..9}
-uni digits = {@d, &@d}
+uni digits = {@d,&@d}
 
 {@line} => "{{@start}}{{$}}{{@end}}"
-{@start,\,}{@digits}{\,}{{0..9}[where 0..$2 padfree], !{{0..9}[where $2 padfree]}}{@end,\,} <=> "{{$1}}{{$4}},{{$2}}{{$5}}"
+{@start,\,}{@digits}{\,}{{0..9}[where 0..$2 padfree],!{{0..9}[where $2 padfree]}}{@end,\,} <=> "{{$1}}{{$4}},{{$2}}{{$5}}"
 {@start,@end} => ""
 ```

@@ -46,10 +46,18 @@ expr : unit+ ;
 unit : base (CARET exponent)? pipeline? ;
 
 base
-    : universe    # UniverseBase
-    | REF         # ReferenceBase
-    | USCORE      # OperandBase
+    : universe        # UniverseBase
+    | application     # ApplicationBase
+    | REF             # ReferenceBase
+    | USCORE          # OperandBase
     ;
+
+// Prefix application `@name(args)`: a definition invoked with its arguments in
+// parens, so no whitespace separates the name from the argument (inside braces
+// a space is a literal face character). Zero-arg names splice bare as `@name`;
+// adjacency `@a@b` is always a product, never an application, so application is
+// exactly the parens here and the pipeline below -- never juxtaposition.
+application : REF LPAREN A_WS? pipeItem (A_WS pipeItem)* A_WS? RPAREN ;
 
 // `A^n`: the exponent is a numeral, a numeral parameter, or a braced
 // parameter (`fill^{w'}`). Inside braces the operand lexes as a face.
@@ -87,9 +95,10 @@ member
 // absent bound is the open case `@lo..`: the whole value tail from `lo`.
 valueBound : face | CAPTURE ;
 
-// One adjacent piece of a member: a brace group, the closure token, a
-// reference, the operand token, or a bare face. `@name face` may be an
-// application (`!{@shorter w}`) or an adjacency -- binding decides by arity.
+// One adjacent piece of a member: a brace group, an application, the closure
+// token, a reference, the operand token, or a bare face. Adjacency is always a
+// product now -- a definition is applied explicitly with `@name(args)` (a
+// base), never by juxtaposition, since a space here is a literal face character.
 segment
     : base (CARET exponent)? pipeline?
     | AMP
