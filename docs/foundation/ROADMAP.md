@@ -1,6 +1,6 @@
 # Himark Roadmap
 
-<!-- cspell:words sigiled upto -->
+<!-- cspell:words sigiled upto fixpoint -->
 
 ## Layer 1 -- Mathematical Floor (denotation) -- cemented
 
@@ -14,13 +14,13 @@
 
 Everything the host implements beyond denotation, and where a construct is admitted. Its admission rule: a surface construct adds no denotation -- it expands into the floor or it does not enter. The normative surface is `L1_5.md`; the bullets below are its shape, not a second copy.
 
-L1.5 guards well-formedness only -- an unknown name, a malformed definition, a factor read past the ones written. The refusals that keep a total denotation finite to *run* -- bounded reads and their host budgets, decidable matching, the measure a `<=>` pass must strictly descend, boundary hygiene -- are a layer of their own, L2 (`L2.md`).
+L1.5 guards well-formedness only -- an unknown name, a malformed definition, a factor read past the ones written. The refusals that keep a total denotation finite to *run* -- bounded reads and their host budgets, decidable matching, the work budget that bounds a `<=>` iteration, boundary hygiene -- are a layer of their own, L2 (`L2.md`).
 
 - Matching -- query and capture, text membership, maximal munch, zero-width exclusion; the matcher is scoped to guarded closure bodies (the settlement theorem's fragment), and stepping outside that scope is a diagnostic, never a denotation failure.
 - Names -- `uni hex = {0..9,a..f}`: declaration and `@name` splice-by-name (one sigiled namespace whose reserved names are the registers). Pure compression; the floor's splice rule already anticipates the name.
 - Definitions -- `name args := body` rewrite forms and the modifier pipeline `A[f x g y]`; application is substitution over the operand and literal arguments, and every application expands to a floor expression.
 - Registers -- the in-language spellings of the expander's metafunctions: expansion-time reads on the same footing as the `s` in the floor's own `{a..z}` = `{a.., !{s..}}`, never a runtime store. The inventory is closed at four tokens (`@`, `@0`, `$`, `$0`) carrying two addressed families -- `@lo..hi` the head's value line by value, `$1..$n` the hit's written factors -- and a new register faces the scrutiny a new axiom does.
-- Emit -- `=>` statements joining branches (spans carrying the floor's capture) to text objects: a query refines and guards, a template commits and continues per interpolation site, and `<=>` iterates a statement under a declared measure every pass must strictly descend. A cast by value -- writing a bound value under a second universe -- stays uncomputable: value-indexing across two radixes, which no expression computes and no register spells.
+- Emit -- `=>` statements joining branches (spans carrying the floor's capture) to text objects: a query refines and guards, a template commits and continues per interpolation site, and `<=>` iterates a statement to a fixpoint, bounded by the host's work budget -- a declared-measure termination guarantee is a deferred re-addition (`docs/.TODO.md`). A cast by value -- writing a bound value under a second universe -- stays uncomputable: value-indexing across two radixes, which no expression computes and no register spells.
 - Diagnostics -- compiler errors live here: unknown name, malformed definition, unguarded matcher scope. The floor never rejects, so rejection is interpretation's whole job.
 
 > Finish line: the surface suffices to write all of the standard library (L3 below) in-language -- no built-in named modifiers, no host code per entry.
@@ -29,7 +29,7 @@ L1.5 guards well-formedness only -- an unknown name, a malformed definition, a f
 
 ## Layer 2 -- Finite-Execution Contract (operational)
 
-The normative layer is `L2.md`. L1's denotation is total and L1.5's surface adds none, yet execution is finite -- this layer is where that finiteness is enforced: the bounded reads (`$0`, `@lo..hi`, an ambiguous factor split) and their host budgets, the decidable-matching scope, the well-order a `<=>` pass must strictly descend, the noncharacter boundary hygiene. It carries cost as well as admission -- a guarded query is decided in time polynomial in the text, and a run past the host's work budget is a diagnostic rather than a longer wait -- and licenses the meaning-preserving rewrites that bound reaches. Bounds and permissions, never mechanisms: which rewrites a host takes, and how it sizes a budget, stay in the implementation.
+The normative layer is `L2.md`. L1's denotation is total and L1.5's surface adds none, yet execution is finite -- this layer is where that finiteness is enforced: the bounded reads (`$0`, `@lo..hi`, an ambiguous factor split) and their host budgets, the decidable-matching scope, the work budget that bounds a `<=>` iteration, the noncharacter boundary hygiene. It carries cost as well as admission -- a guarded query is decided in time polynomial in the text, and a run past the host's work budget is a diagnostic rather than a longer wait -- and licenses the meaning-preserving rewrites that bound reaches. Bounds and permissions, never mechanisms: which rewrites a host takes, and how it sizes a budget, stay in the implementation.
 
 ## Layer 3 -- Standard Library (content)
 

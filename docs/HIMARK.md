@@ -1,6 +1,6 @@
 # Himark Cheat Sheet
 
-<!-- cspell:words upto padfree zfold noncharacters sEEd pttrn -->
+<!-- cspell:words upto padfree zfold noncharacters sEEd pttrn fixpoint -->
 
 A quick reference for writing `.hmk` source. Normative definitions live in `docs/foundation/` (`L1.md`, `L1_5.md`, `L2.md`, `L3.md`); this page is a derived index over them, not a fifth spec -- when in doubt, the foundation docs win.
 
@@ -77,7 +77,7 @@ query => template => query => template ...
 - **Query step** refines: tiles the incoming branch, one sub-branch per match; no match stops the branch (the guard reading).
 - **Template step** constructs: quoted `"..."`, literal text plus `{{...}}` interpolation sites (each one capture read: `$`, `$0`, `$k`, or `{{@name}}` for a sentinel). Commits over the branch's span.
 - A leading query branches into the statement's target; a leading template is detached (computes off-document; the document never changes).
-- **Contraction**: `query <=>[@m] template` -- re-run the pass until nothing rewrites. `@m` (a plain `uni`, declared on the arrow) is the measure: each pass's document must sit strictly earlier in `@m`'s entry order than before, or the host refuses. Entry order is a well-order, so no infinite descent -- passes settle.
+- **Contraction**: `query <=> template` -- re-run the pass until it leaves the document unchanged (a fixpoint). No declared measure today: the host bounds the iteration with its work budget, so a loop that never settles is refused rather than left to hang -- but nothing proves in advance that it settles. (A declared-measure termination guarantee, `<=>[@m]`, is a planned re-addition -- `docs/.TODO.md`.)
 
 | Statement                        | Against     | Yields                                                 |
 | -------------------------------- | ----------- | ------------------------------------------------------ |
@@ -87,7 +87,7 @@ query => template => query => template ...
 | `{a} => {b}`                     | `banana`    | `banana` (guard: no `b` inside `a`)                    |
 | `"seed" => {e} => "E"`           | anything    | unchanged (leading template is detached)               |
 | `{a,ab}{c,bc} => "{{$2}}"`       | `abc`       | `bc` (collision gave `abc` to value 1, split `(a,bc)`) |
-| `{ba} <=>[@spellings] "ab"`      | `bbaa`      | `aabb` (3 passes)                                      |
+| `{ba} <=> "ab"`                  | `bbaa`      | `aabb` (3 passes, then a no-op pass stops it)          |
 
 ## Sentinels
 
@@ -145,7 +145,7 @@ These raise a diagnostic past a host budget rather than hang or guess:
 - `$0` / an ambiguous factor split (`$1..$n`, or a back-reference split) -- streams entries in value order to find the claimant.
 - `@lo..hi` / `where` over an unbounded radix, or past the budget.
 - Matching against an unguarded or negative closure body -- refused outright, not just budgeted.
-- A `<=>` pass that fails to strictly shrink its declared measure.
+- A `<=>` iteration that never reaches a fixpoint within the host's work budget.
 - A noncharacter (sentinel) at either document boundary.
 
 ## CLI
@@ -161,7 +161,7 @@ hejmark emit-program script.hmk       # lower a whole script to Program JSON (th
 
 ## North star (bubble sort, `static/examples/demos/bubble-sort.hmk`)
 
-Sentinels mask each line, factor reads and a back-reference spell an adjacent out-of-order pair by value (any padding, any magnitude), and a contracting statement iterates the swap under a measure built from `numerals padfree` -- so the value line, not the spelling, decides sort order:
+Sentinels mask each line, factor reads and a back-reference spell an adjacent out-of-order pair by value (any padding, any magnitude), and a contracting statement iterates the swap to a fixpoint -- and because the match fires only on an out-of-order pair, the value line, not the spelling, decides sort order:
 
 ```text
 sentinel start
@@ -171,11 +171,8 @@ uni c      = {@C, !{\n}}
 uni line   = {@c, &@c}
 uni d      = {0..9}
 uni digits = {@d, &@d}
-uni value  = {0..9}[numerals padfree]
-uni list   = {@value, &{\,}{@value}}
-uni sorted = {{@start}{@list}{@end}, &{\n}{@start}{@list}{@end}}
 
 {@line} => "{{@start}}{{$}}{{@end}}"
-{@start,\,}{@digits}{\,}{{0..9}[where 0..$2 padfree], !{{0..9}[where $2 padfree]}}{@end,\,} <=>[@sorted] "{{$1}}{{$4}},{{$2}}{{$5}}"
+{@start,\,}{@digits}{\,}{{0..9}[where 0..$2 padfree], !{{0..9}[where $2 padfree]}}{@end,\,} <=> "{{$1}}{{$4}},{{$2}}{{$5}}"
 {@start,@end} => ""
 ```
