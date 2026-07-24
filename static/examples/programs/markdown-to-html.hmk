@@ -23,4 +23,3 @@ uni codeBody = {@nonTick, &@nonTick}
 {@start}{#}{\ }{@line}{@end} => "<h1>{{$4}}</h1>"
 {*}{@emBody}{*} => "<b>{{$2}}</b>"
 {`}{@codeBody}{`} => "<code>{{$2}}</code>"
-{@start,@end} => ""

@@ -94,10 +94,9 @@ def test_a_document_spelling_a_noncharacter_is_refused() -> None:
         run('{a} => "b"', "x\ufdd0y")
 
 
-def test_a_surviving_sentinel_is_a_script_error() -> None:
-    """A sentinel at exit is a cleanup rule that did not fire, named as such."""
-    with pytest.raises(HimarkSentinelError, match="sentinel @s survived"):
-        run('sentinel s\n{a} => "{{@s}}"', "a")
+def test_a_surviving_sentinel_is_stripped_at_exit() -> None:
+    """A sentinel left in the document is cleared at exit, not shipped."""
+    assert run('sentinel s\n{a} => "{{@s}}"', "a") == ""
 
 
 def test_a_back_reference_matches_only_its_factors_re_spelling() -> None:

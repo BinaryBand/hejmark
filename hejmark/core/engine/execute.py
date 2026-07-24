@@ -49,12 +49,12 @@ from hejmark.core.ir.program import (
 
 
 class HimarkSentinelError(ValueError):
-    """Raised at the document boundary: sentinels are engine-private.
+    """Raised at ingest: sentinels are engine-private, so their space is closed.
 
     A document that arrives spelling a noncharacter is refused -- Unicode
     reserves them for internal use, and the engine's internal use is sentinels.
-    A sentinel surviving into the final document is a script error (a cleanup
-    rule that did not fire), never something to strip silently.
+    The exit side never raises: a sentinel left in the document is stripped
+    there (see :func:`_strip`), so nothing engine-private crosses the boundary.
     """
 
 
@@ -254,25 +254,32 @@ def _iterate(stmt: _Contract, document: str, sentinels: dict[str, str]) -> str:
         document = result
 
 
-def _guard(document: str, sentinels: dict[str, str] | None) -> None:
-    """Refuse a document that spells a noncharacter, at either boundary.
+def _guard(document: str) -> None:
+    """Refuse a document that arrives spelling a noncharacter.
 
-    With the sentinel table in hand (the exit side) the message names the
-    sentinel that survived; without it (ingest) the document simply is not
-    interchange text.
+    Noncharacters are the sentinel space -- engine-private -- and interchange
+    text never carries one, so a document that does is refused at ingest.
 
     Raises:
         HimarkSentinelError: the document carries a noncharacter.
     """
     for index, char in enumerate(document):
-        if not noncharacter(char):
-            continue
-        if sentinels is None:
+        if noncharacter(char):
             msg = f"document spells a noncharacter at index {index}: {char!r}"
-        else:
-            names = {face: name for name, face in sentinels.items()}
-            msg = f"sentinel @{names.get(char, '?')} survived the script at index {index}"
-        raise HimarkSentinelError(msg)
+            raise HimarkSentinelError(msg)
+
+
+def _strip(document: str, sentinels: dict[str, str]) -> str:
+    """Clear every declared sentinel from the final document.
+
+    A sentinel is a real noncharacter while the script runs, so statements can
+    match it; at exit it is stripped, so nothing engine-private crosses the
+    boundary and no cleanup statement has to be written. Ingest refuses any
+    other noncharacter, so this removes exactly the masks the script wrote.
+    """
+    for face in sentinels.values():
+        document = document.replace(face, "")
+    return document
 
 
 def _load(line: CompiledLine, resolver: LateResolver) -> _Statement | _Contract:
@@ -297,17 +304,16 @@ def run(program: Program, document: str, resolver: LateResolver) -> str:
 
     The one place a program's data becomes live objects: queries load once, so
     a slot's memo serves every branch and every pass of its statement.
-    Sentinels are engine-private, so the document is guarded at both ends: a
-    noncharacter at ingest is refused, and one at exit is a sentinel a cleanup
-    rule left behind.
+    Sentinels are engine-private: a noncharacter at ingest is refused, and any
+    sentinel still standing at exit is stripped, so the space stays closed at
+    both ends without a cleanup statement.
     """
     sentinels = {sentinel.name: sentinel.face for sentinel in program.sentinels}
     loaded = tuple(_load(line, resolver) for line in program.statements)
-    _guard(document, None)
+    _guard(document)
     for stmt in loaded:
         if isinstance(stmt, _Contract):
             document = _iterate(stmt, document, sentinels)
         else:
             document = _statement(stmt, document, sentinels)
-    _guard(document, sentinels)
-    return document
+    return _strip(document, sentinels)
