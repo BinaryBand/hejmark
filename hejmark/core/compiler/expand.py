@@ -96,7 +96,7 @@ def _refuse_read(spelling: str) -> NoReturn:
     """Refuse a back-reference that reached expansion: it crossed a declaration.
 
     A query's own reads are substituted before its units expand, so a read
-    still standing here sits inside a ``uni`` or ``:=`` body -- where there is
+    still standing here sits inside a ``uni`` or ``def`` body -- where there is
     no query to bind it.
 
     Raises:

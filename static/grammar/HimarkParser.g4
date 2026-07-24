@@ -19,7 +19,7 @@ line
 declaration
     : UNI IDENT EQ expr           # UniDecl
     | SENTINEL IDENT              # SentinelDecl
-    | IDENT param* WALRUS expr    # DefDecl
+    | DEF IDENT param* EQ expr    # DefDecl
     ;
 
 // A parameter is an identifier or an identifier pair (`lo..hi`); a lone

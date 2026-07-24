@@ -124,4 +124,4 @@ def test_a_read_inside_a_declaration_is_refused() -> None:
 def test_a_read_argument_inside_a_definition_body_is_refused() -> None:
     """The argument case is refused on the same rule as the pattern case."""
     with pytest.raises(HimarkScopeError, match="through a declaration"):
-        _expand("{@f}", "f := {0..9}[where 0..$2]")
+        _expand("{@f}", "def f = {0..9}[where 0..$2]")

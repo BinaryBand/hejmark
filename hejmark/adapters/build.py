@@ -193,7 +193,7 @@ def _param(ctx: Any) -> Param:
 
 
 def _declaration(ctx: Any) -> UniDecl | DefDecl | SentinelDecl:
-    """Dispatch a declaration: a ``uni`` name, a sentinel, or a ``:=`` definition."""
+    """Dispatch a declaration: a ``uni`` name, a sentinel, or a ``def`` definition."""
     match type(ctx).__name__:
         case "UniDeclContext":
             return UniDecl(ctx.IDENT().getText(), _expr(ctx.expr()))

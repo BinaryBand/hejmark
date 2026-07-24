@@ -191,7 +191,7 @@ class UniDecl:
 
 @dataclass(frozen=True)
 class DefDecl:
-    """A definition ``name params := body``, applied through a modifier pipeline."""
+    """A definition ``def name params = body``, applied through a modifier pipeline."""
 
     name: str
     params: tuple[Param, ...]

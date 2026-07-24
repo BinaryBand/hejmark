@@ -34,18 +34,18 @@ _MAX = "\U0010ffff"
 _MIN = "\x00"
 
 SOURCE = """\
-uni hex      = {0..9,a..f}
-uni str      = {{{}}, &@char}
+uni hex          = {0..9,a..f}
+uni str          = {{{}},&@char}
 
-fill         := {{{}, @0}}
-shorter w    := {@str, !{@char^w @str}}
-upto w       := {@shorter w, @char^w}
-longer w     := {@str, !{@upto w}}
-where lo..hi := {@lo..hi}
-pad w..w'    := {@fill^{w'} _, !{@shorter w}, !{@longer w'}}
-zeros        := {{{}}, &@0}
-zfold        := {{@zeros}}
-padfree      := {@zfold _}
+def fill         = {{{},@0}}
+def shorter w    = {@str,!{@char^w@str}}
+def upto w       = {@shorter(w),@char^w}
+def longer w     = {@str,!{@upto(w)}}
+def where lo..hi = {@lo..hi}
+def pad w..w'    = {@fill^{w'}_,!{@shorter(w)},!{@longer(w')}}
+def zeros        = {{{}},&@0}
+def zfold        = {{@zeros}}
+def padfree      = {@zfold_}
 """
 
 # The noncharacters: one contiguous block plus the last two points of every

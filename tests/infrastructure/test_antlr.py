@@ -74,10 +74,10 @@ NORTH_STAR_ROWS = (
 L1_5_ROWS = (
     "uni d = {0..9}",  # declaration
     "uni str = {{{}}, &@char}",  # the seeded std universe
-    "fill := {{{}, @0}}",  # zero-parameter definition over a register
-    "nonzero := {@, !{@0}}",  # bare head register
-    "where lo..hi := {@lo..hi}",  # pair parameter over the value family
-    "pad w..w' := {@fill^{w'} _, !{@shorter w}, !{@longer w'}}",  # exponent + operand token
+    "def fill = {{{},@0}}",  # zero-parameter definition over a register
+    "def nonzero = {@,!{@0}}",  # bare head register
+    "def where lo..hi = {@lo..hi}",  # pair parameter over the value family
+    "def pad w..w' = {@fill^{w'}_,!{@shorter(w)},!{@longer(w')}}",  # exponent + operand token
     "{0..9}[where 8..12 pad 1..2]",  # modifier pipeline
     '{{cat,feline}} => "{{$0}}"',  # emit: canonical-face rewrite
     '{a,e,i,o,u} => ""',  # emit: deletion

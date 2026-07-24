@@ -11,8 +11,8 @@ lexer grammar HimarkLexer;
 // ---------------------------------------------------------------------------
 
 UNI      : 'uni' ;
+DEF      : 'def' ;
 SENTINEL : 'sentinel' ;
-WALRUS   : ':=' ;
 ARROW  : '=>' ;
 // The contracting arrow: its statement re-runs to settlement, each pass
 // strictly descending the declared measure's entry order.

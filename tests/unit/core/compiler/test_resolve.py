@@ -27,8 +27,8 @@ def _env(source: str) -> Env:
 
 
 def test_collect_separates_unis_from_definitions() -> None:
-    """One namespace, two kinds: a ``uni`` is an expression, a ``:=`` takes parameters."""
-    env = _env("uni d = {0..9}\nfill := {{{}, @0}}")
+    """One namespace, two kinds: a ``uni`` is an expression, a ``def`` takes parameters."""
+    env = _env("uni d = {0..9}\ndef fill = {{{},@0}}")
     assert set(env.unis) == {"d"}
     assert set(env.defs) == {"fill"}
 
@@ -105,7 +105,7 @@ def test_merge_layers_the_std_under_a_script() -> None:
 
 def test_bind_splits_the_flat_item_list_by_arity() -> None:
     """Stage names and arguments lex alike; only arity tells them apart."""
-    env = _env("where lo..hi := {a}\npad w..w' := {b}")
+    env = _env("def where lo..hi = {a}\ndef pad w..w' = {b}")
     stages = bind(
         (PipeItem("where", None), PipeItem("8", "12"), PipeItem("pad"), PipeItem("1", "2")), env
     )
@@ -123,7 +123,7 @@ def test_bind_reports_a_stage_that_names_no_definition() -> None:
 def test_bind_reports_missing_arguments() -> None:
     """Arity is the contract: a stage that runs out of items is malformed."""
     with pytest.raises(HimarkScopeError, match="argument"):
-        bind((PipeItem("shorter"),), _env("shorter w := {a}"))
+        bind((PipeItem("shorter"),), _env("def shorter w = {a}"))
 
 
 def test_canonicalize_strips_leading_zero_digits() -> None:

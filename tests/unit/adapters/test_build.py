@@ -96,7 +96,7 @@ def test_a_sentinel_read_is_its_own_template_part() -> None:
 
 def test_a_definition_carries_its_parameters() -> None:
     """A pair parameter is one parameter, written `lo..hi`."""
-    line = _line("where lo..hi := {a}")
+    line = _line("def where lo..hi = {a}")
     assert isinstance(line, DefDecl)
     assert line.params[0].lo == "lo"
     assert line.params[0].hi == "hi"
@@ -119,7 +119,7 @@ def test_a_pipeline_stays_a_flat_item_list() -> None:
 
 def test_a_braced_exponent_unwraps_to_its_parameter_name() -> None:
     """`fill^{w'}` names a parameter; the braces are syntax, not a universe."""
-    line = _line("pad w..w' := {@fill^{w'} _}")
+    line = _line("def pad w..w' = {@fill^{w'}_}")
     assert isinstance(line, DefDecl)
     segments = line.expr.units[0].base
     assert isinstance(segments, UniverseNode)

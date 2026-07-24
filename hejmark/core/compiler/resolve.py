@@ -1,7 +1,7 @@
 """The L1.5 name environment: declarations, acyclicity, and pipeline binding.
 
 A script's declarations are collected once into an :class:`Env`. Names live in
-one namespace -- ``uni`` declarations and ``:=`` definitions cannot collide --
+one namespace -- ``uni`` declarations and ``def`` definitions cannot collide --
 and the registers are its reserved names, so neither may be declared.
 
 Acyclicity is checked here rather than discovered as a recursion depth: `&` is
@@ -76,7 +76,7 @@ class Stage:
 
 @dataclass(frozen=True)
 class Env:
-    """The resolved namespace: ``uni`` declarations and ``:=`` definitions.
+    """The resolved namespace: ``uni`` declarations and ``def`` definitions.
 
     ``sentinels`` maps each ``sentinel`` name to its allocated face; the name
     also enters ``unis`` over that lone face, so patterns need no extra path.
