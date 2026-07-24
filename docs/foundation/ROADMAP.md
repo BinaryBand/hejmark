@@ -2,6 +2,8 @@
 
 <!-- cspell:words sigiled upto fixpoint -->
 
+> The specs are written under `CHARTER.md` -- the law of what each layer may contain and what it must cede. Roadmap and open decisions live here and in `docs/.TODO.md`, not in the specs.
+
 ## Layer 1 -- Mathematical Floor (denotation) -- cemented
 
 - The object -- the pointed alphabet `<alphabet, <value, face>>`; value and face are ordinals below $\varepsilon_0$, below $\omega^\omega$ wherever closure stays linear.
@@ -38,7 +40,7 @@ The normative layer is `L2.md`. L1's denotation is total and L1.5's surface adds
 
 ## Layer 3 -- Standard Library (content)
 
-Nothing but in-language declarations over the L1.5 surface: `uni` universes and `:=` definitions. No new denotation, no host code -- every entry must compile away through L1.5's expansion into the six constructors, which is the admission test in operational form. The normative inventory is `L3.md`.
+Nothing but in-language declarations over the L1.5 surface: `uni` universes and `:=` definitions. No new denotation, no host code -- every entry must compile away through L1.5's expansion into the five constructors, which is the admission test in operational form. The normative inventory is `L3.md`.
 
 | Expression | Denotes |
 | --- | --- |
