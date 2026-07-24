@@ -12,10 +12,11 @@ left are decided by membership queries, never by materializing.
 The closure ``&`` binds to the innermost enclosing brace expression other than
 a subtraction operand, which then denotes the closure at omega of its body:
 inflationary stages, first-appearance order. Membership is decided at stage
-``len(spelling) + 1`` -- exact on settled (guarded) bodies by the fixpoint
-theorem; on an unsettled body presence is still reported when a stage shows
-it, but absence has no bound and raises :class:`HimarkUnsettledError`, while
-``entries()`` streams any closure stage by stage (denotation stays total).
+``len(spelling) + 1`` -- exact on guarded bodies by the fixpoint theorem. On an
+unguarded body presence is still reported when a stage shows it, but absence is
+only semi-decided: a spelling no stage up to that bound shows reads as absent,
+which a later stage of an unsettled body could contradict. ``entries()`` streams
+any closure stage by stage (denotation stays total).
 
 Laziness is the one discipline: nothing here materializes an infinite object,
 so iterating an infinite universe simply never ends, and folding one into a
@@ -30,8 +31,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import assert_never
 
-from hejmark.core.floor.binder import binds, settled
-from hejmark.core.floor.reach import cuts, suffixes
+from hejmark.core.floor.binder import binds
 from hejmark.core.floor.syntax import (
     Closure,
     Face,
@@ -44,16 +44,11 @@ from hejmark.core.floor.syntax import (
     UniverseNode,
 )
 from hejmark.core.floor.window import carve, window_of
-from hejmark.core.floor.work import charge
 
 # A liveness test: whether a face is still unclaimed at its point of use.
 Live = Callable[[str], bool]
 # A member that adds faces (every member except a subtraction).
 Adding = Face | Range | Final | Fold | Product | Closure
-
-
-class HimarkUnsettledError(ValueError):
-    """Raised when membership in an unsettled closure cannot be decided."""
 
 
 @dataclass(frozen=True)
@@ -78,15 +73,7 @@ class Universe:
     stages: int | None = None
 
     def contains(self, spelling: str) -> bool:
-        """Whether some entry of this universe wears ``spelling``.
-
-        The recursion's chokepoint, so an open work budget is charged here --
-        memo hit or not, since re-asking an answered question still costs.
-
-        Raises:
-            HimarkBudgetError: the run spent past the host's work budget.
-        """
-        charge()
+        """Whether some entry of this universe wears ``spelling``."""
         return _contains(self, spelling)
 
     def entries(self) -> Iterator[Entry]:
@@ -110,13 +97,10 @@ def _contains(universe: Universe, spelling: str) -> bool:
     if stages is None:
         _shorter_first(universe, spelling)
     bound = len(spelling) + 1 if stages is None else stages
-    for stage in range(bound):
-        if walk(node.members, Universe(node, amp, stage), spelling):
-            return True
-    if stages is not None or settled(node, _spells_empty):
-        return False
-    msg = f"membership of {spelling!r} in an unsettled closure has no stage bound"
-    raise HimarkUnsettledError(msg)
+    # A guarded body settles by ``len + 1``, so this is exact; an unguarded one
+    # only semi-decides, and a spelling no stage up to the bound shows reads as
+    # absent -- which a later stage of an unsettled body could contradict.
+    return any(walk(node.members, Universe(node, amp, stage), spelling) for stage in range(bound))
 
 
 def _shorter_first(universe: Universe, spelling: str) -> None:
@@ -124,29 +108,18 @@ def _shorter_first(universe: Universe, spelling: str) -> None:
 
     A closure decides a length-``L`` spelling by asking its body about strictly
     shorter ones, so the recursion is naturally as deep as the spelling is long
-    -- and a document long enough exhausts the interpreter's stack well before
-    it exhausts the work budget, which turns an honest refusal into a crash.
+    -- and a document long enough exhausts the interpreter's stack.
     Walking the prefixes upward first puts each answer the descent will want in
     the memo, so the descent finds it there rather than a frame deeper; each
     step recurses one level, its own prefixes being answered already. Only the
     closure at omega warms, because only it is asked from outside -- answering
     it at each prefix has already filled its stages' member walks.
 
-    Pure warming: no answer changes, only where it is computed. An unsettled
-    body has none to warm with, and saying so is the real question's job rather
-    than a prefix's, so the walk stops instead of naming the wrong spelling.
-    Tactic, not rule: a host whose stack is its memory conforms without it.
+    Pure warming: no answer changes, only where it is computed. Tactic, not
+    rule: a host whose stack is its memory conforms without it.
     """
     for end in range(1, len(spelling)):
-        try:
-            _contains(universe, spelling[:end])
-        except HimarkUnsettledError:
-            return
-
-
-def _spells_empty(node: UniverseNode) -> bool:
-    """The emptiness oracle `binder.settled` needs: does this node wear ``""``?"""
-    return Universe(node).contains("")
+        _contains(universe, spelling[:end])
 
 
 def walk(members: Sequence[Member], amp: Universe | None, spelling: str) -> bool:
@@ -210,7 +183,6 @@ def _splits(
 ) -> bool:
     """Whether ``spelling`` splits into consecutive pieces, one per factor's faces."""
     memo: dict[tuple[int, int], bool] = {}
-    tails = suffixes(factors)
     length = len(spelling)
 
     def rest(index: int, pos: int) -> bool:
@@ -221,7 +193,7 @@ def _splits(
         if key not in memo:
             memo[key] = any(
                 _factor_contains(factors[index], amp, spelling[pos:end]) and rest(index + 1, end)
-                for end in cuts(factors[index], tails[index + 1], pos, length)
+                for end in range(pos, length + 1)
             )
         return memo[key]
 

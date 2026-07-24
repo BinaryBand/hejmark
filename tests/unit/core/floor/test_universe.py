@@ -9,8 +9,6 @@ from __future__ import annotations
 
 from itertools import islice
 
-import pytest
-
 from hejmark.core.floor.syntax import (
     Closure,
     Face,
@@ -21,7 +19,7 @@ from hejmark.core.floor.syntax import (
     Subtract,
     UniverseNode,
 )
-from hejmark.core.floor.universe import HimarkUnsettledError, denote
+from hejmark.core.floor.universe import denote
 
 
 def _faces(node: UniverseNode, limit: int | None = None) -> list[tuple[str, ...]]:
@@ -147,16 +145,20 @@ def test_closure_of_nothing_is_empty() -> None:
     assert _faces(UniverseNode((Closure(),))) == []
 
 
-def test_unguarded_closure_still_enumerates_but_membership_raises() -> None:
-    """Totality is denotation's; the missing absence bound is the decision's."""
+def test_unguarded_closure_enumerates_and_membership_semi_decides() -> None:
+    """Totality is denotation's; an unguarded absence is only semi-decided.
+
+    Presence is still reported when a stage shows it; a spelling no stage up to
+    ``len + 1`` shows reads as absent -- which a later stage could contradict,
+    but nothing here refuses it.
+    """
     fill = UniverseNode((Fold(UniverseNode((Fold(UniverseNode(())), Face("0")))),))
     node = UniverseNode((Face("a"), Product((fill, Closure()))))
     universe = denote(node)
 
     assert _faces(node, 3) == [("a",), ("0a",), ("00a",)]
     assert universe.contains("00a")
-    with pytest.raises(HimarkUnsettledError):
-        universe.contains("xyz")
+    assert not universe.contains("xyz")
 
 
 def test_subtracted_self_reference_settles_at_stage_one() -> None:

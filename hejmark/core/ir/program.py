@@ -8,16 +8,9 @@ naming which factors it reads -- and the engine resolves it per attempt through
 a :data:`LateResolver` callback the compiler provides. A slot-free program
 never invokes the callback and is fully self-contained.
 
-Both factor shapes carry their ``reach``, so the split bounds a search takes
-are read off the program rather than recomputed from the tree: what a factor
-can spell is a fact about the expression, and the compiler is where expression
-facts are settled. The engine still prices the *document* -- where a cut may
-fall depends on the text, which only execution sees.
-
 The sentinel space also lives here: sentinel faces are a boundary fact (the
-program carries the allocations, the engine's exit guard reads the space), so
-:func:`noncharacter` and the allocation base are defined where both sides can
-see them.
+program carries the allocations), so the allocation base is defined where both
+sides can see it.
 """
 
 from __future__ import annotations
@@ -28,21 +21,8 @@ from dataclasses import dataclass
 from hejmark.core.floor.syntax import UniverseNode
 
 # Sentinel faces are allocated from the first noncharacter block, in
-# declaration order, so allocation is deterministic and per-script. The other
-# noncharacters are the last two code points of every plane.
+# declaration order, so allocation is deterministic and per-script.
 SENTINEL_BASE = 0xFDD0
-_SENTINEL_TOP = 0xFDEF
-_PLANE_ENDER = 0xFFFE
-
-
-def noncharacter(char: str) -> bool:
-    """Whether *char* is one of Unicode's noncharacters -- the sentinel space.
-
-    The seeded ``C`` subtracts these, so no ``@C``-derived universe can touch a
-    sentinel: only its declared name matches it.
-    """
-    point = ord(char)
-    return SENTINEL_BASE <= point <= _SENTINEL_TOP or point & _PLANE_ENDER == _PLANE_ENDER
 
 
 @dataclass(frozen=True)
@@ -51,37 +31,17 @@ class LateSlot:
 
     ``needs`` holds the 1-based indices of the factors it reads, in written
     order; the resolver receives exactly one bound face per entry.
-
-    ``reach`` is a sound upper bound on the length of any face this slot's
-    resolution could ever wear, computed at compile time from the unit's shape
-    and the reach already known for the factors it needs -- ``None`` where the
-    shape is not confidently priced (an exponent, a pipeline, a value cut, a
-    reference), exactly `floor.reach`'s own convention. It is what lets
-    ``capture._splits`` take the same two-ended cut bound the floor's other
-    split searches take, without ever denoting the slot.
     """
 
     slot: int
     needs: tuple[int, ...]
-    reach: int | None = None
 
 
 @dataclass(frozen=True)
 class EagerFactor:
-    """A factor lowered ahead of any binding: its floor form and its reach.
-
-    ``reach`` is the longest face *node* can wear, exactly
-    :func:`~hejmark.core.floor.reach.reach` of it, computed once at compile
-    time rather than per scan -- ``None`` where the shape is unbounded, the
-    same convention :class:`LateSlot` and the floor itself keep. Storing it is
-    what lets the engine take its two-ended cut bound without measuring the
-    tree: an over-approximation only costs probes, but an under-approximation
-    would drop a match, so nothing may widen this without the compiler saying
-    so.
-    """
+    """A factor lowered ahead of any binding: its floor form."""
 
     node: UniverseNode
-    reach: int | None = None
 
 
 QueryFactor = EagerFactor | LateSlot
@@ -147,15 +107,9 @@ class CompiledStatement:
 
 @dataclass(frozen=True)
 class CompiledIter:
-    """The contracting statement ``query <=>[@m] template``.
-
-    The measure is expanded at compile time; ``measure_name`` survives for the
-    engine's diagnostics.
-    """
+    """The contracting statement ``query <=> template``: iterated to a fixpoint."""
 
     query: CompiledQuery
-    measure_name: str
-    measure: UniverseNode
     template: CompiledTemplate
 
 

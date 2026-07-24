@@ -43,9 +43,9 @@ def _walk(obj: object, *path: str | int) -> object:
 def _program() -> Program:
     """One program touching every IR node kind."""
     eager = UniverseNode((Face("a"), Range("0", "9"), Product((Closure(),))))
-    query = CompiledQuery("{a,0..9,{&}}{$1}", (EagerFactor(eager, None), LateSlot(0, (1,))))
+    query = CompiledQuery("{a,0..9,{&}}{$1}", (EagerFactor(eager), LateSlot(0, (1,))))
     template = CompiledTemplate((TextPart("<"), CapturePart("$1"), SentinelPart("end")))
-    contract = CompiledIter(query, "m", UniverseNode((Face("-"),)), template)
+    contract = CompiledIter(query, template)
     return Program(
         (CompiledStatement((query, template)), contract),
         (Sentinel("end", "﷐"),),
@@ -62,14 +62,14 @@ def test_the_wire_object_is_versioned_and_tagged() -> None:
     """A reader can dispatch on the format tag before touching anything else."""
     encoded = encode_program(_program())
     assert encoded["format"] == "hejmark-program"
-    assert encoded["version"] == 2
+    assert encoded["version"] == 3
 
 
 def test_a_slot_rides_as_an_id_and_its_reads() -> None:
     """A back-referencing factor crosses as a hole, never as compiler objects."""
     encoded = encode_program(_program())
     factor = _walk(encoded, "statements", 0, "steps", 0, "factors", 1)
-    assert factor == {"kind": "slot", "slot": 0, "needs": [1], "reach": None}
+    assert factor == {"kind": "slot", "slot": 0, "needs": [1]}
 
 
 def test_a_foreign_format_tag_is_refused() -> None:
@@ -83,29 +83,8 @@ def test_a_foreign_format_tag_is_refused() -> None:
 def test_a_future_version_is_refused() -> None:
     """Version drift refuses rather than misreads."""
     encoded = encode_program(_program())
-    encoded["version"] = 3
+    encoded["version"] = 4
     with pytest.raises(HimarkPayloadError, match="version"):
-        decode_program(encoded)
-
-
-def test_an_eager_factor_carries_its_reach() -> None:
-    """The split bound rides the wire beside the universe, priced by the compiler."""
-    source = '{ab}{c} => "x"'
-    node, env = script(_to_ast, source)
-    program, _ = compile_script(node, env)
-    encoded = encode_program(program)
-    factors = _walk(encoded, "statements", 0, "steps", 0, "factors")
-    assert isinstance(factors, list)
-    assert [_walk(f, "reach") for f in cast("list[object]", factors)] == [2, 1]
-
-
-def test_a_factor_missing_its_reach_is_refused() -> None:
-    """Reach is required, not defaulted: guessing it would run slower in silence."""
-    encoded = encode_program(_program())
-    factor = _walk(encoded, "statements", 0, "steps", 0, "factors", 0)
-    assert isinstance(factor, dict)
-    del cast("dict[str, object]", factor)["reach"]
-    with pytest.raises(HimarkPayloadError, match="reach"):
         decode_program(encoded)
 
 

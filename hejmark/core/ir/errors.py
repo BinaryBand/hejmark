@@ -1,10 +1,10 @@
 """The boundary's exception vocabulary, shared by compiler and engine.
 
 :class:`HimarkScopeError` is raised on both sides of the boundary -- by the
-compiler when a name or read is refused, and by the engine when a bounded read
-outruns its budget -- so it lives in the stratum both sides import.
-:class:`HimarkPayloadError` belongs to the boundary itself: a payload that does
-not decode is neither side's program.
+compiler when a name or read is refused, and by the engine when a capture read
+finds no wearer in a finite universe -- so it lives in the stratum both sides
+import. :class:`HimarkPayloadError` belongs to the boundary itself: a payload
+that does not decode is neither side's program.
 """
 
 from __future__ import annotations

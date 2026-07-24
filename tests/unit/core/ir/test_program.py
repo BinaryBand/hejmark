@@ -18,12 +18,11 @@ from hejmark.core.ir.program import (
     Sentinel,
     SentinelPart,
     TextPart,
-    noncharacter,
 )
 
 
 def _query() -> CompiledQuery:
-    eager = EagerFactor(UniverseNode((Face("a"),)), 1)
+    eager = EagerFactor(UniverseNode((Face("a"),)))
     return CompiledQuery("{a}{$1}", (eager, LateSlot(0, (1,))))
 
 
@@ -45,7 +44,7 @@ def test_a_program_holds_statements_and_the_sentinel_table() -> None:
     """Statements stay in source order; sentinels ride as name-face pairs."""
     template = CompiledTemplate((TextPart("x"), CapturePart("$1"), SentinelPart("end")))
     line = CompiledStatement((_query(), template))
-    contract = CompiledIter(_query(), "m", UniverseNode((Face("a"),)), template)
+    contract = CompiledIter(_query(), template)
     program = Program((line, contract), (Sentinel("end", "﷐"),))
     assert program.statements == (line, contract)
     assert program.sentinels[0].face == "﷐"
@@ -59,13 +58,3 @@ def test_a_resolver_is_a_plain_callable() -> None:
 
     resolver: LateResolver = resolve
     assert resolver(0, ("a",)) == UniverseNode((Face("a"),))
-
-
-def test_noncharacters_span_the_block_and_every_plane_end() -> None:
-    """The sentinel space is exactly Unicode's noncharacters."""
-    assert noncharacter("﷐")
-    assert noncharacter("﷯")
-    assert noncharacter("￾")
-    assert noncharacter("\U0010ffff")
-    assert not noncharacter("a")
-    assert not noncharacter("ﷰ")

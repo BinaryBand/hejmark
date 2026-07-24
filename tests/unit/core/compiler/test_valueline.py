@@ -5,7 +5,6 @@ import itertools
 import pytest
 
 from hejmark.core.compiler.valueline import (
-    RADIX_BUDGET,
     ValueLineError,
     cut,
     digits,
@@ -19,7 +18,6 @@ DECIMAL = syntax.UniverseNode((syntax.Range("0", "9"),))
 # value order and shortlex part company over its numerals.
 WIDE = syntax.UniverseNode((syntax.Face("a"), syntax.Face("bb")))
 LETTERS = syntax.UniverseNode((syntax.Range("a", "z"),))
-INFINITE = syntax.UniverseNode((syntax.Final("a"),))
 
 
 def faces(node: syntax.UniverseNode, limit: int = 200) -> list[str]:
@@ -30,11 +28,6 @@ def faces(node: syntax.UniverseNode, limit: int = 200) -> list[str]:
 def test_digits_reads_the_radix_in_value_order() -> None:
     assert digits(DECIMAL) == tuple("0123456789")
     assert digits(WIDE) == ("a", "bb")
-
-
-def test_digits_refuses_an_unbounded_head() -> None:
-    with pytest.raises(ValueLineError, match=str(RADIX_BUDGET)):
-        digits(INFINITE)
 
 
 def test_value_of_reads_a_numeral_in_the_head_radix() -> None:

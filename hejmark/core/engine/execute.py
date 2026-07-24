@@ -31,9 +31,6 @@ from dataclasses import dataclass
 
 from hejmark.core.engine.scan.capture import canonical_face, factor_faces
 from hejmark.core.engine.scan.match import Query, finditer, load_query
-from hejmark.core.engine.scan.measure import precedes
-from hejmark.core.floor.universe import Universe, denote
-from hejmark.core.floor.work import budgeted
 from hejmark.core.ir.errors import HimarkScopeError
 from hejmark.core.ir.program import (
     CapturePart,
@@ -44,18 +41,7 @@ from hejmark.core.ir.program import (
     LateResolver,
     Program,
     TextPart,
-    noncharacter,
 )
-
-
-class HimarkSentinelError(ValueError):
-    """Raised at ingest: sentinels are engine-private, so their space is closed.
-
-    A document that arrives spelling a noncharacter is refused -- Unicode
-    reserves them for internal use, and the engine's internal use is sentinels.
-    The exit side never raises: a sentinel left in the document is stripped
-    there (see :func:`_strip`), so nothing engine-private crosses the boundary.
-    """
 
 
 @dataclass(frozen=True)
@@ -92,11 +78,9 @@ class _Statement:
 
 @dataclass(frozen=True)
 class _Contract:
-    """One loaded contracting statement: query and measure denoted once."""
+    """One loaded contracting statement: its query and template."""
 
     query: Query
-    measure_name: str
-    measure: Universe
     template: CompiledTemplate
 
 
@@ -220,53 +204,16 @@ def _statement(stmt: _Statement, document: str, sentinels: dict[str, str]) -> st
 
 
 def _iterate(stmt: _Contract, document: str, sentinels: dict[str, str]) -> str:
-    """Run a contracting statement: passes to settlement, each strictly descending.
+    """Run a contracting statement: the pass repeats until it reaches a fixpoint.
 
     The pass is the ordinary two-step statement; passes repeat until one finds
-    nothing to rewrite. Each pass is checked, not trusted: the document before
-    and after are read as spellings of the declared measure, and the after
-    must sit strictly earlier in its entry order -- a well-order, so checked
-    descent is the termination proof, not a hope.
-
-    The pass count is finite with no bound stated in advance -- a well-order
-    carries no numeral -- but each pass is priced: one work budget covers the
-    whole pass, its scan and its measure comparison together, and a pass that
-    outspends it is a diagnostic rather than a longer wait.
-
-    Raises:
-        HimarkScopeError: a pass fails to shrink the measure, or the measure
-            does not spell the document it is asked to seat.
-        HimarkBudgetError: a pass ran past the host's work budget.
+    nothing to rewrite, and that unchanged document is the fixpoint the
+    iteration settles at. Nothing here proves in advance that it settles.
     """
     once = _Statement((stmt.query, stmt.template))
-    while True:
-        with budgeted("a contracting pass"):
-            if next(iter(finditer(stmt.query, document)), None) is None:
-                return document
-            result = _statement(once, document, sentinels)
-            for text in (document, result):
-                if not stmt.measure.contains(text):
-                    msg = f"@{stmt.measure_name} does not spell the document between passes"
-                    raise HimarkScopeError(msg)
-            if not precedes(stmt.measure, result, document):
-                msg = f"a pass failed to shrink @{stmt.measure_name}"
-                raise HimarkScopeError(msg)
-        document = result
-
-
-def _guard(document: str) -> None:
-    """Refuse a document that arrives spelling a noncharacter.
-
-    Noncharacters are the sentinel space -- engine-private -- and interchange
-    text never carries one, so a document that does is refused at ingest.
-
-    Raises:
-        HimarkSentinelError: the document carries a noncharacter.
-    """
-    for index, char in enumerate(document):
-        if noncharacter(char):
-            msg = f"document spells a noncharacter at index {index}: {char!r}"
-            raise HimarkSentinelError(msg)
+    while next(iter(finditer(stmt.query, document)), None) is not None:
+        document = _statement(once, document, sentinels)
+    return document
 
 
 def _strip(document: str, sentinels: dict[str, str]) -> str:
@@ -274,8 +221,7 @@ def _strip(document: str, sentinels: dict[str, str]) -> str:
 
     A sentinel is a real noncharacter while the script runs, so statements can
     match it; at exit it is stripped, so nothing engine-private crosses the
-    boundary and no cleanup statement has to be written. Ingest refuses any
-    other noncharacter, so this removes exactly the masks the script wrote.
+    boundary and no cleanup statement has to be written.
     """
     for face in sentinels.values():
         document = document.replace(face, "")
@@ -283,14 +229,9 @@ def _strip(document: str, sentinels: dict[str, str]) -> str:
 
 
 def _load(line: CompiledLine, resolver: LateResolver) -> _Statement | _Contract:
-    """Load one program line: wire its queries to the resolver, denote its measure."""
+    """Load one program line: wire its queries to the resolver."""
     if isinstance(line, CompiledIter):
-        return _Contract(
-            load_query(line.query, resolver),
-            line.measure_name,
-            denote(line.measure),
-            line.template,
-        )
+        return _Contract(load_query(line.query, resolver), line.template)
     return _Statement(
         tuple(
             load_query(step, resolver) if isinstance(step, CompiledQuery) else step
@@ -304,13 +245,11 @@ def run(program: Program, document: str, resolver: LateResolver) -> str:
 
     The one place a program's data becomes live objects: queries load once, so
     a slot's memo serves every branch and every pass of its statement.
-    Sentinels are engine-private: a noncharacter at ingest is refused, and any
-    sentinel still standing at exit is stripped, so the space stays closed at
-    both ends without a cleanup statement.
+    Sentinels are engine-private: any sentinel still standing at exit is
+    stripped, so nothing engine-private crosses the boundary.
     """
     sentinels = {sentinel.name: sentinel.face for sentinel in program.sentinels}
     loaded = tuple(_load(line, resolver) for line in program.statements)
-    _guard(document)
     for stmt in loaded:
         if isinstance(stmt, _Contract):
             document = _iterate(stmt, document, sentinels)

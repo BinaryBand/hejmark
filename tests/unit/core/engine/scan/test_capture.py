@@ -2,12 +2,9 @@
 
 from __future__ import annotations
 
-import pytest
-
 from hejmark import parse
 from hejmark.core.engine.scan.capture import canonical, canonical_face, factor_faces
 from hejmark.core.engine.scan.match import match
-from hejmark.core.ir.errors import HimarkScopeError
 
 
 def test_canonical_finds_the_wearer_of_a_later_face() -> None:
@@ -26,19 +23,6 @@ def test_canonical_reaches_a_wearer_near_the_front_of_an_infinite_stream() -> No
     """An infinite universe is fine as long as the wearer is actually reachable."""
     universe = parse("{a..}").universe()
     assert canonical(universe, "b") == "b"
-
-
-def test_canonical_refuses_a_wearer_it_cannot_reach() -> None:
-    """`{a..}` wears `zz`, but only past millions of shorter spellings.
-
-    A worn spelling always sits at a finite position, so the search terminates
-    in principle; the position is what is unbounded. The read refuses rather
-    than hanging, since the matcher that accepted the hit cannot say which case
-    it handed over.
-    """
-    universe = parse("{a..}").universe()
-    with pytest.raises(HimarkScopeError, match="canonical face"):
-        canonical(universe, "zz")
 
 
 def test_canonical_face_rejoins_a_product() -> None:
@@ -85,20 +69,6 @@ def test_factor_faces_breaks_a_value_tie_by_face_index() -> None:
     found = match(query, "abc")
     assert found is not None
     assert factor_faces(query, found) == ("a", "bc")
-
-
-def test_factor_faces_refuses_an_address_it_cannot_reach() -> None:
-    """Ambiguity over `{a..}{a..}` needs a two-character address, past budget.
-
-    `zzb` splits as `z|zb` and `zz|b`; settling which is the least claimant
-    would stream to a two-character spelling, millions of entries in. The read
-    refuses, as `$0` does, rather than hang.
-    """
-    query = parse("{a..}{a..}")
-    found = match(query, "zzb")
-    assert found is not None
-    with pytest.raises(HimarkScopeError, match="cannot address"):
-        factor_faces(query, found)
 
 
 def test_factor_faces_prices_a_late_factor_under_each_splits_own_binding() -> None:

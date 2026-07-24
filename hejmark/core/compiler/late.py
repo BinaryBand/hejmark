@@ -22,8 +22,6 @@ binding rules -- canonicalization, the degenerate pair -- apply unchanged.
 
 from __future__ import annotations
 
-from collections.abc import Callable
-
 from hejmark.core.compiler.ast import (
     Expr,
     Member,
@@ -88,82 +86,6 @@ def _member_reads(member: Member) -> list[int]:
     return found
 
 
-# A read's own reach, keyed by the 1-based factor index it names -- already
-# known by the time a slot needs it, since a read is strictly left of the
-# factor reading it.
-FactorReach = Callable[[int], int | None]
-
-
-def unit_reach(unit: Unit, factor_reach: FactorReach) -> int | None:
-    """A sound upper bound on the length of any face *unit* could wear once its reads substitute.
-
-    Valid for *every* binding, not just one. Conservative exactly the way
-    `floor.reach.reach` is: `None` ("no known
-    bound") wherever the shape is not confidently priced, rather than risk a
-    bound a real substitution could exceed. A read contributes at most the
-    reach already known for the factor it names -- `_sub_segment` turns it
-    into a literal :class:`~hejmark.core.floor.syntax.Face` no longer than
-    that factor could ever spell. Anything the pipeline or an exponent could
-    stretch, a value cut's own bound, or a name needing the environment
-    chased, is priced `None` rather than guessed: this only has to be sound,
-    not exhaustive, since a slot with no known bound simply falls back to the
-    unbounded split search that ran before this existed.
-    """
-    if unit.exponent is not None or unit.pipeline:
-        return None
-    if not isinstance(unit.base, UniverseNode):
-        return None
-    return _group_reach(unit.base, factor_reach)
-
-
-def _group_reach(node: UniverseNode, factor_reach: FactorReach) -> int | None:
-    """The unexpanded analogue of `floor.reach.reach`: longest member, subtraction skipped."""
-    longest = 0
-    for member in node.members:
-        if isinstance(member, Subtract):
-            continue  # stripping faces can only shorten the set, never lengthen it
-        far = _member_reach(member, factor_reach)
-        if far is None:
-            return None
-        longest = max(longest, far)
-    return longest
-
-
-def _member_reach(
-    member: syntax.Range | syntax.Final | Segments | ValueCut, factor_reach: FactorReach
-) -> int | None:
-    """One member's reach; only ``Segments`` can hold a read, so only it recurses."""
-    if isinstance(member, syntax.Range):
-        return 1 if member.lo <= member.hi else 0
-    if isinstance(member, syntax.Final):
-        return None
-    if isinstance(member, ValueCut):
-        return None  # value-driven -- not priced here, even where `hi` carries no read
-    return _segments_reach(member.segments, factor_reach)
-
-
-def _segments_reach(segments: tuple[Segment, ...], factor_reach: FactorReach) -> int | None:
-    """Adjacent segments concatenate, so their reach sums -- the product's own rule."""
-    total = 0
-    for segment in segments:
-        far = _segment_reach(segment, factor_reach)
-        if far is None:
-            return None
-        total += far
-    return total
-
-
-def _segment_reach(segment: Segment, factor_reach: FactorReach) -> int | None:
-    """One segment's reach: a read stands for the face its factor will bind."""
-    if isinstance(segment, syntax.Face):
-        return len(segment.text)
-    if isinstance(segment, syntax.Closure):
-        return None
-    if isinstance(segment, Read):
-        return factor_reach(segment.index)
-    return unit_reach(segment, factor_reach)
-
-
 def _sub_unit(unit: Unit, bound: tuple[str, ...]) -> Unit:
     """Rebuild *unit* with every read replaced by the face it binds."""
     base = _sub_universe(unit.base, bound) if isinstance(unit.base, UniverseNode) else unit.base
@@ -222,18 +144,11 @@ class SlotTable:
         """An empty table; compilation deposits as it walks the query's units."""
         self._entries: dict[int, tuple[Unit, Env, tuple[int, ...]]] = {}
 
-    def add(
-        self, unit: Unit, env: Env, needs: tuple[int, ...], factor_reach: FactorReach
-    ) -> LateSlot:
-        """Deposit one deferred unit, returning the slot that stands for it.
-
-        ``factor_reach`` answers the reach already known for each factor
-        *needs* names, which is what :func:`unit_reach` prices the slot's own
-        bound from.
-        """
+    def add(self, unit: Unit, env: Env, needs: tuple[int, ...]) -> LateSlot:
+        """Deposit one deferred unit, returning the slot that stands for it."""
         slot = len(self._entries)
         self._entries[slot] = (unit, env, needs)
-        return LateSlot(slot, needs, unit_reach(unit, factor_reach))
+        return LateSlot(slot, needs)
 
     def resolve(self, slot: int, reads: tuple[str, ...]) -> syntax.UniverseNode:
         """Expand the slot's unit under its bound reads, one face per need.

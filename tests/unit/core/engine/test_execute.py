@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from hejmark import HimarkBudgetError, HimarkScopeError, HimarkSentinelError, run
+from hejmark import HimarkScopeError, run
 from hejmark.core.engine.execute import Branch
-from hejmark.core.floor import work
 
 
 def test_a_branch_reads_its_span_as_the_bound_face() -> None:
@@ -88,12 +87,6 @@ def test_a_sentinel_read_of_no_sentinel_is_a_scope_error() -> None:
         run('{a} => "{{@nope}}"', "a")
 
 
-def test_a_document_spelling_a_noncharacter_is_refused() -> None:
-    """Sentinels are engine-private, so ingest refuses what could forge one."""
-    with pytest.raises(HimarkSentinelError, match="noncharacter"):
-        run('{a} => "b"', "x\ufdd0y")
-
-
 def test_a_surviving_sentinel_is_stripped_at_exit() -> None:
     """A sentinel left in the document is cleared at exit, not shipped."""
     assert run('sentinel s\n{a} => "{{@s}}"', "a") == ""
@@ -109,37 +102,11 @@ def test_a_range_bound_back_reference_cuts_by_the_bound_value() -> None:
     assert run('{1,2}{0..9}[where 0..$1] => "<{{$2}}>"', "21 10 12") == "<1> <0> 12"
 
 
-def test_a_contracting_statement_settles_when_no_pass_matches() -> None:
-    """The measured letter sort: three descending passes, then nothing to rewrite."""
+def test_a_contracting_statement_settles_at_its_fixpoint() -> None:
+    """The letter sort: passes rewrite until one leaves the document unchanged."""
     assert run('{ba} <=>[@str] "ab"', "bbaa") == "aabb"
 
 
 def test_a_contracting_statement_that_never_matches_returns_the_document() -> None:
-    """No pass runs, so the measure is never consulted -- emptiness stays legal."""
+    """No pass runs, so the document stands -- emptiness stays legal."""
     assert run('uni m = {x}\n{z} <=>[@m] "y"', "abc") == "abc"
-
-
-def test_a_pass_that_fails_to_shrink_the_measure_is_refused() -> None:
-    """`b` sits after `a` in `@str`, so the first pass already grows."""
-    with pytest.raises(HimarkScopeError, match="failed to shrink"):
-        run('{a} <=>[@str] "b"', "a")
-
-
-def test_a_pass_that_rewrites_in_place_is_refused() -> None:
-    """Matching without moving is the livelock the measure exists to surface."""
-    with pytest.raises(HimarkScopeError, match="failed to shrink"):
-        run('{a} <=>[@str] "a"', "a")
-
-
-def test_a_document_the_measure_does_not_spell_is_refused() -> None:
-    """The measure must spell what it is asked to seat, before and after a pass."""
-    with pytest.raises(HimarkScopeError, match="does not spell the document"):
-        run('uni m = {x}\n{a} <=>[@m] "x"', "a")
-
-
-def test_a_pass_past_the_work_budget_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
-    """One budget covers a whole pass -- its scan and its measure comparison together."""
-    monkeypatch.setattr(work, "BUDGET", 5)
-
-    with pytest.raises(HimarkBudgetError, match="a contracting pass ran past"):
-        run('{ba} <=>[@str] "ab"', "bbaa")

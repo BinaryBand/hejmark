@@ -11,7 +11,7 @@ Only ``$`` reads for free. Membership says *whether* a spelling is worn; it
 does not say which entry wears it -- yet the canonical face is that entry's
 face 0, and the bound tuple is the least ``<value, face>`` claimant where a
 spelling splits more than one way. Both reads therefore stream the entries,
-value order being iteration order, and refuse past a budget rather than hang.
+value order being iteration order.
 """
 
 from __future__ import annotations
@@ -22,73 +22,19 @@ from hejmark.core.engine.scan.match import Factor, Match, Query, universe_at
 from hejmark.core.floor.universe import Universe
 from hejmark.core.ir.errors import HimarkScopeError
 
-# How many entries a canonical-face read will stream before giving up. Reaching
-# a wearer costs its position, and a position is not bounded by anything the
-# matcher knows: `{a..}` wears `zz`, but only after every shorter spelling and
-# every two-character one below it over the whole code space -- some 137
-# million entries. The budget is far above any hand-written fold (the case
-# `$0` exists for) and far below that.
-BUDGET = 100_000
-
 
 def canonical(universe: Universe, spelling: str) -> str | None:
     """The canonical face of the entry wearing *spelling*, or ``None`` if none does.
 
     Streams the entries until it finds the wearer, because membership says
-    *whether* a spelling is worn and not by which entry.
-
-    The stream is bounded. A worn spelling always sits at a finite position, so
-    the search terminates in principle, but the position can be astronomically
-    large over an infinite universe -- and the matcher, which only ever asked
-    ``contains``, cannot tell the caller which case it is in. Rather than hang
-    or guess, the read refuses past :data:`BUDGET`.
-
-    Raises:
-        HimarkScopeError: the wearer was not reached within :data:`BUDGET`.
+    *whether* a spelling is worn and not by which entry. A worn spelling always
+    sits at a finite position, so the search terminates -- though the position
+    can be astronomically large over an infinite universe.
     """
-    for position, entry in enumerate(universe.entries()):
+    for entry in universe.entries():
         if spelling in entry.faces:
             return entry.faces[0]
-        if position >= BUDGET:
-            msg = (
-                f"cannot read the canonical face of {spelling!r}: no entry wearing it "
-                f"appears within the first {BUDGET} of an unbounded universe"
-            )
-            raise HimarkScopeError(msg)
     return None
-
-
-def _suffixes(factors: tuple[Factor, ...]) -> tuple[int | None, ...]:
-    """How far each suffix of the factor list reaches; mirrors `reach.suffixes`.
-
-    A factor here is a different type from the floor's own ``cuts``/
-    ``suffixes`` (``Eager | Slot`` rather than ``UniverseNode | Closure``),
-    which is the type reason this split search missed the sweep the other
-    three took -- see `docs/TODO.md`. Both shapes carry their own ``reach``
-    now, priced by the compiler, so this reads the bound where
-    `reach.factor_reach` would measure a floor node.
-    """
-    tails: list[int | None] = [0]
-    for factor in reversed(factors):
-        far = factor.reach
-        tail = tails[-1]
-        tails.append(None if far is None or tail is None else far + tail)
-    return tuple(reversed(tails))
-
-
-def _cuts(factor: Factor, tail: int | None, pos: int, length: int) -> range:
-    """Where a split search may cut for this factor; mirrors `reach.cuts`.
-
-    Both ends are still reach read off the expression, whether the factor is
-    an eager universe or a slot -- both stand on the bound the compiler priced.
-    Faces never empty (``capture`` re-splits with the same rule the matcher
-    enforces), so a caller filters out the zero-width candidate this range can
-    still include when nothing floors it from the left.
-    """
-    far = factor.reach
-    stop = length if far is None else min(pos + far, length)
-    start = pos if tail is None else max(pos, length - tail)
-    return range(start, stop + 1)
 
 
 def _splits(factors: tuple[Factor, ...], text: str) -> Iterator[tuple[str, ...]]:
@@ -97,11 +43,8 @@ def _splits(factors: tuple[Factor, ...], text: str) -> Iterator[tuple[str, ...]]
     One face per factor, faces never empty -- the matcher accepts no zero-width
     part, and the re-split honors the same rule. A late factor resolves under
     the faces this tiling has already chosen, so each candidate split carries
-    its own bindings. Candidate cuts come off the expression via :func:`_cuts`
-    rather than every position in the text -- the same permitted rewrite
-    `match._probe`, `universe._splits` and `measure._tilings` already take.
+    its own bindings.
     """
-    tails = _suffixes(factors)
 
     def rest(pos: int, depth: int, bound: tuple[str, ...]) -> Iterator[tuple[str, ...]]:
         """Every tiling of ``text[pos:]`` by ``factors[depth:]``, given the bindings so far."""
@@ -110,9 +53,7 @@ def _splits(factors: tuple[Factor, ...], text: str) -> Iterator[tuple[str, ...]]
                 yield ()
             return
         universe = universe_at(factors[depth], bound)
-        for end in _cuts(factors[depth], tails[depth + 1], pos, len(text)):
-            if end == pos:
-                continue  # no zero-width part
+        for end in range(pos + 1, len(text) + 1):  # faces never empty
             face = text[pos:end]
             if not universe.contains(face):
                 continue
@@ -129,17 +70,12 @@ def _address(universe: Universe, face: str) -> tuple[int, int]:
     stream position and the face half its index among the wearer's faces.
 
     Raises:
-        HimarkScopeError: the wearer was not reached within :data:`BUDGET`.
+        HimarkScopeError: no entry of a finite universe wears *face*.
     """
     for position, entry in enumerate(universe.entries()):
         if face in entry.faces:
             return position, entry.faces.index(face)
-        if position >= BUDGET:
-            break
-    msg = (
-        f"cannot address {face!r}: no entry wearing it appears within the "
-        f"first {BUDGET} of an unbounded universe"
-    )
+    msg = f"cannot address {face!r}: no entry wears it"
     raise HimarkScopeError(msg)
 
 
@@ -163,17 +99,9 @@ def factor_faces(query: Query, found: Match) -> tuple[str, ...]:
     splits more than one way. A split the text pins uniquely -- the common
     case, anchor-pinned -- streams nothing; an ambiguous one prices each
     face's address exactly as :func:`canonical` prices the wearer.
-
-    Raises:
-        HimarkScopeError: the splits, or an address, outran :data:`BUDGET`.
     """
     text = "".join(part.face for part in found.parts)
-    splits: list[tuple[str, ...]] = []
-    for split in _splits(query.universes, text):
-        splits.append(split)
-        if len(splits) > BUDGET:
-            msg = f"cannot bind the factors of {text!r}: more than {BUDGET} splits"
-            raise HimarkScopeError(msg)
+    splits = list(_splits(query.universes, text))
     if len(splits) == 1:
         return splits[0]
     return min(splits, key=lambda split: _claim(query.universes, split))

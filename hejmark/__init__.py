@@ -20,11 +20,9 @@ from hejmark.core.driver import finditer as _finditer
 from hejmark.core.driver import match as _match
 from hejmark.core.driver import parse as _parse
 from hejmark.core.driver import run as _run
-from hejmark.core.engine.execute import HimarkSentinelError
 from hejmark.core.engine.scan.match import Match, MatchPart, Query
 from hejmark.core.floor.syntax import HimarkSyntaxError
-from hejmark.core.floor.universe import Entry, HimarkUnsettledError, Universe
-from hejmark.core.floor.work import HimarkBudgetError
+from hejmark.core.floor.universe import Entry, Universe
 from hejmark.core.ir.codec import encode_query as _encode_query
 from hejmark.core.ir.errors import HimarkScopeError
 from hejmark.core.ir.wire import encode_program as _encode_program
@@ -91,10 +89,9 @@ def emit_program(source: str) -> str:
 
     The script-level companion to :func:`emit_json`. That one emits a single
     query's floor AST, which is all an engine needs to *find*; this emits the
-    program -- statements, templates, the contracting measure, the sentinel
-    table -- which is what an engine needs to *run*. Both are pure data, so
-    either can cross a process or a language boundary; only this one carries a
-    whole script.
+    program -- statements, templates, the sentinel table -- which is what an
+    engine needs to *run*. Both are pure data, so either can cross a process or
+    a language boundary; only this one carries a whole script.
 
     A back-referencing factor rides the program as a late slot rather than
     being refused, since the format can express one -- but resolving a slot
@@ -106,11 +103,8 @@ def emit_program(source: str) -> str:
 
 __all__ = [
     "Entry",
-    "HimarkBudgetError",
     "HimarkScopeError",
-    "HimarkSentinelError",
     "HimarkSyntaxError",
-    "HimarkUnsettledError",
     "Match",
     "MatchPart",
     "Query",

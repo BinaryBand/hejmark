@@ -204,24 +204,18 @@ def _declaration(ctx: Any) -> UniDecl | DefDecl | SentinelDecl:
             return DefDecl(ctx.IDENT().getText(), params, _expr(ctx.expr()))
 
 
-def _measure(ctx: Any) -> str:
-    """Read a contracting statement's measure: the declared name after the sigil."""
-    text = ctx.ARG().getText()
-    if not text.startswith("@") or not text[1:]:
-        msg = f"the measure is a declared name: write <=>[@name], got [{text}]"
-        raise HimarkSyntaxError(msg)
-    return text[1:]
-
-
 def _line(ctx: Any) -> Any:
-    """Dispatch a line: a declaration, a contracting statement, or a statement."""
+    """Dispatch a line: a declaration, a contracting statement, or a statement.
+
+    A contracting statement's ``[@m]`` measure, if the parser still tokenizes
+    one, is not read: ``<=>`` is a bare fixpoint, so the annotation is ignored.
+    """
     declaration = ctx.declaration()
     if declaration is not None:
         return _declaration(declaration)
     contract = ctx.contract()
     if contract is not None:
-        template = _template(contract.template())
-        return IterStatement(_expr(contract.expr()), _measure(contract), template)
+        return IterStatement(_expr(contract.expr()), _template(contract.template()))
     statement = ctx.statement()
     return Statement(tuple(_step(step) for step in statement.step()))
 

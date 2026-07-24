@@ -27,19 +27,11 @@ from hejmark.core.floor import syntax
 from hejmark.core.floor.universe import denote
 from hejmark.core.ir.errors import HimarkScopeError
 
-# Every term of the walk is a cut of the digit list, so an unbounded head would
-# make the union itself unbounded. Refused rather than streamed forever.
-RADIX_BUDGET = 4096
-
 EMPTY = syntax.UniverseNode(())
 
 
 class ValueLineError(HimarkScopeError):
-    """Raised when a head or a bound will not support a value cut.
-
-    An unbounded radix, or a bound the head radix does not spell. Both are L1.5
-    refusing a scope, never an expression failing to denote.
-    """
+    """Raised when a bound the head radix does not spell is asked of a value cut."""
 
 
 def digits(head: syntax.UniverseNode) -> tuple[str, ...]:
@@ -47,18 +39,10 @@ def digits(head: syntax.UniverseNode) -> tuple[str, ...]:
 
     The value family cuts the value axis and leaves the face axis to the stages
     that follow it, so each entry reads at its canonical face -- exactly what
-    the bare ``@0`` register reads.
-
-    Raises:
-        ValueLineError: the head does not settle inside the radix budget.
+    the bare ``@0`` register reads. Streams the head's entries, so an unbounded
+    radix never returns.
     """
-    found: list[str] = []
-    for entry in denote(head).entries():
-        if len(found) >= RADIX_BUDGET:
-            msg = f"a value cut needs a bounded radix; the head exceeds {RADIX_BUDGET} digits"
-            raise ValueLineError(msg)
-        found.append(entry.faces[0])
-    return tuple(found)
+    return tuple(entry.faces[0] for entry in denote(head).entries())
 
 
 def value_of(spelling: str, alphabet: tuple[str, ...]) -> int:

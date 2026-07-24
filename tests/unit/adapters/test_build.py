@@ -166,19 +166,16 @@ def test_a_syntax_error_is_raised_not_collected() -> None:
         _to_ast("{a")
 
 
-def test_a_contracting_line_carries_query_measure_and_template() -> None:
-    """`<=>[@m]` is its own line kind: the pass pair plus the measure's name."""
+def test_a_contracting_line_carries_query_and_template() -> None:
+    """`<=>` is its own line kind: the pass pair, iterated to a fixpoint.
+
+    Any ``[@m]`` the parser still tokenizes is dropped -- ``<=>`` is a bare
+    fixpoint, so the annotation never reaches the AST.
+    """
     line = _line('{ba} <=>[@m] "ab"')
     assert isinstance(line, IterStatement)
-    assert line.measure == "m"
     assert isinstance(line.query, Expr)
     assert isinstance(line.template, Template)
-
-
-def test_a_measure_missing_its_sigil_is_a_syntax_error() -> None:
-    """The bracket holds a declared name; a bare word names none."""
-    with pytest.raises(HimarkSyntaxError, match="declared name"):
-        _line('{a} <=>[m] "x"')
 
 
 def test_mnemonic_escapes_spell_whitespace() -> None:

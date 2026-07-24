@@ -282,7 +282,7 @@ def test_emit_program_prints_the_versioned_program(tmp_path: Path) -> None:
     assert result.exit_code == 0
     payload = json.loads(result.stdout)
     assert payload["format"] == "hejmark-program"
-    assert payload["version"] == 2
+    assert payload["version"] == 3
     assert payload["sentinels"] == []
     assert [step["kind"] for step in payload["statements"][0]["steps"]] == ["query", "template"]
 

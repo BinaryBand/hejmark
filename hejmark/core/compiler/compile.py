@@ -16,19 +16,16 @@ from hejmark.core.compiler.ast import (
     Expr,
     Interp,
     IterStatement,
-    Ref,
     RefInterp,
     ScriptNode,
     Statement,
     Template,
-    Unit,
 )
 from hejmark.core.compiler.expand import Ctx, expand
 from hejmark.core.compiler.late import SlotTable, reads
 from hejmark.core.compiler.ports import ToAst
 from hejmark.core.compiler.resolve import Env, collect, merge, statements
 from hejmark.core.compiler.std import std_env
-from hejmark.core.floor.reach import reach
 from hejmark.core.floor.syntax import UniverseNode
 from hejmark.core.ir.errors import HimarkScopeError
 from hejmark.core.ir.program import (
@@ -68,7 +65,6 @@ def compile_query(expr: Expr, env: Env, table: SlotTable, source: str = "") -> C
         HimarkScopeError: a read is not strictly left of the factor reading it.
     """
     factors: list[QueryFactor] = []
-    reaches: list[int | None] = []
     for index, unit in enumerate(expr.units):
         needs = reads(unit)
         past = [k for k in needs if k > index]
@@ -76,14 +72,9 @@ def compile_query(expr: Expr, env: Env, table: SlotTable, source: str = "") -> C
             msg = f"${past[0]} reads factor {past[0]}, but only {index} factor(s) stand to its left"
             raise HimarkScopeError(msg)
         if needs:
-            factor = table.add(unit, env, needs, lambda k: reaches[k - 1])
-            factors.append(factor)
-            reaches.append(factor.reach)
+            factors.append(table.add(unit, env, needs))
         else:
-            node = expand(Expr((unit,)), Ctx(env))[0]
-            far = reach(node)
-            factors.append(EagerFactor(node, far))
-            reaches.append(far)
+            factors.append(EagerFactor(expand(Expr((unit,)), Ctx(env))[0]))
     return CompiledQuery(source, tuple(factors))
 
 
@@ -91,7 +82,7 @@ def compile_script(node: ScriptNode, env: Env) -> tuple[Program, LateResolver]:
     """Lower a whole script: one program, one slot table, one resolver.
 
     Raises:
-        HimarkScopeError: a query or measure in the script refuses to lower.
+        HimarkScopeError: a query in the script refuses to lower.
     """
     table = SlotTable()
     lines: list[CompiledLine] = []
@@ -237,16 +228,9 @@ def _statement(stmt: Statement, env: Env, table: SlotTable) -> CompiledStatement
 
 
 def _contract(stmt: IterStatement, env: Env, table: SlotTable) -> CompiledIter:
-    """Lower a contracting statement; the measure expands here, not per pass.
-
-    Raises:
-        HimarkScopeError: the measure names nothing the environment declares.
-    """
-    measure = expand(Expr((Unit(Ref(stmt.measure)),)), Ctx(env))[0]
+    """Lower a contracting statement: its query and template, iterated to a fixpoint."""
     return CompiledIter(
         compile_query(stmt.query, env, table),
-        stmt.measure,
-        measure,
         _template(stmt.template),
     )
 

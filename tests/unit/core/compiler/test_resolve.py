@@ -16,7 +16,7 @@ from hejmark.core.compiler.resolve import (
     statements,
 )
 from hejmark.core.ir.errors import HimarkScopeError
-from hejmark.core.ir.program import noncharacter
+from hejmark.core.ir.program import SENTINEL_BASE
 
 _to_ast = AntlrParser().to_ast
 
@@ -69,7 +69,7 @@ def test_a_sentinel_is_a_uni_over_one_noncharacter_face() -> None:
     assert set(env.sentinels) == {"start", "end"}
     assert set(env.unis) == {"start", "end"}
     faces = list(env.sentinels.values())
-    assert all(noncharacter(face) for face in faces)
+    assert all(ord(face) >= SENTINEL_BASE for face in faces)
     assert len(set(faces)) == len(faces)
 
 

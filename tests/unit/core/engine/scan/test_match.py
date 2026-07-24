@@ -10,21 +10,18 @@ from __future__ import annotations
 import pytest
 
 from hejmark.core.engine.scan.match import Eager, Query, Slot, _plain, finditer, match
-from hejmark.core.floor import work
-from hejmark.core.floor.reach import reach
 from hejmark.core.floor.syntax import Face, Fold, UniverseNode
 from hejmark.core.floor.universe import denote
-from hejmark.core.floor.work import HimarkBudgetError
 from hejmark.core.ir.errors import HimarkScopeError
 
 
 def _of(node: UniverseNode) -> Eager:
-    """Wrap a hand-built floor node as a factor, priced the way the compiler would."""
-    return Eager(denote(node), reach(node))
+    """Wrap a hand-built floor node as a factor."""
+    return Eager(denote(node))
 
 
 def _factor(*faces: str) -> Eager:
-    """Build a factor over single-faced entries, carrying the reach a compiler would price."""
+    """Build a factor over single-faced entries."""
     return _of(UniverseNode(tuple(Face(f) for f in faces)))
 
 
@@ -155,23 +152,6 @@ def test_a_scan_past_a_late_factor_still_reads_each_binding() -> None:
 
     assert [m.span for m in found] == [(4, 7), (8, 11)]
     assert [m.parts[1].face for m in found] == ["b", "a"]
-
-
-def test_a_match_past_the_work_budget_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Never a hang: a run the host cannot afford is a diagnostic, not a longer wait."""
-    monkeypatch.setattr(work, "BUDGET", 3)
-    query = _query(_factor("z"))
-
-    with pytest.raises(HimarkBudgetError, match="a match ran past"):
-        match(query, "aaaaaaaaaa")
-
-
-def test_each_match_of_a_scan_carries_its_own_budget(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A scan is many runs, so a long document is not one run that outgrows the budget."""
-    monkeypatch.setattr(work, "BUDGET", 4)
-    found = list(finditer(_query(_factor("a")), "a" * 20))
-
-    assert [m.span for m in found] == [(pos, pos + 1) for pos in range(20)]
 
 
 def test_universe_refuses_a_late_factor() -> None:

@@ -10,14 +10,11 @@ from hejmark.core.compiler.ast import (
     Read,
     Ref,
     Segments,
-    Subtract,
     Unit,
     UniverseNode,
-    ValueCut,
 )
-from hejmark.core.compiler.late import SlotTable, reads, unit_reach
+from hejmark.core.compiler.late import SlotTable, reads
 from hejmark.core.engine.scan.match import Slot
-from hejmark.core.floor.syntax import Face, Final
 from hejmark.core.floor.universe import Universe, denote
 from hejmark.core.ir.errors import HimarkScopeError
 
@@ -103,71 +100,3 @@ def test_misaligned_reads_are_refused() -> None:
     slot = _slot("{a,b}{$1}")
     with pytest.raises(HimarkScopeError, match="reads 1 factor"):
         slot.resolver(slot.slot, ("a", "b"))
-
-
-def test_unit_reach_of_a_bare_read_is_its_factors_own_reach() -> None:
-    """``{$1}`` wears no face longer than factor 1 could ever wear."""
-    unit = Unit(UniverseNode((Segments((Read(1),)),)))
-    assert unit_reach(unit, lambda k: {1: 3}[k]) == 3
-
-
-def test_unit_reach_sums_adjacent_segments() -> None:
-    """``{a$1}`` concatenates a literal face and a read, so their reach adds."""
-    unit = Unit(UniverseNode((Segments((Face("a"), Read(1))),)))
-    assert unit_reach(unit, lambda k: {1: 2}[k]) == 3
-
-
-def test_unit_reach_is_none_when_the_read_has_no_known_bound() -> None:
-    """An unbounded referenced factor makes the read -- and the slot -- unbounded."""
-    unit = Unit(UniverseNode((Segments((Read(1),)),)))
-    assert unit_reach(unit, lambda _k: None) is None
-
-
-def test_unit_reach_bails_on_an_exponent() -> None:
-    """A repeated shape is not priced here -- conservative, not guessed."""
-    unit = Unit(UniverseNode((Segments((Read(1),)),)), "2")
-    assert unit_reach(unit, lambda _k: 1) is None
-
-
-def test_unit_reach_bails_on_a_pipeline() -> None:
-    """A pipeline stage could stretch the shape arbitrarily, so it prices `None`."""
-    unit = Unit(UniverseNode((Segments((Read(1),)),)), None, (PipeItem("spellings"),))
-    assert unit_reach(unit, lambda _k: 1) is None
-
-
-def test_unit_reach_bails_on_a_value_cut_even_without_a_read() -> None:
-    """A value cut is value-driven, never priced by face length here."""
-    unit = Unit(UniverseNode((ValueCut("0", "9"),)))
-    assert unit_reach(unit, lambda _k: 1) is None
-
-
-def test_unit_reach_bails_on_a_final_segment_member() -> None:
-    """An unbounded member poisons the whole shape's bound, read or not."""
-    unit = Unit(UniverseNode((Final("a"), Segments((Read(1),)))))
-    assert unit_reach(unit, lambda k: {1: 1}[k]) is None
-
-
-def test_unit_reach_skips_a_subtraction_member() -> None:
-    """Subtraction never adds a face, so a read inside one never raises the bound."""
-    unit = Unit(
-        UniverseNode(
-            (
-                Segments((Face("a"),)),
-                Subtract(UniverseNode((Segments((Read(1),)),))),
-            )
-        )
-    )
-    assert unit_reach(unit, lambda _k: None) == 1
-
-
-def test_unit_reach_recurses_into_a_nested_unit_segment() -> None:
-    """``{{$1}}`` folds to the inner universe, so its reach is the inner one's."""
-    inner = UniverseNode((Segments((Read(1),)),))
-    unit = Unit(UniverseNode((Segments((Unit(inner),)),)))
-    assert unit_reach(unit, lambda k: {1: 4}[k]) == 4
-
-
-def test_a_slots_reach_is_the_referenced_factors_own_reach() -> None:
-    """`{a,b}{$1}`'s slot reaches no further than `{a,b}` itself can ever spell."""
-    slot = _slot("{a,b}{$1}")
-    assert slot.reach == 1

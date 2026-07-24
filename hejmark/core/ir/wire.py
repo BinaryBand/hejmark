@@ -4,31 +4,24 @@ This is the non-normative reference for the compiler -> engine payload (the
 foundation docs deliberately stop at the language; the payload is a host
 concern). A program serializes as::
 
-    {"format": "hejmark-program", "version": 1,
+    {"format": "hejmark-program", "version": 3,
      "sentinels": [{"name": "end", "face": [64976]}],
      "statements": [
        {"kind": "statement", "steps": [
          {"kind": "query", "source": "{a}{$1}", "factors": [
-            {"kind": "universe", "universe": {"members": [...]}, "reach": 1},
-            {"kind": "slot", "slot": 0, "needs": [1], "reach": 1}]},
+            {"kind": "universe", "universe": {"members": [...]}},
+            {"kind": "slot", "slot": 0, "needs": [1]}]},
          {"kind": "template", "parts": [
             {"kind": "text", "text": [99, 97, 116]},
             {"kind": "capture", "capture": "$1"},
             {"kind": "sentinel", "name": "end"}]}]},
-       {"kind": "iter", "query": {...}, "measure_name": "m",
-        "measure": {"members": [...]}, "template": {...}}]}
+       {"kind": "iter", "query": {...}, "template": {...}}]}
 
 Universes are :mod:`~hejmark.core.ir.codec`'s shapes. Faces, template text and
 sentinel faces are code-point arrays (the lone-surrogate rule); names, capture
 spellings and the diagnostic ``source`` stay JSON strings. A decoded program
 holding a slot executes only against a resolver honoring its slot ids; a
 slot-free program is fully standalone.
-
-Every factor carries ``reach``, integer or ``null`` -- the split bound the
-compiler priced. It is required rather than defaulted, because a reader that
-guessed ``null`` for an absent one would still *run*, just slower and silently:
-the version tag is what turns that into a refusal, which is why version 2
-exists rather than an optional field.
 """
 
 from __future__ import annotations
@@ -62,7 +55,7 @@ from hejmark.core.ir.program import (
 )
 
 FORMAT = "hejmark-program"
-VERSION = 2
+VERSION = 3
 
 
 def encode_program(program: Program) -> dict[str, object]:
@@ -105,8 +98,6 @@ def _encode_line(line: CompiledLine) -> dict[str, object]:
     return {
         "kind": "iter",
         "query": _encode_step(line.query),
-        "measure_name": line.measure_name,
-        "measure": encode_universe(line.measure),
         "template": _encode_step(line.template),
     }
 
@@ -121,8 +112,6 @@ def _decode_line(obj: object) -> CompiledLine:
     elif kind == "iter":
         line = CompiledIter(
             _decode_query(require_field(obj, "query", "iter")),
-            _str(require_field(obj, "measure_name", "iter"), "measure_name"),
-            decode_universe(require_field(obj, "measure", "iter")),
             _decode_template(require_field(obj, "template", "iter")),
         )
     else:
@@ -181,12 +170,10 @@ def _encode_factor(factor: QueryFactor) -> dict[str, object]:
             "kind": "slot",
             "slot": factor.slot,
             "needs": list(factor.needs),
-            "reach": factor.reach,
         }
     return {
         "kind": "universe",
         "universe": encode_universe(factor.node),
-        "reach": factor.reach,
     }
 
 
@@ -195,16 +182,12 @@ def _decode_factor(obj: object) -> QueryFactor:
     kind = require_field(obj, "kind", "factor")
     factor: QueryFactor
     if kind == "universe":
-        factor = EagerFactor(
-            decode_universe(require_field(obj, "universe", "factor")),
-            _int_or_none(require_field(obj, "reach", "factor"), "reach"),
-        )
+        factor = EagerFactor(decode_universe(require_field(obj, "universe", "factor")))
     elif kind == "slot":
         needs = require_array(require_field(obj, "needs", "slot"), "needs")
         factor = LateSlot(
             _int(require_field(obj, "slot", "slot"), "slot"),
             tuple(_int(item, "needs") for item in needs),
-            _int_or_none(require_field(obj, "reach", "slot"), "reach"),
         )
     else:
         msg = f"malformed factor: unknown kind {kind!r}"
@@ -269,10 +252,3 @@ def _int(value: object, what: str) -> int:
         msg = f"malformed {what}: not an integer"
         raise HimarkPayloadError(msg)
     return value
-
-
-def _int_or_none(value: object, what: str) -> int | None:
-    """Require an integer or JSON ``null`` -- either factor's reach may be unbounded."""
-    if value is None:
-        return None
-    return _int(value, what)
