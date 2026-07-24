@@ -5,7 +5,7 @@
 ## Layer 1 -- Mathematical Floor (denotation) -- cemented
 
 - The object -- the pointed alphabet `<alphabet, <value, face>>`; value and face are ordinals below $\varepsilon_0$, below $\omega^\omega$ wherever closure stays linear.
-- Constructor floor -- six total constructors: union, subtraction, fold, final segment, product, closure (`&`). Nothing rejects: every boundary case carries a denotation.
+- Constructor floor -- five total constructors: union, subtraction, fold, product, closure (`&`). Nothing rejects: every boundary case carries a denotation.
 - Closure -- the inflationary closure at $\omega$, the union rule read at $\omega$: total on every body, least fixpoint on positive bodies, settled at length-bounded stages on guarded ones.
 - Theorems -- positional value (one collision rule across both axes); bounded transfinitude at $\varepsilon_0$, stratified (the linear fragment stays below $\omega^\omega$); fixpoint on settled bodies; compression, not capability.
 - Axiom side -- closure and product; final segment is demoted to compression (`{{{}}, &C}` generates every spelling in shortlex), kept as notation the way ranges are.
@@ -29,7 +29,12 @@ L1.5 guards well-formedness only -- an unknown name, a malformed definition, a f
 
 ## Layer 2 -- Finite-Execution Contract (operational)
 
-The normative layer is `L2.md`. L1's denotation is total and L1.5's surface adds none, yet execution is finite -- this layer is where that finiteness is enforced: the bounded reads (`$0`, `@lo..hi`, an ambiguous factor split) and their host budgets, the decidable-matching scope, the work budget that bounds a `<=>` iteration, the noncharacter boundary hygiene. It carries cost as well as admission -- a guarded query is decided in time polynomial in the text, and a run past the host's work budget is a diagnostic rather than a longer wait -- and licenses the meaning-preserving rewrites that bound reaches. Bounds and permissions, never mechanisms: which rewrites a host takes, and how it sizes a budget, stay in the implementation.
+The normative layer is `L2.md`. L1's denotation is total and L1.5's surface adds none, yet execution is finite -- this layer is where that finiteness is enforced.
+
+- Decide guarded query budget in time polynomial.
+- Add non-character boundary hygiene.
+- Identify and execute efficient, meaning-preserving rewrites.
+  - E.g. `{a..z}[where c..g]` rewrites to `{c..g}`.
 
 ## Layer 3 -- Standard Library (content)
 
