@@ -10,13 +10,13 @@
 sentinel start
 sentinel end
 
-uni c    = {@char, !{\n}}
-uni line = {@c, &@c}
+uni c    = {@char,!{\n}}
+uni line = {@c,&@c}
 
-uni nonStar  = {@char, !{\n,*}}
-uni emBody   = {@nonStar, &@nonStar}
-uni nonTick  = {@char, !{\n,`}}
-uni codeBody = {@nonTick, &@nonTick}
+uni nonStar  = {@char,!{\n,*}}
+uni emBody   = {@nonStar,&@nonStar}
+uni nonTick  = {@char,!{\n,`}}
+uni codeBody = {@nonTick,&@nonTick}
 
 {@line} => "{{@start}}{{$}}{{@end}}"
 {@start}{#}{#}{\ }{@line}{@end} => "<h2>{{$5}}</h2>"

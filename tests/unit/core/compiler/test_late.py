@@ -75,7 +75,7 @@ def test_resolve_substitutes_an_argument_read_under_the_binding_rules() -> None:
 
 def test_resolve_reaches_a_read_inside_a_subtraction() -> None:
     """``!{$1}`` carves the bound face out, at any depth of the unit's tree."""
-    source = "{ab}{a..zz, !{$1}}"
+    source = "{ab}{a..zz,!{$1}}"
 
     assert _resolve(source, ("ab",)).contains("x")
     assert not _resolve(source, ("ab",)).contains("ab")

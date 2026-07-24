@@ -51,16 +51,16 @@ SORT = r"""
 sentinel start
 sentinel end
 
-uni c      = {@char, !{\n}}
-uni line   = {@c, &@c}
+uni c      = {@char,!{\n}}
+uni line   = {@c,&@c}
 uni d      = {0..9}
-uni digits = {@d, &@d}
+uni digits = {@d,&@d}
 uni value  = {0..9}[where 0.. padfree]
-uni list   = {@value, &{\,}{@value}}
-uni sorted = {{@start}{@list}{@end}, &{\n}{@start}{@list}{@end}}
+uni list   = {@value,&{\,}{@value}}
+uni sorted = {{@start}{@list}{@end},&{\n}{@start}{@list}{@end}}
 
 {@line} => "{{@start}}{{$}}{{@end}}"
-{@start,\,}{@digits}{\,}{{0..9}[where 0..$2 padfree], !{{0..9}[where $2 padfree]}}{@end,\,}
+{@start,\,}{@digits}{\,}{{0..9}[where 0..$2 padfree],!{{0..9}[where $2 padfree]}}{@end,\,}
   <=>[@sorted] "{{$1}}{{$4}},{{$2}}{{$5}}"
 """
 
@@ -125,7 +125,7 @@ def test_sentinels_carry_the_masking_idiom_end_to_end() -> None:
         "sentinel start\n"
         "sentinel end\n"
         "uni c = {a..z}\n"
-        "uni word = {@c, &@c}\n"
+        "uni word = {@c,&@c}\n"
         '{@word} => "{{@start}}{{$}}{{@end}}"\n'
         '{@start}{cat}{@end} => "feline"\n'
         '{@start,@end} => ""'

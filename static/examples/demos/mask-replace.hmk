@@ -4,6 +4,6 @@
 sentinel start
 sentinel end
 uni c = {a..z}
-uni word = {@c, &@c}
+uni word = {@c,&@c}
 {@word} => "{{@start}}{{$}}{{@end}}"
 {@start}{cat}{@end} => "feline"

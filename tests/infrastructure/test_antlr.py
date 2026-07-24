@@ -29,16 +29,17 @@ EXAMPLES = ROOT / "static" / "examples"
 DIAGNOSTIC = re.compile(r"^(?:error|warning)\(\d+\):", re.MULTILINE)
 
 # Representative rows from docs/foundation/L1.md's north-star: one per
-# constructor, both boundary objects, and the two forms the grammar was widened
-# to accept (whitespace between tokens, multi-char range endpoints). If the
-# surface stops admitting any L1 shape, one of these stops parsing.
+# constructor, both boundary objects, and multi-char range endpoints. Inside
+# braces whitespace is a literal face character, so members divide on `,` alone
+# and a structural character in a face is escaped (`{\(}`). If the surface stops
+# admitting any L1 shape, one of these stops parsing.
 NORTH_STAR_ROWS = (
     "{a,b,c}",  # union
     "{a..z}",  # bounded range (compression)
     "{aa..zz}",  # multi-char range endpoints
-    "{a..z, !{a,e,i,o,u}}",  # subtraction, with whitespace after the comma
+    "{a..z,!{a,e,i,o,u}}",  # subtraction
     "{{cat,feline}}",  # fold
-    "{{cat,feline}, !{feline}}",  # subtraction strips a face, entry survives
+    "{{cat,feline},!{feline}}",  # subtraction strips a face, entry survives
     "{a..}",  # final segment
     "{cat}{dog}",  # product (finite adjacency)
     "{a,ab}{b,c}",  # product, values 0-3
@@ -55,16 +56,16 @@ NORTH_STAR_ROWS = (
     "{{{},0}}{{{},0}}",  # Z^2, colliding faces
     "{{{},0}}{0..9}",  # a face axis, not an entry axis
     "{{{},0}}{0,00}",  # cross-axis collision, canonical face renumbers
-    "{a, &{b}}",  # closure
-    "{ab, {a}&{b}}",  # guarded closure -- the admission witness a^n b^n
-    "{0, {1..9, &{0..9}}}",  # canonical numerals
-    "{{{}}, &C}",  # every spelling in shortlex (final segment's demotion)
+    "{a,&{b}}",  # closure
+    "{ab,{a}&{b}}",  # guarded closure -- the admission witness a^n b^n
+    "{0,{1..9,&{0..9}}}",  # canonical numerals
+    "{{{}},&C}",  # every spelling in shortlex (final segment's demotion)
     "{&}",  # bare self-reference builds nothing
-    "{a, &}",  # self-union no-ops
-    "{a.., !{&}}",  # negative self-reference
-    "{a, {{{},0}}&}",  # unguarded fill
-    "{ab, &&}",  # nonlinear closure, still type omega
-    "{ {(}{b}{a..}{)}, {(}&&{)} }",  # nonlinear closure, heavily spaced
+    "{a,&}",  # self-union no-ops
+    "{a..,!{&}}",  # negative self-reference
+    "{a,{{{},0}}&}",  # unguarded fill
+    "{ab,&&}",  # nonlinear closure, still type omega
+    r"{{\(}{b}{a..}{\)},{\(}&&{\)}}",  # nonlinear closure with escaped paren faces
 )
 
 # Representative L1.5 surface shapes from docs/foundation/L1_5.md: the
@@ -73,7 +74,7 @@ NORTH_STAR_ROWS = (
 # table (an empty input is likewise a legal, empty script).
 L1_5_ROWS = (
     "uni d = {0..9}",  # declaration
-    "uni str = {{{}}, &@char}",  # the seeded std universe
+    "uni str = {{{}},&@char}",  # the seeded std universe
     "def fill = {{{},@0}}",  # zero-parameter definition over a register
     "def nonzero = {@,!{@0}}",  # bare head register
     "def where lo..hi = {@lo..hi}",  # pair parameter over the value family

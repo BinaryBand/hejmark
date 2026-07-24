@@ -62,7 +62,7 @@ def test_range_cardinality(lo: int, hi: int) -> None:
     """A range ``{lo..hi}`` has ``max(0, ord(hi) - ord(lo) + 1)`` entries."""
     # BRACES mode carves the structural set out of the face alphabet; each of
     # these is spellable only with a `\` escape, so a raw one is not a face.
-    reserved = set('{}[],!.\\&@_^$" \t\r\n')
+    reserved = set('{}()[],!.\\&@_^$" \t\r\n')
     assume(chr(lo) not in reserved)
     assume(chr(hi) not in reserved)
 
