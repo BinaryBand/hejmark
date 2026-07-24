@@ -58,10 +58,10 @@ Why does this thing exist, and why is it forced rather than chosen? Because of a
 
 Here is the compact table to burn in:
 
-| Written | Entries                          | Meaning                                    | Order type |
-| ------- | -------------------------------- | ------------------------------------------ | ---------- |
-| `{}`    | none                             | the empty universe -- nothing to point at  | $0$        |
-| `{{}}`  | one, faced by the empty spelling | the unit -- one entry with nothing written | $1$        |
+| Written | Entries | Meaning | Order type |
+| --- | --- | --- | --- |
+| `{}` | none | the empty universe -- nothing to point at | $0$ |
+| `{{}}` | one, faced by the empty spelling | the unit -- one entry with nothing written | $1$ |
 
 :pencil: **Exercise.** Before the next lesson, predict: what should `{{}}{cat}` denote -- the unit "times" the universe spelling `cat`? If the unit is a multiplicative identity, the answer writes itself. (It is `{cat}`. Multiplying by the unit is a no-op, exactly as multiplying a number by $1$ is. The north-star table confirms this on the `{{}}` row.)
 

@@ -10,27 +10,27 @@ A **universe** is a pointed alphabet: a virtual list of **entries**, each wearin
 
 ## The six constructors (L1, denotation -- nothing here rejects)
 
-| Syntax            | Name          | Denotes                                                                                   |
-| ----------------- | ------------- | ----------------------------------------------------------------------------------------- |
-| `{a,b,c}`         | Union         | entries in order, duplicates skipped (idempotent, not commutative)                        |
-| `!{...}`          | Subtraction   | strip the spelling(s) claimed by the operand; an entry with no face left drops            |
-| `{a,b}` as member | Fold          | quotient several faces onto **one** entry; `{{}}` is the unit (one entry, the empty face) |
-| `{a..}`           | Final segment | every spelling from `a` on, in shortlex order (unary, no upper bound)                     |
-| `{cat}{dog}`      | Product       | tuples, spelled by concatenation, ordered by mixed-radix positional value                 |
-| `&`               | Closure       | self-reference; denotes the closure at $\omega$ of its body                               |
+| Syntax | Name | Denotes |
+| --- | --- | --- |
+| `{a,b,c}` | Union | entries in order, duplicates skipped (idempotent, not commutative) |
+| `!{...}` | Subtraction | strip the spelling(s) claimed by the operand; an entry with no face left drops |
+| `{a,b}` as member | Fold | quotient several faces onto **one** entry; `{{}}` is the unit (one entry, the empty face) |
+| `{a..}` | Final segment | every spelling from `a` on, in shortlex order (unary, no upper bound) |
+| `{cat}{dog}` | Product | tuples, spelled by concatenation, ordered by mixed-radix positional value |
+| `&` | Closure | self-reference; denotes the closure at $\omega$ of its body |
 
 Empty universe `{}` / `{a,!{a}}`: no entries, legal. Unit `{{}}`: one entry, one face (the empty spelling) -- the product identity, never a query match (zero-width never matches).
 
 ## Compression (notation, no added power)
 
-| Syntax       | Expands to                                                           |
-| ------------ | -------------------------------------------------------------------- |
-| `{a..z}`     | `{a..,!{s..}}` (`s` = shortlex successor of `z`)                     |
-| `{cat}{dog}` | `{catdog}` (finite adjacency)                                        |
-| `A^n`        | `A` written adjacent `n` times (iterated product; `A^0` is the unit) |
-| `A \ B`      | `{...A...,!{...B...}}`                                               |
-| `A ∩ B`      | `A \ (A \ B)`                                                        |
-| `{w..}`      | `{{{}},&C} \ {predecessors of w}` (`C` = code-point set)             |
+| Syntax | Expands to |
+| --- | --- |
+| `{a..z}` | `{a..,!{s..}}` (`s` = shortlex successor of `z`) |
+| `{cat}{dog}` | `{catdog}` (finite adjacency) |
+| `A^n` | `A` written adjacent `n` times (iterated product; `A^0` is the unit) |
+| `A \ B` | `{...A...,!{...B...}}` |
+| `A ∩ B` | `A \ (A \ B)` |
+| `{w..}` | `{{{}},&C} \ {predecessors of w}` (`C` = code-point set) |
 
 ## Names and definitions (L1.5)
 
@@ -50,13 +50,13 @@ A[f x g y]                // modifier pipeline: stages left to right, each resul
 
 ## Registers (the closed inventory -- four tokens, two addressed families)
 
-| Register  | Reads                                                             | Where it's legal                               |
-| --------- | ----------------------------------------------------------------- | ---------------------------------------------- |
-| `@`       | the pipeline head, as a universe                                  | definition bodies                              |
-| `@lo..hi` | the head's value line, cut to values `lo..hi` (`@0` = zero entry) | definition bodies                              |
-| `$`       | the hit, as it hit (bound entry, bound face)                      | templates                                      |
-| `$0`      | the hit's canonical face (face 0)                                 | templates                                      |
-| `$1..$n`  | factor `k` of the hit, 1-based, spelled as it hit                 | templates, and patterns (back-refs, see below) |
+| Register | Reads | Where it's legal |
+| --- | --- | --- |
+| `@` | the pipeline head, as a universe | definition bodies |
+| `@lo..hi` | the head's value line, cut to values `lo..hi` (`@0` = zero entry) | definition bodies |
+| `$` | the hit, as it hit (bound entry, bound face) | templates |
+| `$0` | the hit's canonical face (face 0) | templates |
+| `$1..$n` | factor `k` of the hit, 1-based, spelled as it hit | templates, and patterns (back-refs, see below) |
 
 `where lo..hi` is the pipeline spelling of `@lo..hi` (a **value** cut, radix-general -- not a spelling range, which only agrees with value order when digits are single code points in code-point order).
 
@@ -81,15 +81,15 @@ query => template => query => template ...
 - A leading query branches into the statement's target; a leading template is detached (computes off-document; the document never changes).
 - **Contraction**: `query <=> template` -- re-run the pass until it leaves the document unchanged (a fixpoint). No declared measure today: the host bounds the iteration with its work budget, so a loop that never settles is refused rather than left to hang -- but nothing proves in advance that it settles. (A declared-measure termination guarantee, `<=>[@m]`, is a planned re-addition -- `docs/.TODO.md`.)
 
-| Statement                        | Against     | Yields                                                 |
-| -------------------------------- | ----------- | ------------------------------------------------------ |
-| `{{cat,feline}} => "{{$0}}"`     | `my feline` | `my cat`                                               |
-| `{a,e,i,o,u} => ""`              | `pattern`   | `pttrn`                                                |
-| `{@spellings} => "<b>{{$}}</b>"` | `abc`       | `<b>abc</b>`                                           |
-| `{a} => {b}`                     | `banana`    | `banana` (guard: no `b` inside `a`)                    |
-| `"seed" => {e} => "E"`           | anything    | unchanged (leading template is detached)               |
-| `{a,ab}{c,bc} => "{{$2}}"`       | `abc`       | `bc` (collision gave `abc` to value 1, split `(a,bc)`) |
-| `{ba} <=> "ab"`                  | `bbaa`      | `aabb` (3 passes, then a no-op pass stops it)          |
+| Statement | Against | Yields |
+| --- | --- | --- |
+| `{{cat,feline}} => "{{$0}}"` | `my feline` | `my cat` |
+| `{a,e,i,o,u} => ""` | `pattern` | `pttrn` |
+| `{@spellings} => "<b>{{$}}</b>"` | `abc` | `<b>abc</b>` |
+| `{a} => {b}` | `banana` | `banana` (guard: no `b` inside `a`) |
+| `"seed" => {e} => "E"` | anything | unchanged (leading template is detached) |
+| `{a,ab}{c,bc} => "{{$2}}"` | `abc` | `bc` (collision gave `abc` to value 1, split `(a,bc)`) |
+| `{ba} <=> "ab"` | `bbaa` | `aabb` (3 passes, then a no-op pass stops it) |
 
 ## Sentinels
 
@@ -122,23 +122,23 @@ zfold           := {{@zeros}}                                 -- folded: one ent
 padfree         := {@zfold_}                                  -- every entry at every zero-padding
 ```
 
-| Expression                     | Denotes                             |
-| ------------------------------ | ----------------------------------- |
-| `{0..9}[where 8..12]`          | 8, 9, 10, 11, 12                    |
-| `{a..z}[where aa..cc]`         | a, ..., z, ba, ..., cc (55 entries) |
-| `{8,9,10,11,12}[pad 2]`        | 88, 89, 10, 11, 12                  |
-| `{0..9}[where 8..12 pad 1..2]` | {8,08}, {9,09}, 10, 11, 12          |
+| Expression | Denotes |
+| --- | --- |
+| `{0..9}[where 8..12]` | 8, 9, 10, 11, 12 |
+| `{a..z}[where aa..cc]` | a, ..., z, ba, ..., cc (55 entries) |
+| `{8,9,10,11,12}[pad 2]` | 88, 89, 10, 11, 12 |
+| `{0..9}[where 8..12 pad 1..2]` | {8,08}, {9,09}, 10, 11, 12 |
 
 `pad` caps widths (its `w'` feeds an exponent); `padfree` is the uncapped version -- matching one stays in scope (membership decides), but a *canonical-face* read of one does not (infinitely many faces per entry).
 
 ## Layers, in one line each
 
-| Layer | Doc       | Question                                                                              |
-| ----- | --------- | ------------------------------------------------------------------------------------- |
-| L1    | `L1.md`   | What universes exist? (denotation, cemented)                                          |
-| L1.5  | `L1_5.md` | What can be written? (surface, admission = expands into the six constructors)         |
-| L2    | `L2.md`   | What can be *run*? (bounded reads, decidable matching, termination, boundary hygiene) |
-| L3    | `L3.md`   | What's in the box? (std library, pure L1.5 declarations)                              |
+| Layer | Doc | Question |
+| --- | --- | --- |
+| L1 | `L1.md` | What universes exist? (denotation, cemented) |
+| L1.5 | `L1_5.md` | What can be written? (surface, admission = expands into the six constructors) |
+| L2 | `L2.md` | What can be *run*? (bounded reads, decidable matching, termination, boundary hygiene) |
+| L3 | `L3.md` | What's in the box? (std library, pure L1.5 declarations) |
 
 ## Known bounded/refused operations (L2)
 

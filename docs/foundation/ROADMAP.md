@@ -4,7 +4,7 @@
 
 ## Layer 1 -- Mathematical Floor (denotation) -- cemented
 
-- The object -- the pointed alphabet `<alphabet, value, face>`; value and face are ordinals below $\varepsilon_0$, below $\omega^\omega$ wherever closure stays linear.
+- The object -- the pointed alphabet `<alphabet, <value, face>>`; value and face are ordinals below $\varepsilon_0$, below $\omega^\omega$ wherever closure stays linear.
 - Constructor floor -- six total constructors: union, subtraction, fold, final segment, product, closure (`&`). Nothing rejects: every boundary case carries a denotation.
 - Closure -- the inflationary closure at $\omega$, the union rule read at $\omega$: total on every body, least fixpoint on positive bodies, settled at length-bounded stages on guarded ones.
 - Theorems -- positional value (one collision rule across both axes); bounded transfinitude at $\varepsilon_0$, stratified (the linear fragment stays below $\omega^\omega$); fixpoint on settled bodies; compression, not capability.
@@ -35,12 +35,12 @@ The normative layer is `L2.md`. L1's denotation is total and L1.5's surface adds
 
 Nothing but in-language declarations over the L1.5 surface: `uni` universes and `:=` definitions. No new denotation, no host code -- every entry must compile away through L1.5's expansion into the six constructors, which is the admission test in operational form. The normative inventory is `L3.md`.
 
-| Expression                     | Denotes                                            |
-| ------------------------------ | -------------------------------------------------- |
-| `{0..9}[where 8..12]`          | 8, 9, 10, 11, 12                                   |
-| `{a..z}[where aa..cc]`         | a, b, ..., z, ba, ..., cc (55 entries; aa = a = 0) |
-| `{8,9,10,11,12}[pad 2]`        | 88, 89, 10, 11, 12                                 |
-| `{0..9}[where 8..12 pad 1..2]` | {8,08}, {9,09}, 10, 11, 12                         |
+| Expression | Denotes |
+| --- | --- |
+| `{0..9}[where 8..12]` | 8, 9, 10, 11, 12 |
+| `{a..z}[where aa..cc]` | a, b, ..., z, ba, ..., cc (55 entries; aa = a = 0) |
+| `{8,9,10,11,12}[pad 2]` | 88, 89, 10, 11, 12 |
+| `{0..9}[where 8..12 pad 1..2]` | {8,08}, {9,09}, 10, 11, 12 |
 
 ## Layer 4 -- Presentation
 
