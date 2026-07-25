@@ -104,9 +104,9 @@ def test_a_range_bound_back_reference_cuts_by_the_bound_value() -> None:
 
 def test_a_contracting_statement_settles_at_its_fixpoint() -> None:
     """The letter sort: passes rewrite until one leaves the document unchanged."""
-    assert run('{ba} <=>[@str] "ab"', "bbaa") == "aabb"
+    assert run('{ba} <=> "ab"', "bbaa") == "aabb"
 
 
 def test_a_contracting_statement_that_never_matches_returns_the_document() -> None:
     """No pass runs, so the document stands -- emptiness stays legal."""
-    assert run('uni m = {x}\n{z} <=>[@m] "y"', "abc") == "abc"
+    assert run('{z} <=> "y"', "abc") == "abc"

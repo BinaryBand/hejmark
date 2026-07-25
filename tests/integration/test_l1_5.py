@@ -42,7 +42,7 @@ EMIT_ROWS = (
     ('"seed" => {e} => "E"', "anything", "anything"),
     ('{a,ab}{c,bc} => "{{$2}}"', "abc", "bc"),
     ('{a,b}{$1} => "{{$1}}!"', "aa ab", "a! ab"),
-    ('{ba} <=>[@str] "ab"', "bbaa", "aabb"),
+    ('{ba} <=> "ab"', "bbaa", "aabb"),
 )
 
 # The bubble sort, verbatim from L1_5.md's north-star section: the layer's
@@ -61,7 +61,7 @@ uni sorted = {{@start}{@list}{@end},&{\n}{@start}{@list}{@end}}
 
 {@line} => "{{@start}}{{$}}{{@end}}"
 {@start,\,}{@digits}{\,}{{0..9}[where 0..$2 padfree],!{{0..9}[where $2 padfree]}}{@end,\,}
-  <=>[@sorted] "{{$1}}{{$4}},{{$2}}{{$5}}"
+  <=> "{{$1}}{{$4}},{{$2}}{{$5}}"
 """
 
 
@@ -148,8 +148,8 @@ def test_sentinels_carry_the_masking_idiom_end_to_end() -> None:
 def test_the_bubble_sort_north_star(document: str, expected: str) -> None:
     """The north-star sort runs as written.
 
-    Every pass swaps the adjacent out-of-order pairs its tiling reaches, and
-    the declared measure `@sorted` -- wrapped numeral lines over the value
-    line at any padding -- strictly descends until no pair is out of order.
+    Every pass swaps the adjacent out-of-order pairs its tiling reaches, and the
+    statement iterates to a fixpoint -- until a pass finds no pair left to swap,
+    the line it settles at being the sorted one.
     """
     assert run(SORT, document) == expected

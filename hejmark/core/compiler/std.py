@@ -38,9 +38,9 @@ uni hex          = {0..9,a..f}
 uni str          = {{{}},&@char}
 
 def fill         = {{{},@0}}
-def shorter w    = {@str,!{@char^w@str}}
-def upto w       = {@str[shorter w],@char^w}
-def longer w     = {@str,!{@str[upto w]}}
+def shorter w    = {_,!{@char^w_}}
+def upto w       = {_[shorter w],@char^w}
+def longer w     = {_,!{_[upto w]}}
 def where lo..hi = {@lo..hi}
 def pad w..w'    = {@fill^{w'}_,!{@str[shorter w]},!{@str[longer w']}}
 def zeros        = {{{}},&@0}

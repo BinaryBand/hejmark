@@ -136,8 +136,7 @@ def test_canonicalize_strips_leading_zero_digits() -> None:
 
 def test_a_contracting_statement_is_a_statement_not_a_declaration() -> None:
     """A `<=>` line runs like a statement and declares nothing."""
-    node = _to_ast('uni m = {a}\n{ba} <=>[@m] "ab"')
+    node = _to_ast('{ba} <=> "ab"')
     found = statements(node)
     assert len(found) == 1
     assert isinstance(found[0], IterStatement)
-    assert set(_env('uni m = {a}\n{ba} <=>[@m] "ab"').unis) == {"m"}

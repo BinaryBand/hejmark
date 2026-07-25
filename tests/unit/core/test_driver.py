@@ -35,7 +35,7 @@ def test_parse_refuses_anything_but_a_single_query() -> None:
     with pytest.raises(HimarkScopeError, match="single query expression"):
         parse(_to_ast, "uni d = {a}")
     with pytest.raises(HimarkScopeError, match="single query expression"):
-        parse(_to_ast, '{a} <=>[@str] "x"')
+        parse(_to_ast, '{a} <=> "x"')
 
 
 def test_match_and_finditer_accept_source_or_a_denoted_query() -> None:

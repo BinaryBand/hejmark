@@ -177,7 +177,7 @@ def test_a_contracting_line_carries_query_and_template() -> None:
     Any ``[@m]`` the parser still tokenizes is dropped -- ``<=>`` is a bare
     fixpoint, so the annotation never reaches the AST.
     """
-    line = _line('{ba} <=>[@m] "ab"')
+    line = _line('{ba} <=> "ab"')
     assert isinstance(line, IterStatement)
     assert isinstance(line.query, Expr)
     assert isinstance(line.template, Template)

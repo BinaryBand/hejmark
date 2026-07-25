@@ -121,7 +121,7 @@ _to_ast = AntlrParser().to_ast
 
 def test_a_compiled_script_round_trips() -> None:
     """A real script -- sentinel, back-reference, contraction -- survives the wire."""
-    source = 'sentinel end\n{a,b}{$1} => "{{$1}}{{@end}}"\n{-}{-} <=>[@str] "-"'
+    source = 'sentinel end\n{a,b}{$1} => "{{$1}}{{@end}}"\n{-}{-} <=> "-"'
     node, env = script(_to_ast, source)
     program, _ = compile_script(node, env)
     assert decode_program(json.loads(json.dumps(encode_program(program)))) == program
