@@ -10,7 +10,7 @@
 - Constructor floor -- five total constructors: union, subtraction, fold, product, closure (`&`). Nothing rejects: every boundary case carries a denotation.
 - Closure -- the inflationary closure at $\omega$, the union rule read at $\omega$: total on every body, least fixpoint on positive bodies, settled at length-bounded stages on guarded ones.
 - Theorems -- positional value (one collision rule across both axes); bounded transfinitude at $\varepsilon_0$, stratified (the linear fragment stays below $\omega^\omega$); fixpoint on settled bodies; compression, not capability.
-- Axiom side -- closure and product; final segment is demoted to compression (`{{{}}, &C}` generates every spelling in shortlex), kept as notation the way ranges are.
+- Axiom side -- closure and product; no unbounded sugar remains (`{{{}}, &C}` generates every spelling in shortlex), and a range -- always bounded, always a finite shortlex interval -- is kept as notation.
 
 ## Layer 1.5 -- Language Surface (interpretation)
 
@@ -21,7 +21,7 @@ L1.5 guards well-formedness only -- an unknown name, a malformed definition, a f
 - Matching -- query and capture, text membership, maximal munch, zero-width exclusion; the matcher is scoped to guarded closure bodies (the settlement theorem's fragment), and stepping outside that scope is a diagnostic, never a denotation failure.
 - Names -- `uni hex = {0..9,a..f}`: declaration and `@name` splice-by-name (one sigiled namespace whose reserved names are the registers). Pure compression; the floor's splice rule already anticipates the name.
 - Definitions -- `def name args = body`, applied only through the modifier pipeline `A[f x g y]`; application is substitution over the operand and its arguments, and every application expands to a floor expression. Juxtaposition is always a product, never application. Brackets chain: `A[m][n]` re-points the head to each left operand, where the fused `A[f g]` pins it to the base.
-- Registers -- the in-language spellings of the expander's metafunctions: expansion-time reads on the same footing as the `s` in the floor's own `{a..z}` = `{a.., !{s..}}`, never a runtime store. The inventory is closed at four tokens (`@`, `@0`, `$`, `$0`) carrying two addressed families -- `@lo..hi` the head's value line by value, `$1..$n` the hit's written factors -- and a new register faces the scrutiny a new axiom does.
+- Registers -- the in-language spellings of the expander's metafunctions: expansion-time reads on the same footing as the shortlex interval the floor's own `{a..z}` lists, never a runtime store. The inventory is closed at two tokens (`@`, `$`) carrying two addressed families -- `@lo..hi` the head's value line by value (`@0` its degenerate cut), `$1..$n` the hit's written factors -- plus the one face-zero read `$0`, and a new register faces the scrutiny a new axiom does.
 - Emit -- `=>` statements joining branches (spans carrying the floor's capture) to text objects: a query refines and guards, a template commits and continues per interpolation site, and `<=>` iterates a statement to a fixpoint. Bounding a run that never settles is deferred with L2 (`docs/.TODO.md`). A cast by value -- writing a bound value under a second universe -- stays uncomputable: value-indexing across two radixes, which no expression computes and no register spells.
 - Diagnostics -- compiler errors live here: unknown name, malformed definition, unguarded matcher scope. The floor never rejects, so rejection is interpretation's whole job.
 
