@@ -1,6 +1,6 @@
 # Himark Roadmap
 
-<!-- cspell:words sigiled upto fixpoint -->
+<!-- cspell:words sigiled upto fixpoint Himark transfinitude shortlex formedness metafunctions uncomputable -->
 
 > The specs are written under `CHARTER.md` -- the law of what each layer may contain and what it must cede. Roadmap and open decisions live here and in `docs/.TODO.md`, not in the specs.
 
@@ -20,9 +20,9 @@ L1.5 guards well-formedness only -- an unknown name, a malformed definition, a f
 
 - Matching -- query and capture, text membership, maximal munch, zero-width exclusion; the matcher is scoped to guarded closure bodies (the settlement theorem's fragment), and stepping outside that scope is a diagnostic, never a denotation failure.
 - Names -- `uni hex = {0..9,a..f}`: declaration and `@name` splice-by-name (one sigiled namespace whose reserved names are the registers). Pure compression; the floor's splice rule already anticipates the name.
-- Definitions -- `def name args = body`, applied only through the modifier pipeline `A[f x g y]`; application is substitution over the operand and its arguments, and every application expands to a floor expression. Juxtaposition is always a product, never application.
+- Definitions -- `def name args = body`, applied only through the modifier pipeline `A[f x g y]`; application is substitution over the operand and its arguments, and every application expands to a floor expression. Juxtaposition is always a product, never application. Brackets chain: `A[m][n]` re-points the head to each left operand, where the fused `A[f g]` pins it to the base.
 - Registers -- the in-language spellings of the expander's metafunctions: expansion-time reads on the same footing as the `s` in the floor's own `{a..z}` = `{a.., !{s..}}`, never a runtime store. The inventory is closed at four tokens (`@`, `@0`, `$`, `$0`) carrying two addressed families -- `@lo..hi` the head's value line by value, `$1..$n` the hit's written factors -- and a new register faces the scrutiny a new axiom does.
-- Emit -- `=>` statements joining branches (spans carrying the floor's capture) to text objects: a query refines and guards, a template commits and continues per interpolation site, and `<=>` iterates a statement to a fixpoint, bounded by the host's work budget -- a declared-measure termination guarantee is a deferred re-addition (`docs/.TODO.md`). A cast by value -- writing a bound value under a second universe -- stays uncomputable: value-indexing across two radixes, which no expression computes and no register spells.
+- Emit -- `=>` statements joining branches (spans carrying the floor's capture) to text objects: a query refines and guards, a template commits and continues per interpolation site, and `<=>` iterates a statement to a fixpoint. Bounding a run that never settles is deferred with L2 (`docs/.TODO.md`). A cast by value -- writing a bound value under a second universe -- stays uncomputable: value-indexing across two radixes, which no expression computes and no register spells.
 - Diagnostics -- compiler errors live here: unknown name, malformed definition, unguarded matcher scope. The floor never rejects, so rejection is interpretation's whole job.
 
 > Finish line: the surface suffices to write all of the standard library (L3 below) in-language -- no built-in named modifiers, no host code per entry.
@@ -40,14 +40,7 @@ The normative layer is `L2.md`. L1's denotation is total and L1.5's surface adds
 
 ## Layer 3 -- Standard Library (content)
 
-Nothing but in-language declarations over the L1.5 surface: `uni` universes and `def` definitions. No new denotation, no host code -- every entry must compile away through L1.5's expansion into the five constructors, which is the admission test in operational form. The normative inventory is `L3.md`.
-
-| Expression | Denotes |
-| --- | --- |
-| `{0..9}[where 8..12]` | 8, 9, 10, 11, 12 |
-| `{a..z}[where aa..cc]` | a, b, ..., z, ba, ..., cc (55 entries; aa = a = 0) |
-| `{8,9,10,11,12}[pad 2]` | 88, 89, 10, 11, 12 |
-| `{0..9}[where 8..12 pad 1..2]` | {8,08}, {9,09}, 10, 11, 12 |
+Nothing but in-language declarations over the L1.5 surface: `uni` universes and `def` definitions. No new denotation, no host code -- every entry must compile away through L1.5's expansion into the five constructors, which is the admission test in operational form. The normative inventory and its worked rows are `L3.md`.
 
 ## Layer 4 -- Presentation
 
