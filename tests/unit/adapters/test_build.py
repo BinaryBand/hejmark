@@ -113,12 +113,26 @@ def test_a_pipeline_stays_a_flat_item_list() -> None:
     assert isinstance(line, Statement)
     step = line.steps[0]
     assert isinstance(step, Expr)
-    items = step.units[0].pipeline
-    assert [(item.lo, item.hi) for item in items] == [
+    pipelines = step.units[0].pipelines
+    assert len(pipelines) == 1  # one bracket, four items
+    assert [(item.lo, item.hi) for item in pipelines[0]] == [
         ("where", None),
         ("8", "12"),
         ("pad", None),
         ("1", "2"),
+    ]
+
+
+def test_chained_brackets_stay_separate_pipelines() -> None:
+    """`A[f][g]` is two brackets, not one fused list: each is its own pipeline."""
+    line = _line("{0..9}[where 8..12][pad 1..2]")
+    assert isinstance(line, Statement)
+    step = line.steps[0]
+    assert isinstance(step, Expr)
+    pipelines = step.units[0].pipelines
+    assert [[(item.lo, item.hi) for item in bracket] for bracket in pipelines] == [
+        [("where", None), ("8", "12")],
+        [("pad", None), ("1", "2")],
     ]
 
 

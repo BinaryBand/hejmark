@@ -40,7 +40,7 @@ def test_reads_finds_a_pattern_read() -> None:
 
 def test_reads_finds_an_argument_read() -> None:
     """A pipeline argument spelling ``$k`` is a read; a stage name never is."""
-    unit = Unit(Ref("d"), None, (PipeItem("where"), PipeItem("0", "$2")))
+    unit = Unit(Ref("d"), None, ((PipeItem("where"), PipeItem("0", "$2")),))
     assert reads(unit) == (2,)
 
 

@@ -72,6 +72,23 @@ def test_pipeline_rows(source: str, expected: list[tuple[str, ...]]) -> None:
     assert [entry.faces for entry in islice(universe.entries(), len(expected))] == expected
 
 
+def test_chaining_re_points_the_head_by_substitution() -> None:
+    """`A[f][g]` applies g to the universe A[f], exactly as if it were written out.
+
+    `pad` reaches the head's zero digit through `fill`, so the re-point is
+    observable: chained, pad's head is the cut ``{8,9,10,11,12}`` (zero ``8``);
+    fused, it stays the base ``{0..9}`` (zero ``0``).
+    """
+
+    def faces(source: str) -> list[tuple[str, ...]]:
+        universe = parse(source).universe()
+        return [tuple(entry.faces) for entry in islice(universe.entries(), 5)]
+
+    chained = faces("{0..9}[where 8..12][pad 1..2]")
+    assert chained == faces("{8,9,10,11,12}[pad 1..2]")  # referential transparency
+    assert chained != faces("{0..9}[where 8..12 pad 1..2]")  # differs from the fused bracket
+
+
 def test_where_cuts_the_value_line_exactly() -> None:
     """``where`` is a cut of the value line, so membership is exact at the boundary."""
     universe = parse("{0..9}[where 8..12]").universe()

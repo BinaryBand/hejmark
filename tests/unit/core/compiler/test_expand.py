@@ -15,6 +15,7 @@ from hejmark.core.compiler.expand import UNIT, Ctx, expand
 from hejmark.core.compiler.resolve import collect, merge
 from hejmark.core.compiler.std import std_env
 from hejmark.core.floor import syntax
+from hejmark.core.floor.universe import denote
 from hejmark.core.ir.errors import HimarkScopeError
 
 _to_ast = AntlrParser().to_ast
@@ -108,6 +109,20 @@ def test_the_zero_register_reads_the_head() -> None:
     """``@0`` is the head's zero entry, which is what a fill is built on."""
     expanded = _expand("{0..9}[fill]")
     assert isinstance(expanded.members[0], syntax.Fold)
+
+
+def test_chained_brackets_repoint_the_head() -> None:
+    """Each bracket re-points the head to its left operand, unlike a fused pipeline.
+
+    ``drop`` cuts the head's zero entry and ``z`` reads it, both off the head.
+    Chained, ``z``'s head is ``drop``'s output ``{4,5}``; fused, both read the
+    written head ``{3,4,5}``, so ``z`` sees ``3`` however ``drop`` moved the pipe.
+    """
+    defs = "def drop = {@,!{@0}}\ndef z = {@0}"
+    chained = denote(_expand("{3,4,5}[drop][z]", defs))
+    fused = denote(_expand("{3,4,5}[drop z]", defs))
+    assert [entry.faces[0] for entry in chained.entries()] == ["4"]
+    assert [entry.faces[0] for entry in fused.entries()] == ["3"]
 
 
 def test_the_unit_is_a_fold_over_the_empty_alphabet() -> None:

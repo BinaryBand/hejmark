@@ -275,18 +275,21 @@ def _spell_arg(binding: Binding, ctx: Ctx) -> Binding:
 
 
 def _unit(unit: Unit, ctx: Ctx) -> syntax.UniverseNode:
-    """Expand a unit: its base, then its exponent, then its pipeline stages.
+    """Expand a unit: its base, then its exponent, then its chain of brackets.
 
-    Every stage reads the same head -- the base as written -- so one radix
-    rides the whole chain, whatever a previous stage left in the pipe.
+    Within one bracket every stage reads the same head, so one radix rides the
+    fused chain whatever a previous stage left in the pipe. Across brackets the
+    head re-points to each bracket's left operand, so ``A[f][g]`` lets ``g``
+    read ``f``'s output where ``A[f g]`` pins both stages to ``A``.
     """
     node = _base(unit.base, ctx)
     if unit.exponent is not None:
         node = _power(node, _count(unit.exponent, ctx))
-    head = node
-    for stage in bind(unit.pipeline, ctx.env):
-        arguments = tuple(_spell_arg(a, ctx) for a in stage.arguments)
-        node = _apply(stage.definition, arguments, Ctx(ctx.env, head, node, None), node)
+    for bracket in unit.pipelines:
+        head = node
+        for stage in bind(bracket, ctx.env):
+            arguments = tuple(_spell_arg(a, ctx) for a in stage.arguments)
+            node = _apply(stage.definition, arguments, Ctx(ctx.env, head, node, None), node)
     return node
 
 
@@ -323,7 +326,7 @@ def _lone(only: Segment, ctx: Ctx) -> tuple[syntax.Member, ...]:
         return (syntax.Closure(),)
     if isinstance(only, Read):
         _refuse_read(f"${only.index}")
-    if isinstance(only.base, UniverseNode) and only.exponent is None and not only.pipeline:
+    if isinstance(only.base, UniverseNode) and only.exponent is None and not only.pipelines:
         return (syntax.Fold(_universe(only.base, ctx)),)
     return _members_of(_unit(only, ctx))
 

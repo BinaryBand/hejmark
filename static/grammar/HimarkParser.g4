@@ -42,7 +42,9 @@ step
 // Adjacency is the product; a lone unit is the singleton case.
 expr : unit+ ;
 
-unit : base (CARET exponent)? pipeline? ;
+// Brackets chain: `A[f][g]` is `(A[f])[g]`, each bracket re-pointing the head
+// to its left operand. One bracket's stages share a head (the fused pipeline).
+unit : base (CARET exponent)? pipeline* ;
 
 base
     : universe        # UniverseBase
@@ -59,9 +61,9 @@ exponent
     | universe
     ;
 
-// The modifier pipeline `A[f x g y]`: stages left to right. Stage names and
-// arguments lex alike; binding splits the flat item list by each
-// definition's arity.
+// One modifier bracket `[f x g y]`: stages left to right, sharing a head. Stage
+// names and arguments lex alike; binding splits the flat item list by each
+// definition's arity. A unit may carry several brackets, which chain.
 pipeline : LBRACK A_WS? pipeItem (A_WS pipeItem)* A_WS? RBRACK ;
 
 pipeItem : pipeArg (RANGE pipeArg?)? ;
@@ -91,7 +93,7 @@ valueBound : face | CAPTURE ;
 // a definition is applied only through the modifier pipeline `A[f x]`, never by
 // juxtaposition, since a space here is a literal face character.
 segment
-    : base (CARET exponent)? pipeline?
+    : base (CARET exponent)? pipeline*
     | AMP
     | CAPTURE
     | face

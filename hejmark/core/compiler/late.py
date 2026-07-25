@@ -58,11 +58,12 @@ def _unit_reads(unit: Unit) -> list[int]:
     if isinstance(unit.base, UniverseNode):
         for member in unit.base.members:
             found.extend(_member_reads(member))
-    for item in unit.pipeline:
-        for text in (item.lo, item.hi):
-            index = read_index(text) if isinstance(text, str) else None
-            if index is not None:
-                found.append(index)
+    for bracket in unit.pipelines:
+        for item in bracket:
+            for text in (item.lo, item.hi):
+                index = read_index(text) if isinstance(text, str) else None
+                if index is not None:
+                    found.append(index)
     return found
 
 
@@ -89,14 +90,17 @@ def _member_reads(member: Member) -> list[int]:
 def _sub_unit(unit: Unit, bound: tuple[str, ...]) -> Unit:
     """Rebuild *unit* with every read replaced by the face it binds."""
     base = _sub_universe(unit.base, bound) if isinstance(unit.base, UniverseNode) else unit.base
-    pipeline = tuple(
-        PipeItem(
-            _sub_text(item.lo, bound),
-            _sub_text(item.hi, bound) if isinstance(item.hi, str) else item.hi,
+    pipelines = tuple(
+        tuple(
+            PipeItem(
+                _sub_text(item.lo, bound),
+                _sub_text(item.hi, bound) if isinstance(item.hi, str) else item.hi,
+            )
+            for item in bracket
         )
-        for item in unit.pipeline
+        for bracket in unit.pipelines
     )
-    return Unit(base, unit.exponent, pipeline)
+    return Unit(base, unit.exponent, pipelines)
 
 
 def _sub_universe(node: UniverseNode, bound: tuple[str, ...]) -> UniverseNode:

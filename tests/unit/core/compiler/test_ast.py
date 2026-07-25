@@ -52,7 +52,7 @@ def test_a_unit_defaults_to_no_exponent_and_no_pipeline() -> None:
     """Most units are a bare base, so the optional parts default away."""
     unit = Unit(Ref("fill"))
     assert unit.exponent is None
-    assert unit.pipeline == ()
+    assert unit.pipelines == ()
 
 
 def test_a_pipe_item_and_a_param_may_be_pairs() -> None:

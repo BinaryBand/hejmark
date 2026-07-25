@@ -77,9 +77,7 @@ def _exponent(ctx: Any) -> str:
 
 
 def _pipeline(ctx: Any) -> tuple[PipeItem, ...]:
-    """Read a pipeline bracket as its flat item list; binding splits it later."""
-    if ctx is None:
-        return ()
+    """Read one pipeline bracket as its flat item list; binding splits it later."""
     items = []
     for item in ctx.pipeItem():
         args = item.pipeArg()
@@ -103,12 +101,12 @@ def _base(ctx: Any) -> UniverseNode | Ref | Operand:
 
 
 def _unit(ctx: Any) -> Unit:
-    """Read a unit: a base with an optional exponent and an optional pipeline."""
+    """Read a unit: a base, an optional exponent, and its chain of pipelines."""
     exponent = ctx.exponent()
     return Unit(
         _base(ctx.base()),
         _exponent(exponent) if exponent is not None else None,
-        _pipeline(ctx.pipeline()),
+        tuple(_pipeline(bracket) for bracket in ctx.pipeline()),
     )
 
 

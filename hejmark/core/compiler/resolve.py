@@ -110,8 +110,9 @@ def _unit_refs(unit: Unit) -> Iterator[str]:
     elif isinstance(base, UniverseNode):
         for member in base.members:
             yield from _member_refs(member)
-    for item in unit.pipeline:
-        yield item.lo
+    for bracket in unit.pipelines:
+        for item in bracket:
+            yield item.lo
 
 
 def _member_refs(member: Member) -> Iterator[str]:

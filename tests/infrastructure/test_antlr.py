@@ -80,6 +80,7 @@ L1_5_ROWS = (
     "def where lo..hi = {@lo..hi}",  # pair parameter over the value family
     "def pad w..w' = {@fill^{w'}_,!{@str[shorter w]},!{@str[longer w']}}",  # exponent + pipeline
     "{0..9}[where 8..12 pad 1..2]",  # modifier pipeline
+    "{0..9}[where 8..12][pad 1..2]",  # chained brackets, each re-pointing the head
     '{{cat,feline}} => "{{$0}}"',  # emit: canonical-face rewrite
     '{a,e,i,o,u} => ""',  # emit: deletion
     '{@str} => "<b>{{$}}</b>"',  # emit: whole-document idiom

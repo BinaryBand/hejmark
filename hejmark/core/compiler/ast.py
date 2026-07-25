@@ -89,15 +89,17 @@ class PipeItem:
 
 @dataclass(frozen=True)
 class Unit:
-    """One factor: a base, an optional ``^`` exponent, an optional pipeline.
+    """One factor: a base, an optional ``^`` exponent, and zero or more pipelines.
 
     ``exponent`` is the raw text of a numeral or a parameter name; resolving it
-    to a repetition count is the expander's job.
+    to a repetition count is the expander's job. ``pipelines`` is the unit's
+    modifier brackets in written order -- each a flat item list of one bracket's
+    stages -- so ``A[f][g]`` carries two, chained; ``A[f g]`` one, fused.
     """
 
     base: UniverseNode | Ref | Operand
     exponent: str | None = None
-    pipeline: tuple[PipeItem, ...] = ()
+    pipelines: tuple[tuple[PipeItem, ...], ...] = ()
 
 
 @dataclass(frozen=True)
