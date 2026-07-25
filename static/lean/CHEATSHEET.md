@@ -29,19 +29,19 @@ ______________________________________________________________________
 
 ## :page_facing_up: Commands
 
-| Command                 | Does                                                  |
-| ----------------------- | ----------------------------------------------------- |
-| `def f x := e`          | define a value / function                             |
-| `def f : Nat → Nat`     | define a recursive function by pattern matching (\`   |
-| `inductive T where ...` | declare an inductive type / proposition               |
-| `structure S where ...` | define a structure (record / class)                   |
-| `theorem`/`lemma`       | state a goal to prove (all synonyms)                  |
-| `by ...`                | open a tactic-style proof                             |
-| `#check e`              | print the type of `e`                                 |
-| `#print x`              | print a definition or metadata                        |
-| `#eval e` / `#reduce e` | evaluate a term (interpreter / kernel reduction)      |
-| `import M`              | load a module (e.g. `import Mathlib.Tactic.Linarith`) |
-| `section S. ... end S.` | scope shared `variable` declarations                  |
+| Command | Does |
+| --- | --- |
+| `def f x := e` | define a value / function |
+| `def f : Nat → Nat` | define a recursive function by pattern matching (\` |
+| `inductive T where ...` | declare an inductive type / proposition |
+| `structure S where ...` | define a structure (record / class) |
+| `theorem`/`lemma` | state a goal to prove (all synonyms) |
+| `by ...` | open a tactic-style proof |
+| `#check e` | print the type of `e` |
+| `#print x` | print a definition or metadata |
+| `#eval e` / `#reduce e` | evaluate a term (interpreter / kernel reduction) |
+| `import M` | load a module (e.g. `import Mathlib.Tactic.Linarith`) |
+| `section S. ... end S.` | scope shared `variable` declarations |
 
 ```lean
 import Mathlib.Tactic.Linarith    -- linear arithmetic
@@ -67,16 +67,16 @@ inductive Tree (A : Type) where
 
 ```
 
-| Form                           | Meaning                                                                 |
-| ------------------------------ | ----------------------------------------------------------------------- |
-| `fun x => e`                   | anonymous function (lambda); also written as `$\lambda$ x => e`         |
-| `$\forall$ x : T, U`           | dependent function type (Pi); `$\rightarrow$` is the non-dependent case |
-| `A $\rightarrow$ B`            | function type -- also implication                                       |
-| `let x := e; body`             | local binding                                                           |
-| `match e with ...`             | pattern match / case analysis                                           |
-| `A $\times$ B`, `A $\oplus$ B` | product, sum types                                                      |
-| `{ x : T // P x }`             | subtype                                                                 |
-| `@f`                           | supply implicit args explicitly                                         |
+| Form | Meaning |
+| --- | --- |
+| `fun x => e` | anonymous function (lambda); also written as `$\lambda$ x => e` |
+| `$\forall$ x : T, U` | dependent function type (Pi); `$\rightarrow$` is the non-dependent case |
+| `A $\rightarrow$ B` | function type -- also implication |
+| `let x := e; body` | local binding |
+| `match e with ...` | pattern match / case analysis |
+| `A $\times$ B`, `A $\oplus$ B` | product, sum types |
+| `{ x : T // P x }` | subtype |
+| `@f` | supply implicit args explicitly |
 
 **Inductives** define data (like `Nat`, `List`) and propositions (like `LessEq`, `Exists`) uniformly -- constructors are the introduction rules; `match` / `cases` / `induction` are the elimination rules.
 
@@ -86,11 +86,11 @@ ______________________________________________________________________
 
 Every type has a **sort**. The three heads:
 
-| Sort     | Inhabitants are        | Notes                                                                 |
-| -------- | ---------------------- | --------------------------------------------------------------------- |
-| `Prop`   | proofs of propositions | impredicative; **restricted** elimination; proof-irrelevant in spirit |
-| `Type u` | computational data     | predicative small types (`Type` is shorthand for `Type 0`)            |
-| `Sort u` | universes              | `Prop` is `Sort 0`, `Type u` is `Sort (u+1)`                          |
+| Sort | Inhabitants are | Notes |
+| --- | --- | --- |
+| `Prop` | proofs of propositions | impredicative; **restricted** elimination; proof-irrelevant in spirit |
+| `Type u` | computational data | predicative small types (`Type` is shorthand for `Type 0`) |
+| `Sort u` | universes | `Prop` is `Sort 0`, `Type u` is `Sort (u+1)` |
 
 The hierarchy is cumulative and stratified to stay consistent:
 
@@ -102,16 +102,16 @@ ______________________________________________________________________
 
 ## :scroll: Propositions -- Curry-Howard
 
-| Logic          | Lean                | Type-theoretic reading                         | Intro / elim tactics                                            |
-| -------------- | ------------------- | ---------------------------------------------- | --------------------------------------------------------------- |
-| implication    | `P $\rightarrow$ Q` | function type                                  | `intro` / `apply`                                               |
-| conjunction    | `P $\land$ Q`       | pair (`And`, ctor `And.intro`)                 | `constructor` or `$\langle$h1, h2$\rangle$` / `rcases`, `cases` |
-| disjunction    | `P $\lor$ Q`        | sum (`Or`, ctors `Or.inl`, `Or.inr`)           | `left`, `right` (or `Or.inl`, `Or.inr`) / `rcases`, `cases`     |
-| negation       | `$\neg$ P`          | `P $\rightarrow$ False`                        | `intro` / `contradiction`                                       |
-| for all        | `$\forall$ x, P`    | dependent function (Pi)                        | `intro` / `apply`, `specialize`                                 |
-| exists         | `$\exists$ x, P`    | dependent pair (`Exists`, ctor `Exists.intro`) | `use t` or `$\langle$t, h$\rangle$` / `rcases`, `cases`         |
-| equality       | `x = y`             | `Eq` inductive (`Eq.refl`)                     | `rfl` / `rw`, `subst`                                           |
-| truth / absurd | `True` / `False`    | unit / empty type                              | `trivial` / `contradiction`, `exfalso`                          |
+| Logic | Lean | Type-theoretic reading | Intro / elim tactics |
+| --- | --- | --- | --- |
+| implication | `P $\rightarrow$ Q` | function type | `intro` / `apply` |
+| conjunction | `P $\land$ Q` | pair (`And`, ctor `And.intro`) | `constructor` or `$\langle$h1, h2$\rangle$` / `rcases`, `cases` |
+| disjunction | `P $\lor$ Q` | sum (`Or`, ctors `Or.inl`, `Or.inr`) | `left`, `right` (or `Or.inl`, `Or.inr`) / `rcases`, `cases` |
+| negation | `$\neg$ P` | `P $\rightarrow$ False` | `intro` / `contradiction` |
+| for all | `$\forall$ x, P` | dependent function (Pi) | `intro` / `apply`, `specialize` |
+| exists | `$\exists$ x, P` | dependent pair (`Exists`, ctor `Exists.intro`) | `use t` or `$\langle$t, h$\rangle$` / `rcases`, `cases` |
+| equality | `x = y` | `Eq` inductive (`Eq.refl`) | `rfl` / `rw`, `subst` |
+| truth / absurd | `True` / `False` | unit / empty type | `trivial` / `contradiction`, `exfalso` |
 
 ______________________________________________________________________
 
@@ -119,34 +119,34 @@ ______________________________________________________________________
 
 ### Move things into context / discharge goals
 
-| Tactic               | Effect                                                    |
-| -------------------- | --------------------------------------------------------- |
+| Tactic | Effect |
+| --- | --- |
 | `intro x` / `intros` | move `$\forall$`/`$\rightarrow$` premises into hypotheses |
-| `apply H`            | backward reasoning: match `H`'s conclusion to the goal    |
-| `exact t`            | give the proof term directly                              |
-| `assumption`         | goal is one of the hypotheses verbatim                    |
-| `refine e`           | give a term with `?_` or `_` holes left as new goals      |
-| `exfalso`            | replace goal with `False` (prove anything from absurdity) |
+| `apply H` | backward reasoning: match `H`'s conclusion to the goal |
+| `exact t` | give the proof term directly |
+| `assumption` | goal is one of the hypotheses verbatim |
+| `refine e` | give a term with `?_` or `_` holes left as new goals |
+| `exfalso` | replace goal with `False` (prove anything from absurdity) |
 
 #### Case analysis and induction
 
-| Tactic              | Effect                                                            |
-| ------------------- | ----------------------------------------------------------------- |
-| `cases x`           | split on the constructors of `x` (no IH)                          |
+| Tactic | Effect |
+| --- | --- |
+| `cases x` | split on the constructors of `x` (no IH) |
 | `rcases x with ...` | split and patterns-destruct hypotheses forward (requires Mathlib) |
-| `induction x`       | like `cases` but with induction hypotheses                        |
-| `injection H`       | use constructor injectivity to get argument equalities            |
-| `contradiction`     | close a goal from conflicting/false hypotheses                    |
+| `induction x` | like `cases` but with induction hypotheses |
+| `injection H` | use constructor injectivity to get argument equalities |
+| `contradiction` | close a goal from conflicting/false hypotheses |
 
 #### Equality and rewriting
 
-| Tactic                           | Effect                                                   |
-| -------------------------------- | -------------------------------------------------------- |
-| `rfl`                            | prove `x = x` (up to conversion / definitional equality) |
-| `rw [H]` / `rw [$\leftarrow$ H]` | rewrite goal left-to-right / right-to-left with `H`      |
-| `rw [H] at H2`                   | rewrite inside a hypothesis                              |
-| `symm` / `trans`                 | flip / chain an equality                                 |
-| `subst x`                        | eliminate a variable given `x = e`                       |
+| Tactic | Effect |
+| --- | --- |
+| `rfl` | prove `x = x` (up to conversion / definitional equality) |
+| `rw [H]` / `rw [$\leftarrow$ H]` | rewrite goal left-to-right / right-to-left with `H` |
+| `rw [H] at H2` | rewrite inside a hypothesis |
+| `symm` / `trans` | flip / chain an equality |
+| `subst x` | eliminate a variable given `x = e` |
 
 #### Conversion / unfolding
 
@@ -158,13 +158,13 @@ ______________________________________________________________________
 
 #### Building forward
 
-| Tactic                                 | Effect                                                         |
-| -------------------------------------- | -------------------------------------------------------------- |
-| `have H : P := e`                      | prove `P` as a local hypothesis using tactic block or term `e` |
-| `let x := e`                           | define a local variable                                        |
-| `specialize H t`                       | instantiate a hypothesis                                       |
-| `generalize h : e = x`                 | replace expression `e` with variable `x`                       |
-| `obtain $\langle$h1, h2$\rangle$ := H` | destructure a hypothesis forward (requires Mathlib)            |
+| Tactic | Effect |
+| --- | --- |
+| `have H : P := e` | prove `P` as a local hypothesis using tactic block or term `e` |
+| `let x := e` | define a local variable |
+| `specialize H t` | instantiate a hypothesis |
+| `generalize h : e = x` | replace expression `e` with variable `x` |
+| `obtain $\langle$h1, h2$\rangle$ := H` | destructure a hypothesis forward (requires Mathlib) |
 
 #### Automation
 
@@ -176,14 +176,14 @@ ______________________________________________________________________
 
 In Lean 4, tactics are structured inside a `by` block:
 
-| Form          | Meaning                                       |
-| ------------- | --------------------------------------------- |
-| `t1 <;> t2`   | run `t2` on **all** subgoals produced by `t1` |
-| `try t`       | run `t`, ignore failure                       |
-| `repeat t`    | run `t` until it fails or makes no progress   |
-| \`first       | t1                                            |
-| `all_goals t` | run `t` on all open subgoals                  |
-| `any_goals t` | run `t` on all subgoals where it succeeds     |
+| Form | Meaning |
+| --- | --- |
+| `t1 <;> t2` | run `t2` on **all** subgoals produced by `t1` |
+| `try t` | run `t`, ignore failure |
+| `repeat t` | run `t` until it fails or makes no progress |
+| \`first | t1 |
+| `all_goals t` | run `t` on all open subgoals |
+| `any_goals t` | run `t` on all subgoals where it succeeds |
 
 **Macros** allow writing custom tactic abstractions:
 

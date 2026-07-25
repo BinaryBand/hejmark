@@ -16,16 +16,11 @@ Roadmap, open decisions, and history are not a layer. They live in `ROADMAP.md` 
 ## Rules
 
 1. **Denote your own stratum.** A layer explains its concern and no other. If a sentence would only make sense to a reader who has read a layer above, it is in the wrong file.
-
-2. **Cede, don't leak.** When a concern belongs to another layer, hand it off by name -- "(L2)", "L1.5's residue" -- and stop. Ceding is a pointer, never a re-explanation and never a pre-emption of what the owning layer will say. The seam between layers is a citation, not a stretch of duplicated prose.
-
-3. **One definition, one home.** A construct is defined in exactly one layer -- constructors in L1, declarations in L3 -- and referenced by name everywhere else. No layer restates a definition it could cite.
-
-4. **No meta.** No roadmap, decision, deferral, or version talk in a spec: no "planned," "deferred," "today," "still moving," "re-addition," "removed," "used to." A spec is timeless; what is provisional lives in `.TODO.md`.
-
-5. **Don't document absence.** Never tell the reader a thing is not there unless something already written in-layer would lead them to expect it. "There is no separate `numerals`" answers a question the reader never asked -- the gorilla rule: no one wondered where the `gorilla` constructor went, so no spec need say it is missing.
-
-6. **Earn the sentence.** Prefer the derivation to the enumeration, the example to the restatement, the cited concern to the re-argued one. A sentence that only repeats a cross-reference is cut. Concision is the house style, not a later pass.
+1. **Cede, don't leak.** When a concern belongs to another layer, hand it off by name -- "(L2)", "L1.5's residue" -- and stop. Ceding is a pointer, never a re-explanation and never a pre-emption of what the owning layer will say. The seam between layers is a citation, not a stretch of duplicated prose.
+1. **One definition, one home.** A construct is defined in exactly one layer -- constructors in L1, declarations in L3 -- and referenced by name everywhere else. No layer restates a definition it could cite.
+1. **No meta.** No roadmap, decision, deferral, or version talk in a spec: no "planned," "deferred," "today," "still moving," "re-addition," "removed," "used to." A spec is timeless; what is provisional lives in `.TODO.md`.
+1. **Don't document absence.** Never tell the reader a thing is not there unless something already written in-layer would lead them to expect it. "There is no separate `numerals`" answers a question the reader never asked -- the gorilla rule: no one wondered where the `gorilla` constructor went, so no spec need say it is missing.
+1. **Earn the sentence.** Prefer the derivation to the enumeration, the example to the restatement, the cited concern to the re-argued one. A sentence that only repeats a cross-reference is cut. Concision is the house style, not a later pass.
 
 ## Amending
 
