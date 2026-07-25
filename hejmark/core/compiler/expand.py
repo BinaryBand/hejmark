@@ -1,8 +1,8 @@
-"""Expansion: rewrite the L1.5 surface into the floor's six constructors.
+"""Expansion: rewrite the L1.5 surface into the floor's five constructors.
 
 This is L1.5's admission rule made executable. A surface construct adds no
-denotation -- every application expands into union, subtraction, fold, final
-segment, product and closure -- or it does not enter. So nothing here is
+denotation -- every application expands into union, subtraction, fold, product
+and closure -- or it does not enter. So nothing here is
 interpreted: names splice, definitions substitute, exponents repeat, and what
 comes out is a plain :mod:`hejmark.core.floor.syntax` tree that
 :func:`hejmark.core.floor.universe.denote` reads without knowing L1.5 exists.
@@ -370,5 +370,5 @@ def _universe(node: UniverseNode, ctx: Ctx) -> syntax.UniverseNode:
 
 
 def expand(expr: Expr, ctx: Ctx) -> tuple[syntax.UniverseNode, ...]:
-    """Expand an expression into its product factors, over the six constructors."""
+    """Expand an expression into its product factors, over the five constructors."""
     return tuple(_unit(unit, ctx) for unit in expr.units)

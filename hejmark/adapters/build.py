@@ -203,11 +203,7 @@ def _declaration(ctx: Any) -> UniDecl | DefDecl | SentinelDecl:
 
 
 def _line(ctx: Any) -> Any:
-    """Dispatch a line: a declaration, a contracting statement, or a statement.
-
-    A contracting statement's ``[@m]`` measure, if the parser still tokenizes
-    one, is not read: ``<=>`` is a bare fixpoint, so the annotation is ignored.
-    """
+    """Dispatch a line: a declaration, a contracting statement, or a statement."""
     declaration = ctx.declaration()
     if declaration is not None:
         return _declaration(declaration)

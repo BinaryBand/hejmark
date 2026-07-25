@@ -2,7 +2,7 @@
 
 A denoted :class:`Universe` answers two questions, both computed structurally
 from the AST rather than from a stored table. ``contains(spelling)`` is pure
-set algebra over the six constructors, because collision never changes it (a
+set algebra over the five constructors, because collision never changes it (a
 claimed spelling merely moves owner). ``entries()`` streams the entries in
 declaration order with the collision rule applied -- a spelling is claimed by
 the least ``<value, face>`` address, every later claimant drops it, and an

@@ -167,10 +167,11 @@ def cut(head: syntax.UniverseNode, lo: str, hi: str | None) -> syntax.UniverseNo
 
     An absent ``hi`` is the open case ``@lo..``: the value line from ``lo`` on.
     Total in the floor's manner: ``hi`` below ``lo`` reads as the empty
-    universe, and an empty head has no entries to cut.
+    universe, and an empty head has no entries to cut. An unbounded head has no
+    finite radix, so :func:`digits` streams it without returning.
 
     Raises:
-        ValueLineError: the head is unbounded, or carries a bound it cannot spell.
+        ValueLineError: the head carries a bound it cannot spell.
     """
     alphabet = digits(head)
     if not alphabet:

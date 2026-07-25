@@ -6,9 +6,9 @@ The normative specs (`L1`, `L1_5`, `L2`, `L3`) are one denotation seen at four d
 
 Each layer denotes one stratum and documents only it. A reader of one spec needs the specs below it, never the ones above.
 
-- **L1 -- the floor.** The five constructors and their denotation: order, reach, ceiling, collision. Total, timeless, rejects nothing.
+- **L1 -- the floor.** The five constructors and their denotation: order and collision. Total, timeless, rejects nothing.
 - **L1.5 -- the surface.** The syntax that expands into the floor, its registers, and the derivations and ground-truth that show each surface form dissolving into L1. It owns matching's scope only far enough to name where it stops.
-- **L2 -- the contract.** Finite execution: every operational refusal -- budget, unguarded matcher, non-settling contraction, boundary noncharacter. The only layer that says *refused*.
+- **L2 -- the contract.** Finite execution: the meaning-preserving rewrites that keep a run finite, and every operational refusal -- budget, unguarded matcher, non-settling contraction, boundary noncharacter. The only layer that rewrites for finitude or says *refused*.
 - **L3 -- the std.** In-language declarations over the surface: an inventory, not a derivation. The "why" is L1.5's.
 
 Roadmap, open decisions, and history are not a layer. They live in `ROADMAP.md` (the index) and `docs/.TODO.md`. No spec cites its own future.

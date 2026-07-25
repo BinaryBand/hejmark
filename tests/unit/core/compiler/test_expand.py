@@ -1,4 +1,4 @@
-"""Expansion: every surface construct reaches the floor's six constructors.
+"""Expansion: every surface construct reaches the floor's five constructors.
 
 The assertions read the *expanded* tree rather than its denotation, because
 that is what expansion promises: what comes out is a plain ``core.syntax``

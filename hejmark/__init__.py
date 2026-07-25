@@ -53,7 +53,7 @@ def run(source: str, text: str) -> str:
 def emit_json(source: str) -> str:
     """Emit the expanded floor AST of *source* as JSON, for another engine to denote.
 
-    The query is parsed and rewritten into the floor's six constructors; the
+    The query is parsed and rewritten into the floor's five constructors; the
     result is the portable hand-off, stopped at the compiler so a host holding
     its own engine can finish it. A back-referencing query cannot be lowered
     ahead of a binding and is refused.

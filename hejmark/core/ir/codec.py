@@ -73,16 +73,6 @@ def _code_points(text: str) -> list[int]:
     return [ord(character) for character in text]
 
 
-def decode_query(obj: object) -> tuple[UniverseNode, ...]:
-    """Decode ``{"universes": [...]}`` back to one floor node per factor.
-
-    Raises:
-        HimarkPayloadError: the payload is not the encoder's shape.
-    """
-    items = require_array(require_field(obj, "universes", "query"), "universes")
-    return tuple(decode_universe(item) for item in items)
-
-
 def decode_universe(obj: object) -> UniverseNode:
     """Decode ``{"members": [...]}`` back to a brace group.
 

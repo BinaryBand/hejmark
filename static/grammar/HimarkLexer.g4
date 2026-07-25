@@ -14,8 +14,8 @@ UNI      : 'uni' ;
 DEF      : 'def' ;
 SENTINEL : 'sentinel' ;
 ARROW  : '=>' ;
-// The contracting arrow: its statement re-runs to settlement, each pass
-// strictly descending the declared measure's entry order.
+// The contracting arrow: its statement re-runs until a pass leaves the
+// document unchanged -- a bare fixpoint.
 IARROW : '<=>' ;
 EQ     : '=' ;
 RANGE  : '..' ;

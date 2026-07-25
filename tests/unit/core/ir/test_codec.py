@@ -16,7 +16,6 @@ from hejmark.core.floor.syntax import (
 )
 from hejmark.core.ir.codec import (
     decode_member,
-    decode_query,
     decode_universe,
     encode_member,
     encode_query,
@@ -96,15 +95,6 @@ def test_every_member_kind_round_trips() -> None:
     )
     for member in members:
         assert decode_member(encode_member(member)) == member
-
-
-def test_a_query_round_trips_as_tuples() -> None:
-    """Decoding rebuilds tuples, so the result hashes and compares like the source."""
-    nodes = (UniverseNode((Face("a"),)), UniverseNode((Range("0", "9"),)))
-    decoded = decode_query(encode_query(nodes))
-    assert decoded == nodes
-    assert isinstance(decoded, tuple)
-    assert isinstance(decoded[0].members, tuple)
 
 
 def test_a_lone_surrogate_survives_the_round_trip() -> None:

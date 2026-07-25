@@ -1,8 +1,8 @@
 """Compilation: lower a resolved script to the boundary's :class:`Program`.
 
 The compiler's last phase. Everything language-shaped is settled here -- the
-strictly-left rule, template lowering, the measure's expansion, the sentinel
-table -- so what leaves is pure data plus one callback: the
+strictly-left rule, template lowering, and the sentinel table -- so what leaves
+is pure data plus one callback: the
 :class:`~hejmark.core.compiler.late.SlotTable`'s resolver, which is the only
 live object a back-referencing program still needs from this side.
 """
@@ -109,7 +109,7 @@ def lower(to_ast: ToAst, source: str) -> tuple[UniverseNode, ...]:
     """Parse *source* and expand each factor to its floor AST, before denotation.
 
     The fully-standalone hand-off: expansion has rewritten the surface into the
-    six constructors, and the floor AST serializes for another engine to read
+    five constructors, and the floor AST serializes for another engine to read
     back. A back-referencing factor rides a query as a late slot and cannot be
     lowered ahead of a binding, so it is refused rather than emitted.
 
