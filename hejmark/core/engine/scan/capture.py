@@ -108,17 +108,20 @@ def factor_faces(query: Query, found: Match) -> tuple[str, ...]:
 
 
 def canonical_face(query: Query, found: Match) -> str:
-    """The whole match re-spelled canonically: each part's face 0, concatenated.
+    """The bound entry re-spelled canonically: each factor's face 0, concatenated.
 
+    The bound entry is the least ``<value, face>`` claimant of the hit -- the same
+    split :func:`factor_faces` reads -- so ``$0`` canonicalizes *that* split, not
+    the matcher's greedy membership witness. Reading the raw parts would let
+    ``$0`` disagree with ``$1..$n`` wherever the hit splits more than one way.
     Adjacency is the product, so a compound query is one entry and one binding;
-    reading each factor's canonical face and joining them is the reading that
-    stays total. Where a part's wearer cannot be found, the part stands as it
-    hit.
+    where a factor's wearer cannot be found, the part stands as it hit.
     """
+    split = factor_faces(query, found)
     pieces = []
     bound: tuple[str, ...] = ()
-    for factor, part in zip(query.universes, found.parts, strict=False):
+    for factor, face in zip(query.universes, split, strict=True):
         universe = universe_at(factor, bound)
-        pieces.append(canonical(universe, part.face) or part.face)
-        bound = (*bound, part.face)
+        pieces.append(canonical(universe, face) or face)
+        bound = (*bound, face)
     return "".join(pieces)

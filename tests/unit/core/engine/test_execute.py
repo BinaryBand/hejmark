@@ -110,3 +110,30 @@ def test_a_contracting_statement_settles_at_its_fixpoint() -> None:
 def test_a_contracting_statement_that_never_matches_returns_the_document() -> None:
     """No pass runs, so the document stands -- emptiness stays legal."""
     assert run('{z} <=> "y"', "abc") == "abc"
+
+
+def test_a_contraction_settles_when_a_pass_reproduces_the_text() -> None:
+    """The fixpoint is `document unchanged`, not `query stops matching`.
+
+    `{a} <=> "a"` matches every `a` and rewrites it to `a`, so the first pass
+    leaves the document unchanged and the run settles -- it does not spin on the
+    query that still matches.
+    """
+    assert run('{a} <=> "a"', "banana") == "banana"
+
+
+def test_a_canonical_or_bare_read_on_a_detached_branch_is_a_scope_error() -> None:
+    """`$` and `$0` refuse on an unanchored branch, exactly as `$k` does -- no hit to read."""
+    with pytest.raises(HimarkScopeError, match="no match anchors"):
+        run('"{{$}}"', "abc")
+    with pytest.raises(HimarkScopeError, match="no match anchors"):
+        run('"{{$0}}"', "abc")
+
+
+def test_a_canonical_read_follows_the_floors_split() -> None:
+    """`$0` canonicalizes the collision split, so it agrees with the factor reads.
+
+    `{{a,abc},ab}{{C,c},bc}` spells `abc` as the greedy `(ab, c)` but the floor
+    binds `(a, bc)`; `$0` reads that entry's canonical face `a`+`bc`, not `ab`+`C`.
+    """
+    assert run('{{a,abc},ab}{{C,c},bc} => "{{$0}}"', "abc") == "abc"

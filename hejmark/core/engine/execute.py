@@ -48,9 +48,9 @@ from hejmark.core.ir.program import (
 class Branch:
     """A span of one text object, carrying the capture its match bound.
 
-    ``bound`` is the query that matched, which is what a canonical-face read
-    needs; a branch that no match anchors (the whole document, or a detached
-    string) carries ``None`` and reads ``$0`` as ``$``.
+    ``bound`` is the query that matched, which every capture read needs; a
+    branch that no match anchors (the whole document, or a detached string)
+    carries ``None``, and a capture read on it is refused.
     """
 
     text: str
@@ -87,17 +87,20 @@ class _Contract:
 def _read(branch: Branch, capture: str) -> str:
     """Render one capture read: ``$`` as it hit, ``$0`` canonical, ``$k`` factor ``k``.
 
+    Every read needs a branch a match anchors; on a detached or whole-text
+    branch that none does, all three refuse alike -- there is no hit to read.
+
     Raises:
-        HimarkScopeError: a factor read on a branch no match anchors, or past
-            the factors the query wrote.
+        HimarkScopeError: a capture read on a branch no match anchors, or a
+            factor read past the factors the query wrote.
     """
-    if capture in {"$", "$0"}:
-        if capture == "$" or branch.bound is None or branch.found is None:
-            return branch.face
-        return canonical_face(branch.bound, branch.found)  # ty: ignore[invalid-argument-type]
     if branch.bound is None or branch.found is None:
         msg = f"{{{{{capture}}}}} reads a branch no match anchors"
         raise HimarkScopeError(msg)
+    if capture == "$":
+        return branch.face
+    if capture == "$0":
+        return canonical_face(branch.bound, branch.found)  # ty: ignore[invalid-argument-type]
     faces = factor_faces(branch.bound, branch.found)  # ty: ignore[invalid-argument-type]
     index = int(capture[1:])
     if index > len(faces):
@@ -204,16 +207,20 @@ def _statement(stmt: _Statement, document: str, sentinels: dict[str, str]) -> st
 
 
 def _iterate(stmt: _Contract, document: str, sentinels: dict[str, str]) -> str:
-    """Run a contracting statement: the pass repeats until it reaches a fixpoint.
+    """Iterate a contracting statement to its fixpoint: the document unchanged.
 
-    The pass is the ordinary two-step statement; passes repeat until one finds
-    nothing to rewrite, and that unchanged document is the fixpoint the
-    iteration settles at. Nothing here proves in advance that it settles.
+    The pass is the ordinary two-step statement, re-run until it rewrites the
+    document to itself -- the true fixpoint. A contraction whose matches
+    reproduce the text they cover settles at once; one that keeps moving the
+    document (an oscillating re-dress) never settles, and nothing here proves in
+    advance which it is.
     """
     once = _Statement((stmt.query, stmt.template))
-    while next(iter(finditer(stmt.query, document)), None) is not None:
-        document = _statement(once, document, sentinels)
-    return document
+    while True:
+        rewritten = _statement(once, document, sentinels)
+        if rewritten == document:
+            return document
+        document = rewritten
 
 
 def _strip(document: str, sentinels: dict[str, str]) -> str:

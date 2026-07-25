@@ -71,6 +71,21 @@ def test_factor_faces_breaks_a_value_tie_by_face_index() -> None:
     assert factor_faces(query, found) == ("a", "bc")
 
 
+def test_canonical_face_follows_the_collision_split_not_the_greedy_witness() -> None:
+    """`$0` canonicalizes the least-claimant split, so it agrees with the factor reads.
+
+    `{{a,abc},ab}{{C,c},bc}` spells `abc` as the greedy `(ab, c)` but the floor
+    binds `(a, bc)`, so the canonical face is that entry's -- `a`+`bc` -- not the
+    witness's `ab`+`C`.
+    """
+    query = parse("{{a,abc},ab}{{C,c},bc}")
+    found = match(query, "abc")
+    assert found is not None
+    assert found.parts[0].face == "ab"  # the greedy witness
+    assert factor_faces(query, found) == ("a", "bc")  # the floor's split
+    assert canonical_face(query, found) == "abc"  # canonical of the floor's split
+
+
 def test_factor_faces_prices_a_late_factor_under_each_splits_own_binding() -> None:
     """`{a,ab}{c,bc}{a,$1}` on `abca`: both splits tile, and value order decides.
 
