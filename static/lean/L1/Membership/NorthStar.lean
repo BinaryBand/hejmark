@@ -54,6 +54,23 @@ compile to closed booleans. -/
 macro "north_star" : tactic =>
   `(tactic| (refine containsb_sound _ _ ?_ ?_ <;> native_decide))
 
+/-- The shared opening of every two-factor non-binder product refutation: a
+denoted spelling splits as `p ++ q` with each factor denoting its own piece.
+The negative-row counterpart of `north_star`, factoring the fsplit boilerplate
+so each `_not_` proof keeps only its factor-specific refutation. -/
+theorem two_factor_split {A B : Node} {s : Spelling}
+    (h : denotes (nlist [.prod (.node A (.node B .nil))]) s) :
+    ∃ p q, s = p ++ q ∧ ndenote A (fun _ => False) p ∧ ndenote B (fun _ => False) q := by
+  rw [denotes, ndenote_nonbinder _ _ _ (by simp [nlist, bindsb, freeAmpb, hasAmpb])] at h
+  simp only [nlist, walk_cons, walk_single_prod, walk_nil, false_or] at h
+  rw [fsplit_fnode] at h
+  obtain ⟨p, q, hs, hp, hq⟩ := h
+  rw [fsplit_fnode] at hq
+  obtain ⟨p2, q2, rfl, hp2, hq2⟩ := hq
+  rw [fsplit_fnil] at hq2
+  subst hq2
+  exact ⟨p, p2, by simpa using hs, hp, hp2⟩
+
 /- ---------------------------------------------------------------- -/
 /- {a,b,c}                                                          -/
 /- ---------------------------------------------------------------- -/
@@ -190,17 +207,10 @@ theorem prod_row_has_abc : denotes prod_row [la, lb, lc] := by north_star
 
 theorem prod_row_not_abbc : ¬ denotes prod_row [la, lb, lb, lc] := by
   intro h
-  rw [denotes, ndenote_nonbinder _ _ _ (by decide)] at h
-  simp only [prod_row, nlist, walk_cons, walk_single_prod, walk_nil, false_or] at h
-  rw [fsplit_fnode] at h
-  obtain ⟨p, q, hs, hp, hq⟩ := h
-  rw [fsplit_fnode] at hq
-  obtain ⟨p2, q2, rfl, hp2, hq2⟩ := hq
-  rw [fsplit_fnil] at hq2
-  subst hq2
+  obtain ⟨p, q, hs, hp, hp2⟩ := two_factor_split h
   rw [ndenote_nonbinder _ _ _ (by decide)] at hp
   rw [ndenote_nonbinder _ _ _ (by decide)] at hp2
-  simp only [walk_cons, walk_single_face, walk_nil, false_or] at hp hp2
+  simp only [nlist, walk_cons, walk_single_face, walk_nil, false_or] at hp hp2
   rcases hp with rfl | rfl <;> rcases hp2 with rfl | rfl <;> simp_all
 
 /- {a,ab}{c,bc}: the full membership set ac, abc, abbc -- the doc's
@@ -216,18 +226,10 @@ theorem collision_row_has_abbc : denotes collision_row [la, lb, lb, lc] := by no
 
 theorem collision_row_not_abbbc : ¬ denotes collision_row [la, lb, lb, lb, lc] := by
   intro h
-  rw [denotes, ndenote_nonbinder _ _ _ (by decide)] at h
-  simp only [collision_row, nlist, walk_cons, walk_single_prod, walk_nil,
-    false_or] at h
-  rw [fsplit_fnode] at h
-  obtain ⟨p, q, hs, hp, hq⟩ := h
-  rw [fsplit_fnode] at hq
-  obtain ⟨p2, q2, rfl, hp2, hq2⟩ := hq
-  rw [fsplit_fnil] at hq2
-  subst hq2
+  obtain ⟨p, q, hs, hp, hp2⟩ := two_factor_split h
   rw [ndenote_nonbinder _ _ _ (by decide)] at hp
   rw [ndenote_nonbinder _ _ _ (by decide)] at hp2
-  simp only [walk_cons, walk_single_face, walk_nil, false_or] at hp hp2
+  simp only [nlist, walk_cons, walk_single_face, walk_nil, false_or] at hp hp2
   rcases hp with rfl | rfl <;> rcases hp2 with rfl | rfl <;> simp_all
 
 def final_times_b : Node :=
@@ -238,17 +240,9 @@ theorem final_times_b_has_zb : denotes final_times_b [lz, lb] := by north_star
 
 theorem final_times_b_not_ba : ¬ denotes final_times_b [lb, la] := by
   intro h
-  rw [denotes, ndenote_nonbinder _ _ _ (by decide)] at h
-  simp only [final_times_b, nlist, walk_cons, walk_single_prod, walk_nil,
-    false_or] at h
-  rw [fsplit_fnode] at h
-  obtain ⟨p, q, hs, hp, hq⟩ := h
-  rw [fsplit_fnode] at hq
-  obtain ⟨p2, q2, rfl, hp2, hq2⟩ := hq
-  rw [fsplit_fnil] at hq2
-  subst hq2
+  obtain ⟨p, q, hs, hp, hp2⟩ := two_factor_split h
   rw [ndenote_nonbinder _ _ _ (by decide)] at hp2
-  simp only [walk_cons, walk_single_face, walk_nil, false_or] at hp2
+  simp only [nlist, walk_cons, walk_single_face, walk_nil, false_or] at hp2
   subst hp2
   rcases p with _ | ⟨x, _ | ⟨y, p⟩⟩ <;> simp_all
 
@@ -265,12 +259,9 @@ theorem bc_final_has_ca : denotes bc_final [lc, la] := by north_star
 
 theorem bc_final_not_a : ¬ denotes bc_final [la] := by
   intro h
-  rw [denotes, ndenote_nonbinder _ _ _ (by decide)] at h
-  simp only [bc_final, nlist, walk_cons, walk_single_prod, walk_nil, false_or] at h
-  rw [fsplit_fnode] at h
-  obtain ⟨p, q, hs, hp, hq⟩ := h
+  obtain ⟨p, q, hs, hp, hp2⟩ := two_factor_split h
   rw [ndenote_nonbinder _ _ _ (by decide)] at hp
-  simp only [walk_cons, walk_single_face, walk_nil, false_or] at hp
+  simp only [nlist, walk_cons, walk_single_face, walk_nil, false_or] at hp
   rcases hp with rfl | rfl <;> simp_all
 
 /- ---------------------------------------------------------------- -/
@@ -329,18 +320,10 @@ theorem final_final_has_ab : denotes final_final [la, lb] := by north_star
 
 theorem final_final_not_a : ¬ denotes final_final [la] := by
   intro h
-  rw [denotes, ndenote_nonbinder _ _ _ (by decide)] at h
-  simp only [final_final, nlist, walk_cons, walk_single_prod, walk_nil,
-    false_or] at h
-  rw [fsplit_fnode] at h
-  obtain ⟨p, q, hs, hp, hq⟩ := h
-  rw [fsplit_fnode] at hq
-  obtain ⟨p2, q2, rfl, hp2, hq2⟩ := hq
-  rw [fsplit_fnil] at hq2
-  subst hq2
+  obtain ⟨p, q, hs, hp, hp2⟩ := two_factor_split h
   rw [ndenote_nonbinder _ _ _ (by decide)] at hp
   rw [ndenote_nonbinder _ _ _ (by decide)] at hp2
-  simp only [walk_cons, walk_single_final, walk_nil, false_or] at hp hp2
+  simp only [nlist, walk_cons, walk_single_final, walk_nil, false_or] at hp hp2
   have l1 := winb_final_length hp
   have l2 := winb_final_length hp2
   have hlen := congrArg List.length hs
@@ -487,14 +470,7 @@ theorem z2_has_00 : denotes z2 [d0, d0] := by north_star
 
 theorem z2_not_000 : ¬ denotes z2 [d0, d0, d0] := by
   intro h
-  rw [denotes, ndenote_nonbinder _ _ _ (by decide)] at h
-  simp only [z2, nlist, walk_cons, walk_single_prod, walk_nil, false_or] at h
-  rw [fsplit_fnode] at h
-  obtain ⟨p, q, hs, hp, hq⟩ := h
-  rw [fsplit_fnode] at hq
-  obtain ⟨p2, q2, rfl, hp2, hq2⟩ := hq
-  rw [fsplit_fnil] at hq2
-  subst hq2
+  obtain ⟨p, q, hs, hp, hp2⟩ := two_factor_split h
   rcases (fill_ndenote _ _).mp hp with rfl | rfl <;>
     rcases (fill_ndenote _ _).mp hp2 with rfl | rfl <;> simp_all
 
@@ -506,17 +482,9 @@ theorem fill_digits_has_05 : denotes fill_digits [d0, d5] := by north_star
 
 theorem fill_digits_not_005 : ¬ denotes fill_digits [d0, d0, d5] := by
   intro h
-  rw [denotes, ndenote_nonbinder _ _ _ (by decide)] at h
-  simp only [fill_digits, nlist, walk_cons, walk_single_prod, walk_nil,
-    false_or] at h
-  rw [fsplit_fnode] at h
-  obtain ⟨p, q, hs, hp, hq⟩ := h
-  rw [fsplit_fnode] at hq
-  obtain ⟨p2, q2, rfl, hp2, hq2⟩ := hq
-  rw [fsplit_fnil] at hq2
-  subst hq2
+  obtain ⟨p, q, hs, hp, hp2⟩ := two_factor_split h
   rw [ndenote_nonbinder _ _ _ (by decide)] at hp2
-  simp only [walk_cons, walk_single_range, walk_nil, false_or] at hp2
+  simp only [nlist, walk_cons, walk_single_range, walk_nil, false_or] at hp2
   rw [winb_range_singleton] at hp2
   obtain ⟨c, rfl, _, _⟩ := hp2
   rcases (fill_ndenote _ _).mp hp with rfl | rfl <;> simp_all
@@ -536,30 +504,16 @@ theorem z_cross_has_000 : denotes z_cross [d0, d0, d0] := by north_star
 
 theorem z_cross_not_empty_spelling : ¬ denotes z_cross [] := by
   intro h
-  rw [denotes, ndenote_nonbinder _ _ _ (by decide)] at h
-  simp only [z_cross, nlist, walk_cons, walk_single_prod, walk_nil, false_or] at h
-  rw [fsplit_fnode] at h
-  obtain ⟨p, q, hs, hp, hq⟩ := h
-  rw [fsplit_fnode] at hq
-  obtain ⟨p2, q2, rfl, hp2, hq2⟩ := hq
-  rw [fsplit_fnil] at hq2
-  subst hq2
+  obtain ⟨p, q, hs, hp, hp2⟩ := two_factor_split h
   rw [ndenote_nonbinder _ _ _ (by decide)] at hp2
-  simp only [walk_cons, walk_single_face, walk_nil, false_or] at hp2
-  rcases hp2 with rfl | rfl <;> simp_all
+  simp only [nlist, walk_cons, walk_single_face, walk_nil, false_or] at hp2
+  rcases hp2 with rfl | rfl <;> simp at hs
 
 theorem z_cross_not_0000 : ¬ denotes z_cross [d0, d0, d0, d0] := by
   intro h
-  rw [denotes, ndenote_nonbinder _ _ _ (by decide)] at h
-  simp only [z_cross, nlist, walk_cons, walk_single_prod, walk_nil, false_or] at h
-  rw [fsplit_fnode] at h
-  obtain ⟨p, q, hs, hp, hq⟩ := h
-  rw [fsplit_fnode] at hq
-  obtain ⟨p2, q2, rfl, hp2, hq2⟩ := hq
-  rw [fsplit_fnil] at hq2
-  subst hq2
+  obtain ⟨p, q, hs, hp, hp2⟩ := two_factor_split h
   rw [ndenote_nonbinder _ _ _ (by decide)] at hp2
-  simp only [walk_cons, walk_single_face, walk_nil, false_or] at hp2
+  simp only [nlist, walk_cons, walk_single_face, walk_nil, false_or] at hp2
   rcases (fill_ndenote _ _).mp hp with rfl | rfl <;>
     rcases hp2 with rfl | rfl <;> simp_all
 

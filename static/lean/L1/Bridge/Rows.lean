@@ -61,6 +61,19 @@ theorem face_denotes_iff (t s : Spelling) :
     denotes (nsingle (.face t)) s ↔ s = t :=
   ndenote_face t _ s
 
+/-- A product with a face second factor has unique splits: the face tail pins
+the cut point, so the first factor's denotation is never consulted. Shared by
+the marked-block rows (`markedBlock_splits_unique`, `inSeamBlock_splits_unique`). -/
+theorem prodFace_splits_unique {A : Node} {t s : Spelling}
+    {pq pq' : Spelling × Spelling}
+    (h : IsSplit A (nsingle (.face t)) s pq)
+    (h' : IsSplit A (nsingle (.face t)) s pq') : pq = pq' := by
+  obtain ⟨heq, -, hq⟩ := h
+  obtain ⟨heq', -, hq'⟩ := h'
+  rw [face_denotes_iff] at hq hq'
+  obtain ⟨h1, h2⟩ := List.append_inj' (heq.symm.trans heq') (by rw [hq, hq'])
+  exact Prod.ext h1 h2
+
 /-- Cutting at a marker neither side contains is unambiguous -- the list
 surgery behind every unique-split argument below. -/
 theorem append_marker_inj {c : Code} {u v u' v' : Spelling}
@@ -128,22 +141,34 @@ theorem twoBlocks_splits_unique {s : Spelling} {pq pq' : Spelling × Spelling}
 /- The seam row at omega^2, marker outside the range.                -/
 /- ---------------------------------------------------------------- -/
 
-/-- The marked omega block: bounded strings closed by the marker `2` --
-the doc's `{b}{a..}` block with the seam character written at the end. -/
-def markedBlock : Node := prod2 (unitClosure 0 1) (nsingle (.face [2]))
+/-- A marked ω-block: the unit closure over `{0,1}` capped by one marker face
+`[c]`. `markedBlock` (marker `2`, outside the closure range) and `inSeamBlock`
+(marker `1`, inside it) are its two instances; the block-level lemmas below are
+proved once here and specialized at each marker. -/
+def markerBlock (c : Code) : Node := prod2 (unitClosure 0 1) (nsingle (.face [c]))
 
-theorem markedBlock_denotes_iff (s : Spelling) :
-    denotes markedBlock s ↔ ∃ u, s = u ++ [2] ∧ ∀ c ∈ u, c ≤ 1 := by
-  show denotes (prod2 (unitClosure 0 1) (nsingle (.face [2]))) s ↔ _
-  rw [prod2_denotes_iff]
+theorem markerBlock_denotes_iff (c : Code) (s : Spelling) :
+    denotes (markerBlock c) s ↔ ∃ u, s = u ++ [c] ∧ ∀ x ∈ u, x ≤ 1 := by
+  rw [markerBlock, prod2_denotes_iff]
   constructor
   · rintro ⟨p, q, rfl, hp, hq⟩
     rw [face_denotes_iff] at hq
     subst hq
     exact ⟨p, rfl, (unitClosure01_denotes p).mp hp⟩
   · rintro ⟨u, rfl, hu⟩
-    exact ⟨u, [2], rfl, (unitClosure01_denotes u).mpr hu,
+    exact ⟨u, [c], rfl, (unitClosure01_denotes u).mpr hu,
       (face_denotes_iff _ _).mpr rfl⟩
+
+theorem markerBlock_nSubfree (c : Code) : nSubfree (markerBlock c) = true := by
+  simp [markerBlock, prod2, nsingle, nSubfree, mSubfree, fSubfree, unitClosure_nSubfree]
+
+/-- The marked omega block: bounded strings closed by the marker `2` --
+the doc's `{b}{a..}` block with the seam character written at the end. -/
+def markedBlock : Node := markerBlock 2
+
+theorem markedBlock_denotes_iff (s : Spelling) :
+    denotes markedBlock s ↔ ∃ u, s = u ++ [2] ∧ ∀ c ∈ u, c ≤ 1 :=
+  markerBlock_denotes_iff 2 s
 
 /-- The marker never appears inside a bounded segment, so every spelling
 splits at its unique marker. -/
@@ -308,25 +333,20 @@ theorem twoFaces_entryRecType : entryRecType twoFaces = 2 := by
 itself, so the cut point is forced. -/
 theorem markedBlock_splits_unique {s : Spelling} {pq pq' : Spelling × Spelling}
     (h : IsSplit (unitClosure 0 1) (nsingle (.face [2])) s pq)
-    (h' : IsSplit (unitClosure 0 1) (nsingle (.face [2])) s pq') : pq = pq' := by
-  obtain ⟨heq, -, hq⟩ := h
-  obtain ⟨heq', -, hq'⟩ := h'
-  rw [face_denotes_iff] at hq hq'
-  obtain ⟨h1, h2⟩ := List.append_inj' (heq.symm.trans heq') (by rw [hq, hq'])
-  exact Prod.ext h1 h2
+    (h' : IsSplit (unitClosure 0 1) (nsingle (.face [2])) s pq') : pq = pq' :=
+  prodFace_splits_unique h h'
 
-theorem markedBlock_nSubfree : nSubfree markedBlock = true := by
-  simp [markedBlock, prod2, nsingle, nSubfree, mSubfree, fSubfree,
-    unitClosure_nSubfree]
+theorem markedBlock_nSubfree : nSubfree markedBlock = true := markerBlock_nSubfree 2
 
 /-- The marked block under the recursive order: a full omega of bounded
-prefixes, one marker entry each. -/
-theorem markedBlock_entryRecType : entryRecType markedBlock = ω := by
-  show entryRecType (prod2 (unitClosure 0 1) (nsingle (.face [2]))) = ω
-  rw [entryRecType_prod2 (unitClosure 0 1) (nsingle (.face [2]))
+prefixes, one marker entry each. Proved once for every marker code. -/
+theorem markerBlock_entryRecType (c : Code) : entryRecType (markerBlock c) = ω := by
+  rw [markerBlock, entryRecType_prod2 (unitClosure 0 1) (nsingle (.face [c]))
       (unitClosure_nSubfree 0 1) rfl
-      (fun _ _ _ h h' => markedBlock_splits_unique h h'),
+      (fun _ _ _ h h' => prodFace_splits_unique h h'),
     face_entryRecType, unitClosure_entryRecType 0 1 (by omega), one_mul]
+
+theorem markedBlock_entryRecType : entryRecType markedBlock = ω := markerBlock_entryRecType 2
 
 /-- The range factor keeps its two entries under the recursive order. -/
 theorem rangeNode_entryRecType : entryRecType rangeNode = 2 :=
@@ -796,45 +816,25 @@ theorem nestedClosureRow_entryRecLt_isWellOrder :
 
 /-- The in-range marked block: bounded strings closed by the marker `1` --
 `markedBlock` with the seam character drawn from the closure range. -/
-def inSeamBlock : Node := prod2 (unitClosure 0 1) (nsingle (.face [1]))
+def inSeamBlock : Node := markerBlock 1
 
 theorem inSeamBlock_denotes_iff (s : Spelling) :
-    denotes inSeamBlock s ↔ ∃ u, s = u ++ [1] ∧ ∀ c ∈ u, c ≤ 1 := by
-  show denotes (prod2 (unitClosure 0 1) (nsingle (.face [1]))) s ↔ _
-  rw [prod2_denotes_iff]
-  constructor
-  · rintro ⟨p, q, rfl, hp, hq⟩
-    rw [face_denotes_iff] at hq
-    subst hq
-    exact ⟨p, rfl, (unitClosure01_denotes p).mp hp⟩
-  · rintro ⟨u, rfl, hu⟩
-    exact ⟨u, [1], rfl, (unitClosure01_denotes u).mpr hu,
-      (face_denotes_iff _ _).mpr rfl⟩
+    denotes inSeamBlock s ↔ ∃ u, s = u ++ [1] ∧ ∀ c ∈ u, c ≤ 1 :=
+  markerBlock_denotes_iff 1 s
 
 /-- The block's own splits stay unique -- the face tail pins the cut point
 regardless of where the marker code lives (`markedBlock_splits_unique`'s
 argument, unchanged). The collision below is a row-level phenomenon. -/
 theorem inSeamBlock_splits_unique {s : Spelling} {pq pq' : Spelling × Spelling}
     (h : IsSplit (unitClosure 0 1) (nsingle (.face [1])) s pq)
-    (h' : IsSplit (unitClosure 0 1) (nsingle (.face [1])) s pq') : pq = pq' := by
-  obtain ⟨heq, -, hq⟩ := h
-  obtain ⟨heq', -, hq'⟩ := h'
-  rw [face_denotes_iff] at hq hq'
-  obtain ⟨h1, h2⟩ := List.append_inj' (heq.symm.trans heq') (by rw [hq, hq'])
-  exact Prod.ext h1 h2
+    (h' : IsSplit (unitClosure 0 1) (nsingle (.face [1])) s pq') : pq = pq' :=
+  prodFace_splits_unique h h'
 
-theorem inSeamBlock_nSubfree : nSubfree inSeamBlock = true := by
-  simp [inSeamBlock, prod2, nsingle, nSubfree, mSubfree, fSubfree,
-    unitClosure_nSubfree]
+theorem inSeamBlock_nSubfree : nSubfree inSeamBlock = true := markerBlock_nSubfree 1
 
 /-- The in-range marked block under the recursive order: a full omega of
 bounded prefixes, one marker entry each. -/
-theorem inSeamBlock_entryRecType : entryRecType inSeamBlock = ω := by
-  show entryRecType (prod2 (unitClosure 0 1) (nsingle (.face [1]))) = ω
-  rw [entryRecType_prod2 (unitClosure 0 1) (nsingle (.face [1]))
-      (unitClosure_nSubfree 0 1) rfl
-      (fun _ _ _ h h' => inSeamBlock_splits_unique h h'),
-    face_entryRecType, unitClosure_entryRecType 0 1 (by omega), one_mul]
+theorem inSeamBlock_entryRecType : entryRecType inSeamBlock = ω := markerBlock_entryRecType 1
 
 /-- The seams genuinely collide: the spelling `11` is claimed by two
 distinct splits, `1 | 1` and `11 | empty` -- the unique-split hypothesis of
