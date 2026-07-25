@@ -260,6 +260,20 @@ def _base(base: UniverseNode | Ref | Operand, ctx: Ctx) -> syntax.UniverseNode:
             return _reference(name, ctx, ctx.operand)
 
 
+def _spell_arg(binding: Binding, ctx: Ctx) -> Binding:
+    """Substitute a pipeline argument through the caller's parameter bindings.
+
+    A stage argument may name the enclosing definition's parameter -- ``[shorter
+    w]`` in ``upto``'s body reads ``upto``'s ``w`` -- so it is resolved here,
+    before ``_apply`` binds it to the stage's own parameter. A literal argument,
+    or an open bound, passes through unchanged.
+    """
+    lo = ctx.spell(binding.lo)
+    if binding.hi is None or isinstance(binding.hi, Open):
+        return Binding(lo, binding.hi)
+    return Binding(lo, ctx.spell_bound(binding.hi))
+
+
 def _unit(unit: Unit, ctx: Ctx) -> syntax.UniverseNode:
     """Expand a unit: its base, then its exponent, then its pipeline stages.
 
@@ -271,33 +285,9 @@ def _unit(unit: Unit, ctx: Ctx) -> syntax.UniverseNode:
         node = _power(node, _count(unit.exponent, ctx))
     head = node
     for stage in bind(unit.pipeline, ctx.env):
-        node = _apply(stage.definition, stage.arguments, Ctx(ctx.env, head, node, None), node)
+        arguments = tuple(_spell_arg(a, ctx) for a in stage.arguments)
+        node = _apply(stage.definition, arguments, Ctx(ctx.env, head, node, None), node)
     return node
-
-
-def _application(segments: tuple[Segment, ...], ctx: Ctx) -> syntax.UniverseNode | None:
-    """Read adjacent segments as an application, or ``None`` if they are not one.
-
-    ``@shorter w`` is an application and ``{a}{b}`` a product; only the
-    definition's arity tells them apart.
-    """
-    first = segments[0]
-    if not isinstance(first, Unit) or not isinstance(first.base, Ref):
-        return None
-    definition = ctx.env.defs.get(first.base.name)
-    if definition is None or not definition.params:
-        return None
-    arity = len(definition.params)
-    given = segments[1 : 1 + arity]
-    if len(given) < arity or not all(isinstance(s, syntax.Face) for s in given):
-        msg = f"{first.base.name} takes {arity} argument(s) here"
-        raise HimarkScopeError(msg)
-    arguments = tuple(Binding(ctx.spell(s.text)) for s in given if isinstance(s, syntax.Face))
-    node = _apply(definition, arguments, ctx, ctx.operand)
-    rest = segments[1 + arity :]
-    if not rest:
-        return node
-    return _product((node, *(_factor(segment, ctx) for segment in rest)))
 
 
 def _factor(segment: Segment, ctx: Ctx) -> syntax.UniverseNode:
@@ -339,10 +329,12 @@ def _lone(only: Segment, ctx: Ctx) -> tuple[syntax.Member, ...]:
 
 
 def _segments(segments: tuple[Segment, ...], ctx: Ctx) -> tuple[syntax.Member, ...]:
-    """Expand a segment member: an application, a lone segment, or a product."""
-    applied = _application(segments, ctx)
-    if applied is not None:
-        return _members_of(applied)
+    """Expand a segment member: a lone segment, or a product.
+
+    Adjacency is always a product now -- a definition is applied only through
+    the pipeline `A[f x]`, never by juxtaposition -- so no arity-based
+    application/product disambiguation happens here.
+    """
     if len(segments) == 1:
         return _lone(segments[0], ctx)
     factors = tuple(

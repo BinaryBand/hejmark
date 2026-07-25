@@ -78,7 +78,7 @@ L1_5_ROWS = (
     "def fill = {{{},@0}}",  # zero-parameter definition over a register
     "def nonzero = {@,!{@0}}",  # bare head register
     "def where lo..hi = {@lo..hi}",  # pair parameter over the value family
-    "def pad w..w' = {@fill^{w'}_,!{@shorter(w)},!{@longer(w')}}",  # exponent + operand token
+    "def pad w..w' = {@fill^{w'}_,!{@str[shorter w]},!{@str[longer w']}}",  # exponent + pipeline
     "{0..9}[where 8..12 pad 1..2]",  # modifier pipeline
     '{{cat,feline}} => "{{$0}}"',  # emit: canonical-face rewrite
     '{a,e,i,o,u} => ""',  # emit: deletion

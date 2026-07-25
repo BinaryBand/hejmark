@@ -65,12 +65,17 @@ def test_a_bare_closure_token_is_its_own_segment() -> None:
     assert _members("{&}") == (Segments((Closure(),)),)
 
 
-def test_nothing_is_classified_at_build_time() -> None:
-    """`@shorter w` is an application and `{a}{b}` a product; only binding knows."""
+def test_juxtaposition_builds_as_a_product_not_an_application() -> None:
+    """`@shorter w` is a product, never an application: the space is a literal face.
+
+    Application is the pipeline `A[f x]` alone; adjacency is always a product, so
+    `@shorter` splices as a reference and ` w` stands beside it as its own face --
+    the space included, since inside `{}` whitespace is content.
+    """
     segments = _members("{@shorter w}")[0]
     assert isinstance(segments, Segments)
-    assert isinstance(segments.segments[0], Unit)
-    assert segments.segments[1] == Face("w")
+    assert isinstance(segments.segments[0], Unit)  # the @shorter reference
+    assert segments.segments[1] == Face(" w")  # a literal face, leading space kept
 
 
 def test_a_uni_declaration_carries_its_name_and_expression() -> None:
