@@ -52,9 +52,14 @@ base
     | USCORE          # OperandBase
     ;
 
-// `A^n`: the exponent is a numeral, a numeral parameter, or a braced
-// parameter (`fill^{w'}`). Inside braces the operand lexes as a face.
-exponent
+// `A^x..y`: a closed count span, `A` unioned across the powers `x..y`. A lone
+// `A^n` is the degenerate `A^n..n`; both counts are always written, so an open
+// `A^x..` has no reading (unbounded repetition is closure's, `&`). Each count is
+// a numeral, a numeral parameter, or a braced parameter (`fill^{w'}`); inside
+// braces the operand lexes as a face.
+exponent : exponentAtom (RANGE exponentAtom)? ;
+
+exponentAtom
     : NUM
     | IDENT
     | face
@@ -66,10 +71,11 @@ exponent
 // definition's arity. A unit may carry several brackets, which chain.
 pipeline : LBRACK A_WS? pipeItem (A_WS pipeItem)* A_WS? RBRACK ;
 
-pipeItem : pipeArg (RANGE pipeArg?)? ;
+pipeItem : pipeArg (RANGE pipeArg)? ;
 
-// An argument, or a back-reference standing as one (`where 0..$2`). A trailing
-// `..` with no second argument is the open pair (`where 0..`).
+// An argument, or a back-reference standing as one (`where 0..$2`). A lone
+// argument binds a pair parameter as the degenerate pair `n..n`; a pair writes
+// both bounds -- there is no open pair, since `where 0..` has no reading.
 // An argument assembles from its pieces (a bare `.` is a literal dot, as in a
 // face), or a back-reference standing as one.
 pipeArg : (ARG | DOT)+ | CAPTURE ;
@@ -78,15 +84,16 @@ universe : LBRACE (member (COMMA member)*)? RBRACE ;
 
 member
     : face RANGE face      # RangeMember
-    | REF RANGE valueBound? # ValueMember
+    | REF RANGE valueBound  # ValueMember
     | BANG universe         # SubtractMember
     | segment+              # SegmentsMember
     ;
 
 // The value family `@lo..hi`: the head's value line cut by value. The low bound
 // rides the REF sigil (`@0`, or `@lo` naming a numeral parameter); the high
-// bound is a numeral, a parameter, or a back-reference standing as one. An
-// absent bound is the open case `@lo..`: the whole value tail from `lo`.
+// bound is a numeral, a parameter, or a back-reference standing as one. Both
+// bounds are always written -- there is no open cut, since `@lo..` has no
+// reading; the degenerate `@0..0` is spelled as the bare splice `@0`.
 valueBound : face | CAPTURE ;
 
 // One adjacent piece of a member: a brace group, the closure token, a

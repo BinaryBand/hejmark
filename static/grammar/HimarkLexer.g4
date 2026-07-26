@@ -88,8 +88,8 @@ A_RANGE : '..' -> type(RANGE) ;
 // literal two dots); it lexes as its own token and the parser assembles it into
 // the argument.
 A_DOT   : '.'  -> type(DOT) ;
-// Emitted, not skipped: whitespace separates pipeline items, which is what
-// keeps an open bound (`where 0..`) from grabbing the next stage as its `hi`.
+// Emitted, not skipped: whitespace separates pipeline items (`where 8..12 pad
+// 1..2` is two items), so a stage's arguments never run into the next stage.
 A_WS    : [ \t\r\n]+ ;
 // A back-reference standing as an argument (`where 0..$2`). Listed before ARG
 // so the exact spelling `$k` lexes as a read; anything longer stays an ARG.
