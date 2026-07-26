@@ -7,7 +7,7 @@ import pytest
 from hejmark.adapters.parser import AntlrParser
 from hejmark.core.driver import compile_program, finditer, match, parse, run
 from hejmark.core.engine.scan.match import Query, Slot
-from hejmark.core.ir.errors import HimarkScopeError
+from hejmark.core.ir.errors import HimarkScopeError, HimarkSentinelError
 from hejmark.core.ir.program import CompiledQuery, CompiledStatement, LateSlot
 
 _to_ast = AntlrParser().to_ast
@@ -70,6 +70,12 @@ def test_a_read_not_strictly_left_is_refused() -> None:
 def test_run_compiles_and_executes_a_script() -> None:
     """The whole pipeline: parse, compile to a program, execute against text."""
     assert run(_to_ast, '{a} => "x"', "abc") == "xbc"
+
+
+def test_run_refuses_a_document_that_arrives_spelling_a_sentinel() -> None:
+    """The L2 ingest guard sits on the run path: a noncharacter document is refused."""
+    with pytest.raises(HimarkSentinelError, match="noncharacter"):
+        run(_to_ast, '{a} => "x"', "ab\ufdd0c")
 
 
 def test_compile_program_stops_at_the_data() -> None:

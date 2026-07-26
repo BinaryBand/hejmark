@@ -4,7 +4,9 @@
 compiler when a name or read is refused, and by the engine when a capture read
 finds no wearer in a finite universe -- so it lives in the stratum both sides
 import. :class:`HimarkPayloadError` belongs to the boundary itself: a payload
-that does not decode is neither side's program.
+that does not decode is neither side's program. :class:`HimarkSentinelError` is
+an L2 refusal -- a program that denotes, declined at the sentinel boundary --
+so it too sits in the shared stratum, where the L2 contract can raise it.
 """
 
 from __future__ import annotations
@@ -17,6 +19,17 @@ class HimarkScopeError(ValueError):
     definition body, an operand token no application binds, a capture read that
     no branch anchors. Emptiness is never one of these -- a query denoting the
     empty universe matches nothing and says so.
+    """
+
+
+class HimarkSentinelError(ValueError):
+    """Raised when the sentinel boundary is crossed: an L2 refusal, not a scope.
+
+    The sentinel space is engine-private noncharacters. A document that arrives
+    already spelling one is refused at ingest (docs/foundation/L2.md), so
+    nothing engine-private can be forged or collided with from outside. The
+    program denotes -- this is L2 declining to run it, never L1.5 declining to
+    expand it.
     """
 
 

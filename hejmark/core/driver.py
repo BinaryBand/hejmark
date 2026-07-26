@@ -59,6 +59,7 @@ def run(to_ast: ToAst, source: str, document: str, prelude: str | None = None) -
     node, env = script(to_ast, source, prelude)
     program, resolver = compile_script(node, env)
     program = contract.apply(program)
+    contract.check_ingest(document)
     return execute.run(program, document, resolver)
 
 
