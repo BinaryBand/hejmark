@@ -2,16 +2,19 @@
 
 This module is the composition root and deliberately implements nothing. The
 parser adapter arrives via the :class:`ToAst` port; the compiler lowers source
-to a pure-data program (or a single compiled query) plus its late resolver;
-the engine loads and runs it. Each seam it crosses is one the layers below may
-not cross themselves -- the compiler and the engine never import each other,
-and only the data defined in :mod:`hejmark.core.ir` passes between them.
+to a pure-data program (or a single compiled query) plus its late resolver; the
+L2 contract (:mod:`hejmark.core.contract`) intercepts that program on its way to
+execution; and the engine loads and runs it. Each seam it crosses is one the
+layers below may not cross themselves -- the compiler, the contract and the
+engine never import each other, and only the data defined in
+:mod:`hejmark.core.ir` passes between them.
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterator
 
+from hejmark.core import contract
 from hejmark.core.compiler.compile import compile_script, compile_single, script
 from hejmark.core.compiler.ports import ToAst
 from hejmark.core.engine import execute
@@ -55,6 +58,7 @@ def run(to_ast: ToAst, source: str, document: str, prelude: str | None = None) -
     """Compile a whole script and run it against *document*."""
     node, env = script(to_ast, source, prelude)
     program, resolver = compile_script(node, env)
+    program = contract.apply(program)
     return execute.run(program, document, resolver)
 
 

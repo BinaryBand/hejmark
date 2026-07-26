@@ -120,14 +120,17 @@ exhaustive = true
 exhaustive_ignores = ["__main__"]
 
 [[tool.importlinter.contracts]]
-# The boundary, made structural. compiler and engine are independent siblings
-# ("|" marks two packages sharing one layer): the compiler produces the
-# pure-data Program (core.ir) and the engine consumes it, and the only back
-# edge -- the late resolver -- crosses as a callback value, never an import.
-# Both sit on the shared strata: core.ir (the payload, its codec, the shared
-# exceptions) over core.floor (L1 denotation -- shared because expansion
-# itself performs bounded denotation-time reads: expand._zero,
-# valueline.digits). Only core.driver, the composition root, sees both sides.
+# The boundary, made structural. compiler, engine and contract are independent
+# siblings ("|" marks packages sharing one layer): the compiler produces the
+# pure-data Program (core.ir), the L2 contract intercepts it, and the engine
+# consumes it -- and the only back edge, the late resolver, crosses as a
+# callback value, never an import. The contract sits here because it too imports
+# only core.ir: importing neither the compiler that produced a program nor the
+# engine that runs one is exactly what keeps it an optional stage. All three sit
+# on the shared strata: core.ir (the payload, its codec, the shared exceptions)
+# over core.floor (L1 denotation -- shared because expansion itself performs
+# bounded denotation-time reads: expand._zero, valueline.digits). Only
+# core.driver, the composition root, sees every side.
 #
 # `exhaustive = true` forces the placement question to be answered: a new
 # core package that is not named here is a contract violation, so "which side
@@ -137,7 +140,7 @@ type = "layers"
 containers = ["hejmark.core"]
 layers = [
     "driver",
-    "compiler | engine",
+    "compiler | engine | contract",
     "ir",
     "floor",
 ]
