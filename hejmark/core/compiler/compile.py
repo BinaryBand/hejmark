@@ -44,6 +44,7 @@ from hejmark.core.ir.program import (
     SentinelPart,
     TemplatePart,
     TextPart,
+    ToFaces,
 )
 
 
@@ -57,7 +58,9 @@ def script(to_ast: ToAst, source: str, prelude: str | None = None) -> tuple[Scri
     return node, merge(prelude_env(to_ast, prelude), collect(node))
 
 
-def compile_query(expr: Expr, env: Env, table: SlotTable, source: str = "") -> CompiledQuery:
+def compile_query(
+    faces: ToFaces, expr: Expr, env: Env, table: SlotTable, source: str = ""
+) -> CompiledQuery:
     """Lower one query expression: eager units expand, back-references slot.
 
     A unit that back-references a factor to its left cannot expand yet; it
@@ -78,38 +81,42 @@ def compile_query(expr: Expr, env: Env, table: SlotTable, source: str = "") -> C
         if needs:
             factors.append(table.add(unit, env, needs))
         else:
-            factors.append(EagerFactor(expand(Expr((unit,)), Ctx(env))[0]))
+            factors.append(EagerFactor(expand(Expr((unit,)), Ctx(env, faces))[0]))
     return CompiledQuery(source, tuple(factors))
 
 
-def compile_script(node: ScriptNode, env: Env) -> tuple[Program, LateResolver]:
+def compile_script(faces: ToFaces, node: ScriptNode, env: Env) -> tuple[Program, LateResolver]:
     """Lower a whole script: one program, one slot table, one resolver.
 
     Raises:
         HimarkScopeError: a query in the script refuses to lower.
     """
-    table = SlotTable()
+    table = SlotTable(faces)
     lines: list[CompiledLine] = []
     for stmt in statements(node):
         if isinstance(stmt, IterStatement):
-            lines.append(_contract(stmt, env, table))
+            lines.append(_contract(faces, stmt, env, table))
         else:
-            lines.append(_statement(stmt, env, table))
+            lines.append(_statement(faces, stmt, env, table))
     sentinels = tuple(Sentinel(name, face) for name, face in env.sentinels.items())
     return Program(tuple(lines), sentinels), table.resolve
 
 
-def compile_single(node: ScriptNode, env: Env, source: str) -> tuple[CompiledQuery, LateResolver]:
+def compile_single(
+    faces: ToFaces, node: ScriptNode, env: Env, source: str
+) -> tuple[CompiledQuery, LateResolver]:
     """Lower the one query expression a query-level script holds.
 
     Raises:
         HimarkScopeError: *node* is not a single query expression.
     """
-    table = SlotTable()
-    return compile_query(_single_expr(node), env, table, source), table.resolve
+    table = SlotTable(faces)
+    return compile_query(faces, _single_expr(node), env, table, source), table.resolve
 
 
-def lower(to_ast: ToAst, source: str, prelude: str | None = None) -> tuple[UniverseNode, ...]:
+def lower(
+    to_ast: ToAst, faces: ToFaces, source: str, prelude: str | None = None
+) -> tuple[UniverseNode, ...]:
     """Parse *source* and expand each factor to its floor AST, before denotation.
 
     The fully-standalone hand-off: expansion has rewritten the surface into the
@@ -122,7 +129,7 @@ def lower(to_ast: ToAst, source: str, prelude: str | None = None) -> tuple[Unive
             factor reads one to its left.
     """
     node, env = script(to_ast, source, prelude)
-    return _lower_expr(_single_expr(node), env)
+    return _lower_expr(faces, _single_expr(node), env)
 
 
 @dataclass(frozen=True)
@@ -138,7 +145,7 @@ class Fragment:
 
 
 def lower_fragments(
-    to_ast: ToAst, sources: Sequence[str], prelude: str | None = None
+    to_ast: ToAst, faces: ToFaces, sources: Sequence[str], prelude: str | None = None
 ) -> tuple[Fragment, ...]:
     """Lower each of *sources* to its floor AST under one shared environment.
 
@@ -167,7 +174,7 @@ def lower_fragments(
     parsed = [_parse_fragment(to_ast, source) for source in sources]
     lines = tuple(line for node in parsed if isinstance(node, ScriptNode) for line in node.lines)
     env = merge(prelude_env(to_ast, prelude), collect(ScriptNode(lines)))
-    return tuple(_lower_fragment(node, env) for node in parsed)
+    return tuple(_lower_fragment(faces, node, env) for node in parsed)
 
 
 def _parse_fragment(to_ast: ToAst, source: str) -> ScriptNode | str:
@@ -178,19 +185,19 @@ def _parse_fragment(to_ast: ToAst, source: str) -> ScriptNode | str:
         return str(exc)
 
 
-def _lower_fragment(node: ScriptNode | str, env: Env) -> Fragment:
+def _lower_fragment(faces: ToFaces, node: ScriptNode | str, env: Env) -> Fragment:
     """Lower one parsed fragment's query, if it has one, under *env*."""
     if isinstance(node, str):
         return Fragment(error=node)
     if not statements(node):
         return Fragment()
     try:
-        return Fragment(forms=_lower_expr(_single_expr(node), env))
+        return Fragment(forms=_lower_expr(faces, _single_expr(node), env))
     except ValueError as exc:
         return Fragment(error=str(exc))
 
 
-def _lower_expr(expr: Expr, env: Env) -> tuple[UniverseNode, ...]:
+def _lower_expr(faces: ToFaces, expr: Expr, env: Env) -> tuple[UniverseNode, ...]:
     """Expand each of *expr*'s factors under *env*, before denotation.
 
     Raises:
@@ -201,7 +208,7 @@ def _lower_expr(expr: Expr, env: Env) -> tuple[UniverseNode, ...]:
         if reads(unit):
             msg = "a back-referencing factor cannot be lowered to JSON"
             raise HimarkScopeError(msg)
-        forms.append(expand(Expr((unit,)), Ctx(env))[0])
+        forms.append(expand(Expr((unit,)), Ctx(env, faces))[0])
     return tuple(forms)
 
 
@@ -222,21 +229,21 @@ def _single_expr(node: ScriptNode) -> Expr:
     return only.steps[0]
 
 
-def _statement(stmt: Statement, env: Env, table: SlotTable) -> CompiledStatement:
+def _statement(faces: ToFaces, stmt: Statement, env: Env, table: SlotTable) -> CompiledStatement:
     """Lower one statement: each step a compiled query or a lowered template."""
     steps: list[CompiledStep] = []
     for step in stmt.steps:
         if isinstance(step, Expr):
-            steps.append(compile_query(step, env, table))
+            steps.append(compile_query(faces, step, env, table))
         else:
             steps.append(_template(step))
     return CompiledStatement(tuple(steps))
 
 
-def _contract(stmt: IterStatement, env: Env, table: SlotTable) -> CompiledIter:
+def _contract(faces: ToFaces, stmt: IterStatement, env: Env, table: SlotTable) -> CompiledIter:
     """Lower a contracting statement: its query and template, iterated to a fixpoint."""
     return CompiledIter(
-        compile_query(stmt.query, env, table),
+        compile_query(faces, stmt.query, env, table),
         _template(stmt.template),
     )
 

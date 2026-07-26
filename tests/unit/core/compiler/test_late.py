@@ -14,8 +14,8 @@ from hejmark.core.compiler.ast import (
     UniverseNode,
 )
 from hejmark.core.compiler.late import SlotTable, reads
+from hejmark.core.engine.denote.universe import Universe, canonical_faces, denote
 from hejmark.core.engine.scan.match import Slot
-from hejmark.core.floor.universe import Universe, denote
 from hejmark.core.ir.errors import HimarkScopeError
 
 
@@ -90,7 +90,7 @@ def test_resolve_takes_the_projected_reads_not_the_whole_binding() -> None:
 
 def test_an_unknown_slot_id_is_refused() -> None:
     """The table answers only for slots it minted."""
-    table = SlotTable()
+    table = SlotTable(canonical_faces)
     with pytest.raises(HimarkScopeError, match="unknown late slot"):
         table.resolve(7, ("a",))
 

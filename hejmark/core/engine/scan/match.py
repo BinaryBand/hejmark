@@ -25,7 +25,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 
-from hejmark.core.floor.universe import Universe, denote
+from hejmark.core.engine.denote.universe import Universe, denote
 from hejmark.core.ir.errors import HimarkScopeError
 from hejmark.core.ir.program import CompiledQuery, LateResolver, LateSlot
 

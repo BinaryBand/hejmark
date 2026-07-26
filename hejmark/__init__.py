@@ -21,9 +21,9 @@ from hejmark.core.driver import finditer as _finditer
 from hejmark.core.driver import match as _match
 from hejmark.core.driver import parse as _parse
 from hejmark.core.driver import run as _run
+from hejmark.core.engine.denote.universe import Entry, Universe, canonical_faces
 from hejmark.core.engine.scan.match import Match, MatchPart, Query
 from hejmark.core.floor.syntax import HimarkSyntaxError
-from hejmark.core.floor.universe import Entry, Universe
 from hejmark.core.ir.codec import encode_query as _encode_query
 from hejmark.core.ir.errors import HimarkScopeError
 from hejmark.core.ir.wire import encode_program as _encode_program
@@ -59,7 +59,7 @@ def emit_json(source: str) -> str:
     its own engine can finish it. A back-referencing query cannot be lowered
     ahead of a binding and is refused.
     """
-    return json.dumps(_encode_query(_lower(_to_ast, source, standard_library())))
+    return json.dumps(_encode_query(_lower(_to_ast, canonical_faces, source, standard_library())))
 
 
 def emit_fragments(sources: Sequence[str]) -> str:
@@ -75,7 +75,7 @@ def emit_fragments(sources: Sequence[str]) -> str:
     keeps the answers for the ones it is not editing. A refusal about the *set*
     -- a name two fragments declare -- raises, as it does in :func:`emit_json`.
     """
-    fragments = _lower_fragments(_to_ast, sources, standard_library())
+    fragments = _lower_fragments(_to_ast, canonical_faces, sources, standard_library())
     return json.dumps([_fragment_payload(one) for one in fragments])
 
 

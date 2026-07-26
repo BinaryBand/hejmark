@@ -9,9 +9,9 @@ from __future__ import annotations
 
 import pytest
 
+from hejmark.core.engine.denote.universe import denote
 from hejmark.core.engine.scan.match import Eager, Query, Slot, _plain, finditer, match
 from hejmark.core.floor.syntax import Face, Fold, UniverseNode
-from hejmark.core.floor.universe import denote
 from hejmark.core.ir.errors import HimarkScopeError
 
 

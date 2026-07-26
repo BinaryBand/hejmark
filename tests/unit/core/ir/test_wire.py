@@ -10,6 +10,7 @@ import pytest
 from hejmark.adapters.parser import AntlrParser
 from hejmark.core.compiler.compile import compile_script, script
 from hejmark.core.engine import execute
+from hejmark.core.engine.denote.universe import canonical_faces
 from hejmark.core.floor.syntax import Closure, Face, Product, Range, UniverseNode
 from hejmark.core.ir.errors import HimarkPayloadError
 from hejmark.core.ir.program import (
@@ -123,7 +124,7 @@ def test_a_compiled_script_round_trips() -> None:
     """A real script -- sentinel, back-reference, contraction -- survives the wire."""
     source = 'sentinel end\n{a,b}{$1} => "{{$1}}{{@end}}"\n{-}{-} <=> "-"'
     node, env = script(_to_ast, source)
-    program, _ = compile_script(node, env)
+    program, _ = compile_script(canonical_faces, node, env)
     assert decode_program(json.loads(json.dumps(encode_program(program)))) == program
 
 
@@ -135,6 +136,6 @@ def test_a_decoded_slot_free_program_is_standalone() -> None:
         raise AssertionError(msg)
 
     node, env = script(_to_ast, '{a} => "x"\n{b}{c} => "<{{$0}}>"')
-    program, _ = compile_script(node, env)
+    program, _ = compile_script(canonical_faces, node, env)
     decoded = decode_program(json.loads(json.dumps(encode_program(program))))
     assert execute.run(decoded, "abca bc", never) == execute.run(program, "abca bc", never)

@@ -15,8 +15,8 @@ from hejmark.core.compiler.ast import Expr, Statement
 from hejmark.core.compiler.expand import UNIT, Ctx, expand
 from hejmark.core.compiler.prelude import prelude_env
 from hejmark.core.compiler.resolve import collect, merge
+from hejmark.core.engine.denote.universe import canonical_faces, denote
 from hejmark.core.floor import syntax
-from hejmark.core.floor.universe import denote
 from hejmark.core.ir.errors import HimarkScopeError
 
 _to_ast = AntlrParser().to_ast
@@ -34,7 +34,7 @@ def _expr(source: str) -> Expr:
 def _expand(source: str, declarations: str = "") -> syntax.UniverseNode:
     """Expand a query written under some declarations, over the seeded std."""
     env = merge(prelude_env(_to_ast, standard_library()), collect(_to_ast(declarations)))
-    factors = expand(_expr(source), Ctx(env))
+    factors = expand(_expr(source), Ctx(env, canonical_faces))
     return factors[0] if len(factors) == 1 else syntax.UniverseNode((syntax.Product(factors),))
 
 

@@ -31,6 +31,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import assert_never
 
+from hejmark.core.engine.denote.window import carve, window_of
 from hejmark.core.floor.binder import binds
 from hejmark.core.floor.syntax import (
     Closure,
@@ -42,7 +43,6 @@ from hejmark.core.floor.syntax import (
     Subtract,
     UniverseNode,
 )
-from hejmark.core.floor.window import carve, window_of
 
 # A liveness test: whether a face is still unclaimed at its point of use.
 Live = Callable[[str], bool]
@@ -85,6 +85,17 @@ class Universe:
 def denote(node: UniverseNode) -> Universe:
     """Denote a universe AST node to a lazy :class:`Universe`."""
     return Universe(node)
+
+
+def canonical_faces(node: UniverseNode) -> Iterator[str]:
+    """Stream the canonical face of each entry of *node*, in declaration order.
+
+    The engine's side of :data:`~hejmark.core.ir.program.ToFaces`, and the whole
+    of what expansion asks of denotation. Lazy like :meth:`Universe.entries`, so
+    a caller wanting only the zero entry pays for one entry, and an unbounded
+    head streams without returning rather than being refused a reading.
+    """
+    return (entry.faces[0] for entry in denote(node).entries())
 
 
 @lru_cache(maxsize=65536)

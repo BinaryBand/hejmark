@@ -10,7 +10,7 @@ from __future__ import annotations
 from hypothesis import given
 from hypothesis.strategies import text
 
-from hejmark.core.floor.order import Window, spelling_key, successor
+from hejmark.core.engine.denote.order import Window, spelling_key, successor
 
 # A tiny alphabet whose short strings can be enumerated and checked exhaustively.
 _ALPHABET = "abc"

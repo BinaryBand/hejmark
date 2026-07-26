@@ -10,7 +10,8 @@ The floor's own nodes are reused wherever the surface adds nothing:
 :class:`~hejmark.core.floor.syntax.Face`, :class:`~hejmark.core.floor.syntax.Range`,
 and :class:`~hejmark.core.floor.syntax.Closure`
 mean here exactly what they mean there. Everything else is surface-only and
-must be gone by the time :func:`hejmark.core.floor.universe.denote` is called.
+must be gone by the time :func:`hejmark.core.engine.denote.universe.denote` is
+called.
 
 Two normalizations happen at build time rather than here, both purely
 syntactic: escapes resolve to their characters (as on the floor), and a braced

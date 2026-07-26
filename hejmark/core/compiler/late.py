@@ -39,7 +39,7 @@ from hejmark.core.compiler.expand import Ctx, expand
 from hejmark.core.compiler.resolve import Env
 from hejmark.core.floor import syntax
 from hejmark.core.ir.errors import HimarkScopeError
-from hejmark.core.ir.program import LateSlot
+from hejmark.core.ir.program import LateSlot, ToFaces
 
 
 def reads(unit: Unit) -> tuple[int, ...]:
@@ -144,8 +144,14 @@ class SlotTable:
     unit and its environment never leave this table.
     """
 
-    def __init__(self) -> None:
-        """An empty table; compilation deposits as it walks the query's units."""
+    def __init__(self, faces: ToFaces) -> None:
+        """An empty table; compilation deposits as it walks the query's units.
+
+        *faces* is the denotation re-entered expansion reads, held for the same
+        reason the environment is: resolution is expansion, so it needs
+        everything expansion needs.
+        """
+        self._faces = faces
         self._entries: dict[int, tuple[Unit, Env, tuple[int, ...]]] = {}
 
     def add(self, unit: Unit, env: Env, needs: tuple[int, ...]) -> LateSlot:
@@ -175,4 +181,4 @@ class SlotTable:
         bound = [""] * max(needs)
         for index, face in zip(needs, reads, strict=True):
             bound[index - 1] = face
-        return expand(Expr((_sub_unit(unit, tuple(bound)),)), Ctx(env))[0]
+        return expand(Expr((_sub_unit(unit, tuple(bound)),)), Ctx(env, self._faces))[0]

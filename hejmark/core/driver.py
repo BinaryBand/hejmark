@@ -8,6 +8,13 @@ execution; and the engine loads and runs it. Each seam it crosses is one the
 layers below may not cross themselves -- the compiler, the contract and the
 engine never import each other, and only the data defined in
 :mod:`hejmark.core.ir` passes between them.
+
+Both callbacks over that seam are wired here, one in each direction. The
+engine's :func:`~hejmark.core.engine.denote.universe.canonical_faces` goes *in*
+as the compiler's :data:`~hejmark.core.ir.program.ToFaces`, which is how
+expansion reads a denotation without importing one; the compiler's late
+resolver comes *out* with the program, which is how the engine expands a
+back-reference without importing the expander.
 """
 
 from __future__ import annotations
@@ -18,6 +25,7 @@ from hejmark.core import contract
 from hejmark.core.compiler.compile import compile_script, compile_single, script
 from hejmark.core.compiler.ports import ToAst
 from hejmark.core.engine import execute
+from hejmark.core.engine.denote.universe import canonical_faces
 from hejmark.core.engine.scan.match import Match, Query, load_query
 from hejmark.core.engine.scan.match import finditer as _finditer
 from hejmark.core.engine.scan.match import match as _match
@@ -31,7 +39,7 @@ def parse(to_ast: ToAst, source: str, prelude: str | None = None) -> Query:
         HimarkScopeError: *source* is not a single query expression.
     """
     node, env = script(to_ast, source, prelude)
-    compiled, resolver = compile_single(node, env, source)
+    compiled, resolver = compile_single(canonical_faces, node, env, source)
     return load_query(compiled, resolver)
 
 
@@ -57,7 +65,7 @@ def finditer(
 def run(to_ast: ToAst, source: str, document: str, prelude: str | None = None) -> str:
     """Compile a whole script and run it against *document*."""
     node, env = script(to_ast, source, prelude)
-    program, resolver = compile_script(node, env)
+    program, resolver = compile_script(canonical_faces, node, env)
     program = contract.apply(program)
     contract.check_ingest(document)
     return execute.run(program, document, resolver)
@@ -73,5 +81,5 @@ def compile_program(to_ast: ToAst, source: str, prelude: str | None = None) -> P
     program carrying a late slot is one only an in-process engine can run.
     """
     node, env = script(to_ast, source, prelude)
-    program, _resolver = compile_script(node, env)
+    program, _resolver = compile_script(canonical_faces, node, env)
     return program

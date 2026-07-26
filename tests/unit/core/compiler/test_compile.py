@@ -13,8 +13,8 @@ from hejmark.core.compiler.compile import (
     lower_fragments,
     script,
 )
+from hejmark.core.engine.denote.universe import canonical_faces, denote
 from hejmark.core.floor.syntax import Face, UniverseNode
-from hejmark.core.floor.universe import denote
 from hejmark.core.ir.errors import HimarkScopeError
 from hejmark.core.ir.program import (
     SENTINEL_BASE,
@@ -36,7 +36,7 @@ _to_ast = AntlrParser().to_ast
 def _compile(source: str) -> tuple[Program, LateResolver]:
     """Parse, resolve and lower a whole script."""
     node, env = script(_to_ast, source)
-    return compile_script(node, env)
+    return compile_script(canonical_faces, node, env)
 
 
 def test_script_resolves_declarations_over_the_std() -> None:
@@ -79,7 +79,7 @@ def test_the_sentinel_table_rides_the_program() -> None:
 
 def test_lower_expands_each_factor_to_its_pre_denotation_ast() -> None:
     """The lowered form denotes to the same universes ``parse`` would build."""
-    forms = lower(_to_ast, "{a,b}{c}")
+    forms = lower(_to_ast, canonical_faces, "{a,b}{c}")
     assert len(forms) == 2
     assert all(isinstance(form, UniverseNode) for form in forms)
     # {a,b} carries both faces, in order.
@@ -90,17 +90,17 @@ def test_lower_expands_each_factor_to_its_pre_denotation_ast() -> None:
 def test_lower_refuses_a_back_referencing_factor() -> None:
     """A slotted factor denotes only under a binding, so it cannot be lowered."""
     with pytest.raises(HimarkScopeError, match="back-referencing"):
-        lower(_to_ast, "{a,b}{$1}")
+        lower(_to_ast, canonical_faces, "{a,b}{$1}")
 
 
 def test_lower_refuses_anything_but_a_single_query() -> None:
     with pytest.raises(HimarkScopeError, match="single query expression"):
-        lower(_to_ast, "uni d = {a}")
+        lower(_to_ast, canonical_faces, "uni d = {a}")
 
 
 def test_fragments_share_the_names_any_of_them_declares() -> None:
     """A name declared in one fragment is in scope in the next, as in one file."""
-    lowered = lower_fragments(_to_ast, ["uni d = {a,b}", "@d{c}"])
+    lowered = lower_fragments(_to_ast, canonical_faces, ["uni d = {a,b}", "@d{c}"])
     assert lowered[0] == Fragment()  # declarations alone: names, not a query
     forms = lowered[1].forms
     assert forms is not None
@@ -110,7 +110,7 @@ def test_fragments_share_the_names_any_of_them_declares() -> None:
 
 def test_fragments_read_a_name_declared_after_the_fragment_using_it() -> None:
     """Collection is over every fragment's lines, so scope is the set, not a prefix."""
-    lowered = lower_fragments(_to_ast, ["@d", "uni d = {a}"])
+    lowered = lower_fragments(_to_ast, canonical_faces, ["@d", "uni d = {a}"])
     forms = lowered[0].forms
     assert forms is not None
     assert denote(forms[0]).contains("a")
@@ -119,7 +119,7 @@ def test_fragments_read_a_name_declared_after_the_fragment_using_it() -> None:
 
 def test_a_broken_fragment_carries_its_message_and_the_others_still_lower() -> None:
     """One fragment mid-keystroke is not a reason for the rest to stop answering."""
-    lowered = lower_fragments(_to_ast, ["{a", "{b}", "@nope"])
+    lowered = lower_fragments(_to_ast, canonical_faces, ["{a", "{b}", "@nope"])
     assert lowered[0].error is not None
     assert lowered[1].forms == (UniverseNode((Face("b"),)),)
     assert lowered[2].error is not None
@@ -129,17 +129,17 @@ def test_a_broken_fragment_carries_its_message_and_the_others_still_lower() -> N
 def test_fragments_refuse_a_name_two_of_them_declare() -> None:
     """Two fragments are two lines of one script, so the collision is the script's."""
     with pytest.raises(HimarkScopeError, match="duplicate name"):
-        lower_fragments(_to_ast, ["uni d = {a}", "uni d = {b}"])
+        lower_fragments(_to_ast, canonical_faces, ["uni d = {a}", "uni d = {b}"])
 
 
 def test_fragments_refuse_a_cycle_that_spans_two_of_them() -> None:
     """Acyclicity is checked over the joined text, which is where the cycle is."""
     with pytest.raises(HimarkScopeError):
-        lower_fragments(_to_ast, ["uni a = @b", "uni b = @a"])
+        lower_fragments(_to_ast, canonical_faces, ["uni a = @b", "uni b = @a"])
 
 
 def test_a_fragment_holding_two_queries_is_still_refused() -> None:
     """Sharing an environment does not make a fragment a script of its own."""
-    error = lower_fragments(_to_ast, ["{a}\n{b}"])[0].error
+    error = lower_fragments(_to_ast, canonical_faces, ["{a}\n{b}"])[0].error
     assert error is not None
     assert "single query expression" in error

@@ -9,13 +9,13 @@ plainly window-shaped; anything else is left alone here and re-checked face by
 face by the caller, so a missed carve costs a wider enumeration but never
 correctness.
 
-Leaf module: reads :mod:`hejmark.core.floor.order` and the AST, and nothing
-above it. No universe is denoted to answer these questions.
+Leaf module: reads :mod:`hejmark.core.engine.denote.order` and the AST, and
+nothing above it. No universe is denoted to answer these questions.
 """
 
 from __future__ import annotations
 
-from hejmark.core.floor.order import Window, successor
+from hejmark.core.engine.denote.order import Window, successor
 from hejmark.core.floor.syntax import Face, Range, UniverseNode
 
 

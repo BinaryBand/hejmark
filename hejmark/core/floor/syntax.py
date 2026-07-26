@@ -3,7 +3,7 @@
 These nodes mirror the parse exactly: nothing is normalized, deduplicated, or
 rewritten here. All constructor semantics (union no-ops, fold flattening,
 subtraction, closure binding) happen later at denotation time in
-:mod:`hejmark.core.floor.universe`.
+:mod:`hejmark.core.engine.denote.universe`.
 """
 
 from __future__ import annotations
@@ -77,7 +77,7 @@ class UniverseNode:
         every brace: a member's hash reaches an already-remembered node and
         stops.
 
-        Deliberately *not* done for :class:`~hejmark.core.floor.universe.
+        Deliberately *not* done for :class:`~hejmark.core.engine.denote.universe.
         Universe`, which is built fresh on nearly every call -- there a
         remembered hash is never read a second time, and measurably costs more
         than it saves.

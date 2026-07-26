@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from itertools import islice
 
-from hejmark.core.floor.order import Window
+from hejmark.core.engine.denote.order import Window
+from hejmark.core.engine.denote.window import carve, window_of
 from hejmark.core.floor.syntax import Face, Fold, Range, UniverseNode
-from hejmark.core.floor.window import carve, window_of
 
 
 def _node(*members):

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from itertools import islice
 
+from hejmark.core.engine.denote.universe import canonical_faces, denote
 from hejmark.core.floor.syntax import (
     Closure,
     Face,
@@ -18,7 +19,6 @@ from hejmark.core.floor.syntax import (
     Subtract,
     UniverseNode,
 )
-from hejmark.core.floor.universe import denote
 
 
 def _faces(node: UniverseNode, limit: int | None = None) -> list[tuple[str, ...]]:
@@ -160,3 +160,19 @@ def test_subtracted_self_reference_settles_at_stage_one() -> None:
     node = UniverseNode((Fold(witness), Subtract(UniverseNode((Closure(),)))))
 
     assert _faces(node, 3) == [("a",), ("b",), ("aa",)]
+
+
+def test_canonical_faces_streams_one_face_per_entry() -> None:
+    """The `ToFaces` port: each entry's face 0, in declaration order."""
+    node = UniverseNode((Face("a"), Face("b"), Product((UniverseNode((Face("c"),)),))))
+
+    assert list(canonical_faces(node)) == ["a", "b", "c"]
+
+
+def test_canonical_faces_is_lazy_over_an_unbounded_universe() -> None:
+    """Expansion reads the zero entry of a head it must never materialize."""
+    zero = UniverseNode((Face("0"),))
+    node = UniverseNode((Fold(UniverseNode((Face("0"), Product((Closure(), zero))))),))
+
+    assert next(iter(canonical_faces(node))) == "0"
+    assert list(islice(canonical_faces(node), 3)) == ["0", "00", "000"]

@@ -19,12 +19,14 @@ since ``@lo..`` has no reading.
 
 The head is enumerated here the way :func:`hejmark.core.compiler.expand._zero`
 enumerates it: the floor's own bounded range computes its successor at
-expansion time, and reading the head's digits is that same move.
+expansion time, and reading the head's digits is that same move. Both reach
+denotation through the engine's :data:`~hejmark.core.ir.program.ToFaces`, which
+the caller carries in; this module denotes nothing itself.
 """
 
 from hejmark.core.floor import syntax
-from hejmark.core.floor.universe import denote
 from hejmark.core.ir.errors import HimarkScopeError
+from hejmark.core.ir.program import ToFaces
 
 EMPTY = syntax.UniverseNode(())
 
@@ -33,7 +35,7 @@ class ValueLineError(HimarkScopeError):
     """Raised when a bound the head radix does not spell is asked of a value cut."""
 
 
-def digits(head: syntax.UniverseNode) -> tuple[str, ...]:
+def digits(faces: ToFaces, head: syntax.UniverseNode) -> tuple[str, ...]:
     """The head radix's digits, canonical face per entry, in value order.
 
     The value family cuts the value axis and leaves the face axis to the stages
@@ -41,7 +43,7 @@ def digits(head: syntax.UniverseNode) -> tuple[str, ...]:
     the bare ``@0`` register reads. Streams the head's entries, so an unbounded
     radix never returns.
     """
-    return tuple(entry.faces[0] for entry in denote(head).entries())
+    return tuple(faces(head))
 
 
 def value_of(spelling: str, alphabet: tuple[str, ...]) -> int:
@@ -147,7 +149,7 @@ def _from_low(
     return syntax.UniverseNode((*upper.members, syntax.Subtract(_less_than(low, alphabet))))
 
 
-def cut(head: syntax.UniverseNode, lo: str, hi: str) -> syntax.UniverseNode:
+def cut(faces: ToFaces, head: syntax.UniverseNode, lo: str, hi: str) -> syntax.UniverseNode:
     """The head's value line cut to the entries at values ``lo`` through ``hi``.
 
     Both bounds are always given -- there is no open cut. Total in the floor's
@@ -158,7 +160,7 @@ def cut(head: syntax.UniverseNode, lo: str, hi: str) -> syntax.UniverseNode:
     Raises:
         ValueLineError: the head carries a bound it cannot spell.
     """
-    alphabet = digits(head)
+    alphabet = digits(faces, head)
     if not alphabet:
         return EMPTY
     low = value_of(lo, alphabet)

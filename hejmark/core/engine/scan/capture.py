@@ -18,8 +18,8 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 
+from hejmark.core.engine.denote.universe import Universe
 from hejmark.core.engine.scan.match import Factor, Match, Query, universe_at
-from hejmark.core.floor.universe import Universe
 from hejmark.core.ir.errors import HimarkScopeError
 
 

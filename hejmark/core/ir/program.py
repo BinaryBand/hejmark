@@ -8,6 +8,12 @@ naming which factors it reads -- and the engine resolves it per attempt through
 a :data:`LateResolver` callback the compiler provides. A slot-free program
 never invokes the callback and is fully self-contained.
 
+The boundary's two callbacks are both declared here, because a callback is a
+thing both sides must name and neither may import across:
+:data:`LateResolver` runs the compiler's expander from inside the engine, and
+:data:`ToFaces` runs the engine's denotation from inside the compiler. Each is
+injected by :mod:`hejmark.core.driver`, never imported by its caller.
+
 The sentinel space also lives here: sentinel faces are a boundary fact (the
 program carries the allocations), so the allocation base is defined where both
 sides can see it.
@@ -15,7 +21,7 @@ sides can see it.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 
 from hejmark.core.floor.syntax import UniverseNode
@@ -46,10 +52,19 @@ class EagerFactor:
 
 QueryFactor = EagerFactor | LateSlot
 
-# The one back edge: given a slot id and the faces bound to its reads -- one
-# per `needs` entry, in order -- return the floor form the substituted unit
+# The run-time back edge: given a slot id and the faces bound to its reads --
+# one per `needs` entry, in order -- return the floor form the substituted unit
 # expands to. The compiler implements this; the engine only calls it.
 LateResolver = Callable[[int, tuple[str, ...]], UniverseNode]
+
+# The compile-time crossing, pointing the other way: given a floor node, stream
+# the canonical face of each of its entries in declaration order. The engine
+# implements this, denotation being its stratum; the compiler only calls it, and
+# only where a surface construct is *defined* by a bounded read of what a
+# universe denotes -- `@0` reads the head's zero entry, and a value cut reads the
+# head radix's digits. Lazy by contract: a caller wanting the zero entry must
+# pay for one entry, since a head may denote unboundedly many.
+ToFaces = Callable[[UniverseNode], Iterator[str]]
 
 
 @dataclass(frozen=True)

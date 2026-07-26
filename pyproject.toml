@@ -123,13 +123,15 @@ exhaustive_ignores = ["__main__"]
 # The boundary, made structural. compiler, engine and contract are independent
 # siblings ("|" marks packages sharing one layer): the compiler produces the
 # pure-data Program (core.ir), the L2 contract intercepts it, and the engine
-# consumes it -- and the only back edge, the late resolver, crosses as a
-# callback value, never an import. The contract sits here because it too imports
-# only core.ir: importing neither the compiler that produced a program nor the
-# engine that runs one is exactly what keeps it an optional stage. All three sit
-# on the shared strata: core.ir (the payload, its codec, the shared exceptions)
-# over core.floor (L1 denotation -- shared because expansion itself performs
-# bounded denotation-time reads: expand._zero, valueline.digits). Only
+# consumes it -- and both edges between them, the late resolver and ToFaces,
+# cross as callback values, never as imports. The contract sits here because it
+# too imports only core.ir: importing neither the compiler that produced a
+# program nor the engine that runs one is exactly what keeps it an optional
+# stage. All three sit on the shared strata: core.ir (the payload, its codec,
+# the shared exceptions) over core.floor -- which is L1 as *data* only, the five
+# constructors plus the binder test. Denoting one of those trees is what it
+# takes to execute it, so the denotation itself lives under core.engine.denote
+# and the compiler reaches it only through the injected ToFaces. Only
 # core.driver, the composition root, sees every side.
 #
 # `exhaustive = true` forces the placement question to be answered: a new
@@ -179,13 +181,32 @@ layers = [
 exhaustive = true
 
 [[tool.importlinter.contracts]]
-# The engine's two halves: the executor drives the scanner, never the reverse.
+# The engine's three strata: the executor drives the scanner, the scanner asks
+# denotation, and denotation knows about neither. `denote` is the bottom because
+# it is the one stratum written against floor syntax alone -- the piece a host in
+# another language must reimplement, and the piece the compiler is allowed to
+# reach only as an injected callback.
 name = "engine pipeline"
 type = "layers"
 containers = ["hejmark.core.engine"]
 layers = [
     "execute",
     "scan",
+    "denote",
+]
+exhaustive = true
+
+[[tool.importlinter.contracts]]
+# Denotation's own order: `universe` denotes a brace expression, `window` views a
+# range as a half-open interval, `order` fixes the shortlex order both are
+# defined against. A leaf per level, nothing circular.
+name = "denote stratum"
+type = "layers"
+containers = ["hejmark.core.engine.denote"]
+layers = [
+    "universe",
+    "window",
+    "order",
 ]
 exhaustive = true
 

@@ -5,7 +5,8 @@ denotation -- every application expands into union, subtraction, fold, product
 and closure -- or it does not enter. So nothing here is
 interpreted: names splice, definitions substitute, exponents repeat, and what
 comes out is a plain :mod:`hejmark.core.floor.syntax` tree that
-:func:`hejmark.core.floor.universe.denote` reads without knowing L1.5 exists.
+:func:`hejmark.core.engine.denote.universe.denote` reads without knowing L1.5
+exists.
 
 The registers are the expander's metafunctions, given tokens. The precedent is
 the floor's own bounded range -- ``{a..z}`` is ``{a.., !{s..}}``, which
@@ -47,10 +48,11 @@ from hejmark.core.compiler.resolve import Binding, Env, bind, canonicalize
 from hejmark.core.floor import syntax
 
 # The floor's own binder test: whether a brace expression's members hold a free
-# `&`. Expansion must know, because a binder may never be inlined.
+# `&`. Expansion must know, because a binder may never be inlined. A question
+# about the written tree, so it is answered here rather than by denotation.
 from hejmark.core.floor.binder import binds
-from hejmark.core.floor.universe import denote
 from hejmark.core.ir.errors import HimarkScopeError
+from hejmark.core.ir.program import ToFaces
 
 # The empty universe, and the unit: a fold over the empty alphabet, the one
 # entry wearing the empty spelling. The unit is the product identity.
@@ -60,16 +62,20 @@ UNIT = syntax.UniverseNode((syntax.Fold(syntax.UniverseNode(())),))
 
 @dataclass(frozen=True)
 class Ctx:
-    """What an expansion reads: the namespace, the head, the operand, the bindings.
+    """What an expansion reads: the namespace, denotation, the head, the operand, the bindings.
 
+    ``faces`` is the engine's :data:`~hejmark.core.ir.program.ToFaces`, the one
+    thing expansion cannot answer for itself -- carried here rather than
+    imported, so the compiler names denotation without depending on it.
     ``head`` is the pipeline head every register reads; ``operand`` is the
     stage operand ``_`` binds to; ``bindings`` maps a definition's parameters
-    to the literal spellings an application gave them. All three are ``None``
-    or empty outside the scope that supplies them, which is what turns a
-    stray register or operand into a diagnostic.
+    to the literal spellings an application gave them. The last three are
+    ``None`` or empty outside the scope that supplies them, which is what turns
+    a stray register or operand into a diagnostic.
     """
 
     env: Env
+    faces: ToFaces
     head: syntax.UniverseNode | None = None
     operand: syntax.UniverseNode | None = None
     bindings: dict[str, str] | None = None
@@ -94,14 +100,13 @@ def _refuse_read(spelling: str) -> NoReturn:
     raise HimarkScopeError(msg)
 
 
-def _zero(node: syntax.UniverseNode) -> str | None:
+def _zero(node: syntax.UniverseNode, faces: ToFaces) -> str | None:
     """The canonical face of a universe's zero entry, or ``None`` if it has none.
 
-    Reads the first entry of the lazy stream, so an infinite head costs one
+    Reads the first face of the lazy stream, so an infinite head costs one
     entry rather than a materialization.
     """
-    entry = next(iter(denote(node).entries()), None)
-    return entry.faces[0] if entry is not None else None
+    return next(iter(faces(node)), None)
 
 
 def _product(factors: tuple[syntax.UniverseNode, ...]) -> syntax.UniverseNode:
@@ -162,7 +167,7 @@ def _register(name: str, ctx: Ctx) -> syntax.UniverseNode:
         raise HimarkScopeError(msg)
     if name == "":
         return ctx.head
-    zero = _zero(ctx.head)
+    zero = _zero(ctx.head, ctx.faces)
     return UNIT if zero is None else syntax.UniverseNode((syntax.Face(zero),))
 
 
@@ -185,7 +190,7 @@ def _value_cut(lo: str, hi: str | Read, ctx: Ctx) -> tuple[syntax.Member, ...]:
     if ctx.head is None:
         msg = f"register @{lo}..{hi} outside a definition body"
         raise HimarkScopeError(msg)
-    node = valueline.cut(ctx.head, ctx.spell(lo), ctx.spell(hi))
+    node = valueline.cut(ctx.faces, ctx.head, ctx.spell(lo), ctx.spell(hi))
     return (syntax.Product((node,)),)
 
 
@@ -227,8 +232,8 @@ def _apply(
 ) -> syntax.UniverseNode:
     """Apply a definition: substitute its parameters and the operand, then expand."""
     head = ctx.head
-    bindings = _bind_params(definition.params, arguments, _zero(head) if head else None)
-    inner = Ctx(ctx.env, head, operand, bindings)
+    bindings = _bind_params(definition.params, arguments, _zero(head, ctx.faces) if head else None)
+    inner = Ctx(ctx.env, ctx.faces, head, operand, bindings)
     return _product(expand(definition.expr, inner))
 
 
@@ -285,7 +290,9 @@ def _unit(unit: Unit, ctx: Ctx) -> syntax.UniverseNode:
         head = node
         for stage in bind(bracket, ctx.env):
             arguments = tuple(_spell_arg(a, ctx) for a in stage.arguments)
-            node = _apply(stage.definition, arguments, Ctx(ctx.env, head, node, None), node)
+            node = _apply(
+                stage.definition, arguments, Ctx(ctx.env, ctx.faces, head, node, None), node
+            )
     return node
 
 
