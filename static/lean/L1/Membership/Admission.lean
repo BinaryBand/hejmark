@@ -4,12 +4,13 @@ Two `docs/foundation/L1.md` claims live here, both about why the constructor lis
 it is.
 
 **The universe operand is axiomatic** ("The constructors", closing paragraph): "an entry-wise step
-adds or removes finitely many entries, while `{a.., !{ {a..}{b}{a..} }}` -- every spelling with no
-interior `b`-seam -- needs infinitely many removals and is unreachable by any finite iteration of
-entry-wise steps." Mechanized as `operand_needs_infinitely_many_removals`: finitely many entry-wise
-steps (each a finite symmetric difference) reach only sets a finite symmetric difference away
-(`entrySteps_finite_diff`), and the seam-free set differs from the final segment on the infinite
-family `a b a^(i+1)`.
+adds or removes finitely many entries, while `{{a,b,&{a,b}}, !{ {a,b,&{a,b}}{b}{a,b,&{a,b}} }}` --
+every nonempty `ab`-string with no interior `b`-seam -- needs infinitely many removals and is
+unreachable by any finite iteration of entry-wise steps." Mechanized as
+`operand_needs_infinitely_many_removals`: finitely many entry-wise steps (each a finite symmetric
+difference) reach only sets a finite symmetric difference away (`entrySteps_finite_diff`), and the
+seam-free set differs from the nonempty spellings on the infinite family `a b a^(i+1)` (all
+`ab`-strings, so the doc's operand `{a,b,&{a,b}}` and the seam-free target both sit inside).
 
 **Closure refuses by power** ("The admission test"): `{ab, {a}&{b}}` denotes `a^n b^n` -- "no
 regular face set, so no arrangement of the others reaches it." Mechanized against the *real*
@@ -48,29 +49,30 @@ theorem entrySteps_finite_diff : ∀ (n : ℕ) (S T : Set Spelling),
       have h1 := entrySteps_finite_diff n S U hU
       exact ((h1.union hstep).subset (symmDiff_triangle S U T))
 
-/-- `{a..}` from the least code: every nonempty spelling. -/
-def finalSeg : Set Spelling := {s | s ≠ []}
+/-- Every nonempty spelling: the doc's operand `{a,b,&{a,b}}` (the nonempty `ab`-strings), the
+seam-free target, and the witness family `a b a^(i+1)` all sit inside this. -/
+def neSpellings : Set Spelling := {s | s ≠ []}
 
 /-- The subtraction's target: nonempty spellings with no interior `b`-seam. -/
 def seamFree : Set Spelling :=
   {s | s ≠ [] ∧ ¬ ∃ p q, p ≠ [] ∧ q ≠ [] ∧ s = p ++ lb :: q}
 
-/-- Headline: the seam-free set is unreachable from the final segment by any finite iteration of
+/-- Headline: the seam-free set is unreachable from the nonempty spellings by any finite iteration of
 entry-wise steps -- the removals `a b a^(i+1)` are infinitely many. This is why union and
 subtraction take a *universe* operand axiomatically, not entry-wise steps as a derived form. -/
 theorem operand_needs_infinitely_many_removals :
-    ∀ n, ¬ EntrySteps n finalSeg seamFree := by
+    ∀ n, ¬ EntrySteps n neSpellings seamFree := by
   intro n h
   have hfin := entrySteps_finite_diff n _ _ h
   have hinj : Function.Injective (fun i : ℕ => la :: lb :: List.replicate (i + 1) la) := by
     intro i j hij
     have := congrArg List.length hij
     simpa using this
-  have hmem : ∀ i : ℕ, (la :: lb :: List.replicate (i + 1) la) ∈ symmDiff finalSeg seamFree := by
+  have hmem : ∀ i : ℕ, (la :: lb :: List.replicate (i + 1) la) ∈ symmDiff neSpellings seamFree := by
     intro i
     rw [Set.mem_symmDiff]
     left
-    refine ⟨by simp [finalSeg], ?_⟩
+    refine ⟨by simp [neSpellings], ?_⟩
     intro hsf
     refine hsf.2 ⟨[la], List.replicate (i + 1) la, by simp, ?_, by simp⟩
     intro hrep

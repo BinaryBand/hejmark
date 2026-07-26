@@ -37,7 +37,7 @@ HEADLINE_THEOREMS = (
     "L1.settled_binder_bound",
     "L1.semSettled_of_settledExactb",
     "L1.containsb_exact",
-    # North-star completion pass: the final-segment demotion law, the
+    # North-star completion pass: the closure demotion law, the
     # doc-shape fold flattening, the fold-totality unit rows (where the
     # evaluator diverges by design), and the hand-proved non-membership rows.
     "L1.unitClosure_generates",
@@ -77,7 +77,7 @@ HEADLINE_THEOREMS = (
     "L1.stageMajor_type_le_omega0",
     "L1.stageMajor_type_eq_omega0",
     # Order axis, phase F: collision alone does not decide the type. The
-    # {a..}{a..} survivors collapse to omega * (m+1) while the seam row's
+    # {a,b,&{a,b}}{a,b,&{a,b}} survivors collapse to omega * (m+1) while the seam row's
     # survivors keep omega * omega (docs/foundation/L1.md, Bounded
     # transfinitude -- the collision examples).
     "L1.cofinite_collision_collapses",
@@ -137,12 +137,12 @@ HEADLINE_THEOREMS = (
     "L1.unitClosure_entryRecType",
     "L1.entryRecType_fold_binder",
     # The transfinite rows over the body-recursive order: omega + 2 (union
-    # past the limit), omega * 2 (the {b,c}{a..} north-star row), omega^2 (the
+    # past the limit), omega * 2 (the {b,c}{a,b,&{a,b}} north-star row), omega^2 (the
     # seam row, twice: marker outside the range with unique splits, and marker
     # inside the range where the seams genuinely collide and the recursion's
     # least-split choice keeps the marker-free heads -- phase F's
     # seam_collision_survives on a real term), omega (the total collision
-    # collapse), and omega * 4 (the doc-literal nonempty-factor {a..}{a..}
+    # collapse), and omega * 4 (the doc-literal nonempty-factor {a,b,&{a,b}}{a,b,&{a,b}}
     # collapse -- k = 4 under the recursive order, not the spelling-order
     # approximation's k = 2, because each surviving head block is enumerated
     # by the tail body's own two-lead-block recursive order; the doc's

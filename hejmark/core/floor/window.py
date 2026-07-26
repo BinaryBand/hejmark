@@ -1,14 +1,13 @@
 """The shortlex-window view of a member, and symbolic carving.
 
-A range or a final segment is an interval in shortlex order, so it has a
-``Window`` -- and a run of them can have subtractions cut out of it *without*
-enumerating either side. That is what makes ``{a..}![b..]`` terminate: the
-infinite tail is carved symbolically rather than filtered face by face forever.
+A range is an interval in shortlex order, so it has a ``Window`` -- and a run of
+them can have subtractions cut out of it *without* enumerating either side, so
+``{a..z}![b..d]`` carves symbolically rather than filtering face by face.
 
 The carving is deliberately partial. ``carve`` only cuts operands that are
 plainly window-shaped; anything else is left alone here and re-checked face by
-face by the caller, so a missed carve costs termination on infinite runs but
-never correctness.
+face by the caller, so a missed carve costs a wider enumeration but never
+correctness.
 
 Leaf module: reads :mod:`hejmark.core.floor.order` and the AST, and nothing
 above it. No universe is denoted to answer these questions.
@@ -17,14 +16,12 @@ above it. No universe is denoted to answer these questions.
 from __future__ import annotations
 
 from hejmark.core.floor.order import Window, successor
-from hejmark.core.floor.syntax import Face, Final, Range, UniverseNode
+from hejmark.core.floor.syntax import Face, Range, UniverseNode
 
 
-def window_of(member: Range | Final) -> Window:
-    """The shortlex window a range or final segment denotes."""
-    if isinstance(member, Range):
-        return Window(member.lo, successor(member.hi))
-    return Window(member.lo, None)
+def window_of(member: Range) -> Window:
+    """The shortlex window a range denotes."""
+    return Window(member.lo, successor(member.hi))
 
 
 def carve(window: Window, strips: tuple[UniverseNode, ...]) -> list[Window]:
@@ -46,7 +43,7 @@ def windows_of(node: UniverseNode) -> list[Window] | None:
     for member in node.members:
         if isinstance(member, Face):
             windows.append(Window(member.text, successor(member.text)))
-        elif isinstance(member, Range | Final):
+        elif isinstance(member, Range):
             windows.append(window_of(member))
         else:
             return None

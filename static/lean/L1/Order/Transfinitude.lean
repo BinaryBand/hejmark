@@ -15,15 +15,15 @@ closed under the constructors' ordinal effects -- rather than by an enumeration 
 a theorem here:
 
 - "union alone gives omega plus a finite tail; product climbs": `two_blocks_type` is the
-  `{b,c}{a..}` row (omega * 2) and `seam_blocks_type` the collision-free reading of the
-  `{b}{a..}{b}{a..}` row (omega ^ 2), both read off `Ordinal.type_prod_lex` with the left factor as
+  `{b,c}{a,b,&{a,b}}` row (omega * 2) and `seam_blocks_type` the collision-free reading of the
+  `{b}{a,b,&{a,b}}{b}{a,b,&{a,b}}` row (omega ^ 2), both read off `Ordinal.type_prod_lex` with the left factor as
   the most-significant digit -- the positional-value reading.
 - "n * omega = omega collapses any digit placed on the left": `left_digit_collapses`, with
   `mul_order_load_bearing` recording that the same digit on the right stands, so the order of
   multiplication in Cantor normal form is load-bearing.
 - "Below closure the floor lives below omega^omega": `floorType_lt_omega0_opow_omega0`, over the
-  inductive calculus `FloorType` (finite universes, the final segment's omega, union sums, product
-  products).
+  inductive calculus `FloorType` (finite universes, union sums, product products -- closure-free, the
+  floor is finite).
 - "Linear closure ... the limit is at most u * omega": `linear_closure_le`, kept under omega^omega
   by `linear_closure_lt_omega0_opow_omega0`.
 - "Nonlinear closure ... squares its stage type each pass ... type exactly omega^omega":
@@ -47,12 +47,12 @@ universe u
 /- Stratum 1: below closure the floor lives below omega^omega.       -/
 /- ---------------------------------------------------------------- -/
 
-/-- The order types reachable without closure: finite universes, the final segment's `ω`, union
-(ordinal sum: the right operand's entries appended after the left's), and product (ordinal product:
-the left factor most significant). Subtraction and fold only shrink, so they add no clause. -/
+/-- The order types reachable without closure: finite universes, union (ordinal sum: the right
+operand's entries appended after the left's), and product (ordinal product: the left factor most
+significant). Closure-free the floor is finite, so there is no `ω` clause; subtraction and fold only
+shrink, so they add none either. -/
 inductive FloorType : Ordinal → Prop
   | nat (n : ℕ) : FloorType n
-  | omega : FloorType ω
   | add {a b : Ordinal} : FloorType a → FloorType b → FloorType (a + b)
   | mul {a b : Ordinal} : FloorType a → FloorType b → FloorType (a * b)
 
@@ -67,7 +67,6 @@ theorem isPrincipal_mul_omega0_opow_omega0 : IsPrincipal (· * ·) (ω ^ ω) := 
 theorem floorType_lt_omega0_opow_omega0 {a : Ordinal} (h : FloorType a) : a < ω ^ ω := by
   induction h with
   | nat n => exact (natCast_lt_omega0 n).trans omega0_lt_omega0_opow_omega0
-  | omega => exact omega0_lt_omega0_opow_omega0
   | add _ _ iha ihb => exact isPrincipal_add_omega0_opow ω iha ihb
   | mul _ _ iha ihb => exact isPrincipal_mul_omega0_opow_omega0 iha ihb
 
@@ -75,12 +74,12 @@ theorem floorType_lt_omega0_opow_omega0 {a : Ordinal} (h : FloorType a) : a < ω
 /- The doc's two product rows, read off the lex product.             -/
 /- ---------------------------------------------------------------- -/
 
-/-- `{b,c}{a..}`: a finite most-significant digit over an `ω` block -- order type `ω * 2`. -/
+/-- `{b,c}{a,b,&{a,b}}`: a finite most-significant digit over an `ω` block -- order type `ω * 2`. -/
 theorem two_blocks_type :
     Ordinal.type (Prod.Lex ((· < ·) : Fin 2 → Fin 2 → Prop) ((· < ·) : ℕ → ℕ → Prop)) = ω * 2 := by
   simp [type_prod_lex, type_nat_lt]
 
-/-- `{b}{a..}{b}{a..}` with the seams kept apart: `ω`-many `ω` blocks -- order type `ω ^ 2`.
+/-- `{b}{a,b,&{a,b}}{b}{a,b,&{a,b}}` with the seams kept apart: `ω`-many `ω` blocks -- order type `ω ^ 2`.
 (Whether collision preserves this type is phase G, `Collapse.lean`.) -/
 theorem seam_blocks_type :
     Ordinal.type (Prod.Lex ((· < ·) : ℕ → ℕ → Prop) ((· < ·) : ℕ → ℕ → Prop)) = ω ^ (2 : Ordinal) := by
@@ -188,7 +187,7 @@ theorem stages_le_climb {f : ℕ → Ordinal} {a : Ordinal}
   exact (hf k).trans
     (opow_le_opow_right omega0_pos (mul_le_mul_right (natCast_lt_omega0 k).le a))
 
-/-- The full order-type calculus of the floor: finite universes, the final segment's `ω`, union
+/-- The full order-type calculus of the floor: finite universes, a linear closure's `ω`, union
 sums, product products, and the closure limit `ω ^ (α * ω)` over a stage bound `α`
 (`stages_le_climb`). Every finite expression's order type is built by these rules. -/
 inductive L1Type : Ordinal → Prop

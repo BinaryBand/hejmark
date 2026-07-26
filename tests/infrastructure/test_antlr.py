@@ -40,14 +40,14 @@ NORTH_STAR_ROWS = (
     "{a..z,!{a,e,i,o,u}}",  # subtraction
     "{{cat,feline}}",  # fold
     "{{cat,feline},!{feline}}",  # subtraction strips a face, entry survives
-    "{a..}",  # final segment
+    "{a,b,&{a,b}}",  # the nonempty ab-strings (order type omega)
     "{cat}{dog}",  # product (finite adjacency)
     "{a,ab}{b,c}",  # product, values 0-3
     "{a,ab}{c,bc}",  # product with a colliding seam
-    "{a..}{b}",  # product over a closure factor (order type omega)
-    "{b,c}{a..}",  # the omega*2 north-star row
-    "{b}{a..}{b}{a..}",  # the seam row (order type omega^2)
-    "{a..}{a..}",  # cofinite collision collapse (order type omega*k)
+    "{a,b,&{a,b}}{b}",  # product over a closure factor (order type omega)
+    "{b,c}{a,b,&{a,b}}",  # the omega*2 north-star row
+    "{b}{a,b,&{a,b}}{b}{a,b,&{a,b}}",  # the seam row (order type omega^2)
+    "{a,b,&{a,b}}{a,b,&{a,b}}",  # cofinite collision collapse (order type omega*k)
     "{a,!{a}}",  # empty universe (subtraction to nothing)
     "{z..a}",  # empty universe (reversed range)
     "{}",  # empty universe
@@ -59,13 +59,13 @@ NORTH_STAR_ROWS = (
     "{a,&{b}}",  # closure
     "{ab,{a}&{b}}",  # guarded closure -- the admission witness a^n b^n
     "{0,{1..9,&{0..9}}}",  # canonical numerals
-    "{{{}},&C}",  # every spelling in shortlex (final segment's demotion)
+    "{{{}},&C}",  # every spelling in shortlex (the closure demotion)
     "{&}",  # bare self-reference builds nothing
     "{a,&}",  # self-union no-ops
-    "{a..,!{&}}",  # negative self-reference
+    "{{a,b,&{a,b}},!{&}}",  # negative self-reference
     "{a,{{{},0}}&}",  # unguarded fill
     "{ab,&&}",  # nonlinear closure, still type omega
-    r"{{\(}{b}{a..}{\)},{\(}&&{\)}}",  # nonlinear closure with escaped paren faces
+    "{{(}{b}{a,b,&{a,b}}{)},{(}&&{)}}",  # nonlinear closure with bare paren faces
 )
 
 # Representative L1.5 surface shapes from docs/foundation/L1_5.md: the

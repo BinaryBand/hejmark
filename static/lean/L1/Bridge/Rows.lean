@@ -2,8 +2,8 @@
 under the body-recursive order (`RecOrder.lean`'s `entryRecType`).
 
 `docs/foundation/L1.md` (Bounded transfinitude): "union alone gives omega
-plus a finite tail; product climbs -- `{b,c}{a..}` is omega*2,
-`{b}{a..}{b}{a..}` is omega^2 ... In `{a..}{a..}` the least split pins the
+plus a finite tail; product climbs -- `{b,c}{a,b,&{a,b}}` is omega*2,
+`{b}{a,b,&{a,b}}{b}{a,b,&{a,b}}` is omega^2 ... In `{a,b,&{a,b}}{a,b,&{a,b}}` the least split pins the
 prefix ... and the type collapses." This file computes those rows over the
 real syntax, through the recursive within-body order: `entryRecType_prod2`
 (the positional product law, under unique splits) and
@@ -14,20 +14,20 @@ from `2` and `3` -- outside the closure range, so the marker pins each
 split. The in-range seam row at the end of the file instead draws its
 marker from *inside* the range, where the splits genuinely collide.
 
-- `collapseRow_entryRecType` (`{a..}{a..}`-extreme, type omega): with the
+- `collapseRow_entryRecType` (`{a,b,&{a,b}}{a,b,&{a,b}}`-extreme, type omega): with the
   empty spelling in both factors every entry is claimed by the collision
   split `([], s)`, so the recursion runs the closure's own order -- the
   pre-collision omega*omega collapses all the way to one omega.
-- `twoBlocks_entryRecType` (`{b,c}{a..}`, type omega*2): the front faces
+- `twoBlocks_entryRecType` (`{b,c}{a,b,&{a,b}}`, type omega*2): the front faces
   sit outside the closure range, splits are unique, and the recursive
   enumeration is the ordinal product -- two full omega-blocks.
-- `seamRow_entryRecType` (type omega^2): the doc's `{b}{a..}{b}{a..}`
+- `seamRow_entryRecType` (type omega^2): the doc's `{b}{a,b,&{a,b}}{b}{a,b,&{a,b}}`
   written two-factor, with the marker `2` closing the first block
   (`markedBlock`). The marker is outside the closure range so each
   spelling splits at its unique marker.
 - `inSeamRow_entryRecType` (type omega^2, marker in range): the same seam
   row with the marker `1` drawn from the closure range, the doc-faithful
-  reading of `{b}{a..}{b}{a..}` where `b` is itself an `{a..}` entry. The
+  reading of `{b}{a,b,&{a,b}}{b}{a,b,&{a,b}}` where `b` is itself an `{a,b,&{a,b}}` entry. The
   splits genuinely collide (`inSeamRow_splits_collide`), the recursion
   keeps each entry's first-marker split -- the marker-free head `0^k`
   closed by the seam character (`inSeamRow_survivor`, the doc's "every
@@ -37,7 +37,7 @@ marker from *inside* the range, where the splits genuinely collide.
 - `unionRow_entryRecType` (type omega + 2): a braced closure with a
   two-face tail -- the union enumeration continues past the limit, the
   doc's "omega plus a finite tail" on real syntax.
-- `neCollapseRow_entryRecType` (`{a..}{a..}` with nonempty factors, type
+- `neCollapseRow_entryRecType` (`{a,b,&{a,b}}{a,b,&{a,b}}` with nonempty factors, type
   **omega*4**): the doc-literal cofinite collision row. Splits collide
   everywhere and the recursion's least split pins the prefix to one code,
   so exactly two head blocks survive -- but under the recursive order each
@@ -131,7 +131,7 @@ theorem unitClosure01_denotes (s : Spelling) :
   exact ⟨fun h c hc => (h c hc).2, fun h c hc => ⟨Nat.zero_le c, h c hc⟩⟩
 
 /- ---------------------------------------------------------------- -/
-/- The two-blocks row {b,c}{a..}: omega * 2.                         -/
+/- The two-blocks row {b,c}{a,b,&{a,b}}: omega * 2.                         -/
 /- ---------------------------------------------------------------- -/
 
 /-- The two-face front factor `{b,c}`: codes `2` and `3`, outside the
@@ -183,7 +183,7 @@ theorem markerBlock_nSubfree (c : Code) : nSubfree (markerBlock c) = true := by
   simp [markerBlock, prod2, nsingle, nSubfree, mSubfree, fSubfree, unitClosure_nSubfree]
 
 /-- The marked omega block: bounded strings closed by the marker `2` --
-the doc's `{b}{a..}` block with the seam character written at the end. -/
+the doc's `{b}{a,b,&{a,b}}` block with the seam character written at the end. -/
 def markedBlock : Node := markerBlock 2
 
 theorem markedBlock_denotes_iff (s : Spelling) :
@@ -210,7 +210,7 @@ theorem seamRow_splits_unique {s : Spelling} {pq pq' : Spelling × Spelling}
   rw [hu_eq, hu'_eq, h1]
 
 /- ---------------------------------------------------------------- -/
-/- The nonempty-factor collapse row {a..}{a..}: splits collide       -/
+/- The nonempty-factor collapse row {a,b,&{a,b}}{a,b,&{a,b}}: splits collide       -/
 /- everywhere, omega * k survives with k the alphabet size.          -/
 /- ---------------------------------------------------------------- -/
 
@@ -263,7 +263,7 @@ theorem rangeNode_entriesType : entriesType rangeNode = 2 := by
   norm_num
 
 /-- The nonempty bounded strings: one range code, then any bounded string
--- the `{a..}` factor of the doc's collapse row, over the alphabet
+-- the `{a,b,&{a,b}}` factor of the doc's collapse row, over the alphabet
 `{0, 1}`. -/
 def neBounded : Node := prod2 rangeNode (unitClosure 0 1)
 
@@ -449,7 +449,7 @@ theorem headRank_eq_iff {cx cy : Code} (hx : denotes neBounded [cx])
 /- 5e: the five transfinite rows, restated over the recursive order.  -/
 /- ================================================================ -/
 
-/-- Headline: `{b,c}{a..}` at omega*2 on the recursive order -- a finite
+/-- Headline: `{b,c}{a,b,&{a,b}}` at omega*2 on the recursive order -- a finite
 front factor over an omega block is two full recursive blocks, most
 significant digit on the left. -/
 theorem twoBlocks_entryRecType :
@@ -460,7 +460,7 @@ theorem twoBlocks_entryRecType :
     unitClosure_entryRecType 0 1 (by omega), twoFaces_entryRecType]
 
 /-- Headline: the seam row at omega^2 on the recursive order -- the doc's
-`{b}{a..}{b}{a..}` two-factor with the marker closing the first block.
+`{b}{a,b,&{a,b}}{b}{a,b,&{a,b}}` two-factor with the marker closing the first block.
 Splits are pinned by the marker outside the range; the colliding in-range
 marker version is `inSeamRow_entryRecType` at the end of the file. -/
 theorem seamRow_entryRecType :
@@ -586,7 +586,7 @@ theorem collapseRow_entryRecType :
     ← entryRecType_def (unitClosure 0 1) hcsub, unitClosure_entryRecType 0 1 (by omega)]
 
 /- ---------------------------------------------------------------- -/
-/- The nonempty-factor collapse row {a..}{a..} on the recursive       -/
+/- The nonempty-factor collapse row {a,b,&{a,b}}{a,b,&{a,b}} on the recursive       -/
 /- order: omega * 4, not omega * 2. See the k-shift note below.       -/
 /- ---------------------------------------------------------------- -/
 
@@ -709,14 +709,14 @@ noncomputable def neCollapseRecIso :
       headRank_eq_iff hmemx hmemy]
     exact Iff.rfl
 
-/-- Headline: the nonempty-factor collapse row `{a..}{a..}` on the recursive
+/-- Headline: the nonempty-factor collapse row `{a,b,&{a,b}}{a,b,&{a,b}}` on the recursive
 order enumerates at `omega * 4` -- NOT `omega * 2`. The doc's claim is
 "collapses to omega*k, k finite", and it stands with k = 4.
 
 The k-shift from the spelling-order approximation (which gave k = 2): the
 survivors are still the two head blocks the alphabet `{0, 1}` supplies, but
 each block is now enumerated by the *tail* body's own recursive order.
-`neBounded = {a..}` has unique splits, so its recursive type is the
+`neBounded = {a,b,&{a,b}}` has unique splits, so its recursive type is the
 positional `entryRecType (unitClosure 0 1) * entryRecType rangeNode = omega*2`
 (two lead blocks), where the spelling order interleaved those into one omega.
 The row is therefore `(omega*2) * 2 = omega*4` (2 heads times 2 tail
@@ -809,8 +809,8 @@ theorem nestedClosureRow_entryRecLt_isWellOrder :
 /- The in-range seam row: the marker lives in the closure range, the -/
 /- splits genuinely collide, and omega^2 still stands.               -/
 /-                                                                   -/
-/- The doc's `{b}{a..}{b}{a..}` has its seam character `b` inside     -/
-/- the `{a..}` factors, so a spelling with several `b`s is claimed    -/
+/- The doc's `{b}{a,b,&{a,b}}{b}{a,b,&{a,b}}` has its seam character `b` inside     -/
+/- the `{a,b,&{a,b}}` factors, so a spelling with several `b`s is claimed    -/
 /- by several splits and the collision rule must drop all but the     -/
 /- least. `seamRow_entryRecType` above dodged that by moving the      -/
 /- marker out of range; this section keeps it in range (`1`, a        -/
@@ -1147,7 +1147,7 @@ noncomputable def inSeamRowRecIso :
     exact Iff.rfl
 
 /-- Headline: the in-range seam row keeps omega^2 on the recursive order --
-the doc's `{b}{a..}{b}{a..}` with the seam character genuinely inside the
+the doc's `{b}{a,b,&{a,b}}{b}{a,b,&{a,b}}` with the seam character genuinely inside the
 range, where "the seams collide (`babba` is both `b|a|b|ba` and `b|ab|b|a`),
 yet every pair with a `b`-free first segment is its own least split --
 infinitely many full omega-blocks survive, cofinally, so omega^2 stands."

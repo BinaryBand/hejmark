@@ -31,13 +31,6 @@ class Range:
 
 
 @dataclass(frozen=True)
-class Final:
-    """A final segment `{a..}`: every spelling from `lo` onward in spelling order."""
-
-    lo: str
-
-
-@dataclass(frozen=True)
 class Closure:
     """The self-reference token `&`: it reads the binder's previous stage."""
 
@@ -63,7 +56,7 @@ class Product:
     factors: tuple[UniverseNode | Closure, ...]
 
 
-Member = Face | Range | Final | Fold | Subtract | Product | Closure
+Member = Face | Range | Fold | Subtract | Product | Closure
 
 
 @dataclass(frozen=True)

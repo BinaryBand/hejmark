@@ -35,7 +35,6 @@ from hejmark.core.floor.binder import binds
 from hejmark.core.floor.syntax import (
     Closure,
     Face,
-    Final,
     Fold,
     Member,
     Product,
@@ -48,7 +47,7 @@ from hejmark.core.floor.window import carve, window_of
 # A liveness test: whether a face is still unclaimed at its point of use.
 Live = Callable[[str], bool]
 # A member that adds faces (every member except a subtraction).
-Adding = Face | Range | Final | Fold | Product | Closure
+Adding = Face | Range | Fold | Product | Closure
 
 
 @dataclass(frozen=True)
@@ -152,7 +151,7 @@ def _spells(member: Adding, amp: Universe | None, spelling: str) -> bool:
     match member:
         case Face(text):
             return text == spelling
-        case Range() | Final():
+        case Range():
             return window_of(member).contains(spelling)
         case Fold(universe):
             return _braced_spells(universe, spelling)
@@ -255,7 +254,7 @@ def _member_entries(
         case Face(text):
             if live(text):
                 yield Entry((text,))
-        case Range() | Final():
+        case Range():
             for window in carve(window_of(member), strips):
                 yield from (Entry((s,)) for s in window if live(s))
         case Fold(universe):

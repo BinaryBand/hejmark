@@ -43,7 +43,6 @@ def walkb : Node → (Spelling → Bool) → Bool → Spelling → Bool
 def spellsb : Member → (Spelling → Bool) → Spelling → Bool
   | .face t, _, s => s == t
   | .range lo hi, _, s => winb (rangeWindow lo hi) s
-  | .final lo, _, s => winb (finalWindow lo) s
   | .amp, ampb, s => ampb s
   | .sub _, _, _ => false
   | .fold inner, ampb, s =>
@@ -94,10 +93,6 @@ theorem walkb_single_face (t ampb Pb s) :
 theorem walkb_single_range (lo hi ampb Pb s) :
     walkb (nsingle (.range lo hi)) ampb Pb s
       = (Pb || winb (rangeWindow lo hi) s) := by
-  simp only [nsingle, walkb, spellsb]
-
-theorem walkb_single_final (lo ampb Pb s) :
-    walkb (nsingle (.final lo)) ampb Pb s = (Pb || winb (finalWindow lo) s) := by
   simp only [nsingle, walkb, spellsb]
 
 theorem walkb_single_amp (ampb Pb s) :
@@ -194,7 +189,6 @@ mutual
 def exactMemberb : Member → Bool
   | .face _ => true
   | .range _ _ => true
-  | .final _ => true
   | .amp => false
   | .fold _ => false
   | .sub op => exactNodeb op
@@ -214,7 +208,6 @@ mutual
 def sndMemberb : Member → Bool
   | .face _ => true
   | .range _ _ => true
-  | .final _ => true
   | .amp => true
   | .fold inner => sndNodeb inner
   | .sub op => exactNodeb op
@@ -241,8 +234,6 @@ theorem exact_member : ∀ (m : Member), exactMemberb m = true →
       rw [walkb_single_face, walk_single_face]; simp [hacc]
   | .range lo hi, _, _, _, _, _, _, hacc => by
       rw [walkb_single_range, walk_single_range]; simp [hacc]
-  | .final lo, _, _, _, _, _, _, hacc => by
-      rw [walkb_single_final, walk_single_final]; simp [hacc]
   | .amp, hx, _, _, _, _, _, _ => by simp [exactMemberb] at hx
   | .fold _, hx, _, _, _, _, _, _ => by simp [exactMemberb] at hx
   | .sub op, hx, ampb, amp, Pb, P, s, hacc => by
@@ -331,12 +322,6 @@ theorem snd_member : ∀ (m : Member), sndMemberb m = true →
   | .range lo hi, _, _, _, _, _, _, _, hacc, h => by
       rw [walkb_single_range, Bool.or_eq_true] at h
       rw [walk_single_range]
-      rcases h with h | h
-      · exact Or.inl (hacc h)
-      · exact Or.inr h
-  | .final lo, _, _, _, _, _, _, _, hacc, h => by
-      rw [walkb_single_final, Bool.or_eq_true] at h
-      rw [walk_single_final]
       rcases h with h | h
       · exact Or.inl (hacc h)
       · exact Or.inr h

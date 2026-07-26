@@ -7,7 +7,6 @@ import pytest
 from hejmark.core.floor.syntax import (
     Closure,
     Face,
-    Final,
     Fold,
     Product,
     Range,
@@ -30,10 +29,6 @@ def test_a_face_encodes_as_code_points() -> None:
 
 def test_a_range_encodes_its_endpoints_as_code_points() -> None:
     assert encode_member(Range("0", "9")) == {"kind": "range", "lo": 48, "hi": 57}
-
-
-def test_a_final_segment_encodes_its_start_as_code_points() -> None:
-    assert encode_member(Final("y")) == {"kind": "final", "lo": [121]}
 
 
 def test_a_fold_nests_its_universe() -> None:
@@ -83,11 +78,10 @@ def test_a_query_wraps_one_universe_per_factor() -> None:
 
 
 def test_every_member_kind_round_trips() -> None:
-    """Decode inverts encode on each of the seven tagged shapes."""
+    """Decode inverts encode on each of the six tagged shapes."""
     members = (
         Face("ab"),
         Range("0", "9"),
-        Final("y"),
         Fold(UniverseNode((Face("x"),))),
         Subtract(UniverseNode((Face("b"),))),
         Product((Closure(), UniverseNode((Face("b"),)))),

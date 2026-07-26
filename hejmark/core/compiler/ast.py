@@ -8,7 +8,7 @@ and that happens in :mod:`hejmark.core.compiler.expand`.
 
 The floor's own nodes are reused wherever the surface adds nothing:
 :class:`~hejmark.core.floor.syntax.Face`, :class:`~hejmark.core.floor.syntax.Range`,
-:class:`~hejmark.core.floor.syntax.Final` and :class:`~hejmark.core.floor.syntax.Closure`
+and :class:`~hejmark.core.floor.syntax.Closure`
 mean here exactly what they mean there. Everything else is surface-only and
 must be gone by the time :func:`hejmark.core.floor.universe.denote` is called.
 
@@ -23,7 +23,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from hejmark.core.floor.syntax import Closure, Face, Final, Range
+from hejmark.core.floor.syntax import Closure, Face, Range
 
 # The factor family's spelling, exactly: 1-based, no leading zero. Pipeline
 # arguments keep their raw text, so a read standing as one is re-recognized by
@@ -157,8 +157,8 @@ class ValueCut:
     hi: str | Read | Open
 
 
-# A member of a surface brace group. Range and Final are the floor's own.
-Member = Range | Final | Subtract | Segments | ValueCut
+# A member of a surface brace group. Range is the floor's own.
+Member = Range | Subtract | Segments | ValueCut
 
 
 @dataclass(frozen=True)

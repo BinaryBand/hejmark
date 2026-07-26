@@ -23,7 +23,6 @@ QUERIES = {
     "simple/closure.hmk": ("xabbby", "abbb"),
     "simple/consonant.hmk": ("aeiobxy", "b"),
     "simple/empty.hmk": ("anything", None),
-    "simple/final-segment.hmk": ("q", "q"),
     "simple/foundation.hmk": ("a fold here", "fold"),
     "simple/hex-digit.hmk": ("zzz7f", "7"),
     "simple/letter-pair.hmk": ("9abz", "ab"),

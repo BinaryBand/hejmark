@@ -7,8 +7,8 @@ Port of `static/formal/L1/Semantics.v`, faithful to the membership walk of
   threaded through the Prop accumulator `P`. A subtraction operand is walked
   fresh (accumulator `False`) with the same amp, and strips only what is
   currently present.
-- `spells` mirrors `_spells`: a member's face set. Ranges and finals are
-  shortlex windows; a range is the half-open window `[[lo], [hi+1])`.
+- `spells` mirrors `_spells`: a member's face set. A range is a shortlex
+  window, the half-open window `[[lo], [hi+1])`.
 - `fsplit` mirrors `_splits`: a product holds a spelling when it cuts into
   consecutive pieces, one per factor.
 - A binder (a node with a free `&`) denotes the closure at omega of its body:
@@ -36,7 +36,6 @@ def walk : Node → (Spelling → Prop) → Prop → Spelling → Prop
 def spells : Member → (Spelling → Prop) → Spelling → Prop
   | .face t, _, s => s = t
   | .range lo hi, _, s => winb (rangeWindow lo hi) s = true
-  | .final lo, _, s => winb (finalWindow lo) s = true
   | .amp, amp, s => amp s
   | .sub _, _, _ => False
   | .fold inner, amp, s =>
@@ -81,11 +80,6 @@ theorem walk_single_face (t amp P s) :
 theorem walk_single_range (lo hi amp P s) :
     walk (nsingle (.range lo hi)) amp P s
       = (P ∨ winb (rangeWindow lo hi) s = true) := by
-  simp only [nsingle, walk, spells]
-
-theorem walk_single_final (lo amp P s) :
-    walk (nsingle (.final lo)) amp P s
-      = (P ∨ winb (finalWindow lo) s = true) := by
   simp only [nsingle, walk, spells]
 
 theorem walk_single_amp (amp P s) :

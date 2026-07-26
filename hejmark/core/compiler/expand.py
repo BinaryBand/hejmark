@@ -353,8 +353,6 @@ def _member(member: Member, ctx: Ctx) -> tuple[syntax.Member, ...]:
             return _value_cut(lo, hi, ctx)
         case syntax.Range(lo, hi):
             return (syntax.Range(ctx.spell(lo), ctx.spell(hi)),)
-        case syntax.Final(lo):
-            return (syntax.Final(ctx.spell(lo)),)
         case Subtract(universe):
             return (syntax.Subtract(_universe(universe, ctx)),)
         case _:

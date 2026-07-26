@@ -7,8 +7,6 @@ every operation can be checked exhaustively.
 
 from __future__ import annotations
 
-from itertools import islice
-
 from hypothesis import given
 from hypothesis.strategies import text
 
@@ -59,14 +57,6 @@ def test_window_contains_matches_brute_force() -> None:
     window = Window("b", "bb")
     for s in _universe_of_strings():
         assert window.contains(s) == (spelling_key("b") <= spelling_key(s) < spelling_key("bb"))
-
-
-def test_unbounded_window_is_infinite() -> None:
-    tail = Window("a", None)
-    assert tail.contains("a")
-    assert tail.contains("zzzz")
-    assert not tail.contains("\x00")  # below "a" in shortlex
-    assert list(islice(tail, 3)) == ["a", "b", "c"]
 
 
 def test_reversed_window_is_empty() -> None:

@@ -19,7 +19,7 @@ uni nonTick  = {@char,!{\n,`}}
 uni codeBody = {@nonTick,&@nonTick}
 
 {@line} => "{{@start}}{{$}}{{@end}}"
-{@start}{#}{#}{\ }{@line}{@end} => "<h2>{{$5}}</h2>"
-{@start}{#}{\ }{@line}{@end} => "<h1>{{$4}}</h1>"
+{@start}{#}{#}{ }{@line}{@end} => "<h2>{{$5}}</h2>"
+{@start}{#}{ }{@line}{@end} => "<h1>{{$4}}</h1>"
 {*}{@emBody}{*} => "<b>{{$2}}</b>"
 {`}{@codeBody}{`} => "<code>{{$2}}</code>"

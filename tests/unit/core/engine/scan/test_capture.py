@@ -21,7 +21,7 @@ def test_canonical_is_none_when_no_entry_wears_the_spelling() -> None:
 
 def test_canonical_reaches_a_wearer_near_the_front_of_an_infinite_stream() -> None:
     """An infinite universe is fine as long as the wearer is actually reachable."""
-    universe = parse("{a..}").universe()
+    universe = parse("{a,b,&{a,b}}").universe()
     assert canonical(universe, "b") == "b"
 
 
@@ -33,9 +33,9 @@ def test_canonical_face_rejoins_a_product() -> None:
     assert canonical_face(query, found) == "catdog"
 
 
-def test_canonical_face_leaves_a_part_as_it_hit_when_unfound() -> None:
-    """The read stays total: a part with no wearer stands as it was spelled."""
-    query = parse("{a..}")
+def test_canonical_face_reads_a_single_factor_hit_as_spelled() -> None:
+    """The read stays total: a single-factor hit re-spells to the entry it wears."""
+    query = parse("{a..z}")
     found = match(query, "q")
     assert found is not None
     assert canonical_face(query, found) == "q"

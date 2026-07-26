@@ -12,7 +12,6 @@ from itertools import islice
 from hejmark.core.floor.syntax import (
     Closure,
     Face,
-    Final,
     Fold,
     Product,
     Range,
@@ -42,13 +41,6 @@ def test_range_expands_inclusively() -> None:
 
 def test_reversed_range_is_empty() -> None:
     assert _faces(UniverseNode((Range("e", "a"),))) == []
-
-
-def test_final_segment_streams_lazily_in_spelling_order() -> None:
-    node = UniverseNode((Final("a"),))
-
-    assert _faces(node, 3) == [("a",), ("b",), ("c",)]
-    assert denote(node).contains("zzzz")
 
 
 def test_fold_collapses_a_nested_universe_into_one_entry() -> None:
@@ -162,7 +154,9 @@ def test_unguarded_closure_enumerates_and_membership_semi_decides() -> None:
 
 
 def test_subtracted_self_reference_settles_at_stage_one() -> None:
-    """`{a..,!{&}}` places everything at stage 1; every later body is empty."""
-    node = UniverseNode((Final("a"), Subtract(UniverseNode((Closure(),)))))
+    """`{{a,b,&{a,b}},!{&}}` places everything at stage 1; every later body is empty."""
+    ab = UniverseNode((Face("a"), Face("b")))
+    witness = UniverseNode((Face("a"), Face("b"), Product((Closure(), ab))))
+    node = UniverseNode((Fold(witness), Subtract(UniverseNode((Closure(),)))))
 
-    assert _faces(node, 3) == [("a",), ("b",), ("c",)]
+    assert _faces(node, 3) == [("a",), ("b",), ("aa",)]

@@ -1,4 +1,4 @@
 // Collapse runs of whitespace to a single space. The contraction shrinks
 // the document, so it descends @str (shortlex: shorter sorts first).
 {\t,\r,\n} => " "
-{\ }{\ } <=> " "
+{ }{ } <=> " "

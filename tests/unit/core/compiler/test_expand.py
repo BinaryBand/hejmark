@@ -42,10 +42,9 @@ def test_a_plain_universe_expands_to_itself() -> None:
     assert _expand("{a,b}") == syntax.UniverseNode((syntax.Face("a"), syntax.Face("b")))
 
 
-def test_a_range_and_a_final_segment_survive() -> None:
-    """Compression is the floor's, so the surface passes both straight through."""
+def test_a_range_survives() -> None:
+    """Compression is the floor's, so the surface passes a range straight through."""
     assert _expand("{a..z}") == syntax.UniverseNode((syntax.Range("a", "z"),))
-    assert _expand("{a..}") == syntax.UniverseNode((syntax.Final("a"),))
 
 
 def test_a_brace_group_member_is_the_fold() -> None:

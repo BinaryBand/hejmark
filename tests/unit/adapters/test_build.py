@@ -22,7 +22,7 @@ from hejmark.core.compiler.ast import (
     Unit,
     UniverseNode,
 )
-from hejmark.core.floor.syntax import Closure, Face, Final, HimarkSyntaxError, Range
+from hejmark.core.floor.syntax import Closure, Face, HimarkSyntaxError, Range
 
 _to_ast = AntlrParser().to_ast
 
@@ -43,10 +43,9 @@ def _members(source: str) -> tuple[object, ...]:
     return base.members
 
 
-def test_a_range_and_a_final_segment_are_distinct_members() -> None:
-    """`{a..z}` is bounded and `{a..}` is not; the grammar labels them apart."""
+def test_a_range_is_a_distinct_member() -> None:
+    """`{a..z}` lexes as one range member over its inclusive endpoints."""
     assert _members("{a..z}") == (Range("a", "z"),)
-    assert _members("{a..}") == (Final("a"),)
 
 
 def test_a_face_is_assembled_from_its_character_tokens() -> None:
@@ -198,9 +197,26 @@ def test_a_contracting_line_carries_query_and_template() -> None:
 
 
 def test_mnemonic_escapes_spell_whitespace() -> None:
-    r"""`\n` and `\t` spell the whitespace itself, not the letter after the slash."""
-    assert _members(r"{\n,\t,\x}") == (
+    r"""`\n`/`\t`/`\r` spell the whitespace itself, not the letter after the slash."""
+    assert _members(r"{\n,\t,\r}") == (
         Segments((Face("\n"),)),
         Segments((Face("\t"),)),
-        Segments((Face("x"),)),
+        Segments((Face("\r"),)),
     )
+
+
+def test_the_double_dot_escape_spells_two_literal_dots() -> None:
+    r"""`\..` is the literal two-dot sequence; only a bare `..` is a range."""
+    assert _members(r"{a\..b}") == (Segments((Face("a..b"),)),)
+
+
+def test_a_lone_dot_escape_has_no_reading() -> None:
+    r"""`\.` is not an escape -- a lone `.` is already a literal dot, so it fails to lex."""
+    with pytest.raises(HimarkSyntaxError):
+        _members(r"{\.}")
+
+
+def test_an_unknown_escape_fails_to_lex() -> None:
+    r"""Every `\x` outside the structural set and the mnemonics has no reading."""
+    with pytest.raises(HimarkSyntaxError):
+        _members(r"{\x}")

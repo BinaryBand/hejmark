@@ -70,13 +70,14 @@ pipeItem : pipeArg (RANGE pipeArg?)? ;
 
 // An argument, or a back-reference standing as one (`where 0..$2`). A trailing
 // `..` with no second argument is the open pair (`where 0..`).
-pipeArg : ARG | CAPTURE ;
+// An argument assembles from its pieces (a bare `.` is a literal dot, as in a
+// face), or a back-reference standing as one.
+pipeArg : (ARG | DOT)+ | CAPTURE ;
 
 universe : LBRACE (member (COMMA member)*)? RBRACE ;
 
 member
     : face RANGE face      # RangeMember
-    | face RANGE           # FinalMember
     | REF RANGE valueBound? # ValueMember
     | BANG universe         # SubtractMember
     | segment+              # SegmentsMember

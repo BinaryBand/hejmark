@@ -1,23 +1,23 @@
 /- L1 order axis, phase F: collision alone does not decide the type.
 
 `docs/foundation/L1.md` ("Bounded transfinitude"): "Collision alone does not decide the type: each
-drop keeps the least-valued split, and the surviving least splits do. In `{b}{a..}{b}{a..}` the
+drop keeps the least-valued split, and the surviving least splits do. In `{b}{a,b,&{a,b}}{b}{a,b,&{a,b}}` the
 seams collide ... yet every pair with a `b`-free first segment is its own least split -- infinitely
-many full ω-blocks survive, cofinally, so ω² stands. In `{a..}{a..}` the least split pins the
+many full ω-blocks survive, cofinally, so ω² stands. In `{a,b,&{a,b}}{a,b,&{a,b}}` the least split pins the
 prefix, only finitely many blocks survive, and the type collapses to ω·k, k finite."
 
 Over the finite alphabet of `L1/Order/Order.lean` (`FCode m = Fin (m+1)`), a product entry of two
-final-segment factors is a pair of nonempty spellings ordered lexicographically by `(value, value)`
+nonempty-ab-string factors is a pair of nonempty spellings ordered lexicographically by `(value, value)`
 (the positional-value order; value order is shortlex order by `valueRelIso`). Two pairs collide
 when they concatenate to the same spelling, and the collision rule keeps the lex-least pair
 (`L1/Order/Collision.lean` is where least-claimant ownership itself is proved well-defined; here we
 compute what the survivors' order type is).
 
-- `{a..}{a..}` (`splitSurvives_iff`, `cofinite_collision_collapses`): a pair survives iff its
+- `{a,b,&{a,b}}{a,b,&{a,b}}` (`splitSurvives_iff`, `cofinite_collision_collapses`): a pair survives iff its
   prefix is a *singleton* -- any longer prefix is beaten by the same spelling's shorter split. So
   exactly `m + 1` blocks survive, one per code point, and the type collapses to `ω * (m+1)`:
   the doc's `ω · k` with `k` the (finite) alphabet size.
-- `{b}{a..}{b}{a..}` (`bfree_survives`, `seam_collision_survives`): a pair whose first segment
+- `{b}{a,b,&{a,b}}{b}{a,b,&{a,b}}` (`bfree_survives`, `seam_collision_survives`): a pair whose first segment
   avoids the seam character `b` is its own least split -- a shorter prefix would place `b` inside
   the `b`-free segment, and a longer one is lex-greater. Those pairs form full ω-blocks cofinally,
   so the survivor order embeds ω·ω and sits inside the pre-collision ω·ω: the type stands at
@@ -33,7 +33,7 @@ open Ordinal
 
 variable (m : Nat)
 
-/-- Nonempty spellings: the entries of a final-segment factor `{a..}`. -/
+/-- Nonempty spellings: the entries of a nonempty-ab-string factor `{a,b,&{a,b}}`. -/
 abbrev NESp := {l : FSpelling m // l ≠ []}
 
 /-- The factor order on nonempty spellings: shortlex, restricted. -/
@@ -106,13 +106,13 @@ theorem pairLt_type : Ordinal.type (pairLt m) = ω * ω := by
   rw [type_prod_lex, neLt_type]
 
 /- ---------------------------------------------------------------- -/
-/- `{a..}{a..}`: cofinite factors collide, the type collapses.       -/
+/- `{a,b,&{a,b}}{a,b,&{a,b}}`: cofinite factors collide, the type collapses.       -/
 /- ---------------------------------------------------------------- -/
 
 /-- What a pair spells: the concatenation. Two pairs collide when they spell the same thing. -/
 def spelled (x : NESp m × NESp m) : FSpelling m := x.1.1 ++ x.2.1
 
-/-- The survivor predicate for `{a..}{a..}`: a pair keeps its spelling iff it is the lex-least
+/-- The survivor predicate for `{a,b,&{a,b}}{a,b,&{a,b}}`: a pair keeps its spelling iff it is the lex-least
 claimant -- the collision rule of `L1/Order/Collision.lean`, specialized to this product. -/
 def SplitSurvives (x : NESp m × NESp m) : Prop :=
   ∀ y, spelled m y = spelled m x → y = x ∨ pairLt m x y
@@ -192,7 +192,7 @@ theorem codeBlocks_type :
       = ω * ((m + 1 : ℕ) : Ordinal) := by
   simp [type_prod_lex, type_nat_lt]
 
-/-- Headline (`{a..}{a..}`): the survivors of the cofinite collision have order type exactly
+/-- Headline (`{a,b,&{a,b}}{a,b,&{a,b}}`): the survivors of the cofinite collision have order type exactly
 `ω * (m + 1)` -- the doc's "the type collapses to ω·k, k finite", with `k` the alphabet size. Only
 the `m + 1` singleton-prefix blocks survive, each still a full ω. -/
 theorem cofinite_collision_collapses :
@@ -258,7 +258,7 @@ theorem cofinite_collision_collapses :
       _ ≤ Ordinal.type (Subrel (pairLt m) (SplitSurvives m)) := gemb.ordinal_type_le
 
 /- ---------------------------------------------------------------- -/
-/- `{b}{a..}{b}{a..}`: the seams collide, yet ω² stands.             -/
+/- `{b}{a,b,&{a,b}}{b}{a,b,&{a,b}}`: the seams collide, yet ω² stands.             -/
 /- ---------------------------------------------------------------- -/
 
 /-- What a seam pair spells (the constant leading `{b}` dropped): first segment, the seam
@@ -306,7 +306,7 @@ theorem bfree_survives (b : FCode m) (x : NESp m × NESp m) (hbp : b ∉ x.1.1) 
     right
     exact Prod.lex_def.mpr (Or.inl (shortlex_of_length_lt m hgt))
 
-/-- Headline (`{b}{a..}{b}{a..}`): the seam survivors keep order type `ω * ω` -- the doc's "ω²
+/-- Headline (`{b}{a,b,&{a,b}}{b}{a,b,&{a,b}}`): the seam survivors keep order type `ω * ω` -- the doc's "ω²
 stands". The `b`-free blocks embed a full ω·ω from below, and the pre-collision pair space bounds it
 from above. Stated over any second code point `c ≠ b`, i.e. any alphabet with at least two
 characters. -/

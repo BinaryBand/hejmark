@@ -19,7 +19,6 @@ from typing import cast
 from hejmark.core.floor.syntax import (
     Closure,
     Face,
-    Final,
     Fold,
     Member,
     Product,
@@ -48,8 +47,6 @@ def encode_member(member: Member) -> dict[str, object]:
             payload = {"kind": "face", "text": _code_points(text)}
         case Range(lo, hi):
             payload = {"kind": "range", "lo": ord(lo), "hi": ord(hi)}
-        case Final(lo):
-            payload = {"kind": "final", "lo": _code_points(lo)}
         case Fold(universe):
             payload = {"kind": "fold", "universe": encode_universe(universe)}
         case Subtract(universe):
@@ -97,8 +94,6 @@ def decode_member(obj: object) -> Member:
         lo = require_field(obj, "lo", "range")
         hi = require_field(obj, "hi", "range")
         member = Range(_char(lo), _char(hi))
-    elif kind == "final":
-        member = Final(decode_text(require_field(obj, "lo", "final")))
     elif kind == "fold":
         member = Fold(decode_universe(require_field(obj, "universe", "fold")))
     elif kind == "subtract":

@@ -34,24 +34,19 @@ theorem subfree_acc (n : Node) (amp : Spelling → Prop) (P : Prop) (s : Spellin
   (walk_adds n amp P s hsf).mpr (Or.inl hp)
 
 /- ---------------------------------------------------------------- -/
-/- Manifest nonemptiness: a face or final head with no subtraction   -/
-/- after it certifies the body wears at least one spelling, so the   -/
-/- fold-to-unit empty-face branch cannot fire. Faces and finals are  -/
-/- always nonempty (a final always wears its own lower bound), which -/
-/- ranges are not (a reversed range is empty), so only they anchor.  -/
+/- Manifest nonemptiness: a face head with no subtraction after it    -/
+/- certifies the body wears at least one spelling, so the fold-to-unit -/
+/- empty-face branch cannot fire. A face is always nonempty, which     -/
+/- ranges are not (a reversed range is empty), so only it anchors.     -/
 /- ---------------------------------------------------------------- -/
 
 def manifestHeadb : Member → Bool
   | .face _ => true
-  | .final _ => true
   | _ => false
 
 def manifestb : Node → Bool
   | .nil => false
   | .cons m rest => (manifestHeadb m && subfreeb rest) || manifestb rest
-
-theorem winb_finalWindow_self (lo : Spelling) : winb (finalWindow lo) lo = true := by
-  simp [finalWindow, winb, shortlexLe_refl]
 
 theorem manifest_nonempty : ∀ (n : Node) (amp : Spelling → Prop),
     manifestb n = true → ∃ t, walk n amp False t
@@ -65,11 +60,6 @@ theorem manifest_nonempty : ∀ (n : Node) (amp : Spelling → Prop),
             rw [walk_cons]
             exact subfree_acc rest amp _ t₀ hsf
               (by rw [walk_single_face]; exact Or.inr rfl)
-        | final lo =>
-            refine ⟨lo, ?_⟩
-            rw [walk_cons]
-            exact subfree_acc rest amp _ lo hsf
-              (by rw [walk_single_final]; exact Or.inr (winb_finalWindow_self lo))
         | range lo hi => simp [manifestHeadb] at hhead
         | amp => simp [manifestHeadb] at hhead
         | sub op => simp [manifestHeadb] at hhead
@@ -109,7 +99,6 @@ mutual
 def cmpMemberb : Member → Bool
   | .face _ => true
   | .range _ _ => true
-  | .final _ => true
   | .amp => true
   | .sub op => exactNodeb op
   | .fold inner =>
@@ -146,12 +135,6 @@ theorem cmp_member : ∀ (m : Member), cmpMemberb m = true →
   | .range lo hi, _, ampb, amp, Pb, P, s, _, hacc, h => by
       rw [walk_single_range] at h
       rw [walkb_single_range, Bool.or_eq_true]
-      rcases h with h | h
-      · exact Or.inl (hacc h)
-      · exact Or.inr h
-  | .final lo, _, ampb, amp, Pb, P, s, _, hacc, h => by
-      rw [walk_single_final] at h
-      rw [walkb_single_final, Bool.or_eq_true]
       rcases h with h | h
       · exact Or.inl (hacc h)
       · exact Or.inr h

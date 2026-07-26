@@ -99,11 +99,6 @@ theorem walk_amp_mono : ∀ (n : Node), positiveb n = true →
           refine walk_amp_mono rest hpos amp amp' hamp _ _ ?_ s h
           rw [walk_single_range, walk_single_range]
           exact Or.imp hpq id
-      | final lo =>
-          simp only [positiveb] at hpos
-          refine walk_amp_mono rest hpos amp amp' hamp _ _ ?_ s h
-          rw [walk_single_final, walk_single_final]
-          exact Or.imp hpq id
       | fold inner =>
           simp only [positiveb] at hpos
           refine walk_amp_mono rest hpos amp amp' hamp _ _ ?_ s h
@@ -223,22 +218,6 @@ theorem walk_amp_cont : ∀ (n : Node), positiveb n = true →
               walk (nsingle (.range lo hi)) (c j) (Q j) s := by
             intro k j hkj
             rw [walk_single_range, walk_single_range]
-            exact Or.imp (hQ k j hkj) id
-          obtain ⟨K, hK⟩ :=
-            walk_amp_cont rest hpos c hc _ hmono s (walk_mono rest _ s _ _ hmem h)
-          exact ⟨K, by rw [walk_cons]; exact hK⟩
-      | final lo =>
-          simp only [positiveb] at hpos
-          have hmem : walk (nsingle (.final lo)) (fun u => ∃ k, c k u) (∃ k, Q k) s →
-              ∃ k, walk (nsingle (.final lo)) (c k) (Q k) s := by
-            rw [walk_single_final]
-            rintro (⟨k, hQk⟩ | hwin)
-            · exact ⟨k, by rw [walk_single_final]; exact Or.inl hQk⟩
-            · exact ⟨0, by rw [walk_single_final]; exact Or.inr hwin⟩
-          have hmono : ∀ k j, k ≤ j → walk (nsingle (.final lo)) (c k) (Q k) s →
-              walk (nsingle (.final lo)) (c j) (Q j) s := by
-            intro k j hkj
-            rw [walk_single_final, walk_single_final]
             exact Or.imp (hQ k j hkj) id
           obtain ⟨K, hK⟩ :=
             walk_amp_cont rest hpos c hc _ hmono s (walk_mono rest _ s _ _ hmem h)

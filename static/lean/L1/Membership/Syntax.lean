@@ -4,7 +4,7 @@ Port of `static/formal/L1/Syntax.v`, mirroring `Himark/core/syntax.py`,
 except that the Python list spines (`UniverseNode.members`, `Product.factors`)
 are rolled into the mutual inductive itself (`Node`, `Factors`) so structural
 recursion on the spine is available to the denotation. `Range` carries single
-code points; `face`/`final` carry whole spellings. `amp` is the closure token
+code points; `face` carries a whole spelling. `amp` is the closure token
 `&`; `sub` is the subtraction member `!{...}`; `fold` is a nested universe used
 as a member; `prod` is a run of adjacent factors, each either a brace
 expression (`Factors.node`) or a bare `&` (`Factors.amp`). -/
@@ -16,7 +16,6 @@ mutual
 inductive Member : Type where
   | face  (text : Spelling)
   | range (lo hi : Code)
-  | final (lo : Spelling)
   | amp
   | fold (inner : Node)
   | sub  (inner : Node)

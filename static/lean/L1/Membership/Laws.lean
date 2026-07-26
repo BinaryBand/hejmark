@@ -86,17 +86,15 @@ theorem intersection (A B : Node) (amp : Spelling → Prop) (s : Spelling) :
   tauto
 
 /- ---------------------------------------------------------------- -/
-/- 5. Bounded ranges are compression: {lo..hi} = {lo.., !{succ hi..}} -/
+/- 5. Bounded ranges are compression: {lo..hi} denotes exactly the    -/
+/-    finite union of the singleton spellings [lo] .. [hi].           -/
 /- ---------------------------------------------------------------- -/
 
-theorem range_compression (lo hi : Code) (amp : Spelling → Prop) (s : Spelling) :
-    walk (.cons (.final [lo]) (nsingle (.sub (nsingle (.final [hi + 1]))))) amp False s
-      ↔ spells (.range lo hi) amp s := by
-  rw [show (Node.cons (.final [lo]) (nsingle (.sub (nsingle (.final [hi + 1])))))
-        = napp (nsingle (.final [lo])) (nsingle (.sub (nsingle (.final [hi + 1])))) from rfl,
-    difference, walk_single_final, walk_single_final]
-  simp only [false_or, spells, ← winb_range_diff lo hi s, finalWindow]
-  cases winb ⟨[lo], none⟩ s <;> cases winb ⟨[hi + 1], none⟩ s <;> simp
+theorem range_compression (lo hi : Code) (s : Spelling) :
+    denotes (nsingle (.range lo hi)) s ↔ ∃ c, s = [c] ∧ lo ≤ c ∧ c ≤ hi := by
+  have hb : bindsb (nsingle (.range lo hi)) = false := by simp [nsingle, bindsb, freeAmpb]
+  simp only [denotes, ndenote, hb, walk_single_range, false_or]
+  exact winb_range_singleton lo hi s
 
 theorem range_reversed_empty (lo hi : Code) (amp : Spelling → Prop) (s : Spelling)
     (hrev : hi < lo) : ¬ spells (.range lo hi) amp s := by
@@ -338,38 +336,11 @@ theorem self_union_noop (t : Spelling) (s : Spelling) :
     exact ⟨1, by rw [stage_succ, stage_zero, hn, walk_cons, walk_single_amp,
       walk_single_face]; right; left; right; rfl⟩
 
-/-- `{lo.., !{&}}`: stage 1 places the whole final segment; the closure is
-just `{lo..}`. -/
-theorem negative_amp_noop (lo : Spelling) (s : Spelling) :
-    denotes (.cons (.final lo) (nsingle (.sub (nsingle .amp)))) s
-      ↔ winb (finalWindow lo) s = true := by
-  set n := Node.cons (.final lo) (nsingle (.sub (nsingle .amp))) with hn
-  have hb : bindsb n = true := by rw [hn]; simp [bindsb, freeAmpb, nsingle]
-  have hstage : ∀ k s, stage n k s → winb (finalWindow lo) s = true :=
-    stage_invariant n (fun s => winb (finalWindow lo) s = true) fun k _ s h => by
-      rw [hn, walk_cons, walk_single_final, walk_single_sub] at h
-      rcases h.1 with h' | h'
-      · exact h'.elim
-      · exact h'
-  constructor
-  · rintro hd
-    rw [denotes, ndenote_binder _ _ _ hb] at hd
-    obtain ⟨k, h⟩ := hd
-    exact hstage k s h
-  · rintro h
-    rw [denotes, ndenote_binder _ _ _ hb]
-    refine ⟨1, ?_⟩
-    rw [stage_succ, stage_zero, hn, walk_cons, walk_single_final, walk_single_sub]
-    refine Or.inr ⟨Or.inr h, ?_⟩
-    rw [walk_single_amp]
-    simp [stage_zero]
-
 /- ---------------------------------------------------------------- -/
-/- 11. Final segment demotion: the closure of the unit under a       -/
-/-     literal code-point range wears exactly the spellings over     -/
-/-     that range -- the doc's `{{{}}, &C}`, with `C = {lo..hi}`.    -/
-/-     "The spelling order is generated, not postulated", at the     -/
-/-     membership level.                                              -/
+/- 11. Closure demotion: the closure of the unit under a literal      -/
+/-     code-point range wears exactly the spellings over that range   -/
+/-     -- the doc's `{{{}}, &C}`, with `C = {lo..hi}`. "The spelling  -/
+/-     order is generated, not postulated", at the membership level.  -/
 /- ---------------------------------------------------------------- -/
 
 /-- `{{{}}, &{lo..hi}}`: the unit seeds the empty spelling, and each closure
@@ -452,8 +423,8 @@ theorem unitClosure_stage_complete (lo hi : Code) :
 
 /-- The demotion law, two-sided: `{{{}}, &{lo..hi}}` denotes exactly the
 spellings whose every code sits in `[lo, hi]`, the empty spelling included.
-This is the membership content of re-admitting the final segment as
-compression: the closure generates every spelling over the code-point set. -/
+This is the membership content of the closure demotion: the closure
+generates every spelling over the code-point set. -/
 theorem unitClosure_generates (lo hi : Code) (s : Spelling) :
     denotes (unitClosure lo hi) s ↔ ∀ c ∈ s, lo ≤ c ∧ c ≤ hi := by
   rw [denotes, ndenote_binder _ _ _ (unitClosure_bindsb lo hi)]

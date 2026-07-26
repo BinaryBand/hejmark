@@ -182,7 +182,6 @@ mutual
 def mSubfree : Member → Bool
   | .face _ => true
   | .range _ _ => true
-  | .final _ => true
   | .amp => true
   | .sub _ => false
   | .fold inner => nSubfree inner
@@ -271,13 +270,6 @@ theorem walk_range_denotes (lo hi : Code) (amp : Spelling → Prop) (s : Spellin
   rw [ndenote_nonbinder _ _ _ (by simp [nsingle, bindsb, freeAmpb]), walk_single_range]
   exact h
 
-theorem walk_final_denotes (lo : Spelling) (amp : Spelling → Prop) (s : Spelling)
-    (h : walk (nsingle (.final lo)) amp False s) : denotes (nsingle (.final lo)) s := by
-  rw [walk_single_final] at h
-  show ndenote (nsingle (.final lo)) (fun _ => False) s
-  rw [ndenote_nonbinder _ _ _ (by simp [nsingle, bindsb, freeAmpb]), walk_single_final]
-  exact h
-
 theorem walk_prodnil_denotes (amp : Spelling → Prop) (s : Spelling)
     (h : walk (nsingle (.prod .nil)) amp False s) : denotes (nsingle (.prod .nil)) s := by
   have h2 : fsplit .nil amp s := (walk_prodNode_fsplit .nil amp s).mp h
@@ -345,8 +337,6 @@ noncomputable def wmRank :
   | .face t, e => typein (entrySpellLt (nsingle (.face t))) ⟨e.1, walk_face_denotes t amp e.1 e.2⟩
   | .range lo hi, e =>
       typein (entrySpellLt (nsingle (.range lo hi))) ⟨e.1, walk_range_denotes lo hi amp e.1 e.2⟩
-  | .final lo, e =>
-      typein (entrySpellLt (nsingle (.final lo))) ⟨e.1, walk_final_denotes lo amp e.1 e.2⟩
   | .amp, e => ampRank ⟨e.1, (walk_single_amp_false amp e.1).mp e.2⟩
   | .sub _, _ => 0
   | .fold inner, e =>
@@ -393,7 +383,6 @@ noncomputable def wfRank :
 noncomputable def wmBound : Member → Ordinal
   | .face t => entriesType (nsingle (.face t))
   | .range lo hi => entriesType (nsingle (.range lo hi))
-  | .final lo => entriesType (nsingle (.final lo))
   | .amp => ampBound
   | .sub _ => 0
   | .fold inner =>
@@ -464,7 +453,6 @@ factor head; everywhere else these just descend. -/
 def mSites (P : Node → Prop) : Member → Prop
   | .face _ => True
   | .range _ _ => True
-  | .final _ => True
   | .amp => True
   | .sub _ => True
   | .fold inner => if bindsb inner then P inner else nSites P inner
@@ -505,7 +493,6 @@ theorem wmBound_cl_congr : ∀ (m : Member), mSites P m →
     wmBound amp ampRank ampBound cl₁ cb₁ m = wmBound amp ampRank ampBound cl₂ cb₂ m
   | .face _, _ => rfl
   | .range _ _, _ => rfl
-  | .final _, _ => rfl
   | .amp, _ => rfl
   | .sub _, _ => rfl
   | .fold inner, hs => by
@@ -560,7 +547,6 @@ theorem wmRank_cl_congr : ∀ (m : Member), mSites P m → ∀ e,
     wmRank amp ampRank ampBound cl₁ cb₁ m e = wmRank amp ampRank ampBound cl₂ cb₂ m e
   | .face _, _, _ => rfl
   | .range _ _, _, _ => rfl
-  | .final _, _, _ => rfl
   | .amp, _, _ => rfl
   | .sub _, _, _ => rfl
   | .fold inner, hs, e => by
@@ -704,7 +690,7 @@ theorem wmFaithful : ∀ (m : Member), mSubfree m = true → mSites Q m →
     Faithful (wmRank amp ampRank ampBound clRank clBound m) (wmBound amp ampRank ampBound clRank clBound m)
   -- The three amp-independent leaves rank by `typein` of their own spelling
   -- order, so they share one proof.
-  | .face _, _, _ | .range _ _, _, _ | .final _, _, _ => by
+  | .face _, _, _ | .range _ _, _, _ => by
       refine ⟨fun e => ?_, fun x y hxy => ?_⟩
       · simp only [wmRank, wmBound, entriesType]; exact typein_lt_type _ _
       · simp only [wmRank] at hxy
@@ -982,7 +968,6 @@ theorem mSites_sizeOf : ∀ (m : Member) (B : ℕ), sizeOf m ≤ B →
     mSites (fun n' => sizeOf n' < B) m
   | .face _, _, _ => trivial
   | .range _ _, _, _ => trivial
-  | .final _, _, _ => trivial
   | .amp, _, _ => trivial
   | .sub _, _, _ => trivial
   | .fold inner, B, hB => by
@@ -1029,7 +1014,6 @@ reflection of `mSites` / `nSites` / `fSites` at `P := False`. -/
 def mNcFreeb : Member → Bool
   | .face _ => true
   | .range _ _ => true
-  | .final _ => true
   | .amp => true
   | .sub _ => true
   | .fold inner => if bindsb inner then false else nNcFreeb inner
@@ -1054,7 +1038,6 @@ mutual
 theorem mSites_of_ncFreeb : ∀ (m : Member), mNcFreeb m = true → mSites (fun _ => False) m
   | .face _, _ => trivial
   | .range _ _, _ => trivial
-  | .final _, _ => trivial
   | .amp, _ => trivial
   | .sub _, _ => trivial
   | .fold inner, h => by
@@ -1455,10 +1438,6 @@ theorem mRank_range (lo hi : Code) (e : Entries (nsingle (.range lo hi))) :
   have hb : bindsb (nsingle (Member.range lo hi)) = false := by simp [nsingle, bindsb, freeAmpb]
   rw [mRank_nb hb e ((ndenote_nonbinder _ _ _ hb).mp e.2)]; simp only [wmRank]
 
-theorem mRank_final (lo : Spelling) (e : Entries (nsingle (.final lo))) :
-    mRank (.final lo) e = typein (entrySpellLt (nsingle (.final lo))) e := by
-  have hb : bindsb (nsingle (Member.final lo)) = false := by simp [nsingle, bindsb, freeAmpb]
-  rw [mRank_nb hb e ((ndenote_nonbinder _ _ _ hb).mp e.2)]; simp only [wmRank]
 
 theorem nBound_nil : nBound .nil = 0 := by
   simp only [nBound, bindsb, Bool.false_eq_true, if_false, wnBound]
@@ -1648,10 +1627,6 @@ theorem entryRecLt_range (lo hi : Code) :
   entryRecLt_leaf (.range lo hi) (by simp [nsingle, bindsb, freeAmpb])
     (fun e => mRank_range lo hi e)
 
-theorem entryRecLt_final (lo : Spelling) :
-    entryRecLt (nsingle (.final lo)) = entrySpellLt (nsingle (.final lo)) :=
-  entryRecLt_leaf (.final lo) (by simp [nsingle, bindsb, freeAmpb])
-    (fun e => mRank_final lo e)
 
 /- ---- The recursive entries enumeration (STEP 5a): the order type of the -/
 /- new order, the quantity the migrated row theorems compute.              -/
@@ -1698,10 +1673,6 @@ theorem entryRecType_range (lo hi : Code) :
   entryRecType_leaf (.range lo hi) (by simp [nsingle, bindsb, freeAmpb]) rfl
     (fun e => mRank_range lo hi e)
 
-theorem entryRecType_final (lo : Spelling) :
-    entryRecType (nsingle (.final lo)) = entriesType (nsingle (.final lo)) :=
-  entryRecType_leaf (.final lo) (by simp [nsingle, bindsb, freeAmpb]) rfl
-    (fun e => mRank_final lo e)
 
 /- ---------------------------------------------------------------- -/
 /- STEP 5b: the product law on the recursive order -- under unique  -/

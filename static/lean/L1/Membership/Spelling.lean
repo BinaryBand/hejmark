@@ -199,7 +199,7 @@ theorem singleton_shortlexLe {a b : Code} (h : a ≤ b) :
     shortlexLe [a] [b] = true := (singleton_shortlexLe_iff a b).mpr h
 
 /- ---------------------------------------------------------------- -/
-/- Half-open shortlex windows [lo, hi); hi = none means unbounded.  -/
+/- Half-open shortlex windows [lo, hi): a range is one such window.  -/
 /- ---------------------------------------------------------------- -/
 
 structure Window : Type where
@@ -212,23 +212,9 @@ def winb (w : Window) (s : Spelling) : Bool :=
      | none => true
      | some h => shortlexLt s h)
 
-/-- A final segment `{lo..}` is `[lo, infinity)`. -/
-def finalWindow (lo : Spelling) : Window := ⟨lo, none⟩
-
 /-- A range `{lo..hi}` over single code points is `[[lo], [hi+1])` --
 successors are exact because codes are all of `Nat`. -/
 def rangeWindow (lo hi : Code) : Window := ⟨[lo], some [hi + 1]⟩
-
-/-- A bounded window is the difference of two final segments. -/
-theorem winb_final_diff (lo hi s : Spelling) :
-    (winb ⟨lo, none⟩ s && !(winb ⟨hi, none⟩ s)) = winb ⟨lo, some hi⟩ s := by
-  simp only [winb, Bool.and_true]
-  rw [shortlexLt_not_le s hi]
-
-theorem winb_range_diff (lo hi : Code) (s : Spelling) :
-    (winb (finalWindow [lo]) s && !(winb (finalWindow [hi + 1]) s))
-      = winb (rangeWindow lo hi) s :=
-  winb_final_diff [lo] [hi + 1] s
 
 /-- A reversed window is empty. -/
 theorem winb_empty (lo hi s : Spelling) (hrev : shortlexLe hi lo = true) :
@@ -246,18 +232,6 @@ theorem winb_range_empty (lo hi : Code) (s : Spelling) (hrev : hi < lo) :
     winb (rangeWindow lo hi) s = false := by
   refine winb_empty [lo] [hi + 1] s ?_
   exact singleton_shortlexLe (by omega)
-
-/-- A final window's members are at least as long as its cut: shortlex never
-puts a shorter spelling at or above a longer one. -/
-theorem winb_final_length {lo s : Spelling} (h : winb (finalWindow lo) s = true) :
-    lo.length ≤ s.length := by
-  simp only [winb, finalWindow, Bool.and_true] at h
-  simp only [shortlexLe, shortlexLt, Bool.or_eq_true, Bool.and_eq_true,
-    decide_eq_true_eq, beq_iff_eq] at h
-  rcases h with (h | ⟨h, _⟩) | rfl
-  · omega
-  · omega
-  · exact Nat.le_refl _
 
 /-- The range window `[ [lo], [hi+1] )` holds exactly the singletons of the
 inclusive code interval: every longer spelling sits above the bound by length

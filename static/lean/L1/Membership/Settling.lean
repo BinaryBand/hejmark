@@ -46,7 +46,6 @@ theorem walk_amp_irrel : ∀ (n : Node), bindsb n = false →
               walk_amp_irrel op hbm amp amp' False s]
         | face t => rw [walk_single_face, walk_single_face]
         | range lo hi => rw [walk_single_range, walk_single_range]
-        | final lo => rw [walk_single_final, walk_single_final]
         | fold inner =>
             rw [walk_single_fold, walk_single_fold,
               spells_amp_irrel (.fold inner) hbm amp amp' s]
@@ -64,7 +63,6 @@ theorem spells_amp_irrel : ∀ (m : Member), freeAmpb m = false →
     (spells m amp s ↔ spells m amp' s)
   | .face t, _, _, _, _ => by simp only [spells]
   | .range lo hi, _, _, _, _ => by simp only [spells]
-  | .final lo, _, _, _, _ => by simp only [spells]
   | .amp, hb, _, _, _ => by simp [freeAmpb] at hb
   | .sub op, _, _, _, _ => by simp only [spells]
   | .fold inner, _, amp, amp', s => by
@@ -128,7 +126,6 @@ def SemSettledMember : Member → Prop
   | .sub inner => SemSettled inner
   | .face _ => True
   | .range _ _ => True
-  | .final _ => True
   | .fold _ => True
 def SemSettled : Node → Prop
   | .nil => True
@@ -265,7 +262,6 @@ theorem spells_local (m : Member) (hs : SemSettledMember m)
   cases m with
   | face t => simp only [spells]
   | range lo hi => simp only [spells]
-  | final lo => simp only [spells]
   | amp => simp only [SemSettledMember] at hs
   | sub op => simp only [spells]
   | fold inner =>
@@ -296,7 +292,6 @@ theorem walk_local : ∀ (n : Node), SemSettled n →
             rw [walk_local op hsm amp amp' False s hag]
         | face t => rw [walk_single_face, walk_single_face]
         | range lo hi => rw [walk_single_range, walk_single_range]
-        | final lo => rw [walk_single_final, walk_single_final]
         | fold inner =>
             rw [walk_single_fold, walk_single_fold,
               spells_local (.fold inner) hsm amp amp' s hag]
@@ -444,7 +439,6 @@ theorem semSettledMember_of_settledExactMemberb :
       exact semSettled_of_settledExactb inner h
   | .face _, _ => by simp only [SemSettledMember]
   | .range _ _, _ => by simp only [SemSettledMember]
-  | .final _, _ => by simp only [SemSettledMember]
   | .fold _, _ => by simp only [SemSettledMember]
 /-- The node-level bridge, headline: the exact-guarded checker certifies
 semantic settledness, so `guarded_settles` applies to a boolean-checkable

@@ -40,18 +40,22 @@ from hejmark.core.compiler.ast import (
     UniverseNode,
     ValueCut,
 )
-from hejmark.core.floor.syntax import Closure, Face, Final, HimarkSyntaxError, Range
+from hejmark.core.floor.syntax import Closure, Face, HimarkSyntaxError, Range
 
-# The three mnemonic escapes; every other `\x` spells `x` itself. Whitespace
-# is insignificant inside braces and carved out of the face alphabet, so these
-# are the only way the foundation's own scripts spell it (`{\n}`, `\t`).
+# The three mnemonic escapes. Every other escape the lexer admits is a
+# structural character standing for itself; unknown escapes never reach here,
+# since the grammar refuses to lex them (the spec's "no reading"). Whitespace is
+# a literal face character inside braces, so these mnemonics are the only way the
+# foundation's own scripts spell it on one line (`{\n}`).
 _MNEMONIC = {"n": "\n", "t": "\t", "r": "\r"}
 
 
 def _unescape(text: str) -> str:
-    r"""Resolve one token's text: ``\n``/``\t``/``\r`` mnemonically, ``\x`` as ``x``."""
+    r"""Resolve one token: ``\..`` to two dots, the mnemonics to whitespace, ``\x`` to ``x``."""
     if not text.startswith("\\"):
         return text
+    if text == "\\..":
+        return ".."
     return _MNEMONIC.get(text[1], text[1])
 
 
@@ -127,8 +131,6 @@ def _member(ctx: Any) -> Any:
         case "RangeMemberContext":
             faces = ctx.face()
             return Range(_face(faces[0]).text, _face(faces[1]).text)
-        case "FinalMemberContext":
-            return Final(_face(ctx.face()).text)
         case "ValueMemberContext":
             bound = ctx.valueBound()
             if bound is None:

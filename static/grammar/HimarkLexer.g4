@@ -66,7 +66,11 @@ B_LBRACK : '['  -> type(LBRACK), pushMode(ARGS) ;
 // same query, as it hit. Only the factor family enters a pattern -- `$` and
 // `$0` are the emitter's -- so a bare or zero read here stays a lex error.
 B_CAPTURE : '$' [1-9] [0-9]* -> type(CAPTURE) ;
-ESC      : '\\' . ;
+// A structural character spelled literally, or the two-dot sequence `\..`; the
+// mnemonics `\n`/`\t`/`\r` ride the same backslash. A lone `.` is already a
+// literal dot, so `\.` is not an escape, and every other `\x` has no reading --
+// it fails to lex, which is what keeps the rest of the alphabet open.
+ESC      : '\\' ( '..' | [nrt,{}[\]!&@_^$"\\] ) ;
 CHAR     : ~[{}[\],!.\\&@_^$"] ;
 
 // ---------------------------------------------------------------------------
@@ -80,15 +84,20 @@ mode ARGS;
 
 RBRACK  : ']'  -> popMode ;
 A_RANGE : '..' -> type(RANGE) ;
+// A lone `.` is a literal dot, as in a face (`..` is the range, `\..` the
+// literal two dots); it lexes as its own token and the parser assembles it into
+// the argument.
+A_DOT   : '.'  -> type(DOT) ;
 // Emitted, not skipped: whitespace separates pipeline items, which is what
 // keeps an open bound (`where 0..`) from grabbing the next stage as its `hi`.
 A_WS    : [ \t\r\n]+ ;
 // A back-reference standing as an argument (`where 0..$2`). Listed before ARG
 // so the exact spelling `$k` lexes as a read; anything longer stays an ARG.
 A_CAPTURE : '$' [1-9] [0-9]* -> type(CAPTURE) ;
-// One argument is one token, escapes included, so whitespace (not the
-// skipped-token seam) is what separates arguments.
-ARG     : (~[[\]. \t\r\n\\] | '\\' .)+ ;
+// One argument piece is one token. An argument's structural characters (its
+// brackets, whitespace, and the range dots) are spelled literally with a `\`
+// escape (`\..` the two dots); every other `\x` has no reading and fails to lex.
+ARG     : (~[[\]. \t\r\n\\] | '\\' ( '..' | [[\] \t\r\n\\] ))+ ;
 
 // ---------------------------------------------------------------------------
 // TMPL mode -- inside a quoted template. Text is literal (whitespace and
@@ -100,7 +109,9 @@ mode TMPL;
 
 TMPL_CLOSE  : '"'  -> popMode ;
 MOUST_OPEN  : '{{' -> pushMode(INTERP) ;
-TMPL_ESC    : '\\' . ;
+// A template's structural characters (`"` `\` `{`) spelled literally, plus the
+// mnemonics `\n`/`\t`/`\r`; every other `\x` has no reading and fails to lex.
+TMPL_ESC    : '\\' ["\\{nrt] ;
 TMPL_LBRACE : '{' ;
 TMPL_TEXT   : ~["\\{]+ ;
 

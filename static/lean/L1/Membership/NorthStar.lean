@@ -83,12 +83,6 @@ theorem two_face_ndenote {w1 w2 : Spelling} {amp : Spelling → Prop} {q : Spell
   rw [ndenote_nonbinder _ _ _ (by simp [nlist, bindsb, freeAmpb])] at h
   simpa [nlist, walk_cons, walk_single_face, walk_nil] using h
 
-/-- A final-segment factor hands its piece a spelling of its window. -/
-theorem final_ndenote {lo : Spelling} {amp : Spelling → Prop} {q : Spelling}
-    (h : ndenote (nlist [.final lo]) amp q) : winb (finalWindow lo) q = true := by
-  rw [ndenote_nonbinder _ _ _ (by simp [nlist, bindsb, freeAmpb])] at h
-  simpa [nlist, walk_cons, walk_single_final, walk_nil] using h
-
 /- ---------------------------------------------------------------- -/
 /- {a,b,c}                                                          -/
 /- ---------------------------------------------------------------- -/
@@ -180,21 +174,6 @@ theorem cat_only_not_feline : ¬ denotes cat_only feline := by
   tauto
 
 /- ---------------------------------------------------------------- -/
-/- {a..}: a final segment, unbounded above.                        -/
-/- ---------------------------------------------------------------- -/
-
-def a_final : Node := nlist [.final [la]]
-
-theorem a_final_has_z : denotes a_final [lz] := by north_star
-theorem a_final_has_aa : denotes a_final [la, la] := by north_star
-
-theorem a_final_not_empty_spelling : ¬ denotes a_final [] := by
-  intro h
-  rw [denotes, ndenote_nonbinder _ _ _ (by decide)] at h
-  simp only [a_final, nlist, walk_cons, walk_single_final, walk_nil] at h
-  rcases h with h | h <;> simp_all [winb, shortlexLe, shortlexLt, finalWindow]
-
-/- ---------------------------------------------------------------- -/
 /- {cat}{dog} = {catdog}: finite adjacency is compression.          -/
 /- ---------------------------------------------------------------- -/
 
@@ -243,82 +222,6 @@ theorem collision_row_not_abbbc : ¬ denotes collision_row [la, lb, lb, lb, lc] 
   obtain ⟨p, q, hs, hp, hp2⟩ := two_factor_split h
   rcases two_face_ndenote hp with rfl | rfl <;>
     rcases two_face_ndenote hp2 with rfl | rfl <;> simp_all
-
-def final_times_b : Node :=
-  nlist [.prod (.node (nlist [.final [la]]) (.node (nlist [.face [lb]]) .nil))]
-
-theorem final_times_b_has_ab : denotes final_times_b [la, lb] := by north_star
-theorem final_times_b_has_zb : denotes final_times_b [lz, lb] := by north_star
-
-theorem final_times_b_not_ba : ¬ denotes final_times_b [lb, la] := by
-  intro h
-  obtain ⟨p, q, hs, hp, hp2⟩ := two_factor_split h
-  obtain rfl := face_ndenote hp2
-  rcases p with _ | ⟨x, _ | ⟨y, p⟩⟩ <;> simp_all
-
-/- ---------------------------------------------------------------- -/
-/- {b,c}{a..}: order type omega*2 -- membership samples.            -/
-/- ---------------------------------------------------------------- -/
-
-def bc_final : Node :=
-  nlist [.prod (.node (nlist [.face [lb], .face [lc]])
-    (.node (nlist [.final [la]]) .nil))]
-
-theorem bc_final_has_ba : denotes bc_final [lb, la] := by north_star
-theorem bc_final_has_ca : denotes bc_final [lc, la] := by north_star
-
-theorem bc_final_not_a : ¬ denotes bc_final [la] := by
-  intro h
-  obtain ⟨p, q, hs, hp, hp2⟩ := two_factor_split h
-  rcases two_face_ndenote hp with rfl | rfl <;> simp_all
-
-/- ---------------------------------------------------------------- -/
-/- {b}{a..}{b}{a..}: order type omega^2 -- membership samples.       -/
-/- ---------------------------------------------------------------- -/
-
-def b_final_b_final : Node :=
-  nlist [.prod (.node (nlist [.face [lb]])
-    (.node (nlist [.final [la]])
-    (.node (nlist [.face [lb]])
-    (.node (nlist [.final [la]]) .nil))))]
-
-theorem b_final_b_final_has_baba : denotes b_final_b_final [lb, la, lb, la] := by
-  north_star
-theorem b_final_b_final_has_babb : denotes b_final_b_final [lb, la, lb, lb] := by
-  north_star
-
-theorem b_final_b_final_not_bab : ¬ denotes b_final_b_final [lb, la, lb] := by
-  intro h
-  rw [denotes, ndenote_nonbinder _ _ _ (by decide)] at h
-  simp only [b_final_b_final, nlist, walk_cons, walk_single_prod, walk_nil,
-    false_or, fsplit_fnode, fsplit_fnil] at h
-  obtain ⟨p1, q1, hs, hp1, p2, q2, rfl, hp2, p3, q3, rfl, hp3, p4, q4, rfl, hp4, rfl⟩ := h
-  obtain rfl := face_ndenote hp1
-  obtain rfl := face_ndenote hp3
-  have l2 := winb_final_length (final_ndenote hp2)
-  have l4 := winb_final_length (final_ndenote hp4)
-  have hlen := congrArg List.length hs
-  simp only [List.length_cons, List.length_append, List.length_nil] at hlen l2 l4
-  omega
-
-/- ---------------------------------------------------------------- -/
-/- {a..}{a..}: cofinite factors collide, membership stands.          -/
-/- ---------------------------------------------------------------- -/
-
-def final_final : Node :=
-  nlist [.prod (.node (nlist [.final [la]]) (.node (nlist [.final [la]]) .nil))]
-
-theorem final_final_has_aa : denotes final_final [la, la] := by north_star
-theorem final_final_has_ab : denotes final_final [la, lb] := by north_star
-
-theorem final_final_not_a : ¬ denotes final_final [la] := by
-  intro h
-  obtain ⟨p, q, hs, hp, hp2⟩ := two_factor_split h
-  have l1 := winb_final_length (final_ndenote hp)
-  have l2 := winb_final_length (final_ndenote hp2)
-  have hlen := congrArg List.length hs
-  simp only [List.length_cons, List.length_append, List.length_nil] at hlen l1 l2
-  omega
 
 /- ---------------------------------------------------------------- -/
 /- {a,!{a}}: the empty universe.                                    -/
@@ -679,7 +582,7 @@ theorem numerals_not_01 : ¬ denotes numerals [d0, d1] := by
     exact absurd h1 (by decide)
 
 /- ---------------------------------------------------------------- -/
-/- {{{}}, &C}: final segment's demotion -- with `C = {a..z}`, the    -/
+/- {{{}}, &C}: the closure demotion -- with `C = {a..z}`, the        -/
 /- closure of the unit wears every spelling over the letters, the    -/
 /- empty spelling included. The two-sided law is                     -/
 /- `unitClosure_generates` in `Laws`; these are its samples.         -/
@@ -702,7 +605,7 @@ theorem all_letters_not_digit : ¬ denotes all_letters [d0] := by
   exact absurd hd.2 (by decide)
 
 /- ---------------------------------------------------------------- -/
-/- {&} empty; {a, &} is {a}; {a.., !{&}} is {a..}: bare-`&` no-ops. -/
+/- {&} empty; {a, &} is {a}: bare-`&` no-ops.                        -/
 /- ---------------------------------------------------------------- -/
 
 theorem bare_amp_row (s : Spelling) : ¬ denotes (nsingle .amp) s :=
@@ -711,15 +614,6 @@ theorem bare_amp_row (s : Spelling) : ¬ denotes (nsingle .amp) s :=
 theorem self_union_row (s : Spelling) :
     denotes (.cons (.face [la]) (nsingle .amp)) s ↔ s = [la] :=
   self_union_noop [la] s
-
-theorem negative_amp_row (s : Spelling) :
-    denotes (.cons (.final [la]) (nsingle (.sub (nsingle .amp)))) s
-      ↔ winb (finalWindow [la]) s = true :=
-  negative_amp_noop [la] s
-
-theorem negative_amp_row_has_f :
-    denotes (.cons (.final [la]) (nsingle (.sub (nsingle .amp)))) [lf] := by
-  rw [negative_amp_row]; decide
 
 /- ---------------------------------------------------------------- -/
 /- {a, {{{},0}}&}: unguarded fill -- membership samples.            -/
@@ -791,14 +685,15 @@ theorem abab_not_aba : ¬ denotes abab [la, lb, la] := by
   simp at this
 
 /- ---------------------------------------------------------------- -/
-/- { {(}{b}{a..}{)}, {(}&&{)} }: binary trees -- membership samples. -/
+/- { {(}{b}{a,b,&{a,b}}{)}, {(}&&{)} }: binary trees -- samples.     -/
 /- The omega^omega order type is the order axis, out of scope.       -/
 /- ---------------------------------------------------------------- -/
 
 def btrees : Node :=
   nlist [.prod (.node (nlist [.face [lpar]])
            (.node (nlist [.face [lb]])
-           (.node (nlist [.final [la]])
+           (.node (nlist [.face [la], .face [lb],
+              .prod (.amp (.node (nlist [.face [la], .face [lb]]) .nil))])
            (.node (nlist [.face [rpar]]) .nil)))),
          .prod (.node (nlist [.face [lpar]])
            (.amp (.amp (.node (nlist [.face [rpar]]) .nil))))]
