@@ -24,8 +24,8 @@ from hejmark.core.compiler.ast import (
 from hejmark.core.compiler.expand import Ctx, expand
 from hejmark.core.compiler.late import SlotTable, reads
 from hejmark.core.compiler.ports import ToAst
+from hejmark.core.compiler.prelude import prelude_env
 from hejmark.core.compiler.resolve import Env, collect, merge, statements
-from hejmark.core.compiler.std import std_env
 from hejmark.core.floor.syntax import UniverseNode
 from hejmark.core.ir.errors import HimarkScopeError
 from hejmark.core.ir.program import (
@@ -47,10 +47,14 @@ from hejmark.core.ir.program import (
 )
 
 
-def script(to_ast: ToAst, source: str) -> tuple[ScriptNode, Env]:
-    """Parse *source* and resolve its declarations over the seeded std."""
+def script(to_ast: ToAst, source: str, prelude: str | None = None) -> tuple[ScriptNode, Env]:
+    """Parse *source* and resolve its declarations over the prelude.
+
+    *prelude* is the standard-library source to seed alongside ``char``, or
+    ``None`` for ``char`` alone -- the library switched off.
+    """
     node = to_ast(source)
-    return node, merge(std_env(to_ast), collect(node))
+    return node, merge(prelude_env(to_ast, prelude), collect(node))
 
 
 def compile_query(expr: Expr, env: Env, table: SlotTable, source: str = "") -> CompiledQuery:
@@ -105,7 +109,7 @@ def compile_single(node: ScriptNode, env: Env, source: str) -> tuple[CompiledQue
     return compile_query(_single_expr(node), env, table, source), table.resolve
 
 
-def lower(to_ast: ToAst, source: str) -> tuple[UniverseNode, ...]:
+def lower(to_ast: ToAst, source: str, prelude: str | None = None) -> tuple[UniverseNode, ...]:
     """Parse *source* and expand each factor to its floor AST, before denotation.
 
     The fully-standalone hand-off: expansion has rewritten the surface into the
@@ -117,7 +121,7 @@ def lower(to_ast: ToAst, source: str) -> tuple[UniverseNode, ...]:
         HimarkScopeError: *source* is not a single query expression, or a
             factor reads one to its left.
     """
-    node, env = script(to_ast, source)
+    node, env = script(to_ast, source, prelude)
     return _lower_expr(_single_expr(node), env)
 
 
@@ -133,7 +137,9 @@ class Fragment:
     error: str | None = None
 
 
-def lower_fragments(to_ast: ToAst, sources: Sequence[str]) -> tuple[Fragment, ...]:
+def lower_fragments(
+    to_ast: ToAst, sources: Sequence[str], prelude: str | None = None
+) -> tuple[Fragment, ...]:
     """Lower each of *sources* to its floor AST under one shared environment.
 
     The fragment form of :func:`lower`. The sources are the lines of a single
@@ -160,7 +166,7 @@ def lower_fragments(to_ast: ToAst, sources: Sequence[str]) -> tuple[Fragment, ..
     """
     parsed = [_parse_fragment(to_ast, source) for source in sources]
     lines = tuple(line for node in parsed if isinstance(node, ScriptNode) for line in node.lines)
-    env = merge(std_env(to_ast), collect(ScriptNode(lines)))
+    env = merge(prelude_env(to_ast, prelude), collect(ScriptNode(lines)))
     return tuple(_lower_fragment(node, env) for node in parsed)
 
 

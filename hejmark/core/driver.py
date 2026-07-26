@@ -21,40 +21,44 @@ from hejmark.core.engine.scan.match import match as _match
 from hejmark.core.ir.program import Program
 
 
-def parse(to_ast: ToAst, source: str) -> Query:
+def parse(to_ast: ToAst, source: str, prelude: str | None = None) -> Query:
     """Parse, compile and load *source* into a :class:`Query` ready to scan.
 
     Raises:
         HimarkScopeError: *source* is not a single query expression.
     """
-    node, env = script(to_ast, source)
+    node, env = script(to_ast, source, prelude)
     compiled, resolver = compile_single(node, env, source)
     return load_query(compiled, resolver)
 
 
-def _as_query(to_ast: ToAst, value: Query | str) -> Query:
+def _as_query(to_ast: ToAst, value: Query | str, prelude: str | None) -> Query:
     """Coerce raw source to a loaded query; pass an existing query through."""
-    return parse(to_ast, value) if isinstance(value, str) else value
+    return parse(to_ast, value, prelude) if isinstance(value, str) else value
 
 
-def match(to_ast: ToAst, value: Query | str, text: str, start: int = 0) -> Match | None:
+def match(
+    to_ast: ToAst, value: Query | str, text: str, start: int = 0, prelude: str | None = None
+) -> Match | None:
     """Return the leftmost match of *value* in *text* at or after *start*."""
-    return _match(_as_query(to_ast, value), text, start)
+    return _match(_as_query(to_ast, value, prelude), text, start)
 
 
-def finditer(to_ast: ToAst, value: Query | str, text: str) -> Iterator[Match]:
+def finditer(
+    to_ast: ToAst, value: Query | str, text: str, prelude: str | None = None
+) -> Iterator[Match]:
     """Yield non-overlapping matches of *value* across *text*, left to right."""
-    return _finditer(_as_query(to_ast, value), text)
+    return _finditer(_as_query(to_ast, value, prelude), text)
 
 
-def run(to_ast: ToAst, source: str, document: str) -> str:
+def run(to_ast: ToAst, source: str, document: str, prelude: str | None = None) -> str:
     """Compile a whole script and run it against *document*."""
-    node, env = script(to_ast, source)
+    node, env = script(to_ast, source, prelude)
     program, resolver = compile_script(node, env)
     return execute.run(program, document, resolver)
 
 
-def compile_program(to_ast: ToAst, source: str) -> Program:
+def compile_program(to_ast: ToAst, source: str, prelude: str | None = None) -> Program:
     """Compile a whole script to its pure-data program, with no engine attached.
 
     The same first half :func:`run` performs, stopping where the data is: what
@@ -63,6 +67,6 @@ def compile_program(to_ast: ToAst, source: str) -> Program:
     back edge, and the one thing that is not data -- is dropped here, so a
     program carrying a late slot is one only an in-process engine can run.
     """
-    node, env = script(to_ast, source)
+    node, env = script(to_ast, source, prelude)
     program, _resolver = compile_script(node, env)
     return program

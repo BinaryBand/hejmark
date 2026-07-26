@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from hejmark.adapters.library import standard_library
 from hejmark.adapters.parser import AntlrParser
 from hejmark.core.compiler.compile import (
     Fragment,
@@ -39,8 +40,8 @@ def _compile(source: str) -> tuple[Program, LateResolver]:
 
 
 def test_script_resolves_declarations_over_the_std() -> None:
-    """A script's own names sit alongside the seeded ones."""
-    node, env = script(_to_ast, "uni mine = {a}")
+    """A script's own names sit alongside the std's, when the prelude is supplied."""
+    node, env = script(_to_ast, "uni mine = {a}", standard_library())
     assert len(node.lines) == 1
     assert "mine" in env.unis
     assert "str" in env.unis

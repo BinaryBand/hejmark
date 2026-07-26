@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 from collections.abc import Iterator, Sequence
 
+from hejmark.adapters.library import standard_library
 from hejmark.adapters.parser import AntlrParser
 from hejmark.core.compiler.compile import Fragment
 from hejmark.core.compiler.compile import lower as _lower
@@ -32,22 +33,22 @@ _to_ast = AntlrParser().to_ast
 
 def parse(source: str) -> Query:
     """Parse and denote *source* into a :class:`Query`."""
-    return _parse(_to_ast, source)
+    return _parse(_to_ast, source, standard_library())
 
 
 def match(query: Query | str, text: str, start: int = 0) -> Match | None:
     """Return the leftmost match of *query* in *text* at or after *start*."""
-    return _match(_to_ast, query, text, start)
+    return _match(_to_ast, query, text, start, standard_library())
 
 
 def finditer(query: Query | str, text: str) -> Iterator[Match]:
     """Yield non-overlapping matches of *query* across *text*, left to right."""
-    return _finditer(_to_ast, query, text)
+    return _finditer(_to_ast, query, text, standard_library())
 
 
 def run(source: str, text: str) -> str:
     """Run a whole script against *text*, returning the spliced document."""
-    return _run(_to_ast, source, text)
+    return _run(_to_ast, source, text, standard_library())
 
 
 def emit_json(source: str) -> str:
@@ -58,7 +59,7 @@ def emit_json(source: str) -> str:
     its own engine can finish it. A back-referencing query cannot be lowered
     ahead of a binding and is refused.
     """
-    return json.dumps(_encode_query(_lower(_to_ast, source)))
+    return json.dumps(_encode_query(_lower(_to_ast, source, standard_library())))
 
 
 def emit_fragments(sources: Sequence[str]) -> str:
@@ -74,7 +75,8 @@ def emit_fragments(sources: Sequence[str]) -> str:
     keeps the answers for the ones it is not editing. A refusal about the *set*
     -- a name two fragments declare -- raises, as it does in :func:`emit_json`.
     """
-    return json.dumps([_fragment_payload(one) for one in _lower_fragments(_to_ast, sources)])
+    fragments = _lower_fragments(_to_ast, sources, standard_library())
+    return json.dumps([_fragment_payload(one) for one in fragments])
 
 
 def _fragment_payload(fragment: Fragment) -> dict[str, object] | None:
@@ -98,7 +100,7 @@ def emit_program(source: str) -> str:
     needs the compiler that emitted it, so a program carrying one executes only
     in this process.
     """
-    return json.dumps(_encode_program(_compile_program(_to_ast, source)))
+    return json.dumps(_encode_program(_compile_program(_to_ast, source, standard_library())))
 
 
 __all__ = [

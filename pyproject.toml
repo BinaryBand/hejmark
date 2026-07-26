@@ -156,18 +156,20 @@ modules = [
 [[tool.importlinter.contracts]]
 # The compiler's three phases, in order: resolve (P1) under expand and its
 # helpers (P2) under compile (P3). `late` sits above `expand` because slot
-# resolution re-enters expansion; `std` and `ports` are inputs to the driver's
-# use of the compiler and sit above the phases they lean on.
+# resolution re-enters expansion; `prelude` and `ports` are inputs to the
+# driver's use of the compiler and sit above the phases they lean on. `prelude`
+# seeds `alphabet` (the host-supplied `char`) into the namespace it assembles.
 name = "compiler pipeline"
 type = "layers"
 containers = ["hejmark.core.compiler"]
 layers = [
     "compile",
-    "std",
+    "prelude",
     "ports",
     "late",
     "expand",
     "valueline",
+    "alphabet",
     "resolve",
     "ast",
 ]

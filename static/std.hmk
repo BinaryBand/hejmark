@@ -1,0 +1,20 @@
+// The L3 standard library, written in the surface language and read as the
+// compiler's prelude (see hejmark/core/compiler/prelude.py). Nothing here is
+// special-cased -- it is parsed by the same grammar and resolved into the same
+// namespace as user source. The one seeded name it reads but does not declare
+// is `char`, the alphabet, which the host supplies (no surface escape spells a
+// code point); see hejmark/core/compiler/alphabet.py.
+//
+// Transcribed from docs/foundation/L1_5.md.
+uni hex          = {0..9,a..f}
+uni str          = {{{}},&@char}
+
+def fill         = {{{},@0}}
+def shorter w    = {_,!{@char^w_}}
+def upto w       = {_[shorter w],@char^w}
+def longer w     = {_,!{_[upto w]}}
+def where lo..hi = {@lo..hi}
+def pad w..w'    = {@fill^{w'}_,!{@str[shorter w]},!{@str[longer w']}}
+def zeros        = {{{}},&@0}
+def zfold        = {{@zeros}}
+def padfree      = {@zfold_}

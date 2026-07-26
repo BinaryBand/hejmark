@@ -9,11 +9,12 @@ from __future__ import annotations
 
 import pytest
 
+from hejmark.adapters.library import standard_library
 from hejmark.adapters.parser import AntlrParser
 from hejmark.core.compiler.ast import Expr, Statement
 from hejmark.core.compiler.expand import UNIT, Ctx, expand
+from hejmark.core.compiler.prelude import prelude_env
 from hejmark.core.compiler.resolve import collect, merge
-from hejmark.core.compiler.std import std_env
 from hejmark.core.floor import syntax
 from hejmark.core.floor.universe import denote
 from hejmark.core.ir.errors import HimarkScopeError
@@ -32,7 +33,7 @@ def _expr(source: str) -> Expr:
 
 def _expand(source: str, declarations: str = "") -> syntax.UniverseNode:
     """Expand a query written under some declarations, over the seeded std."""
-    env = merge(std_env(_to_ast), collect(_to_ast(declarations)))
+    env = merge(prelude_env(_to_ast, standard_library()), collect(_to_ast(declarations)))
     factors = expand(_expr(source), Ctx(env))
     return factors[0] if len(factors) == 1 else syntax.UniverseNode((syntax.Product(factors),))
 
