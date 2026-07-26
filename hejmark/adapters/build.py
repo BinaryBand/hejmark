@@ -16,28 +16,28 @@ from __future__ import annotations
 from typing import Any
 
 from hejmark.core.compiler.ast import (
-    DefDecl,
-    Exponent,
-    Expr,
-    Interp,
-    IterStatement,
-    Operand,
-    Param,
-    PipeItem,
-    Read,
-    Ref,
-    RefInterp,
-    ScriptNode,
-    Segments,
-    SentinelDecl,
-    Statement,
-    Subtract,
-    Template,
-    Text,
-    UniDecl,
-    Unit,
-    UniverseNode,
-    ValueCut,
+    DefDecl,  # def name params = body
+    Exponent,  # A^lo..hi count span
+    Expr,  # product of units (a query)
+    Interp,  # {{$k}} capture interpolation
+    IterStatement,  # query <=> template, iterated to a fixpoint
+    Operand,  # the `_` pipeline-stage token
+    Param,  # a def parameter: name, or lo..hi pair
+    PipeItem,  # one flat pipeline-bracket item
+    Read,  # $k back-reference
+    Ref,  # @name reference
+    RefInterp,  # {{@name}} sentinel interpolation
+    ScriptNode,  # a whole script: lines in source order
+    Segments,  # a member built from adjacent segments
+    SentinelDecl,  # sentinel name declaration
+    Statement,  # steps joined by =>
+    Subtract,  # !{...} member
+    Template,  # quoted template: text + interpolation sites
+    Text,  # literal template text
+    UniDecl,  # uni name = expr declaration
+    Unit,  # one factor: base + exponent + pipelines
+    UniverseNode,  # a surface brace group {...}
+    ValueCut,  # @lo..hi value-line cut
 )
 from hejmark.core.floor.syntax import Closure, Face, HimarkSyntaxError, Range
 
@@ -126,7 +126,7 @@ def _segment(ctx: Any) -> Unit | Closure | Face | Read:
     return _face(face) if face is not None else Closure()
 
 
-def _member(ctx: Any) -> Any:
+def _member(ctx: Any) -> Range | ValueCut | Subtract | Segments:
     """Dispatch one member context to its faithful AST node."""
     match type(ctx).__name__:
         case "RangeMemberContext":
@@ -202,7 +202,7 @@ def _declaration(ctx: Any) -> UniDecl | DefDecl | SentinelDecl:
             return DefDecl(ctx.IDENT().getText(), params, _expr(ctx.expr()))
 
 
-def _line(ctx: Any) -> Any:
+def _line(ctx: Any) -> UniDecl | DefDecl | SentinelDecl | IterStatement | Statement:
     """Dispatch a line: a declaration, a contracting statement, or a statement."""
     declaration = ctx.declaration()
     if declaration is not None:
