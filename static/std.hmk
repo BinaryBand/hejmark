@@ -14,6 +14,7 @@ def shorter w    = {_,!{@char^w_}}
 def upto w       = {_[shorter w],@char^w}
 def longer w     = {_,!{_[upto w]}}
 def where lo..hi = {@lo..hi}
+def below lo..hi = {@lo..hi,!{@hi..hi}}
 def pad w..w'    = {@fill^{w'}_,!{@str[shorter w]},!{@str[longer w']}}
 def zeros        = {{{}},&@0}
 def zfold        = {{@zeros}}

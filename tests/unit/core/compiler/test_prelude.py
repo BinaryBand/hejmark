@@ -32,6 +32,7 @@ def test_the_prelude_declares_the_derivations_l1_5_spells() -> None:
         "upto",
         "longer",
         "where",
+        "below",
         "pad",
         "zeros",
         "zfold",
@@ -47,13 +48,23 @@ def test_the_prelude_is_resolved_once_per_source() -> None:
 
 def test_the_std_parses_as_ordinary_source() -> None:
     """Nothing in the std is special-cased; it goes through the same grammar."""
-    assert len(_to_ast(standard_library()).lines) == 11
+    assert len(_to_ast(standard_library()).lines) == 12
 
 
 def test_hex_is_the_l2_radix() -> None:
     """`uni hex` ships in the std, denoting the sixteen digits in value order."""
     universe = parse("{@hex}").universe()
     assert [entry.faces[0] for entry in universe.entries()] == list("0123456789abcdef")
+
+
+def test_below_cuts_the_value_line_less_its_top_endpoint() -> None:
+    """`below lo..hi` is `where` half-open: the value cut without its top value."""
+    universe = parse("{0..9}[below 8..12]").universe()
+    assert universe.contains("8")
+    assert universe.contains("11")
+    # The top endpoint is dropped -- half-open -- and nothing above it enters.
+    assert not universe.contains("12")
+    assert not universe.contains("13")
 
 
 def test_padfree_wears_every_zero_padding() -> None:

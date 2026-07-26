@@ -60,7 +60,7 @@ uni list   = {@value,&{\,}{@value}}
 uni sorted = {{@start}{@list}{@end},&{\n}{@start}{@list}{@end}}
 
 {@line} => "{{@start}}{{$}}{{@end}}"
-{@start,\,}{@digits}{\,}{{0..9}[where 0..$2 padfree],!{{0..9}[where $2 padfree]}}{@end,\,}
+{@start,\,}{@digits}{\,}{0..9}[below 0..$2 padfree]{@end,\,}
   <=> "{{$1}}{{$4}},{{$2}}{{$5}}"
 """
 
