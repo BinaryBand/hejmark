@@ -7,6 +7,7 @@ import pytest
 from hejmark.adapters.parser import AntlrParser
 from hejmark.core.compiler.ast import (
     DefDecl,
+    Exponent,
     Expr,
     Interp,
     IterStatement,
@@ -145,8 +146,22 @@ def test_a_braced_exponent_unwraps_to_its_parameter_name() -> None:
     assert isinstance(member, Segments)
     first = member.segments[0]
     assert isinstance(first, Unit)
-    assert first.exponent == "w'"
+    assert first.exponent == Exponent("w'", None)
     assert member.segments[1] == Unit(Operand())
+
+
+def test_an_exponent_reads_as_a_closed_count_span() -> None:
+    """`A^x..y` carries both counts; a lone `A^n` is the degenerate `n..n`."""
+    span = _line("{a}^2..3")
+    assert isinstance(span, Statement)
+    first = span.steps[0]
+    assert isinstance(first, Expr)
+    assert first.units[0].exponent == Exponent("2", "3")
+    lone = _line("{a}^2")
+    assert isinstance(lone, Statement)
+    only = lone.steps[0]
+    assert isinstance(only, Expr)
+    assert only.units[0].exponent == Exponent("2", None)
 
 
 def test_a_statement_chains_its_steps() -> None:

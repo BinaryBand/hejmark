@@ -29,7 +29,6 @@ from hejmark.core.compiler.ast import (
     Expr,
     IterStatement,
     Member,
-    Open,
     PipeItem,
     Ref,
     ScriptNode,
@@ -56,14 +55,14 @@ SENTINEL_LIMIT = 32
 
 @dataclass(frozen=True)
 class Binding:
-    """One bound parameter: a spelling, a pair of them, or an open pair.
+    """One bound parameter: a spelling, or a pair of them.
 
-    ``hi`` is :data:`~hejmark.core.compiler.ast.OPEN` for ``lo..`` -- the open
-    value cut -- distinct from ``None``, the lone-numeral degenerate pair.
+    ``hi`` is ``None`` for a lone item, which binds a pair parameter as the
+    degenerate ``n..n``; there is no open pair, since ``lo..`` has no reading.
     """
 
     lo: str
-    hi: str | Open | None = None
+    hi: str | None = None
 
 
 @dataclass(frozen=True)

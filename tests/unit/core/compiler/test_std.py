@@ -32,20 +32,17 @@ def test_hex_is_the_l2_radix() -> None:
     assert [entry.faces[0] for entry in universe.entries()] == list("0123456789abcdef")
 
 
-def test_the_open_cut_is_the_uncut_value_line() -> None:
-    """`where 0..` is the open value cut: the whole value line, no cap, canonical faces."""
-    universe = parse("{0..9}[where 0..]").universe()
+def test_the_value_line_stays_denotable_without_an_open_cut() -> None:
+    """Path B drops `where 0..`; the whole value line is still spelled as the closure.
+
+    Conservativity: the open cut's set was a closure/subtraction set all along --
+    the canonical-numeral closure `{0,{1..9,&{0..9}}}` -- so removing the open
+    surface form loses no denotable universe, only a single-primitive spelling.
+    """
+    universe = parse("{0,{1..9,&{0..9}}}").universe()
     assert universe.contains("10")
+    assert universe.contains("0")
     assert not universe.contains("07")
-
-
-def test_the_open_cut_composes_with_a_following_stage() -> None:
-    """`where 0.. padfree`: the open bound stops at the space, `padfree` is its own stage."""
-    universe = parse("{0..9}[where 0.. padfree]").universe()
-    assert universe.contains("7")
-    assert universe.contains("007")
-    assert universe.contains("10")
-    assert not universe.contains("")
 
 
 def test_padfree_wears_every_zero_padding() -> None:

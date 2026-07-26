@@ -13,10 +13,9 @@ position's prefix, a cut of the digits below its digit, and free digits to the
 right. Iterated product and union -- the five constructors, reached by counting
 positions, which is the expander's arithmetic and never a denotation.
 
-The open case ``@lo..`` has no bound to walk down to, so it is the closure that
-generates the whole value line -- the zero digit, then a nonzero digit and any
-run of digits after it -- less ``lo``'s finite predecessors. It is the one term
-here that spends the closure, since the value line above ``lo`` is infinite.
+Both bounds are closure-free -- a numeral, always finite -- so the cut is a
+finite union of numeral spellings and spends no closure; there is no open cut,
+since ``@lo..`` has no reading.
 
 The head is enumerated here the way :func:`hejmark.core.compiler.expand._zero`
 enumerates it: the floor's own bounded range computes its successor at
@@ -139,20 +138,6 @@ def _less_than(value: int, alphabet: tuple[str, ...]) -> syntax.UniverseNode:
     return syntax.UniverseNode(tuple(members))
 
 
-def _value_line(alphabet: tuple[str, ...]) -> syntax.UniverseNode:
-    """The whole value line as a closure: zero, then a nonzero digit and any run.
-
-    The transcription of ``{@0, {@nonzero, &@}}`` in digit terms -- the zero
-    entry unioned with a closure whose seed is the nonzero digits and whose step
-    appends one more digit. Every digit reads at its canonical face, as the
-    bounded walk does, so the open cut and a bounded cut agree on the axis.
-    """
-    all_digits = syntax.UniverseNode(tuple(syntax.Face(face) for face in alphabet))
-    nonzero = tuple(syntax.Face(face) for face in alphabet[1:])
-    closure = syntax.UniverseNode((*nonzero, syntax.Product((syntax.Closure(), all_digits))))
-    return syntax.UniverseNode((syntax.Face(alphabet[0]), syntax.Fold(closure)))
-
-
 def _from_low(
     upper: syntax.UniverseNode, low: int, alphabet: tuple[str, ...]
 ) -> syntax.UniverseNode:
@@ -162,13 +147,13 @@ def _from_low(
     return syntax.UniverseNode((*upper.members, syntax.Subtract(_less_than(low, alphabet))))
 
 
-def cut(head: syntax.UniverseNode, lo: str, hi: str | None) -> syntax.UniverseNode:
+def cut(head: syntax.UniverseNode, lo: str, hi: str) -> syntax.UniverseNode:
     """The head's value line cut to the entries at values ``lo`` through ``hi``.
 
-    An absent ``hi`` is the open case ``@lo..``: the value line from ``lo`` on.
-    Total in the floor's manner: ``hi`` below ``lo`` reads as the empty
-    universe, and an empty head has no entries to cut. An unbounded head has no
-    finite radix, so :func:`digits` streams it without returning.
+    Both bounds are always given -- there is no open cut. Total in the floor's
+    manner: ``hi`` below ``lo`` reads as the empty universe, and an empty head
+    has no entries to cut. An unbounded head has no finite radix, so
+    :func:`digits` streams it without returning.
 
     Raises:
         ValueLineError: the head carries a bound it cannot spell.
@@ -177,8 +162,6 @@ def cut(head: syntax.UniverseNode, lo: str, hi: str | None) -> syntax.UniverseNo
     if not alphabet:
         return EMPTY
     low = value_of(lo, alphabet)
-    if hi is None:
-        return _from_low(_value_line(alphabet), low, alphabet)
     high = value_of(hi, alphabet)
     if high < low:
         return EMPTY

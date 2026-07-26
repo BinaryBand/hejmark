@@ -61,44 +61,45 @@ class Operand:
 
 
 @dataclass(frozen=True)
-class Open:
-    """The absent high bound of a value cut: ``@lo..`` / ``where lo..``.
-
-    Distinct from ``hi=None`` on a :class:`PipeItem`, which is a lone numeral
-    binding the degenerate pair ``n..n``; an open pair cuts the whole value tail
-    from ``lo`` on, the value line's open case.
-    """
-
-
-# The one open-bound marker; there is nothing to distinguish between instances.
-OPEN = Open()
-
-
-@dataclass(frozen=True)
 class PipeItem:
     """One flat item of a pipeline bracket: a stage name or an argument.
 
-    ``hi`` is a spelling only for a pair written ``lo..hi``; :data:`OPEN` for an
-    open pair ``lo..``; ``None`` for a lone item. Stage names and arguments lex
-    alike; binding splits the flat list by each definition's arity.
+    ``hi`` is a spelling for a pair written ``lo..hi``; ``None`` for a lone
+    item, which binds a pair parameter as the degenerate ``n..n``. There is no
+    open pair -- ``lo..`` has no reading. Stage names and arguments lex alike;
+    binding splits the flat list by each definition's arity.
     """
 
     lo: str
-    hi: str | Open | None = None
+    hi: str | None = None
+
+
+@dataclass(frozen=True)
+class Exponent:
+    """A closed count span ``A^lo..hi``: ``A`` unioned across the powers ``lo..hi``.
+
+    ``hi`` is ``None`` for the degenerate lone power ``A^n`` (``n..n``). Both
+    counts are the raw text of a numeral or a parameter naming one, read as a
+    decimal count by the expander. There is no open span -- unbounded repetition
+    is closure's, ``&``.
+    """
+
+    lo: str
+    hi: str | None = None
 
 
 @dataclass(frozen=True)
 class Unit:
     """One factor: a base, an optional ``^`` exponent, and zero or more pipelines.
 
-    ``exponent`` is the raw text of a numeral or a parameter name; resolving it
-    to a repetition count is the expander's job. ``pipelines`` is the unit's
-    modifier brackets in written order -- each a flat item list of one bracket's
-    stages -- so ``A[f][g]`` carries two, chained; ``A[f g]`` one, fused.
+    ``exponent`` is a closed count span; resolving its bounds to repetition
+    counts and unioning the powers is the expander's job. ``pipelines`` is the
+    unit's modifier brackets in written order -- each a flat item list of one
+    bracket's stages -- so ``A[f][g]`` carries two, chained; ``A[f g]`` one, fused.
     """
 
     base: UniverseNode | Ref | Operand
-    exponent: str | None = None
+    exponent: Exponent | None = None
     pipelines: tuple[tuple[PipeItem, ...], ...] = ()
 
 
@@ -144,17 +145,16 @@ class ValueCut:
 
     ``@0`` is the degenerate ``@0..0``, spelled as the bare register the way a
     lone numeral argument keeps ``n..n``. Both bounds are spellings in the head
-    radix -- a written numeral, or a parameter naming one -- and ``hi`` may be a
-    :class:`Read` standing as one, which is how ``where 0..$2`` reaches here, or
-    :data:`OPEN` for the open case ``@lo..``: the whole value tail from ``lo``.
+    radix -- a written numeral, or a parameter naming one -- and are always
+    written: there is no open cut, since ``@lo..`` has no reading. ``hi`` may be
+    a :class:`Read` standing as one, which is how ``where 0..$2`` reaches here.
 
     Expansion is the digit-walk, which cuts by position rather than by
-    spelling, so the cut is exact over any radix; the open case is the closure
-    that generates the value line, minus ``lo``'s finite predecessors.
+    spelling, so the cut is exact over any radix.
     """
 
     lo: str
-    hi: str | Read | Open
+    hi: str | Read
 
 
 # A member of a surface brace group. Range is the floor's own.

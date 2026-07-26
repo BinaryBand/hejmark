@@ -28,11 +28,10 @@ from typing import NoReturn
 
 from hejmark.core.compiler import valueline
 from hejmark.core.compiler.ast import (
-    OPEN,
     DefDecl,
+    Exponent,
     Expr,
     Member,
-    Open,
     Operand,
     Param,
     Read,
@@ -73,21 +72,10 @@ class Ctx:
     env: Env
     head: syntax.UniverseNode | None = None
     operand: syntax.UniverseNode | None = None
-    bindings: dict[str, str | Open] | None = None
+    bindings: dict[str, str] | None = None
 
     def spell(self, text: str) -> str:
-        """Substitute a parameter name for the spelling bound to it, if any.
-
-        An open-pair binding never stands where a plain spelling is read, so it
-        falls through to the name itself here; :meth:`spell_bound` is the read
-        that sees it, and only the value cut calls that.
-        """
-        bindings = self.bindings or {}
-        bound = bindings.get(text, text)
-        return bound if isinstance(bound, str) else text
-
-    def spell_bound(self, text: str) -> str | Open:
-        """A value bound's substitution: a spelling, or :data:`OPEN` for ``lo..``."""
+        """Substitute a parameter name for the spelling bound to it, if any."""
         bindings = self.bindings or {}
         return bindings.get(text, text)
 
@@ -130,6 +118,22 @@ def _power(node: syntax.UniverseNode, count: int) -> syntax.UniverseNode:
     return _product((node,) * count)
 
 
+def _power_span(exponent: Exponent, node: syntax.UniverseNode, ctx: Ctx) -> syntax.UniverseNode:
+    """Expand ``A^lo..hi``: union ``A`` across the powers ``lo`` through ``hi``.
+
+    A lone count (``hi`` absent) is the degenerate ``A^n``, the one power. A
+    high count below the low one spans nothing and reads as the empty universe,
+    total in the floor's manner. Each power splices its entries in, so a power
+    that binds a closure passes through folded rather than rebinding ``&``.
+    """
+    low = _count(exponent.lo, ctx)
+    high = _count(exponent.hi, ctx) if exponent.hi is not None else low
+    members: list[syntax.Member] = []
+    for count in range(low, high + 1):
+        members.extend(_members_of(_power(node, count)))
+    return syntax.UniverseNode(tuple(members))
+
+
 def _count(text: str, ctx: Ctx) -> int:
     """Read an exponent as a repetition count.
 
@@ -162,13 +166,12 @@ def _register(name: str, ctx: Ctx) -> syntax.UniverseNode:
     return UNIT if zero is None else syntax.UniverseNode((syntax.Face(zero),))
 
 
-def _value_cut(lo: str, hi: str | Read | Open, ctx: Ctx) -> tuple[syntax.Member, ...]:
+def _value_cut(lo: str, hi: str | Read, ctx: Ctx) -> tuple[syntax.Member, ...]:
     """Expand the value family ``@lo..hi``: the head's value line cut by value.
 
     Both bounds are spellings in the head radix -- a written numeral, or a
     parameter naming one -- so each rides ``spell`` the way a range endpoint
-    does. An absent ``hi`` (``OPEN``, written ``@lo..``) is the open case: the
-    value line from ``lo`` on, the closure that generates it. A read still
+    does, and both are always present: there is no open cut. A read still
     standing here crossed a declaration and is refused, as one in any other
     position is. The cut rides a one-factor product so that a sibling member
     never falls inside its subtraction.
@@ -180,28 +183,25 @@ def _value_cut(lo: str, hi: str | Read | Open, ctx: Ctx) -> tuple[syntax.Member,
     if isinstance(hi, Read):
         _refuse_read(f"${hi.index}")
     if ctx.head is None:
-        msg = f"register @{lo}..{'' if isinstance(hi, Open) else hi} outside a definition body"
+        msg = f"register @{lo}..{hi} outside a definition body"
         raise HimarkScopeError(msg)
-    bound = hi if isinstance(hi, Open) else ctx.spell_bound(hi)
-    high = None if isinstance(bound, Open) else bound
-    node = valueline.cut(ctx.head, ctx.spell(lo), high)
+    node = valueline.cut(ctx.head, ctx.spell(lo), ctx.spell(hi))
     return (syntax.Product((node,)),)
 
 
 def _bind_params(
     params: tuple[Param, ...], arguments: tuple[Binding, ...], zero: str | None
-) -> dict[str, str | Open]:
+) -> dict[str, str]:
     """Bind a definition's parameters to an application's literal arguments.
 
-    A pair parameter takes one argument, which may be written ``lo..hi``, ``lo..``
-    (the open pair, ``hi`` binds :data:`OPEN`), or -- the degenerate case -- a
-    lone numeral standing for ``n..n``. Arguments canonicalize in the head
-    radix, so ``aa`` binds as ``a``; an open bound has no numeral to canonicalize.
+    A pair parameter takes one argument, which may be written ``lo..hi`` or --
+    the degenerate case -- a lone numeral standing for ``n..n`` (there is no
+    open pair). Arguments canonicalize in the head radix, so ``aa`` binds as ``a``.
 
     Raises:
         HimarkScopeError: a pair argument is given to a single parameter.
     """
-    bindings: dict[str, str | Open] = {}
+    bindings: dict[str, str] = {}
     for param, argument in zip(params, arguments, strict=True):
         for spelling in (argument.lo, argument.hi):
             if isinstance(spelling, str) and read_index(spelling) is not None:
@@ -209,17 +209,13 @@ def _bind_params(
         lo = canonicalize(argument.lo, zero) if zero else argument.lo
         if param.hi is None:
             if argument.hi is not None:
-                shown = "" if isinstance(argument.hi, Open) else argument.hi
-                msg = f"{param.lo} is a single parameter, got the pair {argument.lo}..{shown}"
+                msg = f"{param.lo} is a single parameter, got the pair {argument.lo}..{argument.hi}"
                 raise HimarkScopeError(msg)
             bindings[param.lo] = lo
         else:
             hi = argument.hi if argument.hi is not None else argument.lo
             bindings[param.lo] = lo
-            if isinstance(hi, Open):
-                bindings[param.hi] = OPEN
-            else:
-                bindings[param.hi] = canonicalize(hi, zero) if zero else hi
+            bindings[param.hi] = canonicalize(hi, zero) if zero else hi
     return bindings
 
 
@@ -265,13 +261,13 @@ def _spell_arg(binding: Binding, ctx: Ctx) -> Binding:
 
     A stage argument may name the enclosing definition's parameter -- ``[shorter
     w]`` in ``upto``'s body reads ``upto``'s ``w`` -- so it is resolved here,
-    before ``_apply`` binds it to the stage's own parameter. A literal argument,
-    or an open bound, passes through unchanged.
+    before ``_apply`` binds it to the stage's own parameter. A literal argument
+    passes through unchanged.
     """
     lo = ctx.spell(binding.lo)
-    if binding.hi is None or isinstance(binding.hi, Open):
-        return Binding(lo, binding.hi)
-    return Binding(lo, ctx.spell_bound(binding.hi))
+    if binding.hi is None:
+        return Binding(lo, None)
+    return Binding(lo, ctx.spell(binding.hi))
 
 
 def _unit(unit: Unit, ctx: Ctx) -> syntax.UniverseNode:
@@ -284,7 +280,7 @@ def _unit(unit: Unit, ctx: Ctx) -> syntax.UniverseNode:
     """
     node = _base(unit.base, ctx)
     if unit.exponent is not None:
-        node = _power(node, _count(unit.exponent, ctx))
+        node = _power_span(unit.exponent, node, ctx)
     for bracket in unit.pipelines:
         head = node
         for stage in bind(bracket, ctx.env):

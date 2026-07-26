@@ -88,19 +88,3 @@ def test_cut_never_leans_on_shortlex() -> None:
 def test_cut_spans_a_width_boundary_over_letters() -> None:
     # `aa` canonicalizes to `a`, value 0, so the width-1 numerals enter.
     assert len(faces(cut(LETTERS, "aa", "cc"))) == 55
-
-
-def test_open_cut_is_the_whole_value_line() -> None:
-    """`hi` absent (`@0..`) is the open case: the value line with no upper bound."""
-    assert faces(cut(DECIMAL, "0", None), limit=13) == [*"0123456789", "10", "11", "12"]
-
-
-def test_open_cut_strips_the_predecessors_below_low() -> None:
-    """`@lo..` drops `lo`'s finite predecessors and keeps the infinite tail."""
-    assert faces(cut(DECIMAL, "3", None), limit=4) == ["3", "4", "5", "6"]
-    assert "2" not in faces(cut(DECIMAL, "3", None), limit=50)
-
-
-def test_open_cut_is_exact_over_a_non_character_radix() -> None:
-    """The open case cuts by position too, so value order holds past the width boundary."""
-    assert faces(cut(WIDE, "a", None), limit=4) == ["a", "bb", "bba", "bbbb"]

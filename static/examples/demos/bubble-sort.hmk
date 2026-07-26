@@ -9,7 +9,7 @@ uni c      = {@char,!{\n}}
 uni line   = {@c,&@c}
 uni d      = {0..9}
 uni digits = {@d,&@d}
-uni value  = {0..9}[where 0.. padfree]
+uni value  = {0,{1..9,&{0..9}}}[padfree]
 uni list   = {@value,&{\,}{@value}}
 uni sorted = {{@start}{@list}{@end},&{\n}{@start}{@list}{@end}}
 

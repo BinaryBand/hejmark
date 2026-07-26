@@ -16,12 +16,11 @@ from __future__ import annotations
 from typing import Any
 
 from hejmark.core.compiler.ast import (
-    OPEN,
     DefDecl,
+    Exponent,
     Expr,
     Interp,
     IterStatement,
-    Open,
     Operand,
     Param,
     PipeItem,
@@ -64,8 +63,8 @@ def _face(ctx: Any) -> Face:
     return Face("".join(_unescape(child.getText()) for child in ctx.children or ()))
 
 
-def _exponent(ctx: Any) -> str:
-    """Read an exponent as raw text: a numeral, a parameter name, or a braced one."""
+def _exponent_atom(ctx: Any) -> str:
+    """Read one count atom as raw text: a numeral, a parameter name, or a braced one."""
     universe = ctx.universe()
     if universe is not None:
         inner = _universe(universe)
@@ -80,17 +79,19 @@ def _exponent(ctx: Any) -> str:
     return _face(face).text if face is not None else ctx.getText()
 
 
+def _exponent(ctx: Any) -> Exponent:
+    """Read an exponent as a closed count span; a lone atom is the degenerate ``n..n``."""
+    atoms = ctx.exponentAtom()
+    hi = _exponent_atom(atoms[1]) if len(atoms) > 1 else None
+    return Exponent(_exponent_atom(atoms[0]), hi)
+
+
 def _pipeline(ctx: Any) -> tuple[PipeItem, ...]:
     """Read one pipeline bracket as its flat item list; binding splits it later."""
     items = []
     for item in ctx.pipeItem():
         args = item.pipeArg()
-        if len(args) > 1:
-            hi: str | Open | None = _unescape(args[1].getText())
-        elif item.RANGE() is not None:
-            hi = OPEN  # a trailing `..` with no second argument: the open pair
-        else:
-            hi = None
+        hi = _unescape(args[1].getText()) if len(args) > 1 else None
         items.append(PipeItem(_unescape(args[0].getText()), hi))
     return tuple(items)
 
@@ -133,15 +134,12 @@ def _member(ctx: Any) -> Any:
             return Range(_face(faces[0]).text, _face(faces[1]).text)
         case "ValueMemberContext":
             bound = ctx.valueBound()
-            if bound is None:
-                hi: str | Read | Open = OPEN  # `@lo..`: the open value cut
-            else:
-                capture = bound.CAPTURE()
-                hi = (
-                    Read(int(capture.getText()[1:]))
-                    if capture is not None
-                    else _face(bound.face()).text
-                )
+            capture = bound.CAPTURE()
+            hi: str | Read = (
+                Read(int(capture.getText()[1:]))
+                if capture is not None
+                else _face(bound.face()).text
+            )
             return ValueCut(ctx.REF().getText()[1:], hi)
         case "SubtractMemberContext":
             return Subtract(_universe(ctx.universe()))

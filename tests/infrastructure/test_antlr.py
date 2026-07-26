@@ -102,6 +102,9 @@ MALFORMED = (
     "{a} =>",  # dangling arrow -- a step must follow
     '{a}{b} => "{{$01}}"',  # a factor read carries no leading zero
     "{$0}",  # the canonical read stands in no pattern
+    "{@0..}",  # Path B: no open value cut -- both bounds are written
+    "{a}^2..",  # Path B: no open exponent -- unbounded repetition is closure's
+    "{a}[where 0..]",  # Path B: no open pipe pair -- a lone arg or a written pair
 )
 
 

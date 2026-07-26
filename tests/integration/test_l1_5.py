@@ -55,7 +55,7 @@ uni c      = {@char,!{\n}}
 uni line   = {@c,&@c}
 uni d      = {0..9}
 uni digits = {@d,&@d}
-uni value  = {0..9}[where 0.. padfree]
+uni value  = {0,{1..9,&{0..9}}}[padfree]
 uni list   = {@value,&{\,}{@value}}
 uni sorted = {{@start}{@list}{@end},&{\n}{@start}{@list}{@end}}
 
@@ -70,6 +70,21 @@ def test_pipeline_rows(source: str, expected: list[tuple[str, ...]]) -> None:
     """Each pipeline row denotes the entries L1_5.md says it does."""
     universe = parse(source).universe()
     assert [entry.faces for entry in islice(universe.entries(), len(expected))] == expected
+
+
+def test_the_exponent_is_a_closed_count_span() -> None:
+    """`A^x..y` unions A across the powers; a lone `A^n` is one power, `y<x` is empty."""
+
+    def faces(source: str) -> list[str]:
+        universe = parse(source).universe()
+        return [entry.faces[0] for entry in universe.entries()]
+
+    # `{a,b}^1..2`: the singles, then the length-two products, unioned.
+    assert faces("{a,b}^1..2") == ["a", "b", "aa", "ab", "ba", "bb"]
+    # The degenerate lone power is just that one power.
+    assert faces("{a,b}^2") == ["aa", "ab", "ba", "bb"]
+    # A high count below the low one spans nothing -- total, the empty universe.
+    assert faces("{a,b}^3..1") == []
 
 
 def test_chaining_re_points_the_head_by_substitution() -> None:
