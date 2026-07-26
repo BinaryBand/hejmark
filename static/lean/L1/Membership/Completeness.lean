@@ -29,36 +29,9 @@ namespace L1
 /- it starts with survives the walk.                                 -/
 /- ---------------------------------------------------------------- -/
 
-theorem subfree_acc : ∀ (n : Node) (amp : Spelling → Prop) (P : Prop) (s : Spelling),
-    subfreeb n = true → P → walk n amp P s
-  | .nil, _, _, _, _, hp => by rw [walk_nil]; exact hp
-  | .cons m rest, amp, P, s, hsf, hp => by
-      cases m with
-      | sub op => simp [subfreeb] at hsf
-      | face t =>
-          rw [walk_cons]
-          exact subfree_acc rest amp _ s (by simpa [subfreeb] using hsf)
-            (by rw [walk_single_face]; exact Or.inl hp)
-      | range lo hi =>
-          rw [walk_cons]
-          exact subfree_acc rest amp _ s (by simpa [subfreeb] using hsf)
-            (by rw [walk_single_range]; exact Or.inl hp)
-      | final lo =>
-          rw [walk_cons]
-          exact subfree_acc rest amp _ s (by simpa [subfreeb] using hsf)
-            (by rw [walk_single_final]; exact Or.inl hp)
-      | amp =>
-          rw [walk_cons]
-          exact subfree_acc rest amp _ s (by simpa [subfreeb] using hsf)
-            (by rw [walk_single_amp]; exact Or.inl hp)
-      | fold inner =>
-          rw [walk_cons]
-          exact subfree_acc rest amp _ s (by simpa [subfreeb] using hsf)
-            (by rw [walk_single_fold]; exact Or.inl hp)
-      | prod fs =>
-          rw [walk_cons]
-          exact subfree_acc rest amp _ s (by simpa [subfreeb] using hsf)
-            (by rw [walk_single_prod]; exact Or.inl hp)
+theorem subfree_acc (n : Node) (amp : Spelling → Prop) (P : Prop) (s : Spelling)
+    (hsf : subfreeb n = true) (hp : P) : walk n amp P s :=
+  (walk_adds n amp P s hsf).mpr (Or.inl hp)
 
 /- ---------------------------------------------------------------- -/
 /- Manifest nonemptiness: a face or final head with no subtraction   -/

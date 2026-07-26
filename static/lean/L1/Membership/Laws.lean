@@ -236,6 +236,22 @@ theorem fold_flatten (inner : Node) (amp : Spelling → Prop) (s : Spelling)
   · intro h
     left; rw [walk_single_fold]; right; exact h
 
+/-- A fold of a non-binder body wears exactly the faces its body walks, provided the body is
+manifestly nonempty (so the fold-to-unit empty-face branch is dead). Factors the three parallel
+`spells (.fold _)` characterizations in `fold_flatten_nested`. -/
+theorem fold_faces_of_walk {n : Node} (hb : bindsb n = false) {φ : Spelling → Prop}
+    (hw : ∀ (amp : Spelling → Prop) (u : Spelling), walk n amp False u ↔ φ u)
+    (hne : ∃ w, φ w) (amp : Spelling → Prop) (u : Spelling) :
+    spells (.fold n) amp u ↔ φ u := by
+  obtain ⟨w, hwit⟩ := hne
+  rw [fold_membership n amp u hb]
+  constructor
+  · rintro (h | ⟨rfl, hall⟩)
+    · exact (hw amp u).mp h
+    · exact absurd ((hw amp w).mpr hwit) (hall w)
+  · intro h
+    exact Or.inl ((hw amp u).mpr h)
+
 /-- Depth flattening on the doc's exact shape: `{a,{b,{c,C}}}` = `{a,{b,c,C}}`.
 Both sides wear exactly the four faces: the inner folds are nonempty, so the
 fold-to-unit branch never fires, and a nested fold splices its universe's
@@ -253,15 +269,9 @@ theorem fold_flatten_nested (t1 t2 t3 t4 s : Spelling) :
     tauto
   have hs2 : ∀ (amp : Spelling → Prop) (u : Spelling),
       spells (.fold (.cons (.face t3) (nsingle (.face t4)))) amp u
-        ↔ (u = t3 ∨ u = t4) := by
-    intro amp u
-    rw [fold_membership _ _ _ (by simp [bindsb, freeAmpb, nsingle])]
-    constructor
-    · rintro (h | ⟨rfl, hall⟩)
-      · exact (hw2 amp u).mp h
-      · exact absurd ((hw2 amp t3).mpr (Or.inl rfl)) (hall t3)
-    · intro h
-      exact Or.inl ((hw2 amp u).mpr h)
+        ↔ (u = t3 ∨ u = t4) :=
+    fun amp u =>
+      fold_faces_of_walk (by simp [bindsb, freeAmpb, nsingle]) hw2 ⟨t3, Or.inl rfl⟩ amp u
   have hw3L : ∀ (amp : Spelling → Prop) (u : Spelling),
       walk (.cons (.face t2) (nsingle (.fold
         (.cons (.face t3) (nsingle (.face t4)))))) amp False u
@@ -278,26 +288,14 @@ theorem fold_flatten_nested (t1 t2 t3 t4 s : Spelling) :
   have hsL : ∀ (amp : Spelling → Prop) (u : Spelling),
       spells (.fold (.cons (.face t2) (nsingle (.fold
         (.cons (.face t3) (nsingle (.face t4))))))) amp u
-        ↔ (u = t2 ∨ u = t3 ∨ u = t4) := by
-    intro amp u
-    rw [fold_membership _ _ _ (by simp [bindsb, freeAmpb, nsingle])]
-    constructor
-    · rintro (h | ⟨rfl, hall⟩)
-      · exact (hw3L amp u).mp h
-      · exact absurd ((hw3L amp t2).mpr (Or.inl rfl)) (hall t2)
-    · intro h
-      exact Or.inl ((hw3L amp u).mpr h)
+        ↔ (u = t2 ∨ u = t3 ∨ u = t4) :=
+    fun amp u =>
+      fold_faces_of_walk (by simp [bindsb, freeAmpb, nsingle]) hw3L ⟨t2, Or.inl rfl⟩ amp u
   have hsR : ∀ (amp : Spelling → Prop) (u : Spelling),
       spells (.fold (.cons (.face t2) (.cons (.face t3) (nsingle (.face t4))))) amp u
-        ↔ (u = t2 ∨ u = t3 ∨ u = t4) := by
-    intro amp u
-    rw [fold_membership _ _ _ (by simp [bindsb, freeAmpb, nsingle])]
-    constructor
-    · rintro (h | ⟨rfl, hall⟩)
-      · exact (hw3R amp u).mp h
-      · exact absurd ((hw3R amp t2).mpr (Or.inl rfl)) (hall t2)
-    · intro h
-      exact Or.inl ((hw3R amp u).mpr h)
+        ↔ (u = t2 ∨ u = t3 ∨ u = t4) :=
+    fun amp u =>
+      fold_faces_of_walk (by simp [bindsb, freeAmpb, nsingle]) hw3R ⟨t2, Or.inl rfl⟩ amp u
   rw [denotes, denotes,
     ndenote_nonbinder _ _ _ (by simp [bindsb, freeAmpb, nsingle]),
     ndenote_nonbinder _ _ _ (by simp [bindsb, freeAmpb, nsingle])]

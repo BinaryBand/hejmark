@@ -135,20 +135,11 @@ instance : IsWellOrder (Subtype (IsNumeral m)) (numeralLt m) :=
 `(Nat, <)`: every value wears exactly one canonical numeral, in value order. Needs a genuine
 radix (`0 < m`) -- at radix 1 the zero digit is the only canonical numeral. -/
 noncomputable def numeralValueIso (hm : 0 < m) :
-    numeralLt m ≃r ((· < ·) : Nat → Nat → Prop) where
-  toEquiv := Equiv.ofBijective (fun l => lexIndex m l.val)
-    ⟨by
-      intro a b heq
-      rcases trichotomous_of (fshortlex m) a.val b.val with h | h | h
-      · exact absurd heq (Nat.ne_of_lt (numeral_lexIndex_strictMono m a.2 b.2 h))
-      · exact Subtype.ext h
-      · exact absurd heq.symm (Nat.ne_of_lt (numeral_lexIndex_strictMono m b.2 a.2 h)),
-      fun n => ⟨⟨numeralOfNat m n, numeralOfNat_isNumeral m hm n⟩,
-        numeralOfNat_lexIndex m hm n⟩⟩
-  map_rel_iff' := by
-    intro a b
-    simp only [Equiv.ofBijective_apply]
-    exact (numeral_fshortlex_iff_lexIndex_lt m a.2 b.2).symm
+    numeralLt m ≃r ((· < ·) : Nat → Nat → Prop) :=
+  RelIso.ofSurjective
+    (RelEmbedding.ofMonotone (fun l => lexIndex m l.val)
+      (fun a b h => numeral_lexIndex_strictMono m a.2 b.2 h))
+    (fun n => ⟨⟨numeralOfNat m n, numeralOfNat_isNumeral m hm n⟩, numeralOfNat_lexIndex m hm n⟩)
 
 /-- The canonical numerals in shortlex have order type exactly `omega0`: the sub-range-radix
 companion to phase A's `finShortlex_type_omega0`. -/

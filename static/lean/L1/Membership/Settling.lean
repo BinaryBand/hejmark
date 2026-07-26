@@ -110,10 +110,11 @@ end
 
 /- ---------------------------------------------------------------- -/
 /- Layer 2: locality. Semantic guardedness first: an `&`-free factor  -/
-/- wearing no empty face. This mirrors `guardedFactorb`, but the      -/
-/- empty-face test is the Prop denotation `¬ walk n _ False []`       -/
-/- rather than the evaluator's `containsb n []`; connecting the two   -/
-/- is the completeness bridge deferred to the next stage. -/
+/- wearing no empty face. This is the semantic form of the naive      -/
+/- `&`-free-guard check (Python's `_settled`), but the empty-face     -/
+/- test is the Prop denotation `¬ walk n _ False []` rather than the  -/
+/- evaluator's `containsb n []`; connecting the two is the            -/
+/- completeness bridge deferred to the next stage. -/
 /- ---------------------------------------------------------------- -/
 
 /-- An `&`-free factor (a non-binder) wearing no empty face. By
@@ -121,8 +122,8 @@ amp-irrelevance the empty-face test does not depend on the amp. -/
 def semGuardFactor (n : Node) : Prop :=
   bindsb n = false ∧ ¬ walk n (fun _ => False) False []
 
-/-- A factor list with at least one semantic guard, mirroring the shape of
-`guardedFactorb`. -/
+/-- A factor list with at least one semantic guard -- the semantic form of the
+naive `&`-free-guard check. -/
 def SemGuarded : Factors → Prop
   | .nil => False
   | .amp rest => SemGuarded rest
@@ -130,8 +131,8 @@ def SemGuarded : Factors → Prop
 
 mutual
 /-- Semantic settledness: bare `&` is unsettled, an amp-bearing product must be
-guarded, a subtraction operand must itself be settled. Mirrors
-`settledMemberb`/`settledb`. -/
+guarded, a subtraction operand must itself be settled. The semantic form of
+Python's `_settled` guardedness check. -/
 def SemSettledMember : Member → Prop
   | .amp => False
   | .prod fs => hasAmpb fs = true → SemGuarded fs
@@ -376,24 +377,26 @@ theorem settled_binder_bound (n : Node) (hs : SemSettled n) (s : Spelling)
 /- ---------------------------------------------------------------- -/
 /- The boolean bridge: `settledExactb` implies `SemSettled`.          -/
 /-                                                                    -/
-/- The evaluator's own `settledb` (Evaluator.lean) does NOT imply     -/
-/- `SemSettled`: its guard test `!(containsb n [])` rides the sound    -/
-/- fold-unit surrogate (`addsb = false`), so `containsb` misses a      -/
-/- fold's empty face where the Prop spec wears it -- e.g. the guard    -/
-/- `{{a,!{a}}}` reads as nonempty to `containsb` yet is denotationally -/
-/- the unit, so `guardedFactorb` accepts an unguarded body.            -/
-/-                                                                     -/
-/- The honest bridge strengthens the guard witness to the exact       -/
-/- fragment (`exactNodeb`), where the evaluator is two-sided           -/
-/- (`exact_node`), so `containsb n [] = false` genuinely certifies no  -/
-/- empty face. This is the checker `guarded_settles` actually applies  -/
-/- to; connecting it to the evaluator's `settledb` proper would need   -/
-/- the fold-unit surrogate closed, which the doc keeps open.           -/
+/- The naive settledness check (Python's `_settled`: every free `&`   -/
+/- guarded by an `&`-free factor with no empty face, tested by         -/
+/- `!(containsb n [])`) does NOT imply `SemSettled`: that test rides    -/
+/- the sound fold-unit surrogate (`addsb = false`), so `containsb`      -/
+/- misses a fold's empty face where the Prop spec wears it -- e.g. the  -/
+/- guard `{{a,!{a}}}` reads as nonempty to `containsb` yet is           -/
+/- denotationally the unit, so the naive check accepts an unguarded     -/
+/- body.                                                                -/
+/-                                                                      -/
+/- The honest bridge strengthens the guard witness to the exact        -/
+/- fragment (`exactNodeb`), where the evaluator is two-sided            -/
+/- (`exact_node`), so `containsb n [] = false` genuinely certifies no   -/
+/- empty face. This is the checker `guarded_settles` actually applies   -/
+/- to; connecting it to the naive `!(bindsb n)` guard would need the    -/
+/- fold-unit surrogate closed, which the doc keeps open.                -/
 /- ---------------------------------------------------------------- -/
 
 /-- A guarded factor list, with each guard witness pinned to the exact fragment
-so its empty-face test is decidable. Mirrors `guardedFactorb` but replaces
-`!(bindsb n)` with the stronger `exactNodeb n`. -/
+so its empty-face test is decidable. Strengthens the naive `&`-free-guard check
+by replacing its `!(bindsb n)` witness condition with the stronger `exactNodeb n`. -/
 def guardedExactFactorb : Factors → Bool
   | .nil => false
   | .amp rest => guardedExactFactorb rest
@@ -401,8 +404,8 @@ def guardedExactFactorb : Factors → Bool
       (exactNodeb n && !(bindsb n) && !(containsb n [])) || guardedExactFactorb rest
 
 mutual
-/-- Settledness with exact guards. Mirrors `settledMemberb`, guard test
-strengthened to `guardedExactFactorb`. -/
+/-- Settledness with exact guards: the naive settledness check with its guard
+test strengthened to `guardedExactFactorb`. -/
 def settledExactMemberb : Member → Bool
   | .amp => false
   | .prod fs => if hasAmpb fs then guardedExactFactorb fs else true

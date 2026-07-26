@@ -125,7 +125,7 @@ theorem lexIndex_lt_of_lex {l1 l2 : FSpelling m} (h : List.Lex (α := FCode m) (
       omega
 
 /-- `value` is strictly monotone with respect to `fshortlex`. -/
-theorem value_strictMono' {l1 l2 : FSpelling m} (h : fshortlex m l1 l2) :
+theorem value_strictMono {l1 l2 : FSpelling m} (h : fshortlex m l1 l2) :
     value m l1 < value m l2 := by
   rcases List.shortlex_def.mp h with hlt | ⟨heq, hlex⟩
   · exact value_lt_of_length_lt m hlt
@@ -137,9 +137,9 @@ theorem value_strictMono' {l1 l2 : FSpelling m} (h : fshortlex m l1 l2) :
 theorem value_injective : Function.Injective (value m) := by
   intro l1 l2 heq
   rcases trichotomous_of (fshortlex m) l1 l2 with h | h | h
-  · exact absurd heq (Nat.ne_of_lt (value_strictMono' m h))
+  · exact absurd heq (Nat.ne_of_lt (value_strictMono m h))
   · exact h
-  · exact absurd heq.symm (Nat.ne_of_lt (value_strictMono' m h))
+  · exact absurd heq.symm (Nat.ne_of_lt (value_strictMono m h))
 
 /- ---------------------------------------------------------------- -/
 /- Surjectivity: every natural is the value of some spelling.        -/
@@ -206,20 +206,13 @@ theorem value_surjective : Function.Surjective (value m) := by
 /- The headline theorem: shortlex over a finite alphabet has type omega. -/
 /- ---------------------------------------------------------------- -/
 
-/-- `value` witnesses an order isomorphism between `fshortlex` and `(Nat, <)`. -/
-noncomputable def valueRelIso : (fshortlex m) ≃r ((· < ·) : Nat → Nat → Prop) where
-  toEquiv := Equiv.ofBijective (value m) ⟨value_injective m, value_surjective m⟩
-  map_rel_iff' := by
-    intro l1 l2
-    simp only [Equiv.ofBijective_apply]
-    constructor
-    · intro hv
-      rcases trichotomous_of (fshortlex m) l1 l2 with h | h | h
-      · exact h
-      · rw [h] at hv; exact absurd hv (lt_irrefl _)
-      · have hcontra := value_strictMono' m h
-        omega
-    · exact value_strictMono' m
+/-- `value` witnesses an order isomorphism between `fshortlex` and `(Nat, <)`: strict monotonicity
+(`value_strictMono`) gives the order embedding via `RelEmbedding.ofMonotone` (injectivity and
+`map_rel_iff` come for free), and `value_surjective` promotes it to an isomorphism. -/
+noncomputable def valueRelIso : (fshortlex m) ≃r ((· < ·) : Nat → Nat → Prop) :=
+  RelIso.ofSurjective
+    (RelEmbedding.ofMonotone (value m) (fun _ _ h => value_strictMono m h))
+    (value_surjective m)
 
 /-- Value order *is* shortlex order: the content of `valueRelIso.map_rel_iff`, stated directly so
 downstream order-axis files (e.g. `Collapse.lean`) read shortlex through `value` without unpacking
@@ -227,12 +220,12 @@ the isomorphism. -/
 theorem fshortlex_iff_value_lt {l1 l2 : FSpelling m} :
     fshortlex m l1 l2 ↔ value m l1 < value m l2 := by
   constructor
-  · exact value_strictMono' m
+  · exact value_strictMono m
   · intro hv
     rcases trichotomous_of (fshortlex m) l1 l2 with h | h | h
     · exact h
     · subst h; omega
-    · have := value_strictMono' m h; omega
+    · have := value_strictMono m h; omega
 
 theorem finShortlex_type_omega0 : Ordinal.type (fshortlex m) = Ordinal.omega0 := by
   rw [Ordinal.type_eq.mpr ⟨valueRelIso m⟩]

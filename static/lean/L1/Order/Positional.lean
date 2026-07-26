@@ -141,14 +141,6 @@ instance (bs : List Nat) : Std.Trichotomous (tupleLt bs) :=
 def toFinVal (bs : List Nat) (x : Tuple bs) : Fin bs.prod :=
   ⟨mixedRadix bs x.val, mixedRadix_lt x.property⟩
 
-theorem toFinVal_injective (bs : List Nat) : Function.Injective (toFinVal bs) := by
-  intro x y h
-  have hval : mixedRadix bs x.val = mixedRadix bs y.val := congrArg Fin.val h
-  rcases trichotomous_of (tupleLt bs) x y with hlt | heq | hgt
-  · exact absurd hval (Nat.ne_of_lt (mixedRadix_strictMono hlt x.property y.property))
-  · exact heq
-  · exact absurd hval.symm (Nat.ne_of_lt (mixedRadix_strictMono hgt y.property x.property))
-
 theorem toFinVal_surjective (bs : List Nat) : Function.Surjective (toFinVal bs) := by
   intro y
   refine ⟨⟨ofMixed bs y.val, ofMixed_forall₂ y.isLt⟩, ?_⟩
@@ -157,21 +149,15 @@ theorem toFinVal_surjective (bs : List Nat) : Function.Surjective (toFinVal bs) 
   exact ofMixed_mixedRadix y.isLt
 
 /-- `mixedRadix` witnesses an order isomorphism between the positionally ordered tuples and
-`(Fin bs.prod, <)`. -/
+`(Fin bs.prod, <)`: strict monotonicity (`mixedRadix_strictMono`) gives the order embedding via
+`RelEmbedding.ofMonotone` (injectivity and `map_rel_iff` come for free), and `toFinVal_surjective`
+promotes it to an isomorphism. -/
 noncomputable def posValueIso (bs : List Nat) :
-    (tupleLt bs) ≃r ((· < ·) : Fin bs.prod → Fin bs.prod → Prop) where
-  toEquiv := Equiv.ofBijective (toFinVal bs) ⟨toFinVal_injective bs, toFinVal_surjective bs⟩
-  map_rel_iff' := by
-    intro x y
-    simp only [Equiv.ofBijective_apply, toFinVal, Fin.lt_def]
-    constructor
-    · intro hv
-      rcases trichotomous_of (tupleLt bs) x y with h | h | h
-      · exact h
-      · rw [h] at hv; exact absurd hv (lt_irrefl _)
-      · have hcontra := mixedRadix_strictMono h y.property x.property
-        omega
-    · intro h; exact mixedRadix_strictMono h x.property y.property
+    (tupleLt bs) ≃r ((· < ·) : Fin bs.prod → Fin bs.prod → Prop) :=
+  RelIso.ofSurjective
+    (RelEmbedding.ofMonotone (toFinVal bs)
+      (fun x y h => mixedRadix_strictMono h x.property y.property))
+    (toFinVal_surjective bs)
 
 instance (bs : List Nat) : IsWellOrder (Tuple bs) (tupleLt bs) :=
   (posValueIso bs).toRelEmbedding.isWellOrder
