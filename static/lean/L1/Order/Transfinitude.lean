@@ -56,9 +56,8 @@ inductive FloorType : Ordinal → Prop
   | add {a b : Ordinal} : FloorType a → FloorType b → FloorType (a + b)
   | mul {a b : Ordinal} : FloorType a → FloorType b → FloorType (a * b)
 
-theorem omega0_lt_omega0_opow_omega0 : ω < ω ^ ω := by
-  conv_lhs => rw [← opow_one ω]
-  exact (opow_lt_opow_iff_right one_lt_omega0).2 one_lt_omega0
+theorem omega0_lt_omega0_opow_omega0 : ω < ω ^ ω :=
+  left_lt_opow one_lt_omega0 one_lt_omega0
 
 theorem isPrincipal_mul_omega0_opow_omega0 : IsPrincipal (· * ·) (ω ^ ω) := by
   have h := isPrincipal_mul_omega0_opow_opow 1
@@ -79,9 +78,7 @@ theorem floorType_lt_omega0_opow_omega0 {a : Ordinal} (h : FloorType a) : a < ω
 /-- `{b,c}{a..}`: a finite most-significant digit over an `ω` block -- order type `ω * 2`. -/
 theorem two_blocks_type :
     Ordinal.type (Prod.Lex ((· < ·) : Fin 2 → Fin 2 → Prop) ((· < ·) : ℕ → ℕ → Prop)) = ω * 2 := by
-  rw [type_prod_lex]
-  rw [show Ordinal.type ((· < ·) : ℕ → ℕ → Prop) = ω from type_nat_lt]
-  rw [show Ordinal.type ((· < ·) : Fin 2 → Fin 2 → Prop) = 2 from type_fin 2]
+  simp [type_prod_lex, type_nat_lt]
 
 /-- `{b}{a..}{b}{a..}` with the seams kept apart: `ω`-many `ω` blocks -- order type `ω ^ 2`.
 (Whether collision preserves this type is phase G, `Collapse.lean`.) -/
@@ -103,8 +100,7 @@ theorem left_digit_collapses {n : ℕ} (hn : 0 < n) : (n : Ordinal) * ω = ω :=
 load-bearing, unlike the finite case where it is invisible (`Positional.lean`). -/
 theorem mul_order_load_bearing : (2 : Ordinal) * ω = ω ∧ ω < ω * 2 := by
   constructor
-  · have h2 : ((2 : ℕ) : Ordinal) * ω = ω := mul_omega0 (by norm_num) (natCast_lt_omega0 2)
-    simpa using h2
+  · simpa using left_digit_collapses (n := 2) two_pos
   · conv_lhs => rw [← mul_one ω]
     exact mul_lt_mul_of_pos_left one_lt_two omega0_pos
 

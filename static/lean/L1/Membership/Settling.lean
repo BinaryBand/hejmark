@@ -74,14 +74,7 @@ theorem spells_amp_irrel : ∀ (m : Member), freeAmpb m = false →
       | false =>
           simp only [Bool.false_eq_true, if_false]
           have hw := fun t => walk_amp_irrel inner hbi amp amp' False t
-          rw [hw s]
-          constructor
-          · rintro (h | ⟨he, hall⟩)
-            · exact Or.inl h
-            · exact Or.inr ⟨he, fun t ht => hall t ((hw t).mpr ht)⟩
-          · rintro (h | ⟨he, hall⟩)
-            · exact Or.inl h
-            · exact Or.inr ⟨he, fun t ht => hall t ((hw t).mp ht)⟩
+          simp only [hw]
   | .prod fs, hb, amp, amp', s => by
       simp only [freeAmpb] at hb
       rw [spells_prod, spells_prod, fsplit_amp_irrel fs hb amp amp' s]
@@ -101,11 +94,7 @@ theorem fsplit_amp_irrel : ∀ (fs : Factors), hasAmpb fs = false →
             rw [ndenote_nonbinder n amp p hbn, ndenote_nonbinder n amp' p hbn,
               walk_amp_irrel n hbn amp amp' False p]
       have hr := fun q => fsplit_amp_irrel rest hb amp amp' q
-      constructor
-      · rintro ⟨p, q, rfl, hp, hq⟩
-        exact ⟨p, q, rfl, (hn p).mp hp, (hr q).mp hq⟩
-      · rintro ⟨p, q, rfl, hp, hq⟩
-        exact ⟨p, q, rfl, (hn p).mpr hp, (hr q).mpr hq⟩
+      simp only [hn, hr]
 end
 
 /- ---------------------------------------------------------------- -/
@@ -432,8 +421,7 @@ theorem semGuarded_of_guardedExactFactorb :
         have hb : bindsb n = false := by simpa using hnb
         refine ⟨hb, ?_⟩
         have hcw : walkb n (fun _ => false) false [] = false := by
-          have := hc; simp only [containsb, hb, Bool.false_eq_true, if_false] at this
-          simpa using this
+          simpa [containsb, hb] using hc
         have hiff := exact_node n hx (fun _ => false) (fun _ => False) false False []
           (by simp)
         intro hw

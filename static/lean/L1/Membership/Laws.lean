@@ -121,30 +121,38 @@ theorem ndenote_face (t : Spelling) (amp : Spelling → Prop) (p : Spelling) :
   rw [ndenote_nonbinder _ _ _ (by rfl), walk_single_face]
   simp
 
-theorem adjacency (t1 t2 : Spelling) (amp : Spelling → Prop) (s : Spelling) :
-    spells (.prod (.node (nsingle (.face t1)) (.node (nsingle (.face t2)) .nil))) amp s
-      ↔ spells (.face (t1 ++ t2)) amp s := by
-  rw [spells_prod, fsplit_fnode, spells]
+/-- The two-factor product inversion: a pair of brace factors holds a spelling
+exactly when some cut hands each factor its own denotation. Factors the split
+plumbing shared by `adjacency` and the product-unit laws. -/
+theorem fsplit_pair (A B : Node) (amp : Spelling → Prop) (s : Spelling) :
+    fsplit (.node A (.node B .nil)) amp s
+      ↔ ∃ p q, s = p ++ q ∧ ndenote A amp p ∧ ndenote B amp q := by
+  rw [fsplit_fnode]
   constructor
   · rintro ⟨p, q, rfl, hp, hq⟩
     rw [fsplit_fnode] at hq
     obtain ⟨p', q', rfl, hp', hq'⟩ := hq
-    rw [fsplit_fnil] at hq'
-    rw [ndenote_face] at hp hp'
-    subst hp; subst hp'; subst hq'
-    simp
+    rw [fsplit_fnil] at hq'; subst hq'
+    exact ⟨p, p', by simp, hp, hp'⟩
+  · rintro ⟨p, q, rfl, hp, hq⟩
+    refine ⟨p, q, rfl, hp, ?_⟩
+    rw [fsplit_fnode]
+    exact ⟨q, [], by simp, hq, by rw [fsplit_fnil]⟩
+
+theorem adjacency (t1 t2 : Spelling) (amp : Spelling → Prop) (s : Spelling) :
+    spells (.prod (.node (nsingle (.face t1)) (.node (nsingle (.face t2)) .nil))) amp s
+      ↔ spells (.face (t1 ++ t2)) amp s := by
+  rw [spells_prod, fsplit_pair, spells]
+  constructor
+  · rintro ⟨p, q, rfl, hp, hq⟩
+    rw [ndenote_face] at hp hq
+    subst hp; subst hq; rfl
   · rintro rfl
-    refine ⟨t1, t2 ++ [], by simp, ?_, ?_⟩
-    · rw [ndenote_face]
-    · rw [fsplit_fnode]
-      exact ⟨t2, [], by simp, by rw [ndenote_face], by rw [fsplit_fnil]⟩
+    exact ⟨t1, t2, rfl, (ndenote_face _ _ _).mpr rfl, (ndenote_face _ _ _).mpr rfl⟩
 
 /- ---------------------------------------------------------------- -/
 /- 7. The empty universe and the unit.                                -/
 /- ---------------------------------------------------------------- -/
-
-theorem empty_denotes (s : Spelling) : ¬ denotes .nil s := by
-  simp [denotes, ndenote, bindsb, walk]
 
 theorem unit_spells (amp : Spelling → Prop) (s : Spelling) :
     spells (.fold .nil) amp s ↔ s = [] := by
@@ -161,36 +169,26 @@ theorem unit_ndenote (amp : Spelling → Prop) (p : Spelling) :
 theorem product_unit_l (A : Node) (amp : Spelling → Prop) (s : Spelling)
     (hb : bindsb A = false) :
     spells (.prod (.node unitNode (.node A .nil))) amp s ↔ walk A amp False s := by
-  rw [spells_prod, fsplit_fnode]
+  rw [spells_prod, fsplit_pair]
   constructor
   · rintro ⟨p, q, rfl, hp, hq⟩
     rw [unit_ndenote] at hp; subst hp
-    rw [fsplit_fnode] at hq
-    obtain ⟨p', q', rfl, hp', hq'⟩ := hq
-    rw [fsplit_fnil] at hq'; subst hq'
-    rw [ndenote_nonbinder _ _ _ hb] at hp'
-    simpa using hp'
+    rw [ndenote_nonbinder _ _ _ hb] at hq
+    simpa using hq
   · intro h
-    refine ⟨[], s, by simp, by rw [unit_ndenote], ?_⟩
-    rw [fsplit_fnode]
-    exact ⟨s, [], by simp, by rw [ndenote_nonbinder _ _ _ hb]; exact h, by rw [fsplit_fnil]⟩
+    exact ⟨[], s, rfl, (unit_ndenote _ _).mpr rfl, (ndenote_nonbinder _ _ _ hb).mpr h⟩
 
 theorem product_unit_r (A : Node) (amp : Spelling → Prop) (s : Spelling)
     (hb : bindsb A = false) :
     spells (.prod (.node A (.node unitNode .nil))) amp s ↔ walk A amp False s := by
-  rw [spells_prod, fsplit_fnode]
+  rw [spells_prod, fsplit_pair]
   constructor
   · rintro ⟨p, q, rfl, hp, hq⟩
-    rw [fsplit_fnode] at hq
-    obtain ⟨p', q', rfl, hp', hq'⟩ := hq
-    rw [fsplit_fnil] at hq'; subst hq'
-    rw [unit_ndenote] at hp'; subst hp'
+    rw [unit_ndenote] at hq; subst hq
     rw [ndenote_nonbinder _ _ _ hb] at hp
     simpa using hp
   · intro h
-    refine ⟨s, [], by simp, by rw [ndenote_nonbinder _ _ _ hb]; exact h, ?_⟩
-    rw [fsplit_fnode]
-    exact ⟨[], [], by simp, by rw [unit_ndenote], by rw [fsplit_fnil]⟩
+    exact ⟨s, [], by simp, (ndenote_nonbinder _ _ _ hb).mpr h, (unit_ndenote _ _).mpr rfl⟩
 
 /-- Exponent down to `A^0`: the empty factor run is the unit -- it wears
 exactly the empty spelling, so `A^0` is well-formed and contributes nothing. -/

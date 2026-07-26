@@ -121,18 +121,18 @@ theorem stage_succ (n k s) :
     stage n (k + 1) s = (stage n k s ∨ walk n (stage n k) False s) := by
   simp only [stage]
 
-/-- Stage induction for closure invariants: a property that every body-step
-spelling inherits from the strictly earlier stages holds at every stage. The
-ladder half is discharged once here -- the empty floor (`stage_zero`) and
-`stage_succ`'s carry-over disjunct, where a spelling already present at stage
-`k` keeps the property by the induction hypothesis -- so a closure row supplies
-only its body step: assuming the invariant on stage `k`, prove it of a
-`walk n (stage n k) False` spelling. The closure-row invariants in
-`NorthStar.lean` are exactly this induction. -/
-theorem stage_invariant (n : Node) (P : Spelling → Prop)
-    (hstep : ∀ k, (∀ t, stage n k t → P t) →
-      ∀ s, walk n (stage n k) False s → P s) :
-    ∀ k s, stage n k s → P s := by
+/-- Stage induction for closure invariants, with a stage-indexed invariant (a
+bound that may grow with the stage, e.g. "stage `k` spellings are shorter than
+`k`"). The ladder half is discharged once here -- the empty floor
+(`stage_zero`) and `stage_succ`'s carry-over disjunct, where a spelling
+already present at stage `k` keeps the property by `hmono` and the induction
+hypothesis -- so a closure row supplies only its body step: assuming the
+invariant on stage `k`, prove it of a `walk n (stage n k) False` spelling. -/
+theorem stage_invariant_idx (n : Node) (P : Nat → Spelling → Prop)
+    (hmono : ∀ k s, P k s → P (k + 1) s)
+    (hstep : ∀ k, (∀ t, stage n k t → P k t) →
+      ∀ s, walk n (stage n k) False s → P (k + 1) s) :
+    ∀ k s, stage n k s → P k s := by
   intro k
   induction k with
   | zero => intro s h; rw [stage_zero] at h; exact h.elim
@@ -140,8 +140,16 @@ theorem stage_invariant (n : Node) (P : Spelling → Prop)
       intro s h
       rw [stage_succ] at h
       rcases h with h | h
-      · exact ih s h
+      · exact hmono k s (ih s h)
       · exact hstep k ih s h
+
+/-- The stage-constant form: the closure-row invariants in `NorthStar.lean`
+are exactly this induction. -/
+theorem stage_invariant (n : Node) (P : Spelling → Prop)
+    (hstep : ∀ k, (∀ t, stage n k t → P t) →
+      ∀ s, walk n (stage n k) False s → P s) :
+    ∀ k s, stage n k s → P s :=
+  stage_invariant_idx n (fun _ => P) (fun _ _ => id) hstep
 
 theorem spells_fold (inner amp s) :
     spells (.fold inner) amp s

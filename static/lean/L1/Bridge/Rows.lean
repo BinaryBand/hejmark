@@ -63,7 +63,7 @@ theorem face_denotes_iff (t s : Spelling) :
 
 /-- A product with a face second factor has unique splits: the face tail pins
 the cut point, so the first factor's denotation is never consulted. Shared by
-the marked-block rows (`markedBlock_splits_unique`, `inSeamBlock_splits_unique`). -/
+the marked-block rows (`markerBlock_entryRecType`, `inSeamBlock_splits_unique`). -/
 theorem prodFace_splits_unique {A : Node} {t s : Spelling}
     {pq pq' : Spelling × Spelling}
     (h : IsSplit A (nsingle (.face t)) s pq)
@@ -74,30 +74,55 @@ theorem prodFace_splits_unique {A : Node} {t s : Spelling}
   obtain ⟨h1, h2⟩ := List.append_inj' (heq.symm.trans heq') (by rw [hq, hq'])
   exact Prod.ext h1 h2
 
-/-- Cutting at a marker neither side contains is unambiguous -- the list
-surgery behind every unique-split argument below. -/
+/-- A product whose first factor's spellings all share one length has unique
+splits: the cut point is the head length. Shared by the fixed-width front
+factors (`twoBlocks_splits_unique`, `neBounded_splits_unique`). -/
+theorem fixedHead_splits_unique {A B : Node} {k : ℕ}
+    (hlen : ∀ p, denotes A p → p.length = k) {s : Spelling}
+    {pq pq' : Spelling × Spelling}
+    (h : IsSplit A B s pq) (h' : IsSplit A B s pq') : pq = pq' := by
+  obtain ⟨heq, hp, -⟩ := h
+  obtain ⟨heq', hp', -⟩ := h'
+  obtain ⟨h1, h2⟩ := List.append_inj (heq.symm.trans heq')
+    ((hlen _ hp).trans (hlen _ hp').symm)
+  exact Prod.ext h1 h2
+
+/-- The collision surgery: two marker readings of one spelling either agree
+or the one with the marker-free prefix is the strictly shorter cut -- the
+doc's "a shorter prefix would place `b` inside the `b`-free segment"
+(`bfree_survives`'s trichotomy, on real lists). The list surgery behind
+every marker argument below. -/
+theorem seam_least_split {c : Code} {z v u q : Spelling} (hz : c ∉ z)
+    (h : z ++ c :: v = u ++ c :: q) :
+    (z = u ∧ v = q) ∨ z.length < u.length := by
+  rcases Nat.lt_trichotomy z.length u.length with hlt | heq | hgt
+  · exact Or.inr hlt
+  · obtain ⟨h1, h2⟩ := List.append_inj h heq
+    exact Or.inl ⟨h1, ((List.cons.injEq _ _ _ _).mp h2).2⟩
+  · -- A shorter `u` forces the marker into the marker-free `z`.
+    exfalso
+    have hpre1 : u <+: z ++ c :: v := h ▸ List.prefix_append u (c :: q)
+    obtain ⟨t, rfl⟩ := List.prefix_of_prefix_length_le hpre1
+      (List.prefix_append z (c :: v)) (Nat.le_of_lt hgt)
+    rw [List.append_assoc] at h
+    have htail : t ++ c :: v = c :: q := List.append_cancel_left h
+    cases t with
+    | nil => simp at hgt
+    | cons th tt =>
+        simp only [List.cons_append, List.cons.injEq] at htail
+        exact hz (List.mem_append_right u (htail.1 ▸ List.mem_cons_self))
+
+/-- Cutting at a marker neither side contains is unambiguous: both readings
+are their own least cut (`seam_least_split`, both ways), so they coincide. -/
 theorem append_marker_inj {c : Code} {u v u' v' : Spelling}
     (hu : c ∉ u) (hu' : c ∉ u') (h : u ++ c :: v = u' ++ c :: v') :
     u = u' ∧ v = v' := by
-  have aux : ∀ {a b a' b' : Spelling}, c ∉ a' → a ++ c :: b = a' ++ c :: b' →
-      a.length < a'.length → False := by
-    intro a b a' b' ha' hab hlt
-    have hpre1 : a <+: a ++ c :: b := List.prefix_append a (c :: b)
-    have hpre2 : a' <+: a' ++ c :: b' := List.prefix_append a' (c :: b')
-    rw [hab] at hpre1
-    obtain ⟨t, rfl⟩ := List.prefix_of_prefix_length_le hpre1 hpre2 (Nat.le_of_lt hlt)
-    rw [List.append_assoc] at hab
-    have htail : c :: b = t ++ c :: b' := List.append_cancel_left hab
-    cases t with
-    | nil => simp at hlt
-    | cons th tt =>
-        simp only [List.cons_append, List.cons.injEq] at htail
-        exact ha' (List.mem_append_right a (htail.1 ▸ List.mem_cons_self))
-  rcases Nat.lt_trichotomy u.length u'.length with hlt | heq | hgt
-  · exact (aux hu' h hlt).elim
-  · obtain ⟨h1, h2⟩ := List.append_inj h heq
-    exact ⟨h1, ((List.cons.injEq _ _ _ _).mp h2).2⟩
-  · exact (aux hu h.symm hgt).elim
+  rcases seam_least_split hu h with h1 | hlt
+  · exact h1
+  · exfalso
+    rcases seam_least_split hu' h.symm with ⟨rfl, -⟩ | hlt'
+    · exact absurd hlt (lt_irrefl _)
+    · omega
 
 /-- The omega factor's denotation, with the vacuous lower bound dropped. -/
 theorem unitClosure01_denotes (s : Spelling) :
@@ -127,15 +152,10 @@ theorem twoFaces_denotes_iff (s : Spelling) :
 the block: splits are unique. -/
 theorem twoBlocks_splits_unique {s : Spelling} {pq pq' : Spelling × Spelling}
     (h : IsSplit twoFaces (unitClosure 0 1) s pq)
-    (h' : IsSplit twoFaces (unitClosure 0 1) s pq') : pq = pq' := by
-  obtain ⟨heq, hp, -⟩ := h
-  obtain ⟨heq', hp', -⟩ := h'
-  have hl : pq.1.length = 1 := by
-    rcases (twoFaces_denotes_iff pq.1).mp hp with h2 | h2 <;> rw [h2] <;> rfl
-  have hl' : pq'.1.length = 1 := by
-    rcases (twoFaces_denotes_iff pq'.1).mp hp' with h2 | h2 <;> rw [h2] <;> rfl
-  obtain ⟨h1, h2⟩ := List.append_inj (heq.symm.trans heq') (by omega)
-  exact Prod.ext h1 h2
+    (h' : IsSplit twoFaces (unitClosure 0 1) s pq') : pq = pq' :=
+  fixedHead_splits_unique (k := 1)
+    (fun p hp => by rcases (twoFaces_denotes_iff p).mp hp with rfl | rfl <;> rfl)
+    h h'
 
 /- ---------------------------------------------------------------- -/
 /- The seam row at omega^2, marker outside the range.                -/
@@ -329,13 +349,6 @@ theorem twoFaces_entryRecType : entryRecType twoFaces = 2 := by
     face_entryRecType, face_entryRecType]
   exact one_add_one_eq_two
 
-/-- The marker tail pins the marked block's splits: both tails are the marker
-itself, so the cut point is forced. -/
-theorem markedBlock_splits_unique {s : Spelling} {pq pq' : Spelling × Spelling}
-    (h : IsSplit (unitClosure 0 1) (nsingle (.face [2])) s pq)
-    (h' : IsSplit (unitClosure 0 1) (nsingle (.face [2])) s pq') : pq = pq' :=
-  prodFace_splits_unique h h'
-
 theorem markedBlock_nSubfree : nSubfree markedBlock = true := markerBlock_nSubfree 2
 
 /-- The marked block under the recursive order: a full omega of bounded
@@ -356,15 +369,10 @@ theorem rangeNode_entryRecType : entryRecType rangeNode = 2 :=
 singletons, so the cut point is forced. -/
 theorem neBounded_splits_unique {s : Spelling} {pq pq' : Spelling × Spelling}
     (h : IsSplit rangeNode (unitClosure 0 1) s pq)
-    (h' : IsSplit rangeNode (unitClosure 0 1) s pq') : pq = pq' := by
-  obtain ⟨heq, hp, -⟩ := h
-  obtain ⟨heq', hp', -⟩ := h'
-  have hl : pq.1.length = pq'.1.length := by
-    rcases (range01_denotes_iff pq.1).mp hp with h2 | h2 <;>
-      rcases (range01_denotes_iff pq'.1).mp hp' with h3 | h3 <;>
-      simp [h2, h3]
-  obtain ⟨h1, h2⟩ := List.append_inj (heq.symm.trans heq') hl
-  exact Prod.ext h1 h2
+    (h' : IsSplit rangeNode (unitClosure 0 1) s pq') : pq = pq' :=
+  fixedHead_splits_unique (k := 1)
+    (fun p hp => by rcases (range01_denotes_iff p).mp hp with rfl | rfl <;> rfl)
+    h h'
 
 theorem neBounded_nSubfree : nSubfree neBounded = true := by
   simp [neBounded, rangeNode, prod2, nsingle, nSubfree, mSubfree, fSubfree,
@@ -823,18 +831,14 @@ theorem inSeamBlock_denotes_iff (s : Spelling) :
   markerBlock_denotes_iff 1 s
 
 /-- The block's own splits stay unique -- the face tail pins the cut point
-regardless of where the marker code lives (`markedBlock_splits_unique`'s
-argument, unchanged). The collision below is a row-level phenomenon. -/
+regardless of where the marker code lives (`prodFace_splits_unique`,
+marker-independent). The collision below is a row-level phenomenon. -/
 theorem inSeamBlock_splits_unique {s : Spelling} {pq pq' : Spelling × Spelling}
     (h : IsSplit (unitClosure 0 1) (nsingle (.face [1])) s pq)
     (h' : IsSplit (unitClosure 0 1) (nsingle (.face [1])) s pq') : pq = pq' :=
   prodFace_splits_unique h h'
 
 theorem inSeamBlock_nSubfree : nSubfree inSeamBlock = true := markerBlock_nSubfree 1
-
-/-- The in-range marked block under the recursive order: a full omega of
-bounded prefixes, one marker entry each. -/
-theorem inSeamBlock_entryRecType : entryRecType inSeamBlock = ω := markerBlock_entryRecType 1
 
 /-- The seams genuinely collide: the spelling `11` is claimed by two
 distinct splits, `1 | 1` and `11 | empty` -- the unique-split hypothesis of
@@ -897,30 +901,6 @@ theorem first_marker_split {s : Spelling} (h : (1 : Code) ∈ s) :
         rcases List.mem_cons.mp hm with h1 | h1
         · exact hc h1.symm
         · exact hz h1
-
-/-- The collision surgery: two first-marker readings of one spelling either
-agree or the one with the marker-free prefix is the strictly shorter cut --
-the doc's "a shorter prefix would place `b` inside the `b`-free segment"
-(`bfree_survives`'s trichotomy, on real lists). -/
-theorem seam_least_split {z v u q : Spelling} (hz : (1 : Code) ∉ z)
-    (h : z ++ 1 :: v = u ++ 1 :: q) :
-    (z = u ∧ v = q) ∨ z.length < u.length := by
-  rcases Nat.lt_trichotomy z.length u.length with hlt | heq | hgt
-  · exact Or.inr hlt
-  · obtain ⟨h1, h2⟩ := List.append_inj h heq
-    exact Or.inl ⟨h1, ((List.cons.injEq _ _ _ _).mp h2).2⟩
-  · -- A shorter `u` forces the marker into the marker-free `z`.
-    exfalso
-    have hpre1 : u <+: z ++ 1 :: v := h ▸ List.prefix_append u (1 :: q)
-    obtain ⟨t, rfl⟩ := List.prefix_of_prefix_length_le hpre1
-      (List.prefix_append z (1 :: v)) (Nat.le_of_lt hgt)
-    rw [List.append_assoc] at h
-    have htail : t ++ 1 :: v = 1 :: q := List.append_cancel_left h
-    cases t with
-    | nil => simp at hgt
-    | cons th tt =>
-        simp only [List.cons_append, List.cons.injEq] at htail
-        exact hz (List.mem_append_right u (htail.1 ▸ List.mem_cons_self))
 
 /-- Cut a spelling at its first marker: the length of the marker-free
 prefix, and the suffix past the marker (junk on a marker-free spelling). -/

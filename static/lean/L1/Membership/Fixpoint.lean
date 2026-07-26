@@ -299,22 +299,10 @@ theorem positive_prefixpoint (n : Node) (hpos : positiveb n = true) (s : Spellin
 is a postfixpoint. -/
 theorem positive_postfixpoint (n : Node) (hpos : positiveb n = true) (s : Spelling)
     (h : closureD n s) : walk n (closureD n) False s := by
-  suffices hsuff : ∀ k t, stage n k t → walk n (closureD n) False t by
-    obtain ⟨k, hk⟩ := h
-    exact hsuff k s hk
-  intro k
-  induction k with
-  | zero =>
-      intro t ht
-      rw [stage_zero] at ht
-      exact ht.elim
-  | succ k ih =>
-      intro t ht
-      rw [stage_succ] at ht
-      rcases ht with ht | hw
-      · exact ih t ht
-      · exact walk_amp_mono n hpos (stage n k) (closureD n)
-          (fun u hu => ⟨k, hu⟩) False False id t hw
+  obtain ⟨k, hk⟩ := h
+  exact stage_invariant n (walk n (closureD n) False)
+    (fun k _ t hw => walk_amp_mono n hpos (stage n k) (closureD n)
+      (fun u hu => ⟨k, hu⟩) False False id t hw) k s hk
 
 /-- Headline (fixpoint on positive bodies), part 1: the closure at omega is a genuine fixpoint of
 its body. -/
@@ -327,21 +315,10 @@ stage. Together with `positive_fixpoint` this is the doc's "a positive body's cl
 fixpoint". -/
 theorem positive_least (n : Node) (hpos : positiveb n = true) (F : Spelling → Prop)
     (hF : ∀ t, walk n F False t → F t) : ∀ s, closureD n s → F s := by
-  suffices hsuff : ∀ k s, stage n k s → F s by
-    rintro s ⟨k, hk⟩
-    exact hsuff k s hk
-  intro k
-  induction k with
-  | zero =>
-      intro s hk
-      rw [stage_zero] at hk
-      exact hk.elim
-  | succ k ih =>
-      intro s hk
-      rw [stage_succ] at hk
-      rcases hk with hk | hw
-      · exact ih s hk
-      · exact hF s (walk_amp_mono n hpos (stage n k) F ih False False id s hw)
+  rintro s ⟨k, hk⟩
+  exact stage_invariant n F
+    (fun k ih t hw => hF t (walk_amp_mono n hpos (stage n k) F ih False False id t hw))
+    k s hk
 
 /- ---------------------------------------------------------------- -/
 /- The inflationary stages and the bare ones agree.                  -/
@@ -375,25 +352,13 @@ universe. -/
 theorem bare_stages_agree (n : Node) (hpos : positiveb n = true) (s : Spelling) :
     (∃ k, stage n k s) ↔ (∃ k, bstage n k s) := by
   constructor
-  · suffices hsuff : ∀ k s, stage n k s → ∃ j, bstage n j s by
-      rintro ⟨k, hk⟩
-      exact hsuff k s hk
-    intro k
-    induction k with
-    | zero =>
-        intro s hk
-        rw [stage_zero] at hk
-        exact hk.elim
-    | succ k ih =>
-        intro s hk
-        rw [stage_succ] at hk
-        rcases hk with hk | hw
-        · exact ih s hk
-        · have hw' : walk n (fun t => ∃ j, bstage n j t) (∃ _ : ℕ, False) s :=
-            walk_amp_mono n hpos (stage n k) _ ih False _ (fun f => f.elim) s hw
-          obtain ⟨K, hK⟩ := walk_amp_cont n hpos (bstage n) (bstage_chain n hpos)
-            (fun _ => False) (fun _ _ _ h => h) s hw'
-          exact ⟨K + 1, hK⟩
+  · rintro ⟨k, hk⟩
+    refine stage_invariant n (fun t => ∃ j, bstage n j t) (fun k ih t hw => ?_) k s hk
+    have hw' : walk n (fun u => ∃ j, bstage n j u) (∃ _ : ℕ, False) t :=
+      walk_amp_mono n hpos (stage n k) _ ih False _ (fun f => f.elim) t hw
+    obtain ⟨K, hK⟩ := walk_amp_cont n hpos (bstage n) (bstage_chain n hpos)
+      (fun _ => False) (fun _ _ _ h => h) t hw'
+    exact ⟨K + 1, hK⟩
   · suffices hsuff : ∀ k s, bstage n k s → closureD n s by
       rintro ⟨k, hk⟩
       exact hsuff k s hk

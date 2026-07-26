@@ -144,8 +144,7 @@ noncomputable def numeralValueIso (hm : 0 < m) :
 /-- The canonical numerals in shortlex have order type exactly `omega0`: the sub-range-radix
 companion to phase A's `finShortlex_type_omega0`. -/
 theorem numeralShortlex_type_omega0 (hm : 0 < m) :
-    Ordinal.type (numeralLt m) = Ordinal.omega0 := by
-  rw [Ordinal.type_eq.mpr ⟨numeralValueIso m hm⟩]
-  exact Ordinal.type_nat_lt
+    Ordinal.type (numeralLt m) = Ordinal.omega0 :=
+  (numeralValueIso m hm).ordinalType_congr.trans Ordinal.type_nat_lt
 
 end L1

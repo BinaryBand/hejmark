@@ -41,6 +41,17 @@ theorem lexLt_irrefl : ∀ s, lexLt s s = false
   | [] => rfl
   | a :: s => by simp [lexLt, lexLt_irrefl s]
 
+/-- Transitivity of a Nat-lex composite: strictly smaller head, or equal heads
+and a transitive tail. Shared by `lexLt_trans` (head = code) and
+`shortlexLt_trans` (head = length). -/
+theorem lt_or_eq_and_trans {a b c : Nat} {P Q R : Prop} (htail : P → Q → R) :
+    a < b ∨ (a = b ∧ P) → b < c ∨ (b = c ∧ Q) → a < c ∨ (a = c ∧ R) := by
+  rintro (h1 | ⟨rfl, h1⟩) (h2 | ⟨rfl, h2⟩)
+  · exact Or.inl (by omega)
+  · exact Or.inl h1
+  · exact Or.inl h2
+  · exact Or.inr ⟨rfl, htail h1 h2⟩
+
 theorem lexLt_trans :
     ∀ {s t u}, lexLt s t = true → lexLt t u = true → lexLt s u = true
   | _, [], _, hst, _ => by simp at hst
@@ -50,11 +61,7 @@ theorem lexLt_trans :
   | a :: s, b :: t, c :: u, hst, htu => by
       simp only [lexLt, Bool.or_eq_true, Bool.and_eq_true, beq_iff_eq,
         decide_eq_true_eq] at hst htu ⊢
-      rcases hst with h1 | ⟨h1, h1'⟩ <;> rcases htu with h2 | ⟨h2, h2'⟩
-      · exact Or.inl (by omega)
-      · exact Or.inl (by omega)
-      · exact Or.inl (by omega)
-      · exact Or.inr ⟨by omega, lexLt_trans h1' h2'⟩
+      exact lt_or_eq_and_trans (fun h1 h2 => lexLt_trans h1 h2) hst htu
 
 theorem lexLt_total : ∀ s t, lexLt s t = true ∨ s = t ∨ lexLt t s = true
   | [], [] => Or.inr (Or.inl rfl)
@@ -87,12 +94,7 @@ theorem shortlexLt_trans {s t u : Spelling} :
     shortlexLt s t = true → shortlexLt t u = true → shortlexLt s u = true := by
   simp only [shortlexLt, Bool.or_eq_true, Bool.and_eq_true, beq_iff_eq,
     decide_eq_true_eq]
-  intro hst htu
-  rcases hst with h1 | ⟨h1, h1'⟩ <;> rcases htu with h2 | ⟨h2, h2'⟩
-  · exact Or.inl (by omega)
-  · exact Or.inl (by omega)
-  · exact Or.inl (by omega)
-  · exact Or.inr ⟨by omega, lexLt_trans h1' h2'⟩
+  exact lt_or_eq_and_trans lexLt_trans
 
 theorem shortlexLt_asym {s t : Spelling} :
     shortlexLt s t = true → shortlexLt t s = true → False := by
@@ -179,16 +181,6 @@ theorem shortlexLe_lt_trans {s t u : Spelling} :
   · exact shortlexLt_trans hst htu
   · exact htu
 
-theorem singleton_shortlexLt {a b : Code} (h : a < b) :
-    shortlexLt [a] [b] = true := by simp [shortlexLt, lexLt, h]
-
-theorem singleton_shortlexLe {a b : Code} (h : a ≤ b) :
-    shortlexLe [a] [b] = true := by
-  simp only [shortlexLe, Bool.or_eq_true]
-  rcases Nat.eq_or_lt_of_le h with rfl | h
-  · exact Or.inr (by simp)
-  · exact Or.inl (singleton_shortlexLt h)
-
 /-- Mirrors `singleton_ltb_iff` in `Spelling.v`. -/
 theorem singleton_shortlexLt_iff (a b : Code) :
     shortlexLt [a] [b] = true ↔ a < b := by
@@ -199,6 +191,12 @@ theorem singleton_shortlexLe_iff (a b : Code) :
   simp only [shortlexLe, Bool.or_eq_true, singleton_shortlexLt_iff, beq_iff_eq,
     List.cons.injEq, and_true]
   omega
+
+theorem singleton_shortlexLt {a b : Code} (h : a < b) :
+    shortlexLt [a] [b] = true := (singleton_shortlexLt_iff a b).mpr h
+
+theorem singleton_shortlexLe {a b : Code} (h : a ≤ b) :
+    shortlexLe [a] [b] = true := (singleton_shortlexLe_iff a b).mpr h
 
 /- ---------------------------------------------------------------- -/
 /- Half-open shortlex windows [lo, hi); hi = none means unbounded.  -/

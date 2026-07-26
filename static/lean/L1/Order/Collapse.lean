@@ -98,9 +98,8 @@ noncomputable def nonemptyValueIso : (neLt m) ≃r ((· < ·) : ℕ → ℕ → 
     rw [fshortlex_iff_value_lt]
     omega
 
-theorem neLt_type : Ordinal.type (neLt m) = ω := by
-  rw [Ordinal.type_eq.mpr ⟨nonemptyValueIso m⟩]
-  exact type_nat_lt
+theorem neLt_type : Ordinal.type (neLt m) = ω :=
+  (nonemptyValueIso m).ordinalType_congr.trans type_nat_lt
 
 /-- The pre-collision pair space has type ω·ω: ω-many full ω-blocks, prefix-major. -/
 theorem pairLt_type : Ordinal.type (pairLt m) = ω * ω := by
@@ -186,6 +185,13 @@ theorem splitSurvives_iff (x : NESp m × NESp m) :
           simp only [List.length_cons, List.length_nil]
           omega)
 
+/-- The survivors' comparison space, one full `ω` block per code point: `Fin (m+1) ×ₗ ℕ` has order
+type `ω * (m + 1)`. The headline sandwiches the survivors between two embeddings of this space. -/
+theorem codeBlocks_type :
+    Ordinal.type (Prod.Lex ((· < ·) : FCode m → FCode m → Prop) ((· < ·) : ℕ → ℕ → Prop))
+      = ω * ((m + 1 : ℕ) : Ordinal) := by
+  simp [type_prod_lex, type_nat_lt]
+
 /-- Headline (`{a..}{a..}`): the survivors of the cofinite collision have order type exactly
 `ω * (m + 1)` -- the doc's "the type collapses to ω·k, k finite", with `k` the alphabet size. Only
 the `m + 1` singleton-prefix blocks survive, each still a full ω. -/
@@ -223,11 +229,7 @@ theorem cofinite_collision_collapses :
     calc Ordinal.type (Subrel (pairLt m) (SplitSurvives m))
         ≤ Ordinal.type (Prod.Lex ((· < ·) : FCode m → FCode m → Prop)
             ((· < ·) : ℕ → ℕ → Prop)) := femb.ordinal_type_le
-      _ = ω * ((m + 1 : ℕ) : Ordinal) := by
-          rw [type_prod_lex]
-          rw [show Ordinal.type ((· < ·) : ℕ → ℕ → Prop) = ω from type_nat_lt]
-          rw [show Ordinal.type ((· < ·) : FCode m → FCode m → Prop)
-            = ((m + 1 : ℕ) : Ordinal) from type_fin (m + 1)]
+      _ = ω * ((m + 1 : ℕ) : Ordinal) := codeBlocks_type m
   · -- Embed `Fin (m+1) ×ₗ ℕ` into the survivors: singleton prefixes with arbitrary suffixes.
     have gemb : Prod.Lex ((· < ·) : FCode m → FCode m → Prop) ((· < ·) : ℕ → ℕ → Prop) ↪r
         Subrel (pairLt m) (SplitSurvives m) := by
@@ -252,11 +254,7 @@ theorem cofinite_collision_collapses :
           omega
     calc ω * ((m + 1 : ℕ) : Ordinal)
         = Ordinal.type (Prod.Lex ((· < ·) : FCode m → FCode m → Prop)
-            ((· < ·) : ℕ → ℕ → Prop)) := by
-          rw [type_prod_lex]
-          rw [show Ordinal.type ((· < ·) : ℕ → ℕ → Prop) = ω from type_nat_lt]
-          rw [show Ordinal.type ((· < ·) : FCode m → FCode m → Prop)
-            = ((m + 1 : ℕ) : Ordinal) from type_fin (m + 1)]
+            ((· < ·) : ℕ → ℕ → Prop)) := (codeBlocks_type m).symm
       _ ≤ Ordinal.type (Subrel (pairLt m) (SplitSurvives m)) := gemb.ordinal_type_le
 
 /- ---------------------------------------------------------------- -/
@@ -343,8 +341,7 @@ theorem seam_collision_survives (b c : FCode m) (hcb : c ≠ b) :
         exact Subtype.ext (by rw [heq1])
     calc ω * ω
         = Ordinal.type (Prod.Lex ((· < ·) : ℕ → ℕ → Prop) ((· < ·) : ℕ → ℕ → Prop)) := by
-          rw [type_prod_lex]
-          rw [show Ordinal.type ((· < ·) : ℕ → ℕ → Prop) = ω from type_nat_lt]
+          simp [type_prod_lex, type_nat_lt]
       _ ≤ Ordinal.type (Subrel (pairLt m) (SeamSurvives m b)) := gemb.ordinal_type_le
 
 end L1

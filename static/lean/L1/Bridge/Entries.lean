@@ -43,6 +43,7 @@ out of range and in range both -- the union row past the limit) in
 import L1.Membership.Laws
 import L1.Membership.NorthStar
 import L1.Order.Enumeration
+import Mathlib.Data.Set.Finite.List
 
 namespace L1
 
@@ -128,24 +129,11 @@ noncomputable def clFallbackBound (n : Node) : Ordinal := Ordinal.type (entryLt 
 predecessor pool every shortlex step below a fixed spelling draws from. -/
 theorem boundedSpellings_finite (m L : ℕ) :
     {s : Spelling | s.length ≤ L ∧ ∀ c ∈ s, c ≤ m}.Finite := by
-  induction L with
-  | zero =>
-      refine (Set.finite_singleton ([] : Spelling)).subset ?_
-      rintro s ⟨hlen, -⟩
-      cases s with
-      | nil => rfl
-      | cons c rest => simp at hlen
-  | succ L ih =>
-      refine ((Set.finite_singleton ([] : Spelling)).union
-        (Set.Finite.image2 (· :: ·) (Set.finite_Iic m) ih)).subset ?_
-      rintro s ⟨hlen, hcodes⟩
-      cases s with
-      | nil => exact Or.inl rfl
-      | cons c rest =>
-          right
-          refine ⟨c, hcodes c (by simp), rest, ⟨?_, fun x hx => hcodes x (by simp [hx])⟩, rfl⟩
-          simp only [List.length_cons] at hlen
-          omega
+  refine ((List.finite_length_le (Fin (m + 1)) L).image (List.map Fin.val)).subset ?_
+  rintro s ⟨hlen, hcodes⟩
+  refine ⟨s.map fun c => ⟨min c m, by omega⟩, by simpa using hlen, ?_⟩
+  simp only [List.map_map, Function.comp_def]
+  exact (List.map_congr_left fun c hc => Nat.min_eq_left (hcodes c hc)).trans (List.map_id s)
 
 /-- Below a fixed entry, the spelling order draws from a finite pool: shortlex
 never lengthens, and the code range is finite by hypothesis. -/
@@ -227,23 +215,17 @@ theorem entryLt_type_eq_omega0 (n : Node) (hb : bindsb n = true)
 /- ---------------------------------------------------------------- -/
 
 /-- Each closure pass appends one code, so stage `k` spellings are shorter
-than `k`. -/
+than `k`. Runs on the stage-indexed induction `stage_invariant_idx`. -/
 theorem unitClosure_stage_length (lo hi : Code) :
     ∀ k s, stage (unitClosure lo hi) k s → s.length < k := by
-  intro k
-  induction k with
-  | zero => intro s h; rw [stage_zero] at h; exact h.elim
-  | succ k ih =>
-      intro s h
-      rw [stage_succ] at h
-      rcases h with h | h
-      · exact Nat.lt_succ_of_lt (ih s h)
-      · rw [unitClosure_walk] at h
-        rcases h with rfl | ⟨p, c, rfl, hp, -, -⟩
-        · simp
-        · have hp' := ih p hp
-          simp only [List.length_append, List.length_cons, List.length_nil]
-          omega
+  refine stage_invariant_idx _ (fun k s => s.length < k)
+    (fun k s h => Nat.lt_succ_of_lt h) fun k ih s h => ?_
+  rw [unitClosure_walk] at h
+  rcases h with rfl | ⟨p, c, rfl, hp, -, -⟩
+  · simp
+  · have hp' := ih p hp
+    simp only [List.length_append, List.length_cons, List.length_nil]
+    omega
 
 /-- Every stage of the demotion row is finite: length below the stage index,
 codes inside `[lo, hi]`. -/

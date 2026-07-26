@@ -158,24 +158,15 @@ theorem prod2_bindsb (a b : Node) : bindsb (prod2 a b) = false := rfl
 binary product wears exactly the concatenations of its factors' spellings. -/
 theorem prod2_denotes_iff (a b : Node) (s : Spelling) :
     denotes (prod2 a b) s ↔ ∃ p q, s = p ++ q ∧ denotes a p ∧ denotes b q := by
-  have h : denotes (prod2 a b) s
-      ↔ fsplit (.node a (.node b .nil)) (fun _ => False) s := by
-    show ndenote (prod2 a b) (fun _ => False) s ↔ _
-    rw [ndenote_nonbinder _ _ _ (prod2_bindsb a b)]
-    show walk (nsingle (.prod (.node a (.node b .nil)))) _ False s ↔ _
-    rw [walk_single_prod, false_or]
-  rw [h, fsplit_fnode]
-  constructor
-  · rintro ⟨p, q, rfl, hp, hq⟩
-    rw [fsplit_fnode] at hq
-    obtain ⟨p', q', rfl, hq', hnil⟩ := hq
-    rw [fsplit_fnil] at hnil
-    subst hnil
-    exact ⟨p, p', by rw [List.append_nil], hp, hq'⟩
-  · rintro ⟨p, q, rfl, hp, hq⟩
-    refine ⟨p, q, rfl, hp, ?_⟩
-    rw [fsplit_fnode]
-    exact ⟨q, [], (List.append_nil q).symm, hq, by rw [fsplit_fnil]⟩
+  refine ⟨two_factor_split, ?_⟩
+  rintro ⟨p, q, rfl, hp, hq⟩
+  show ndenote (prod2 a b) (fun _ => False) (p ++ q)
+  rw [ndenote_nonbinder _ _ _ (prod2_bindsb a b)]
+  show walk (nsingle (.prod (.node a (.node b .nil)))) _ False (p ++ q)
+  rw [walk_single_prod, false_or, fsplit_fnode]
+  refine ⟨p, q, rfl, hp, ?_⟩
+  rw [fsplit_fnode]
+  exact ⟨q, [], (List.append_nil q).symm, hq, by rw [fsplit_fnil]⟩
 
 theorem isSplit_of_denotes {a b : Node} {s : Spelling}
     (h : denotes (prod2 a b) s) : ∃ pq, IsSplit a b s pq := by

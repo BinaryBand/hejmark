@@ -167,7 +167,7 @@ positional value, has order type exactly the natural `bs.prod`. "Finite factors 
 `bs.prod` is commutative, so "the order of multiplication is invisible." -/
 theorem positional_value_type (bs : List Nat) :
     Ordinal.type (tupleLt bs) = (bs.prod : Ordinal) :=
-  (Ordinal.type_eq.mpr ⟨posValueIso bs⟩).trans (Ordinal.type_fin bs.prod)
+  (posValueIso bs).ordinalType_congr.trans (Ordinal.type_fin bs.prod)
 
 /- ---------------------------------------------------------------- -/
 /- Bridge back to phase A: the flat alphabet is the uniform radix.   -/

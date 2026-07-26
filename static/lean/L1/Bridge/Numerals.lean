@@ -124,23 +124,18 @@ theorem numerals_body_stage_sound :
         exact ⟨hc1, hc2⟩
 
 /-- Each pass appends one digit and the seed is already one digit wide, so stage `k` spellings
-are at most `k` wide -- `≤ k`, not `< k`: unlike the demotion row there is no empty seed. -/
+are at most `k` wide -- `≤ k`, not `< k`: unlike the demotion row there is no empty seed.
+Runs on the stage-indexed induction `stage_invariant_idx`. -/
 theorem numerals_body_stage_length :
-    ∀ k s, stage numerals_body k s → s.length ≤ k := by
-  intro k
-  induction k with
-  | zero => intro s h; rw [stage_zero] at h; exact h.elim
-  | succ k ih =>
-      intro s h
-      rw [stage_succ] at h
-      rcases h with h | h
-      · exact Nat.le_succ_of_le (ih s h)
-      · rw [numerals_body_walk] at h
-        rcases h with ⟨c, rfl, -, -⟩ | ⟨p, c, rfl, hp, -, -⟩
-        · simp
-        · have := ih p hp
-          simp only [List.length_append, List.length_cons, List.length_nil]
-          omega
+    ∀ k s, stage numerals_body k s → s.length ≤ k :=
+  stage_invariant_idx _ (fun k s => s.length ≤ k) (fun _ _ h => Nat.le_succ_of_le h)
+    fun _ ih s h => by
+      rw [numerals_body_walk] at h
+      rcases h with ⟨c, rfl, -, -⟩ | ⟨p, c, rfl, hp, -, -⟩
+      · simp
+      · have := ih p hp
+        simp only [List.length_append, List.length_cons, List.length_nil]
+        omega
 
 /-- Completeness: a nonzero-headed numeral of width `L` is present by stage `L` -- the head digit
 seeds at stage one, each later digit costs one pass. -/
@@ -264,11 +259,6 @@ theorem numerals_body_entryLt_iff (a b : Entries numerals_body) :
     · exact Or.inl h
     · exact Or.inr ⟨h, hsl⟩
 
-/-- The same coincidence through the evaluator's Bool order. -/
-theorem numerals_body_entryLt_iff_shortlexLt (a b : Entries numerals_body) :
-    entryLt numerals_body a b ↔ shortlexLt a.1 b.1 = true := by
-  rw [numerals_body_entryLt_iff, shortlexLt_iff_fshortlex]
-
 /- ---------------------------------------------------------------- -/
 /- The value map: each entry read as the decimal numeral it spells.  -/
 /- ---------------------------------------------------------------- -/
@@ -372,17 +362,9 @@ theorem numerals_body_entryLt_iff_numVal_lt (a b : Entries numerals_body) :
     (Or.inr ((numerals_body_generates a.1).mp a.2))
     (Or.inr ((numerals_body_generates b.1).mp b.2))
 
-theorem numerals_entries_infinite : {s | denotes numerals s}.Infinite := by
-  refine Set.infinite_of_injective_forall_mem
-    (f := fun n : ℕ => d1 :: List.replicate n d1) ?_ ?_
-  · intro a b hab
-    simpa using congrArg List.length hab
-  · intro n
-    rw [Set.mem_setOf_eq, numerals_generates]
-    refine Or.inr ⟨d1, List.replicate n d1, rfl, Nat.le_refl d1, by decide, ?_⟩
-    intro x hx
-    rw [List.eq_of_mem_replicate hx]
-    exact ⟨by decide, by decide⟩
+theorem numerals_entries_infinite : {s | denotes numerals s}.Infinite :=
+  numerals_body_entries_infinite.mono fun s hs =>
+    (numerals_generates s).mpr (Or.inr ((numerals_body_generates s).mp hs))
 
 /-- The full term: the value line of the character radix arrives in spelling order at value
 order -- the zero face included. This is the order the value line is *read* in, so it is the
