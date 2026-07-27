@@ -103,13 +103,8 @@ impl Engine<'_> {
         let Statement::Steps(steps) = statement else { return Ok(document.clone()) };
         let Some(head) = steps.first() else { return Ok(document.clone()) };
         if matches!(head, Loaded::Template(_)) {
-            let detached = Branch {
-                text: spelling(&[]),
-                start: 0,
-                end: 0,
-                bound: None,
-                found: None,
-            };
+            let detached =
+                Branch { text: spelling(&[]), start: 0, end: 0, bound: None, found: None };
             self.steps(steps, &detached)?;
             return Ok(document.clone());
         }
@@ -177,12 +172,7 @@ impl Engine<'_> {
     }
 
     /// A template step: build the string, and continue at each interpolation site.
-    fn construct(
-        &self,
-        template: &Template,
-        branch: &Branch,
-        rest: &[Loaded],
-    ) -> Answer<Spelling> {
+    fn construct(&self, template: &Template, branch: &Branch, rest: &[Loaded]) -> Answer<Spelling> {
         let mut built: Vec<Point> = Vec::new();
         let mut sites = Vec::new();
         for part in &template.parts {

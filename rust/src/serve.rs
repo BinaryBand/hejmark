@@ -33,8 +33,8 @@ impl Dispatch for Verbs {
     fn answer(&self, channel: &mut Channel, verb: &str, params: &Value) -> Answer<Value> {
         match verb {
             "run" => self.run(channel, params),
-            "zero" => self.zero(params),
-            "digits" => self.digits(params),
+            "zero" => zero(params),
+            "digits" => digits(params),
             other => payload(format!("unknown verb {other:?}")),
         }
     }
@@ -63,38 +63,42 @@ impl Verbs {
         let spliced = engine.run(&program, &document)?;
         Ok(json!({"document": wire::points(&spliced)}))
     }
+}
 
-    /// The head's zero entry: one face, or null for an empty universe.
-    fn zero(&self, params: &Value) -> Answer<Value> {
-        let arena = Rc::new(Arena::new());
-        let node = wire::universe(field(params, "universe", "zero")?, &arena)?;
-        let denoter = Denoter::new(arena);
-        let universe = denoter.denote(node);
-        let mut first = None;
-        let _drained = denoter.canonical_faces(universe, &mut |face| {
-            first = Some(face.clone());
-            STOP
-        });
-        Ok(json!({"face": first.map(|face| wire::points(&face))}))
-    }
+/// The head's zero entry: one face, or null for an empty universe.
+///
+/// One face, and the stream stops there. That is what makes `@0` on an
+/// unbounded universe an answer rather than a hang -- the difference between
+/// reading a universe's zero and enumerating it.
+fn zero(params: &Value) -> Answer<Value> {
+    let arena = Rc::new(Arena::new());
+    let node = wire::universe(field(params, "universe", "zero")?, &arena)?;
+    let denoter = Denoter::new(arena);
+    let universe = denoter.denote(node);
+    let mut first = None;
+    let _drained = denoter.canonical_faces(universe, &mut |face| {
+        first = Some(face.clone());
+        STOP
+    });
+    Ok(json!({"face": first.map(|face| wire::points(&face))}))
+}
 
-    /// Every canonical face, in value order: what a value cut reads.
-    ///
-    /// On an unbounded universe this does not return, deliberately -- the floor
-    /// answers or diverges, and inventing a truncated radix would be worse than
-    /// hanging.
-    fn digits(&self, params: &Value) -> Answer<Value> {
-        let arena = Rc::new(Arena::new());
-        let node = wire::universe(field(params, "universe", "digits")?, &arena)?;
-        let denoter = Denoter::new(arena);
-        let universe = denoter.denote(node);
-        let mut faces = Vec::new();
-        let _drained = denoter.canonical_faces(universe, &mut |face| {
-            faces.push(wire::points(face));
-            GO
-        });
-        Ok(json!({"faces": faces}))
-    }
+/// Every canonical face, in value order: what a value cut reads.
+///
+/// On an unbounded universe this does not return, deliberately -- the floor
+/// answers or diverges, and inventing a truncated radix would be worse than
+/// hanging.
+fn digits(params: &Value) -> Answer<Value> {
+    let arena = Rc::new(Arena::new());
+    let node = wire::universe(field(params, "universe", "digits")?, &arena)?;
+    let denoter = Denoter::new(arena);
+    let universe = denoter.denote(node);
+    let mut faces = Vec::new();
+    let _drained = denoter.canonical_faces(universe, &mut |face| {
+        faces.push(wire::points(face));
+        GO
+    });
+    Ok(json!({"faces": faces}))
 }
 
 /// Read *key* from a request's parameters, refusing anything else.

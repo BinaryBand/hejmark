@@ -98,9 +98,7 @@ pub struct Program {
 
 /// Read *key* from a payload object, refusing anything else.
 fn field<'a>(value: &'a Value, key: &str, what: &str) -> Answer<&'a Value> {
-    value
-        .get(key)
-        .map_or_else(|| payload(format!("malformed {what}: missing {key:?}")), Ok)
+    value.get(key).map_or_else(|| payload(format!("malformed {what}: missing {key:?}")), Ok)
 }
 
 /// Require an array.
@@ -110,9 +108,10 @@ fn array<'a>(value: &'a Value, what: &str) -> Answer<&'a Vec<Value>> {
 
 /// Require a JSON string.
 fn text(value: &Value, what: &str) -> Answer<String> {
-    value
-        .as_str()
-        .map_or_else(|| payload(format!("malformed {what}: not a string")), |found| Ok(found.into()))
+    value.as_str().map_or_else(
+        || payload(format!("malformed {what}: not a string")),
+        |found| Ok(found.into()),
+    )
 }
 
 /// Require an integer.
@@ -138,11 +137,10 @@ pub fn spelling(value: &Value) -> Answer<Spelling> {
 
 /// Decode `{"members": [...]}` into the arena, returning its node.
 pub fn universe(value: &Value, arena: &Arena) -> Answer<NodeId> {
-    let members: Answer<Vec<Member>> =
-        array(field(value, "members", "universe")?, "members")?
-            .iter()
-            .map(|member| self_member(member, arena))
-            .collect();
+    let members: Answer<Vec<Member>> = array(field(value, "members", "universe")?, "members")?
+        .iter()
+        .map(|member| self_member(member, arena))
+        .collect();
     Ok(arena.push(members?))
 }
 
@@ -157,9 +155,7 @@ fn self_member(value: &Value, arena: &Arena) -> Answer<Member> {
             Ok(Member::Range(lo, hi))
         }
         "fold" => Ok(Member::Fold(universe(field(value, "universe", "fold")?, arena)?)),
-        "subtract" => {
-            Ok(Member::Subtract(universe(field(value, "universe", "subtract")?, arena)?))
-        }
+        "subtract" => Ok(Member::Subtract(universe(field(value, "universe", "subtract")?, arena)?)),
         "product" => {
             let factors: Answer<Vec<Factor>> =
                 array(field(value, "factors", "product")?, "factors")?
@@ -177,9 +173,7 @@ fn self_member(value: &Value, arena: &Arena) -> Answer<Member> {
 fn self_factor(value: &Value, arena: &Arena) -> Answer<Factor> {
     match text(field(value, "kind", "factor")?, "kind")?.as_str() {
         "closure" => Ok(Factor::Closure),
-        "universe" => {
-            Ok(Factor::Universe(universe(field(value, "universe", "factor")?, arena)?))
-        }
+        "universe" => Ok(Factor::Universe(universe(field(value, "universe", "factor")?, arena)?)),
         other => payload(format!("malformed factor: unknown kind {other:?}")),
     }
 }
@@ -194,10 +188,11 @@ pub fn program(value: &Value, arena: &Arena) -> Answer<Program> {
     }
     let sentinels: Answer<Vec<Spelling>> =
         array(field(value, "sentinels", "program")?, "sentinels")?.iter().map(spelling).collect();
-    let statements: Answer<Vec<Line>> = array(field(value, "statements", "program")?, "statements")?
-        .iter()
-        .map(|line| self_line(line, arena))
-        .collect();
+    let statements: Answer<Vec<Line>> =
+        array(field(value, "statements", "program")?, "statements")?
+            .iter()
+            .map(|line| self_line(line, arena))
+            .collect();
     Ok(Program { statements: statements?, sentinels: sentinels? })
 }
 
@@ -237,10 +232,7 @@ fn self_query(value: &Value, arena: &Arena) -> Answer<WireQuery> {
         .iter()
         .map(|factor| self_query_factor(factor, arena))
         .collect();
-    Ok(WireQuery {
-        source: text(field(value, "source", "query")?, "source")?,
-        factors: factors?,
-    })
+    Ok(WireQuery { source: text(field(value, "source", "query")?, "source")?, factors: factors? })
 }
 
 /// Decode one tagged query factor.
@@ -252,9 +244,7 @@ fn self_query_factor(value: &Value, arena: &Arena) -> Answer<WireFactor> {
         "slot" => {
             let needs: Answer<Vec<u32>> = array(field(value, "needs", "slot")?, "needs")?
                 .iter()
-                .map(|read| {
-                    Ok(u32::try_from(integer(read, "needs")?).unwrap_or(u32::MAX))
-                })
+                .map(|read| Ok(u32::try_from(integer(read, "needs")?).unwrap_or(u32::MAX)))
                 .collect();
             Ok(WireFactor::Slot {
                 slot: u32::try_from(integer(field(value, "slot", "slot")?, "slot")?)

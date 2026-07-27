@@ -36,7 +36,7 @@ pub struct Engine<'a> {
 
 /// A back-referencing factor: the boundary's one back edge, memoised.
 pub struct Slot {
-    slot: u32,
+    id: u32,
     needs: Vec<u32>,
     cache: RefCell<HashMap<Vec<Spelling>, Univ>>,
 }
@@ -67,7 +67,7 @@ impl Query {
             .map(|factor| match factor {
                 crate::wire::WireFactor::Universe(node) => Factor::Eager(den.denote(node)),
                 crate::wire::WireFactor::Slot { slot, needs } => {
-                    Factor::Late(Slot { slot, needs, cache: RefCell::new(HashMap::new()) })
+                    Factor::Late(Slot { id: slot, needs, cache: RefCell::new(HashMap::new()) })
                 }
             })
             .collect();
@@ -107,6 +107,9 @@ pub struct Match {
 /// the chart apply.
 type Chart = HashMap<(usize, usize), Option<Vec<MatchPart>>>;
 
+/// A split's sort key under the collision rule: values first, faces to break ties.
+type Claim = (Vec<usize>, Vec<usize>);
+
 impl Engine<'_> {
     /// Resolve one factor under the faces bound to its left.
     pub fn universe_at(&self, factor: &Factor, bound: &[Spelling]) -> Answer<Univ> {
@@ -118,7 +121,7 @@ impl Engine<'_> {
                 if let Some(found) = slot.cache.borrow().get(&key) {
                     return Ok(*found);
                 }
-                let node = (self.resolve)(slot.slot, &key)?;
+                let node = (self.resolve)(slot.id, &key)?;
                 let universe = self.den.denote(node);
                 slot.cache.borrow_mut().insert(key, universe);
                 Ok(universe)
@@ -293,7 +296,7 @@ impl Engine<'_> {
     }
 
     /// A split's sort key under the collision rule: values first, faces to break ties.
-    fn claim(&self, query: &Query, split: &[Spelling]) -> Answer<(Vec<usize>, Vec<usize>)> {
+    fn claim(&self, query: &Query, split: &[Spelling]) -> Answer<Claim> {
         let mut values = Vec::with_capacity(split.len());
         let mut faces = Vec::with_capacity(split.len());
         for (depth, face) in split.iter().enumerate() {
@@ -317,17 +320,14 @@ impl Engine<'_> {
         if splits.len() == 1 {
             return Ok(splits.into_iter().next().expect("one split"));
         }
-        let mut best: Option<((Vec<usize>, Vec<usize>), Vec<Spelling>)> = None;
+        let mut best: Option<(Claim, Vec<Spelling>)> = None;
         for split in splits {
             let key = self.claim(query, &split)?;
             if best.as_ref().is_none_or(|(seen, _)| key < *seen) {
                 best = Some((key, split));
             }
         }
-        best.map_or_else(
-            || scope("the hit splits no way at all"),
-            |(_, split)| Ok(split),
-        )
+        best.map_or_else(|| scope("the hit splits no way at all"), |(_, split)| Ok(split))
     }
 
     /// The bound entry re-spelled canonically: each factor's face 0, concatenated.

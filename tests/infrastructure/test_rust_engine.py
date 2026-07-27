@@ -44,6 +44,34 @@ def _skip_unless_wanted() -> None:
         pytest.skip("HEJMARK_SKIP_RUST=1 set; the Rust engine is not checked")
 
 
+def test_rust_engine_is_lint_clean() -> None:
+    """The Rust side of the lint gate: clippy pedantic, with `Cargo.toml`'s opt-outs."""
+    _skip_unless_wanted()
+    result = subprocess.run(
+        ["cargo", "clippy", "--release", "--all-targets", "--", "-D", "warnings"],
+        cwd=CRATE,
+        capture_output=True,
+        text=True,
+        timeout=BUILD_SECONDS,
+        check=False,
+    )
+    assert result.returncode == 0, f"cargo clippy failed:\n{result.stderr}"
+
+
+def test_rust_engine_is_formatted() -> None:
+    """The Rust side of `ruff format --check`, to `rust/rustfmt.toml`."""
+    _skip_unless_wanted()
+    result = subprocess.run(
+        ["cargo", "fmt", "--check"],
+        cwd=CRATE,
+        capture_output=True,
+        text=True,
+        timeout=BUILD_SECONDS,
+        check=False,
+    )
+    assert result.returncode == 0, f"cargo fmt --check found unformatted files:\n{result.stdout}"
+
+
 def test_rust_engine_meets_the_conformance_corpus() -> None:
     """The corpus, read natively: what a port has to pass to be an engine."""
     _skip_unless_wanted()

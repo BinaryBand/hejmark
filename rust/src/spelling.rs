@@ -108,11 +108,19 @@ impl Window {
 }
 
 fn least(left: &Spelling, right: &Spelling) -> Spelling {
-    if compare(left, right) == std::cmp::Ordering::Greater { right.clone() } else { left.clone() }
+    if compare(left, right) == std::cmp::Ordering::Greater {
+        right.clone()
+    } else {
+        left.clone()
+    }
 }
 
 fn greatest(left: &Spelling, right: &Spelling) -> Spelling {
-    if compare(left, right) == std::cmp::Ordering::Less { right.clone() } else { left.clone() }
+    if compare(left, right) == std::cmp::Ordering::Less {
+        right.clone()
+    } else {
+        left.clone()
+    }
 }
 
 /// Whether a lazy walk should carry on.

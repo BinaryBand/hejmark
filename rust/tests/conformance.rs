@@ -76,7 +76,12 @@ fn denote_cases() {
             let expected: Vec<Vec<String>> = expected
                 .iter()
                 .map(|entry| {
-                    entry.as_array().expect("entry").iter().map(|f| f.as_str().unwrap().into()).collect()
+                    entry
+                        .as_array()
+                        .expect("entry")
+                        .iter()
+                        .map(|f| f.as_str().unwrap().into())
+                        .collect()
                 })
                 .collect();
             assert_eq!(seen, expected, "{name}: entries");
@@ -142,8 +147,12 @@ fn match_cases() {
         assert_eq!(shown(&canonical), expected["canonical"].as_str().unwrap(), "{name}: $0");
 
         let factors = engine.factor_faces(&query, &found).expect("factors");
-        let expected_factors: Vec<String> =
-            expected["factors"].as_array().unwrap().iter().map(|f| f.as_str().unwrap().into()).collect();
+        let expected_factors: Vec<String> = expected["factors"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|f| f.as_str().unwrap().into())
+            .collect();
         let seen: Vec<String> = factors.iter().map(|face| shown(face)).collect();
         assert_eq!(seen, expected_factors, "{name}: $k");
     }

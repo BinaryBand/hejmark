@@ -48,6 +48,12 @@ type Live<'a> = &'a dyn Fn(&Spelling) -> bool;
 /// Where a stream delivers its entries.
 type Sink<'a> = &'a mut dyn FnMut(Entry) -> Flow;
 
+/// What a universe was asked about a spelling.
+type ContainsMemo = RefCell<HashMap<(Univ, Spelling), bool>>;
+
+/// What one member of one node, under one stage, was asked about a spelling.
+type SpellsMemo = RefCell<HashMap<(NodeId, u32, Option<Univ>, Spelling), bool>>;
+
 /// The engine's denotation, with the memos every query shares.
 ///
 /// Everything takes `&self` and the memos sit behind [`RefCell`]. That mirrors
@@ -59,8 +65,8 @@ pub struct Denoter {
     pub arena: Rc<Arena>,
     keys: RefCell<Vec<Key>>,
     interned: RefCell<HashMap<Key, Univ>>,
-    contains_memo: RefCell<HashMap<(Univ, Spelling), bool>>,
-    spells_memo: RefCell<HashMap<(NodeId, u32, Option<Univ>, Spelling), bool>>,
+    contains_memo: ContainsMemo,
+    spells_memo: SpellsMemo,
 }
 
 impl Denoter {
@@ -120,8 +126,8 @@ impl Denoter {
         // A guarded body settles by `len + 1`, so this is exact; an unguarded one
         // only semi-decides, and a face no stage up to the bound shows reads as
         // absent -- which a later stage of an unsettled body could contradict.
-        let bound = stages
-            .unwrap_or_else(|| u32::try_from(face.len()).expect("spelling too long") + 1);
+        let bound =
+            stages.unwrap_or_else(|| u32::try_from(face.len()).expect("spelling too long") + 1);
         (0..bound).any(|stage| {
             let prev = self.univ(node, amp, Some(stage));
             self.walk(node, self.arena.width(node), Some(prev), face)
@@ -152,8 +158,7 @@ impl Denoter {
             let group = self.arena.node(node);
             match &group.members[index] {
                 Member::Subtract(inner) => {
-                    present =
-                        present && !self.walk(*inner, self.arena.width(*inner), amp, face);
+                    present = present && !self.walk(*inner, self.arena.width(*inner), amp, face);
                 }
                 _ if !present => {
                     present = self.spells(node, index, amp, face);
@@ -182,7 +187,7 @@ impl Denoter {
             Member::Face(text) => **text == **face,
             Member::Range(lo, hi) => Window::inclusive(*lo, *hi).contains(face),
             Member::Fold(inner) => self.braced_spells(*inner, face),
-            Member::Closure => self.contains(self.amp(amp), face),
+            Member::Closure => self.contains(amp_of(amp), face),
             Member::Product(factors) => self.splits(factors, amp, face),
             Member::Subtract(_) => unreachable!("walk handles subtraction"),
         }
@@ -251,14 +256,9 @@ impl Denoter {
     /// Whether a product factor's face set holds *piece*; a braced factor seals `&`.
     fn factor_contains(&self, factor: &Factor, amp: Option<Univ>, piece: &Spelling) -> bool {
         match factor {
-            Factor::Closure => self.contains(self.amp(amp), piece),
+            Factor::Closure => self.contains(amp_of(amp), piece),
             Factor::Universe(node) => self.contains(self.denote(*node), piece),
         }
-    }
-
-    /// The universe a free `&` reads; the grammar guarantees a binder exists.
-    fn amp(&self, amp: Option<Univ>) -> Univ {
-        amp.expect("free `&` outside any binder")
     }
 
     /// Stream the entries in declaration order, lazily -- safe over infinity.
@@ -349,7 +349,7 @@ impl Denoter {
                 GO
             }
             Member::Fold(inner) => self.braced_entries(*inner, live, sink),
-            Member::Closure => self.filtered(self.amp(amp), live, sink),
+            Member::Closure => self.filtered(amp_of(amp), live, sink),
             Member::Product(factors) => self.product_entries(factors, amp, live, sink),
             Member::Subtract(_) => GO,
         }
@@ -428,7 +428,7 @@ impl Denoter {
             return sink(chosen);
         }
         let source = match &factors[depth] {
-            Factor::Closure => self.amp(amp),
+            Factor::Closure => amp_of(amp),
             Factor::Universe(node) => self.denote(*node),
         };
         self.entries(source, &mut |entry| {
@@ -497,6 +497,11 @@ impl Denoter {
             })
             .collect()
     }
+}
+
+/// The universe a free `&` reads; the grammar guarantees a binder exists.
+fn amp_of(amp: Option<Univ>) -> Univ {
+    amp.expect("free `&` outside any binder")
 }
 
 /// Every combination taking one face from each factor, last factor moving fastest.

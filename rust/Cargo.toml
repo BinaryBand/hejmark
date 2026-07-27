@@ -14,4 +14,19 @@ overflow-checks = true
 missing_docs = "warn"
 
 [lints.clippy]
+# Strict by default -- the whole pedantic set -- then subtract only what is
+# ceremony rather than signal, each with its reason, mirroring how
+# `pyproject.toml` justifies every ruff ignore.
 pedantic = { level = "warn", priority = -1 }
+# Every fallible function here returns the same three refusal categories, named
+# once in `errors.rs` and stated normatively in `docs/protocol.md`. A `# Errors`
+# section per function would restate that table dozens of times, which is the
+# duplication this codebase is organised to avoid.
+missing_errors_doc = "allow"
+# Same, for the `expect`s that assert arena and interner invariants: they are
+# not conditions a caller can act on, and documenting each as a panic path would
+# suggest they are.
+missing_panics_doc = "allow"
+# `#[must_use]` on every accessor. The one place ignoring a result is a real bug
+# -- a stream's `Flow` -- is already `#[must_use]` because `ControlFlow` is.
+must_use_candidate = "allow"

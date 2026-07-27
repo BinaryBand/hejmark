@@ -43,7 +43,13 @@ impl Channel {
     pub fn call<D: Dispatch>(&mut self, dispatch: &D, verb: &str, params: Value) -> Answer<Value> {
         let id = self.next;
         self.next += 1;
-        self.send(&json!({"id": id, "verb": verb, "params": params}))?;
+        // Built by hand so *params* moves. A `json!` interpolation re-serialises
+        // it, which on `run` means deep-copying a whole program payload.
+        let mut request = serde_json::Map::new();
+        request.insert("id".into(), Value::from(id));
+        request.insert("verb".into(), Value::from(verb));
+        request.insert("params".into(), params);
+        self.send(&Value::Object(request))?;
         self.pump(dispatch, Some(id))
     }
 
