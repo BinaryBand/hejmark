@@ -8,8 +8,9 @@ The commands: `find` (scan a target file with a query) and `run` (execute a
 whole script against a target file) are the language; `emit-json` and
 `emit-program` are the same two, stopped at the compiler so another engine can
 finish them, and `emit-fragments` is `emit-json` over a script a host holds in
-pieces -- one AST per piece, one shared set of names; `gen-parser` (rebuild the
-ANTLR parser from the grammars),
+pieces -- one AST per piece, one shared set of names; `serve-engine` is the far
+end of that hand-off, running a payload someone else compiled; `gen-parser`
+(rebuild the ANTLR parser from the grammars),
 `parse-file` (dump a parse tree) and `status` (version echo) are the tooling
 around it.
 """
@@ -26,7 +27,9 @@ import typer
 import hejmark
 from hejmark.adapters.antlr import AntlrGenerationError, AntlrGenerator, AntlrToolNotFoundError
 from hejmark.adapters.parser import AntlrParser, GeneratedParserMissingError
+from hejmark.adapters.serve import serve_stdio
 from hejmark.adapters.toolchain import ToolchainError, repository_root
+from hejmark.core.engine.service import InProcess
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
 
@@ -233,6 +236,21 @@ def parse_file(
     else:
         out.write_text(tree)
         typer.echo(f"{path}: OK, parse tree written to {out}")
+
+
+@app.command("serve-engine")
+def serve_engine() -> None:
+    """Answer the engine protocol on stdin and stdout, until the caller hangs up.
+
+    The other side of `emit-program`: that one stops at the payload for someone
+    else to run, this one runs it. Nothing is printed for a human -- the output
+    is the protocol in `docs/protocol.md`, one JSON object per line, so this is
+    the command a host spawns rather than one anybody types.
+
+    It serves the engine in this package, which makes it the reference an engine
+    written elsewhere is checked against.
+    """
+    serve_stdio(InProcess())
 
 
 def main() -> None:

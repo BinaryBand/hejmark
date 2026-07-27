@@ -8,7 +8,7 @@ The goal is an engine that is **interchangeable**: it receives data, returns dat
 
 Only JSON, in the shapes `hejmark/core/ir/wire.py` and `hejmark/core/ir/codec.py` define, explained in [shapes/](shapes/README.md). Faces and template text are code-point arrays; nothing else needs decoding.
 
-Transport is deliberately unspecified -- stdio, a socket, FFI, in-process callbacks all conform. What follows constrains *behaviour*, not mechanism.
+Transport is deliberately unspecified -- stdio, a socket, FFI, in-process callbacks all conform. What follows constrains *behaviour*, not mechanism. One transport is nevertheless implemented and tested, and [the wire](#the-wire) describes it; an engine that speaks it needs no adapter written for it.
 
 ## Three verbs
 
@@ -37,6 +37,33 @@ There is no streaming or cursor verb, and none is needed: these two are the only
 
 **4. A slot-free program needs no back channel at all.** If your engine only ever receives programs with no `slot` factor, `resolve` is dead and the protocol is one-way. The corpus marks these with `requires`.
 
+## The wire
+
+The implemented transport: **one JSON object per line, in both directions, over a pair of streams.** `hejmark/adapters/channel.py` is it, and `hejmark serve-engine` runs this package's engine behind it. An engine speaking this needs nothing written on the host side -- `hejmark/adapters/remote.py` already talks to it.
+
+Three message shapes, and no others:
+
+```json
+{"id": 1, "verb": "run", "params": {...}}
+{"id": 1, "ok": {...}}
+{"id": 1, "error": {"category": "scope", "message": "..."}}
+```
+
+Ids pair a call with its answer and are per-direction: each end numbers its own calls, so both may use `1` at once and neither is confused, because a response only ever comes back down the stream the request went up. Every message is flushed. Anything else on the line -- a truncated object, an answer to a call nobody made -- ends the conversation rather than being repaired.
+
+| Verb | `params` | `ok` |
+| --- | --- | --- |
+| `run` | `{"program", "document"}` | `{"document"}` |
+| `zero` | `{"universe"}` | `{"face"}`, null if empty |
+| `digits` | `{"universe"}` | `{"faces"}` |
+| `resolve` | `{"slot", "faces"}` | `{"universe"}` |
+
+`program` is the `hejmark-program` object; `universe` is the codec's; **`document`, `face` and `faces` are code-point arrays**, same rule as everything else that carries a spelling. That is not free -- a document costs several times its length -- but a document is exactly where a lone surrogate would turn up, and a transport that mangles one is worse than a slow one.
+
+`error.category` is one of the three below and nothing else; a category the reader does not know stays unread rather than being guessed at.
+
+The requirement re-entrancy places on all this is small in code and non-negotiable in effect: **both ends run the same loop**, and waiting for an answer differs from serving only in when it stops. An end reads messages, answers requests as they arrive, and returns when the answer it is waiting for shows up. Nesting is that loop entered again from inside a dispatch, which is what `digits`-inside-`resolve`-inside-`run` actually is.
+
 ## Division of labour
 
 The split is chosen so no logic exists on both sides.
@@ -63,6 +90,8 @@ Three categories, named not messaged -- messages are deliberately unpinned.
 | `scope` | A capture read nothing anchors, or a factor read past the query |
 | `sentinel` | A document arrived already spelling a noncharacter (the L2 guard) |
 
+`hejmark/core/ir/errors.py` holds that table as `CATEGORIES`, so the name and the exception it becomes are stated once. A refusal that crosses the wire arrives on the far side as the exception it was raised as -- a refused program raises the same thing whether the engine ran here or elsewhere.
+
 ## The host side
 
 `hejmark/core/ir/ports.py` declares this contract as a Python `Protocol`, and
@@ -72,12 +101,20 @@ is the in-process implementation and the reference the corpus is generated from.
 
 An out-of-process engine is therefore an *adapter*: something under
 `hejmark/adapters/` that satisfies the same two verbs by talking to another
-process. Nothing under `core/` changes to accommodate it.
+process. Nothing under `core/` changes to accommodate it, and
+`hejmark/adapters/remote.py` is that adapter for the wire above -- it is an
+`Engine`, so `Adapters(to_ast, Remote(...))` runs a whole script against a
+process that has never seen a `.hmk` file.
 
 `zero` and `digits` appear on that Protocol as the single lazy `canonical_faces`,
 because in-process laziness expresses both: taking one face is `zero`, taking
-all of them is `digits`. Over a wire they are two bounded calls.
+all of them is `digits`. Over a wire they are two bounded calls, and `Remote`
+is where the translation happens: taking one face sends `zero` and stops there,
+which is what keeps `@0` on an unbounded universe from asking for a radix that
+does not end.
 
 ## Conformance
 
 `static/conformance/` is the executable form of this document: cases carrying a payload and the answer any engine must produce. Making it pass is the definition of a working engine. Start there, not here.
+
+`tests/integration/test_transport.py` runs the same corpus over the wire against `hejmark serve-engine`, so the transport is checked against an engine already known to be correct and a failure there is the wire's. Point it at your own engine command and it is a conformance run for that engine instead.

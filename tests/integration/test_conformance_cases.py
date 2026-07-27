@@ -27,7 +27,7 @@ from hejmark.core.engine.scan.match import load_query
 from hejmark.core.engine.scan.match import match as engine_match
 from hejmark.core.floor.syntax import UniverseNode
 from hejmark.core.ir.codec import decode_universe
-from hejmark.core.ir.errors import HimarkPayloadError, HimarkScopeError, HimarkSentinelError
+from hejmark.core.ir.errors import CATEGORIES
 from hejmark.core.ir.program import (
     CompiledQuery,
     EagerFactor,
@@ -38,11 +38,9 @@ CORPUS = Path(__file__).resolve().parents[2] / "static" / "conformance"
 FORMAT = "hejmark-conformance"
 VERSION = 1
 
-ERRORS = {
-    "scope": HimarkScopeError,
-    "sentinel": HimarkSentinelError,
-    "payload": HimarkPayloadError,
-}
+# A case's `error` is a protocol category, so the mapping to an exception is
+# the one in core.ir.errors rather than a second copy of it here.
+ERRORS = CATEGORIES
 
 
 def _no_resolver(_slot: int, _faces: tuple[str, ...]) -> UniverseNode:

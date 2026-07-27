@@ -7,6 +7,11 @@ import. :class:`HimarkPayloadError` belongs to the boundary itself: a payload
 that does not decode is neither side's program. :class:`HimarkSentinelError` is
 an L2 refusal -- a program that denotes, declined at the sentinel boundary --
 so it too sits in the shared stratum, where the L2 contract can raise it.
+
+:data:`CATEGORIES` names those three for a wire that cannot carry a Python
+class. ``docs/protocol.md`` states them as the protocol's error categories, and
+this is that table: a refusal crossing a process boundary travels as its name
+and arrives as the same exception on the far side.
 """
 
 from __future__ import annotations
@@ -41,3 +46,17 @@ class HimarkPayloadError(ValueError):
     so a reader on the far side of the wire never runs on something it only
     half understood.
     """
+
+
+CATEGORIES: dict[str, type[ValueError]] = {
+    "payload": HimarkPayloadError,
+    "scope": HimarkScopeError,
+    "sentinel": HimarkSentinelError,
+}
+"""The refusals a host and an engine can name to each other, by wire name.
+
+Messages are deliberately unpinned -- a port must agree on *which* refusal it
+is, never on how it reads. Nothing here is engine-private: all three are raised
+on both sides of the wire, and a category that is not in this table is a
+malformed payload rather than a refusal to be relayed.
+"""
