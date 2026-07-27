@@ -25,12 +25,9 @@ An entry's address is `<value, face>`: which entry (declaration order), and whic
 
 ## Floor shapes
 
-**Five constructors and two leaves.** The constructors are *union* -- which is
-simply what a group does to its members -- plus *subtraction*, *fold*, *product*
-and *closure*. [Face](face.md) and [Range](range.md) are the leaves they combine.
+**Five constructors and two leaves.** The constructors are *union* -- which is simply what a group does to its members -- plus *subtraction*, *fold*, *product* and *closure*. [Face](face.md) and [Range](range.md) are the leaves they combine.
 
-That is the whole floor. There is deliberately nothing else, and everything the
-surface language offers expands into exactly these before it can run.
+That is the whole floor. There is deliberately nothing else, and everything the surface language offers expands into exactly these before it can run.
 
 | Shape | One line |
 | --- | --- |
@@ -44,8 +41,7 @@ surface language offers expands into exactly these before it can run.
 
 ## Program shapes
 
-Four pages, nesting outward to inward: a program holds statements, statements
-hold queries and templates.
+Four pages, nesting outward to inward: a program holds statements, statements hold queries and templates.
 
 | Page | Covers |
 | --- | --- |

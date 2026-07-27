@@ -10,7 +10,7 @@ The Python implementation is today's source of truth: expected answers are gener
 
 A stale corpus is a test failure, so a change in lowering surfaces as a corpus diff in review rather than as silent drift between implementations.
 
-### Two halves, two lifetimes
+## Two halves, two lifetimes
 
 A case is part **payload** (the lowered universe or program, derived from the compiler) and part **expected answer** (derived from the engine). They do not age the same way, so regeneration has two modes:
 
