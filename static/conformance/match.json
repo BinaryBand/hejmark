@@ -780,6 +780,74 @@
       }
     },
     {
+      "name": "{ab,a}{c,bc} on 'abc'",
+      "source": "{ab,a}{c,bc}",
+      "query": [
+        {
+          "members": [
+            {
+              "kind": "face",
+              "text": [
+                97,
+                98
+              ]
+            },
+            {
+              "kind": "face",
+              "text": [
+                97
+              ]
+            }
+          ]
+        },
+        {
+          "members": [
+            {
+              "kind": "face",
+              "text": [
+                99
+              ]
+            },
+            {
+              "kind": "face",
+              "text": [
+                98,
+                99
+              ]
+            }
+          ]
+        }
+      ],
+      "text": "abc",
+      "match": {
+        "span": [
+          0,
+          3
+        ],
+        "parts": [
+          {
+            "span": [
+              0,
+              2
+            ],
+            "face": "ab"
+          },
+          {
+            "span": [
+              2,
+              3
+            ],
+            "face": "c"
+          }
+        ],
+        "canonical": "abc",
+        "factors": [
+          "ab",
+          "c"
+        ]
+      }
+    },
+    {
       "name": "{{}} on 'abc'",
       "source": "{{}}",
       "query": [

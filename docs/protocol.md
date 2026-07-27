@@ -117,4 +117,15 @@ does not end.
 
 `static/conformance/` is the executable form of this document: cases carrying a payload and the answer any engine must produce. Making it pass is the definition of a working engine. Start there, not here.
 
-`tests/integration/test_transport.py` runs the same corpus over the wire against `hejmark serve-engine`, so the transport is checked against an engine already known to be correct and a failure there is the wire's. Point it at your own engine command and it is a conformance run for that engine instead.
+**Read the corpus in your own language, not over this protocol.** The verbs above are `run`, `zero` and `digits`; there is none for entries or membership, so the corpus's `denote` and `match` suites cannot be asked over a pipe at all. Running scripts and comparing documents exercises denotation only where those scripts happen to reach. `rust/tests/conformance.rs` is the worked example of doing it properly: it loads the JSON, decodes the payloads and drives all four suites natively.
+
+`tests/integration/test_transport.py` then checks the complementary half -- that the engine speaks *this* document -- by running the corpus over a real pipe. Point `HEJMARK_ENGINE` at your binary and it is that check for your engine.
+
+## A second engine exists
+
+`rust/` is one. It has no parser and no compiler: it decodes `hejmark/core/ir/`'s payload, denotes it, and answers the verbs above over stdio. Reading it beside `hejmark/core/engine/` is the fastest way to see what this document actually asks for -- the modules are a function-for-function port, and each names its Python counterpart in its header.
+
+Two things it discovered, worth knowing before writing a third:
+
+- **A spelling is a sequence of code points, not a string in your language's string type.** L1's spelling order is shortlex over the whole code space with surrogates unspecialised, so `D800` is an ordinary spelling with an ordinary successor. Rust's `char` cannot hold one; the engine uses `Vec<u32>` throughout. This is the same reason the wire carries code-point arrays.
+- **The arena a payload decodes into has to keep growing.** `resolve` hands back a floor universe that did not exist when the program arrived, and it must land where the denotation is already reading.

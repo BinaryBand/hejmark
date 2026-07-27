@@ -128,6 +128,13 @@ MATCH: tuple[tuple[str, str], ...] = (
     # Two factors, and "abc" splits both ways (a+bc, ab+c): the matcher's
     # greedy witness is one split, the collision rule picks the binding.
     ("{a,ab}{c,bc}", "abc"),
+    # The same two splits with the head's members declared the other way round,
+    # which is what actually pins the *rule*. Re-splitting enumerates shortest
+    # piece first, so above, the least-address binding and the first split found
+    # coincide -- an engine that skipped the collision rule and returned the
+    # first tiling passed. Here declaration order puts "ab" at value 0, so the
+    # binding is the *second* split found and only the address rule reaches it.
+    ("{ab,a}{c,bc}", "abc"),
     ("{{}}", "abc"),
 )
 

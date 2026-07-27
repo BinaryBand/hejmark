@@ -60,6 +60,8 @@ Entries must be produced **lazily**: a case with a `limit` is infinite, and an i
 
 **These last two are not the parts.** The matcher's leftmost-greedy walk yields *a* witness split; where a spelling splits more than one way the floor binds it to the least `<value, face>` address, and the captures read *that* split. The corpus case `{a,ab}{c,bc}` on `"abc"` pins the difference: `parts` are `["ab", "c"]` while `factors` are `["a", "bc"]`. An implementation that reports the matcher's parts for `$k` passes every other case and fails this one.
 
+`{ab,a}{c,bc}` on `"abc"` is its twin, and it is here because the first case alone was not enough. Re-splitting a hit enumerates the shortest piece first, so above, the least-address binding and the *first* split found happen to coincide -- an engine that skipped the collision rule entirely and returned the first tiling still passed. Declaring the head's members the other way round puts `"ab"` at value 0, so the binding becomes the second split found and only the address rule reaches it: `factors` are `["ab", "c"]`. The Rust engine passed the whole corpus with the rule stubbed out until this case was added.
+
 The empty spelling is never matched: zero-width never hits.
 
 ### `run.json` -- whole programs
@@ -100,6 +102,16 @@ Three properties any transport must respect:
 1. **Traffic scales with distinct bindings, not with document size.** The same script over 4/8/16/32 items needs 4/6/6/10 resolver calls: sub-linear, and flattening, because a slot memoizes on the faces its reads project to, so only a *new* binding costs a round trip. Note what does the bounding -- the read factor here is `uni digits = {@d,&@d}`, an infinite universe, yet a document of single digits can only ever present ten distinct faces, and the 32-item run saturates at exactly those ten. The bound is the number of distinct bindings the document actually presents, which is a property of the data rather than of the universe's size or the document's length.
 1. **Memoize on the engine side.** Every measured call was a first-time key (calls == distinct), which is the memo working. Dropping it turns each match attempt into a round trip.
 
+## Read this corpus directly, not over the wire
+
+The protocol has verbs for `run`, `zero` and `digits` and **none for entries or membership**, so the `denote` and `match` suites cannot be asked of an engine over a pipe. Running a script and comparing the document exercises denotation only where that script happens to reach.
+
+So a port reads these files itself, in its own language, as its own test suite. That is what the payloads are for. `rust/tests/conformance.rs` is the worked example: it loads the JSON, decodes the payloads, and drives all four suites in-process with no Python involved.
+
+`tests/integration/test_transport.py` (with `HEJMARK_ENGINE` pointed at your binary) then checks the other half -- that the engine speaks the protocol. Both, not either.
+
 ## Adding a case
 
 Add the input row to the table at the top of `tests/integration/test_conformance_build.py`, regenerate, and review the generated answer as carefully as you would hand-write it: regeneration will happily enshrine a bug. The corpus is only as good as the review of its diff.
+
+Coverage is judged by what a *wrong* engine would survive, not by how many cases there are. The `{ab,a}{c,bc}` case above exists because a second implementation passed 67 cases with a rule stubbed out; if you cannot name the mistake a new case catches, it probably is not worth adding.

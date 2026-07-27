@@ -37,3 +37,6 @@ static/**/.*
 
 CLAUDE.md
 .claude
+
+# Rust engine build artifacts.
+rust/target/
