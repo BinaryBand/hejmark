@@ -90,10 +90,3 @@ class UniverseNode:
             cached = hash(self.members)
             object.__setattr__(self, "_hash", cached)
         return cached
-
-
-@dataclass(frozen=True)
-class QueryNode:
-    """A whole query: one or more universes juxtaposed as a product."""
-
-    universes: tuple[UniverseNode, ...]

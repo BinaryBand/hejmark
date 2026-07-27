@@ -12,7 +12,6 @@ from hejmark.core.floor.syntax import (
     Fold,
     HimarkSyntaxError,
     Product,
-    QueryNode,
     Range,
     Subtract,
     UniverseNode,
@@ -39,9 +38,9 @@ def test_nodes_compare_by_value() -> None:
 def test_nodes_nest_without_normalizing() -> None:
     """The AST is faithful: a nested universe is preserved verbatim, not flattened."""
     inner = UniverseNode((Face("a"), Face("a")))
-    query = QueryNode((UniverseNode((Fold(inner), Range("0", "9"), Subtract(inner))),))
+    outer = UniverseNode((Fold(inner), Range("0", "9"), Subtract(inner)))
 
-    members = query.universes[0].members
+    members = outer.members
     assert members[0] == Fold(inner)
     assert members[1] == Range("0", "9")
     assert members[2] == Subtract(inner)

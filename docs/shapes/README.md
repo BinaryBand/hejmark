@@ -25,6 +25,13 @@ An entry's address is `<value, face>`: which entry (declaration order), and whic
 
 ## Floor shapes
 
+**Five constructors and two leaves.** The constructors are *union* -- which is
+simply what a group does to its members -- plus *subtraction*, *fold*, *product*
+and *closure*. [Face](face.md) and [Range](range.md) are the leaves they combine.
+
+That is the whole floor. There is deliberately nothing else, and everything the
+surface language offers expands into exactly these before it can run.
+
 | Shape | One line |
 | --- | --- |
 | [UniverseNode](universe-node.md) | A `{...}` group: members in declaration order |
@@ -34,23 +41,18 @@ An entry's address is `<value, face>`: which entry (declaration order), and whic
 | [Subtract](subtract.md) | `!{...}` -- strips faces the inner universe spells |
 | [Product](product.md) | Adjacency -- factors concatenated |
 | [Closure](closure.md) | `&` -- self-reference, the only source of infinity |
-| [QueryNode](query-node.md) | A whole query: universes juxtaposed |
 
 ## Program shapes
 
-| Shape | One line |
+Four pages, nesting outward to inward: a program holds statements, statements
+hold queries and templates.
+
+| Page | Covers |
 | --- | --- |
-| [Program](program.md) | A compiled script: statements plus the sentinel table |
-| [CompiledStatement](compiled-statement.md) | Steps joined by `=>` |
-| [CompiledIter](compiled-iter.md) | `<=>` -- repeat until the document stops changing |
-| [CompiledQuery](compiled-query.md) | One query: a factor per written unit |
-| [EagerFactor](eager-factor.md) | A factor already lowered to the floor |
-| [LateSlot](late-slot.md) | A factor that cannot be lowered yet -- a hole |
-| [CompiledTemplate](compiled-template.md) | The `"..."` side: a list of parts |
-| [TextPart](text-part.md) | Literal text in a template |
-| [CapturePart](capture-part.md) | `{{$}}`, `{{$0}}`, `{{$k}}` |
-| [SentinelPart](sentinel-part.md) | `{{@name}}` -- splices a sentinel |
-| [Sentinel](sentinel.md) | One declared sentinel and the character it got |
+| [Program](program.md) | The compiled script, and its sentinel table |
+| [Statements](statements.md) | `=>` chains, and `<=>` repeat-to-a-fixpoint |
+| [Queries](queries.md) | A query's factors: eager ones, and late slots |
+| [Templates](templates.md) | The `"..."` side: text, captures, sentinel splices |
 
 ## A note on JSON
 
