@@ -1047,6 +1047,3253 @@
         "aabb": true,
         "ba": false
       }
+    },
+    {
+      "name": "{@hex}",
+      "source": "{@hex}",
+      "universe": {
+        "members": [
+          {
+            "kind": "range",
+            "lo": 48,
+            "hi": 57
+          },
+          {
+            "kind": "range",
+            "lo": 97,
+            "hi": 102
+          }
+        ]
+      },
+      "limit": null,
+      "entries": [
+        [
+          "0"
+        ],
+        [
+          "1"
+        ],
+        [
+          "2"
+        ],
+        [
+          "3"
+        ],
+        [
+          "4"
+        ],
+        [
+          "5"
+        ],
+        [
+          "6"
+        ],
+        [
+          "7"
+        ],
+        [
+          "8"
+        ],
+        [
+          "9"
+        ],
+        [
+          "a"
+        ],
+        [
+          "b"
+        ],
+        [
+          "c"
+        ],
+        [
+          "d"
+        ],
+        [
+          "e"
+        ],
+        [
+          "f"
+        ]
+      ],
+      "contains": {
+        "0": true,
+        "f": true,
+        "g": false
+      }
+    },
+    {
+      "name": "{0..9}[where 8..12]",
+      "source": "{0..9}[where 8..12]",
+      "universe": {
+        "members": [
+          {
+            "kind": "product",
+            "factors": [
+              {
+                "kind": "universe",
+                "universe": {
+                  "members": [
+                    {
+                      "kind": "face",
+                      "text": [
+                        48
+                      ]
+                    },
+                    {
+                      "kind": "product",
+                      "factors": [
+                        {
+                          "kind": "universe",
+                          "universe": {
+                            "members": [
+                              {
+                                "kind": "face",
+                                "text": [
+                                  49
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  50
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  51
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  52
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  53
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  54
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  55
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  56
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  57
+                                ]
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "product",
+                      "factors": [
+                        {
+                          "kind": "universe",
+                          "universe": {
+                            "members": [
+                              {
+                                "kind": "face",
+                                "text": [
+                                  49
+                                ]
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "kind": "universe",
+                          "universe": {
+                            "members": [
+                              {
+                                "kind": "face",
+                                "text": [
+                                  48
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  49
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  50
+                                ]
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "subtract",
+                      "universe": {
+                        "members": [
+                          {
+                            "kind": "face",
+                            "text": [
+                              48
+                            ]
+                          },
+                          {
+                            "kind": "product",
+                            "factors": [
+                              {
+                                "kind": "universe",
+                                "universe": {
+                                  "members": [
+                                    {
+                                      "kind": "face",
+                                      "text": [
+                                        49
+                                      ]
+                                    },
+                                    {
+                                      "kind": "face",
+                                      "text": [
+                                        50
+                                      ]
+                                    },
+                                    {
+                                      "kind": "face",
+                                      "text": [
+                                        51
+                                      ]
+                                    },
+                                    {
+                                      "kind": "face",
+                                      "text": [
+                                        52
+                                      ]
+                                    },
+                                    {
+                                      "kind": "face",
+                                      "text": [
+                                        53
+                                      ]
+                                    },
+                                    {
+                                      "kind": "face",
+                                      "text": [
+                                        54
+                                      ]
+                                    },
+                                    {
+                                      "kind": "face",
+                                      "text": [
+                                        55
+                                      ]
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "limit": null,
+      "entries": [
+        [
+          "8"
+        ],
+        [
+          "9"
+        ],
+        [
+          "10"
+        ],
+        [
+          "11"
+        ],
+        [
+          "12"
+        ]
+      ],
+      "contains": {
+        "8": true,
+        "12": true,
+        "7": false,
+        "13": false
+      }
+    },
+    {
+      "name": "{0..9}[below 8..12]",
+      "source": "{0..9}[below 8..12]",
+      "universe": {
+        "members": [
+          {
+            "kind": "product",
+            "factors": [
+              {
+                "kind": "universe",
+                "universe": {
+                  "members": [
+                    {
+                      "kind": "face",
+                      "text": [
+                        48
+                      ]
+                    },
+                    {
+                      "kind": "product",
+                      "factors": [
+                        {
+                          "kind": "universe",
+                          "universe": {
+                            "members": [
+                              {
+                                "kind": "face",
+                                "text": [
+                                  49
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  50
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  51
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  52
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  53
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  54
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  55
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  56
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  57
+                                ]
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "product",
+                      "factors": [
+                        {
+                          "kind": "universe",
+                          "universe": {
+                            "members": [
+                              {
+                                "kind": "face",
+                                "text": [
+                                  49
+                                ]
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "kind": "universe",
+                          "universe": {
+                            "members": [
+                              {
+                                "kind": "face",
+                                "text": [
+                                  48
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  49
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  50
+                                ]
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "subtract",
+                      "universe": {
+                        "members": [
+                          {
+                            "kind": "face",
+                            "text": [
+                              48
+                            ]
+                          },
+                          {
+                            "kind": "product",
+                            "factors": [
+                              {
+                                "kind": "universe",
+                                "universe": {
+                                  "members": [
+                                    {
+                                      "kind": "face",
+                                      "text": [
+                                        49
+                                      ]
+                                    },
+                                    {
+                                      "kind": "face",
+                                      "text": [
+                                        50
+                                      ]
+                                    },
+                                    {
+                                      "kind": "face",
+                                      "text": [
+                                        51
+                                      ]
+                                    },
+                                    {
+                                      "kind": "face",
+                                      "text": [
+                                        52
+                                      ]
+                                    },
+                                    {
+                                      "kind": "face",
+                                      "text": [
+                                        53
+                                      ]
+                                    },
+                                    {
+                                      "kind": "face",
+                                      "text": [
+                                        54
+                                      ]
+                                    },
+                                    {
+                                      "kind": "face",
+                                      "text": [
+                                        55
+                                      ]
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "kind": "subtract",
+            "universe": {
+              "members": [
+                {
+                  "kind": "product",
+                  "factors": [
+                    {
+                      "kind": "universe",
+                      "universe": {
+                        "members": [
+                          {
+                            "kind": "face",
+                            "text": [
+                              48
+                            ]
+                          },
+                          {
+                            "kind": "product",
+                            "factors": [
+                              {
+                                "kind": "universe",
+                                "universe": {
+                                  "members": [
+                                    {
+                                      "kind": "face",
+                                      "text": [
+                                        49
+                                      ]
+                                    },
+                                    {
+                                      "kind": "face",
+                                      "text": [
+                                        50
+                                      ]
+                                    },
+                                    {
+                                      "kind": "face",
+                                      "text": [
+                                        51
+                                      ]
+                                    },
+                                    {
+                                      "kind": "face",
+                                      "text": [
+                                        52
+                                      ]
+                                    },
+                                    {
+                                      "kind": "face",
+                                      "text": [
+                                        53
+                                      ]
+                                    },
+                                    {
+                                      "kind": "face",
+                                      "text": [
+                                        54
+                                      ]
+                                    },
+                                    {
+                                      "kind": "face",
+                                      "text": [
+                                        55
+                                      ]
+                                    },
+                                    {
+                                      "kind": "face",
+                                      "text": [
+                                        56
+                                      ]
+                                    },
+                                    {
+                                      "kind": "face",
+                                      "text": [
+                                        57
+                                      ]
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "product",
+                            "factors": [
+                              {
+                                "kind": "universe",
+                                "universe": {
+                                  "members": [
+                                    {
+                                      "kind": "face",
+                                      "text": [
+                                        49
+                                      ]
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "kind": "universe",
+                                "universe": {
+                                  "members": [
+                                    {
+                                      "kind": "face",
+                                      "text": [
+                                        48
+                                      ]
+                                    },
+                                    {
+                                      "kind": "face",
+                                      "text": [
+                                        49
+                                      ]
+                                    },
+                                    {
+                                      "kind": "face",
+                                      "text": [
+                                        50
+                                      ]
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "subtract",
+                            "universe": {
+                              "members": [
+                                {
+                                  "kind": "face",
+                                  "text": [
+                                    48
+                                  ]
+                                },
+                                {
+                                  "kind": "product",
+                                  "factors": [
+                                    {
+                                      "kind": "universe",
+                                      "universe": {
+                                        "members": [
+                                          {
+                                            "kind": "face",
+                                            "text": [
+                                              49
+                                            ]
+                                          },
+                                          {
+                                            "kind": "face",
+                                            "text": [
+                                              50
+                                            ]
+                                          },
+                                          {
+                                            "kind": "face",
+                                            "text": [
+                                              51
+                                            ]
+                                          },
+                                          {
+                                            "kind": "face",
+                                            "text": [
+                                              52
+                                            ]
+                                          },
+                                          {
+                                            "kind": "face",
+                                            "text": [
+                                              53
+                                            ]
+                                          },
+                                          {
+                                            "kind": "face",
+                                            "text": [
+                                              54
+                                            ]
+                                          },
+                                          {
+                                            "kind": "face",
+                                            "text": [
+                                              55
+                                            ]
+                                          },
+                                          {
+                                            "kind": "face",
+                                            "text": [
+                                              56
+                                            ]
+                                          },
+                                          {
+                                            "kind": "face",
+                                            "text": [
+                                              57
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  ]
+                                },
+                                {
+                                  "kind": "product",
+                                  "factors": [
+                                    {
+                                      "kind": "universe",
+                                      "universe": {
+                                        "members": [
+                                          {
+                                            "kind": "face",
+                                            "text": [
+                                              49
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "kind": "universe",
+                                      "universe": {
+                                        "members": [
+                                          {
+                                            "kind": "face",
+                                            "text": [
+                                              48
+                                            ]
+                                          },
+                                          {
+                                            "kind": "face",
+                                            "text": [
+                                              49
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "limit": null,
+      "entries": [
+        [
+          "8"
+        ],
+        [
+          "9"
+        ],
+        [
+          "10"
+        ],
+        [
+          "11"
+        ]
+      ],
+      "contains": {
+        "8": true,
+        "11": true,
+        "12": false,
+        "13": false
+      }
+    },
+    {
+      "name": "{a..z}[where aa..cc]",
+      "source": "{a..z}[where aa..cc]",
+      "universe": {
+        "members": [
+          {
+            "kind": "product",
+            "factors": [
+              {
+                "kind": "universe",
+                "universe": {
+                  "members": [
+                    {
+                      "kind": "face",
+                      "text": [
+                        97
+                      ]
+                    },
+                    {
+                      "kind": "product",
+                      "factors": [
+                        {
+                          "kind": "universe",
+                          "universe": {
+                            "members": [
+                              {
+                                "kind": "face",
+                                "text": [
+                                  98
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  99
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  100
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  101
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  102
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  103
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  104
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  105
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  106
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  107
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  108
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  109
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  110
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  111
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  112
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  113
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  114
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  115
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  116
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  117
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  118
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  119
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  120
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  121
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  122
+                                ]
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "product",
+                      "factors": [
+                        {
+                          "kind": "universe",
+                          "universe": {
+                            "members": [
+                              {
+                                "kind": "face",
+                                "text": [
+                                  98
+                                ]
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "kind": "universe",
+                          "universe": {
+                            "members": [
+                              {
+                                "kind": "face",
+                                "text": [
+                                  97
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  98
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  99
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  100
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  101
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  102
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  103
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  104
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  105
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  106
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  107
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  108
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  109
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  110
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  111
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  112
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  113
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  114
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  115
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  116
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  117
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  118
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  119
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  120
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  121
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  122
+                                ]
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "product",
+                      "factors": [
+                        {
+                          "kind": "universe",
+                          "universe": {
+                            "members": [
+                              {
+                                "kind": "face",
+                                "text": [
+                                  99
+                                ]
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "kind": "universe",
+                          "universe": {
+                            "members": [
+                              {
+                                "kind": "face",
+                                "text": [
+                                  97
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  98
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  99
+                                ]
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "limit": 6,
+      "entries": [
+        [
+          "a"
+        ],
+        [
+          "b"
+        ],
+        [
+          "c"
+        ],
+        [
+          "d"
+        ],
+        [
+          "e"
+        ],
+        [
+          "f"
+        ]
+      ],
+      "contains": {
+        "a": true,
+        "cc": true,
+        "cd": false
+      }
+    },
+    {
+      "name": "{0..9}[where 8..12][pad 1..2]",
+      "source": "{0..9}[where 8..12][pad 1..2]",
+      "universe": {
+        "members": [
+          {
+            "kind": "product",
+            "factors": [
+              {
+                "kind": "universe",
+                "universe": {
+                  "members": [
+                    {
+                      "kind": "product",
+                      "factors": [
+                        {
+                          "kind": "universe",
+                          "universe": {
+                            "members": [
+                              {
+                                "kind": "fold",
+                                "universe": {
+                                  "members": [
+                                    {
+                                      "kind": "fold",
+                                      "universe": {
+                                        "members": []
+                                      }
+                                    },
+                                    {
+                                      "kind": "face",
+                                      "text": [
+                                        56
+                                      ]
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "kind": "universe",
+                          "universe": {
+                            "members": [
+                              {
+                                "kind": "fold",
+                                "universe": {
+                                  "members": [
+                                    {
+                                      "kind": "fold",
+                                      "universe": {
+                                        "members": []
+                                      }
+                                    },
+                                    {
+                                      "kind": "face",
+                                      "text": [
+                                        56
+                                      ]
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "kind": "universe",
+                "universe": {
+                  "members": [
+                    {
+                      "kind": "product",
+                      "factors": [
+                        {
+                          "kind": "universe",
+                          "universe": {
+                            "members": [
+                              {
+                                "kind": "face",
+                                "text": [
+                                  48
+                                ]
+                              },
+                              {
+                                "kind": "product",
+                                "factors": [
+                                  {
+                                    "kind": "universe",
+                                    "universe": {
+                                      "members": [
+                                        {
+                                          "kind": "face",
+                                          "text": [
+                                            49
+                                          ]
+                                        },
+                                        {
+                                          "kind": "face",
+                                          "text": [
+                                            50
+                                          ]
+                                        },
+                                        {
+                                          "kind": "face",
+                                          "text": [
+                                            51
+                                          ]
+                                        },
+                                        {
+                                          "kind": "face",
+                                          "text": [
+                                            52
+                                          ]
+                                        },
+                                        {
+                                          "kind": "face",
+                                          "text": [
+                                            53
+                                          ]
+                                        },
+                                        {
+                                          "kind": "face",
+                                          "text": [
+                                            54
+                                          ]
+                                        },
+                                        {
+                                          "kind": "face",
+                                          "text": [
+                                            55
+                                          ]
+                                        },
+                                        {
+                                          "kind": "face",
+                                          "text": [
+                                            56
+                                          ]
+                                        },
+                                        {
+                                          "kind": "face",
+                                          "text": [
+                                            57
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  }
+                                ]
+                              },
+                              {
+                                "kind": "product",
+                                "factors": [
+                                  {
+                                    "kind": "universe",
+                                    "universe": {
+                                      "members": [
+                                        {
+                                          "kind": "face",
+                                          "text": [
+                                            49
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  {
+                                    "kind": "universe",
+                                    "universe": {
+                                      "members": [
+                                        {
+                                          "kind": "face",
+                                          "text": [
+                                            48
+                                          ]
+                                        },
+                                        {
+                                          "kind": "face",
+                                          "text": [
+                                            49
+                                          ]
+                                        },
+                                        {
+                                          "kind": "face",
+                                          "text": [
+                                            50
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  }
+                                ]
+                              },
+                              {
+                                "kind": "subtract",
+                                "universe": {
+                                  "members": [
+                                    {
+                                      "kind": "face",
+                                      "text": [
+                                        48
+                                      ]
+                                    },
+                                    {
+                                      "kind": "product",
+                                      "factors": [
+                                        {
+                                          "kind": "universe",
+                                          "universe": {
+                                            "members": [
+                                              {
+                                                "kind": "face",
+                                                "text": [
+                                                  49
+                                                ]
+                                              },
+                                              {
+                                                "kind": "face",
+                                                "text": [
+                                                  50
+                                                ]
+                                              },
+                                              {
+                                                "kind": "face",
+                                                "text": [
+                                                  51
+                                                ]
+                                              },
+                                              {
+                                                "kind": "face",
+                                                "text": [
+                                                  52
+                                                ]
+                                              },
+                                              {
+                                                "kind": "face",
+                                                "text": [
+                                                  53
+                                                ]
+                                              },
+                                              {
+                                                "kind": "face",
+                                                "text": [
+                                                  54
+                                                ]
+                                              },
+                                              {
+                                                "kind": "face",
+                                                "text": [
+                                                  55
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "kind": "subtract",
+            "universe": {
+              "members": [
+                {
+                  "kind": "fold",
+                  "universe": {
+                    "members": [
+                      {
+                        "kind": "fold",
+                        "universe": {
+                          "members": [
+                            {
+                              "kind": "fold",
+                              "universe": {
+                                "members": []
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "kind": "product",
+                        "factors": [
+                          {
+                            "kind": "closure"
+                          },
+                          {
+                            "kind": "universe",
+                            "universe": {
+                              "members": [
+                                {
+                                  "kind": "range",
+                                  "lo": 0,
+                                  "hi": 1114111
+                                },
+                                {
+                                  "kind": "subtract",
+                                  "universe": {
+                                    "members": [
+                                      {
+                                        "kind": "range",
+                                        "lo": 64976,
+                                        "hi": 65007
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 65534,
+                                        "hi": 65535
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 131070,
+                                        "hi": 131071
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 196606,
+                                        "hi": 196607
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 262142,
+                                        "hi": 262143
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 327678,
+                                        "hi": 327679
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 393214,
+                                        "hi": 393215
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 458750,
+                                        "hi": 458751
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 524286,
+                                        "hi": 524287
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 589822,
+                                        "hi": 589823
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 655358,
+                                        "hi": 655359
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 720894,
+                                        "hi": 720895
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 786430,
+                                        "hi": 786431
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 851966,
+                                        "hi": 851967
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 917502,
+                                        "hi": 917503
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 983038,
+                                        "hi": 983039
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 1048574,
+                                        "hi": 1048575
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 1114110,
+                                        "hi": 1114111
+                                      }
+                                    ]
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "subtract",
+                  "universe": {
+                    "members": [
+                      {
+                        "kind": "product",
+                        "factors": [
+                          {
+                            "kind": "universe",
+                            "universe": {
+                              "members": [
+                                {
+                                  "kind": "range",
+                                  "lo": 0,
+                                  "hi": 1114111
+                                },
+                                {
+                                  "kind": "subtract",
+                                  "universe": {
+                                    "members": [
+                                      {
+                                        "kind": "range",
+                                        "lo": 64976,
+                                        "hi": 65007
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 65534,
+                                        "hi": 65535
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 131070,
+                                        "hi": 131071
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 196606,
+                                        "hi": 196607
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 262142,
+                                        "hi": 262143
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 327678,
+                                        "hi": 327679
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 393214,
+                                        "hi": 393215
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 458750,
+                                        "hi": 458751
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 524286,
+                                        "hi": 524287
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 589822,
+                                        "hi": 589823
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 655358,
+                                        "hi": 655359
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 720894,
+                                        "hi": 720895
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 786430,
+                                        "hi": 786431
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 851966,
+                                        "hi": 851967
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 917502,
+                                        "hi": 917503
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 983038,
+                                        "hi": 983039
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 1048574,
+                                        "hi": 1048575
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 1114110,
+                                        "hi": 1114111
+                                      }
+                                    ]
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "kind": "universe",
+                            "universe": {
+                              "members": [
+                                {
+                                  "kind": "fold",
+                                  "universe": {
+                                    "members": [
+                                      {
+                                        "kind": "fold",
+                                        "universe": {
+                                          "members": []
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                {
+                                  "kind": "product",
+                                  "factors": [
+                                    {
+                                      "kind": "closure"
+                                    },
+                                    {
+                                      "kind": "universe",
+                                      "universe": {
+                                        "members": [
+                                          {
+                                            "kind": "range",
+                                            "lo": 0,
+                                            "hi": 1114111
+                                          },
+                                          {
+                                            "kind": "subtract",
+                                            "universe": {
+                                              "members": [
+                                                {
+                                                  "kind": "range",
+                                                  "lo": 64976,
+                                                  "hi": 65007
+                                                },
+                                                {
+                                                  "kind": "range",
+                                                  "lo": 65534,
+                                                  "hi": 65535
+                                                },
+                                                {
+                                                  "kind": "range",
+                                                  "lo": 131070,
+                                                  "hi": 131071
+                                                },
+                                                {
+                                                  "kind": "range",
+                                                  "lo": 196606,
+                                                  "hi": 196607
+                                                },
+                                                {
+                                                  "kind": "range",
+                                                  "lo": 262142,
+                                                  "hi": 262143
+                                                },
+                                                {
+                                                  "kind": "range",
+                                                  "lo": 327678,
+                                                  "hi": 327679
+                                                },
+                                                {
+                                                  "kind": "range",
+                                                  "lo": 393214,
+                                                  "hi": 393215
+                                                },
+                                                {
+                                                  "kind": "range",
+                                                  "lo": 458750,
+                                                  "hi": 458751
+                                                },
+                                                {
+                                                  "kind": "range",
+                                                  "lo": 524286,
+                                                  "hi": 524287
+                                                },
+                                                {
+                                                  "kind": "range",
+                                                  "lo": 589822,
+                                                  "hi": 589823
+                                                },
+                                                {
+                                                  "kind": "range",
+                                                  "lo": 655358,
+                                                  "hi": 655359
+                                                },
+                                                {
+                                                  "kind": "range",
+                                                  "lo": 720894,
+                                                  "hi": 720895
+                                                },
+                                                {
+                                                  "kind": "range",
+                                                  "lo": 786430,
+                                                  "hi": 786431
+                                                },
+                                                {
+                                                  "kind": "range",
+                                                  "lo": 851966,
+                                                  "hi": 851967
+                                                },
+                                                {
+                                                  "kind": "range",
+                                                  "lo": 917502,
+                                                  "hi": 917503
+                                                },
+                                                {
+                                                  "kind": "range",
+                                                  "lo": 983038,
+                                                  "hi": 983039
+                                                },
+                                                {
+                                                  "kind": "range",
+                                                  "lo": 1048574,
+                                                  "hi": 1048575
+                                                },
+                                                {
+                                                  "kind": "range",
+                                                  "lo": 1114110,
+                                                  "hi": 1114111
+                                                }
+                                              ]
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "kind": "subtract",
+            "universe": {
+              "members": [
+                {
+                  "kind": "fold",
+                  "universe": {
+                    "members": [
+                      {
+                        "kind": "fold",
+                        "universe": {
+                          "members": [
+                            {
+                              "kind": "fold",
+                              "universe": {
+                                "members": []
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "kind": "product",
+                        "factors": [
+                          {
+                            "kind": "closure"
+                          },
+                          {
+                            "kind": "universe",
+                            "universe": {
+                              "members": [
+                                {
+                                  "kind": "range",
+                                  "lo": 0,
+                                  "hi": 1114111
+                                },
+                                {
+                                  "kind": "subtract",
+                                  "universe": {
+                                    "members": [
+                                      {
+                                        "kind": "range",
+                                        "lo": 64976,
+                                        "hi": 65007
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 65534,
+                                        "hi": 65535
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 131070,
+                                        "hi": 131071
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 196606,
+                                        "hi": 196607
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 262142,
+                                        "hi": 262143
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 327678,
+                                        "hi": 327679
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 393214,
+                                        "hi": 393215
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 458750,
+                                        "hi": 458751
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 524286,
+                                        "hi": 524287
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 589822,
+                                        "hi": 589823
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 655358,
+                                        "hi": 655359
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 720894,
+                                        "hi": 720895
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 786430,
+                                        "hi": 786431
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 851966,
+                                        "hi": 851967
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 917502,
+                                        "hi": 917503
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 983038,
+                                        "hi": 983039
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 1048574,
+                                        "hi": 1048575
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 1114110,
+                                        "hi": 1114111
+                                      }
+                                    ]
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "subtract",
+                  "universe": {
+                    "members": [
+                      {
+                        "kind": "fold",
+                        "universe": {
+                          "members": [
+                            {
+                              "kind": "fold",
+                              "universe": {
+                                "members": [
+                                  {
+                                    "kind": "fold",
+                                    "universe": {
+                                      "members": []
+                                    }
+                                  }
+                                ]
+                              }
+                            },
+                            {
+                              "kind": "product",
+                              "factors": [
+                                {
+                                  "kind": "closure"
+                                },
+                                {
+                                  "kind": "universe",
+                                  "universe": {
+                                    "members": [
+                                      {
+                                        "kind": "range",
+                                        "lo": 0,
+                                        "hi": 1114111
+                                      },
+                                      {
+                                        "kind": "subtract",
+                                        "universe": {
+                                          "members": [
+                                            {
+                                              "kind": "range",
+                                              "lo": 64976,
+                                              "hi": 65007
+                                            },
+                                            {
+                                              "kind": "range",
+                                              "lo": 65534,
+                                              "hi": 65535
+                                            },
+                                            {
+                                              "kind": "range",
+                                              "lo": 131070,
+                                              "hi": 131071
+                                            },
+                                            {
+                                              "kind": "range",
+                                              "lo": 196606,
+                                              "hi": 196607
+                                            },
+                                            {
+                                              "kind": "range",
+                                              "lo": 262142,
+                                              "hi": 262143
+                                            },
+                                            {
+                                              "kind": "range",
+                                              "lo": 327678,
+                                              "hi": 327679
+                                            },
+                                            {
+                                              "kind": "range",
+                                              "lo": 393214,
+                                              "hi": 393215
+                                            },
+                                            {
+                                              "kind": "range",
+                                              "lo": 458750,
+                                              "hi": 458751
+                                            },
+                                            {
+                                              "kind": "range",
+                                              "lo": 524286,
+                                              "hi": 524287
+                                            },
+                                            {
+                                              "kind": "range",
+                                              "lo": 589822,
+                                              "hi": 589823
+                                            },
+                                            {
+                                              "kind": "range",
+                                              "lo": 655358,
+                                              "hi": 655359
+                                            },
+                                            {
+                                              "kind": "range",
+                                              "lo": 720894,
+                                              "hi": 720895
+                                            },
+                                            {
+                                              "kind": "range",
+                                              "lo": 786430,
+                                              "hi": 786431
+                                            },
+                                            {
+                                              "kind": "range",
+                                              "lo": 851966,
+                                              "hi": 851967
+                                            },
+                                            {
+                                              "kind": "range",
+                                              "lo": 917502,
+                                              "hi": 917503
+                                            },
+                                            {
+                                              "kind": "range",
+                                              "lo": 983038,
+                                              "hi": 983039
+                                            },
+                                            {
+                                              "kind": "range",
+                                              "lo": 1048574,
+                                              "hi": 1048575
+                                            },
+                                            {
+                                              "kind": "range",
+                                              "lo": 1114110,
+                                              "hi": 1114111
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "kind": "subtract",
+                        "universe": {
+                          "members": [
+                            {
+                              "kind": "product",
+                              "factors": [
+                                {
+                                  "kind": "universe",
+                                  "universe": {
+                                    "members": [
+                                      {
+                                        "kind": "product",
+                                        "factors": [
+                                          {
+                                            "kind": "universe",
+                                            "universe": {
+                                              "members": [
+                                                {
+                                                  "kind": "range",
+                                                  "lo": 0,
+                                                  "hi": 1114111
+                                                },
+                                                {
+                                                  "kind": "subtract",
+                                                  "universe": {
+                                                    "members": [
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 64976,
+                                                        "hi": 65007
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 65534,
+                                                        "hi": 65535
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 131070,
+                                                        "hi": 131071
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 196606,
+                                                        "hi": 196607
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 262142,
+                                                        "hi": 262143
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 327678,
+                                                        "hi": 327679
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 393214,
+                                                        "hi": 393215
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 458750,
+                                                        "hi": 458751
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 524286,
+                                                        "hi": 524287
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 589822,
+                                                        "hi": 589823
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 655358,
+                                                        "hi": 655359
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 720894,
+                                                        "hi": 720895
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 786430,
+                                                        "hi": 786431
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 851966,
+                                                        "hi": 851967
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 917502,
+                                                        "hi": 917503
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 983038,
+                                                        "hi": 983039
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 1048574,
+                                                        "hi": 1048575
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 1114110,
+                                                        "hi": 1114111
+                                                      }
+                                                    ]
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          {
+                                            "kind": "universe",
+                                            "universe": {
+                                              "members": [
+                                                {
+                                                  "kind": "range",
+                                                  "lo": 0,
+                                                  "hi": 1114111
+                                                },
+                                                {
+                                                  "kind": "subtract",
+                                                  "universe": {
+                                                    "members": [
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 64976,
+                                                        "hi": 65007
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 65534,
+                                                        "hi": 65535
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 131070,
+                                                        "hi": 131071
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 196606,
+                                                        "hi": 196607
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 262142,
+                                                        "hi": 262143
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 327678,
+                                                        "hi": 327679
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 393214,
+                                                        "hi": 393215
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 458750,
+                                                        "hi": 458751
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 524286,
+                                                        "hi": 524287
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 589822,
+                                                        "hi": 589823
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 655358,
+                                                        "hi": 655359
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 720894,
+                                                        "hi": 720895
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 786430,
+                                                        "hi": 786431
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 851966,
+                                                        "hi": 851967
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 917502,
+                                                        "hi": 917503
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 983038,
+                                                        "hi": 983039
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 1048574,
+                                                        "hi": 1048575
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 1114110,
+                                                        "hi": 1114111
+                                                      }
+                                                    ]
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                },
+                                {
+                                  "kind": "universe",
+                                  "universe": {
+                                    "members": [
+                                      {
+                                        "kind": "fold",
+                                        "universe": {
+                                          "members": [
+                                            {
+                                              "kind": "fold",
+                                              "universe": {
+                                                "members": []
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      {
+                                        "kind": "product",
+                                        "factors": [
+                                          {
+                                            "kind": "closure"
+                                          },
+                                          {
+                                            "kind": "universe",
+                                            "universe": {
+                                              "members": [
+                                                {
+                                                  "kind": "range",
+                                                  "lo": 0,
+                                                  "hi": 1114111
+                                                },
+                                                {
+                                                  "kind": "subtract",
+                                                  "universe": {
+                                                    "members": [
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 64976,
+                                                        "hi": 65007
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 65534,
+                                                        "hi": 65535
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 131070,
+                                                        "hi": 131071
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 196606,
+                                                        "hi": 196607
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 262142,
+                                                        "hi": 262143
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 327678,
+                                                        "hi": 327679
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 393214,
+                                                        "hi": 393215
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 458750,
+                                                        "hi": 458751
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 524286,
+                                                        "hi": 524287
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 589822,
+                                                        "hi": 589823
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 655358,
+                                                        "hi": 655359
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 720894,
+                                                        "hi": 720895
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 786430,
+                                                        "hi": 786431
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 851966,
+                                                        "hi": 851967
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 917502,
+                                                        "hi": 917503
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 983038,
+                                                        "hi": 983039
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 1048574,
+                                                        "hi": 1048575
+                                                      },
+                                                      {
+                                                        "kind": "range",
+                                                        "lo": 1114110,
+                                                        "hi": 1114111
+                                                      }
+                                                    ]
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "kind": "product",
+                        "factors": [
+                          {
+                            "kind": "universe",
+                            "universe": {
+                              "members": [
+                                {
+                                  "kind": "range",
+                                  "lo": 0,
+                                  "hi": 1114111
+                                },
+                                {
+                                  "kind": "subtract",
+                                  "universe": {
+                                    "members": [
+                                      {
+                                        "kind": "range",
+                                        "lo": 64976,
+                                        "hi": 65007
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 65534,
+                                        "hi": 65535
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 131070,
+                                        "hi": 131071
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 196606,
+                                        "hi": 196607
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 262142,
+                                        "hi": 262143
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 327678,
+                                        "hi": 327679
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 393214,
+                                        "hi": 393215
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 458750,
+                                        "hi": 458751
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 524286,
+                                        "hi": 524287
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 589822,
+                                        "hi": 589823
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 655358,
+                                        "hi": 655359
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 720894,
+                                        "hi": 720895
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 786430,
+                                        "hi": 786431
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 851966,
+                                        "hi": 851967
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 917502,
+                                        "hi": 917503
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 983038,
+                                        "hi": 983039
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 1048574,
+                                        "hi": 1048575
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 1114110,
+                                        "hi": 1114111
+                                      }
+                                    ]
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "kind": "universe",
+                            "universe": {
+                              "members": [
+                                {
+                                  "kind": "range",
+                                  "lo": 0,
+                                  "hi": 1114111
+                                },
+                                {
+                                  "kind": "subtract",
+                                  "universe": {
+                                    "members": [
+                                      {
+                                        "kind": "range",
+                                        "lo": 64976,
+                                        "hi": 65007
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 65534,
+                                        "hi": 65535
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 131070,
+                                        "hi": 131071
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 196606,
+                                        "hi": 196607
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 262142,
+                                        "hi": 262143
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 327678,
+                                        "hi": 327679
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 393214,
+                                        "hi": 393215
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 458750,
+                                        "hi": 458751
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 524286,
+                                        "hi": 524287
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 589822,
+                                        "hi": 589823
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 655358,
+                                        "hi": 655359
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 720894,
+                                        "hi": 720895
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 786430,
+                                        "hi": 786431
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 851966,
+                                        "hi": 851967
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 917502,
+                                        "hi": 917503
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 983038,
+                                        "hi": 983039
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 1048574,
+                                        "hi": 1048575
+                                      },
+                                      {
+                                        "kind": "range",
+                                        "lo": 1114110,
+                                        "hi": 1114111
+                                      }
+                                    ]
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "limit": null,
+      "entries": [
+        [
+          "8",
+          "88"
+        ],
+        [
+          "9",
+          "89"
+        ],
+        [
+          "10"
+        ],
+        [
+          "11"
+        ],
+        [
+          "12"
+        ]
+      ],
+      "contains": {
+        "8": true,
+        "88": true,
+        "08": false
+      }
+    },
+    {
+      "name": "{a,b}^1..2",
+      "source": "{a,b}^1..2",
+      "universe": {
+        "members": [
+          {
+            "kind": "face",
+            "text": [
+              97
+            ]
+          },
+          {
+            "kind": "face",
+            "text": [
+              98
+            ]
+          },
+          {
+            "kind": "product",
+            "factors": [
+              {
+                "kind": "universe",
+                "universe": {
+                  "members": [
+                    {
+                      "kind": "face",
+                      "text": [
+                        97
+                      ]
+                    },
+                    {
+                      "kind": "face",
+                      "text": [
+                        98
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "kind": "universe",
+                "universe": {
+                  "members": [
+                    {
+                      "kind": "face",
+                      "text": [
+                        97
+                      ]
+                    },
+                    {
+                      "kind": "face",
+                      "text": [
+                        98
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "limit": null,
+      "entries": [
+        [
+          "a"
+        ],
+        [
+          "b"
+        ],
+        [
+          "aa"
+        ],
+        [
+          "ab"
+        ],
+        [
+          "ba"
+        ],
+        [
+          "bb"
+        ]
+      ],
+      "contains": {
+        "a": true,
+        "ab": true,
+        "aaa": false
+      }
+    },
+    {
+      "name": "{a,b}^3..1",
+      "source": "{a,b}^3..1",
+      "universe": {
+        "members": []
+      },
+      "limit": null,
+      "entries": [],
+      "contains": {
+        "a": false,
+        "": false
+      }
+    },
+    {
+      "name": "{@str}",
+      "source": "{@str}",
+      "universe": {
+        "members": [
+          {
+            "kind": "fold",
+            "universe": {
+              "members": [
+                {
+                  "kind": "fold",
+                  "universe": {
+                    "members": [
+                      {
+                        "kind": "fold",
+                        "universe": {
+                          "members": []
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "product",
+                  "factors": [
+                    {
+                      "kind": "closure"
+                    },
+                    {
+                      "kind": "universe",
+                      "universe": {
+                        "members": [
+                          {
+                            "kind": "range",
+                            "lo": 0,
+                            "hi": 1114111
+                          },
+                          {
+                            "kind": "subtract",
+                            "universe": {
+                              "members": [
+                                {
+                                  "kind": "range",
+                                  "lo": 64976,
+                                  "hi": 65007
+                                },
+                                {
+                                  "kind": "range",
+                                  "lo": 65534,
+                                  "hi": 65535
+                                },
+                                {
+                                  "kind": "range",
+                                  "lo": 131070,
+                                  "hi": 131071
+                                },
+                                {
+                                  "kind": "range",
+                                  "lo": 196606,
+                                  "hi": 196607
+                                },
+                                {
+                                  "kind": "range",
+                                  "lo": 262142,
+                                  "hi": 262143
+                                },
+                                {
+                                  "kind": "range",
+                                  "lo": 327678,
+                                  "hi": 327679
+                                },
+                                {
+                                  "kind": "range",
+                                  "lo": 393214,
+                                  "hi": 393215
+                                },
+                                {
+                                  "kind": "range",
+                                  "lo": 458750,
+                                  "hi": 458751
+                                },
+                                {
+                                  "kind": "range",
+                                  "lo": 524286,
+                                  "hi": 524287
+                                },
+                                {
+                                  "kind": "range",
+                                  "lo": 589822,
+                                  "hi": 589823
+                                },
+                                {
+                                  "kind": "range",
+                                  "lo": 655358,
+                                  "hi": 655359
+                                },
+                                {
+                                  "kind": "range",
+                                  "lo": 720894,
+                                  "hi": 720895
+                                },
+                                {
+                                  "kind": "range",
+                                  "lo": 786430,
+                                  "hi": 786431
+                                },
+                                {
+                                  "kind": "range",
+                                  "lo": 851966,
+                                  "hi": 851967
+                                },
+                                {
+                                  "kind": "range",
+                                  "lo": 917502,
+                                  "hi": 917503
+                                },
+                                {
+                                  "kind": "range",
+                                  "lo": 983038,
+                                  "hi": 983039
+                                },
+                                {
+                                  "kind": "range",
+                                  "lo": 1048574,
+                                  "hi": 1048575
+                                },
+                                {
+                                  "kind": "range",
+                                  "lo": 1114110,
+                                  "hi": 1114111
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "limit": 1,
+      "entries": [
+        [
+          ""
+        ]
+      ],
+      "contains": {
+        "": true,
+        "a": true,
+        "abc": true,
+        "﷐": false
+      }
+    },
+    {
+      "name": "{0..9}[where 3..5 padfree]",
+      "source": "{0..9}[where 3..5 padfree]",
+      "universe": {
+        "members": [
+          {
+            "kind": "product",
+            "factors": [
+              {
+                "kind": "universe",
+                "universe": {
+                  "members": [
+                    {
+                      "kind": "fold",
+                      "universe": {
+                        "members": [
+                          {
+                            "kind": "fold",
+                            "universe": {
+                              "members": [
+                                {
+                                  "kind": "fold",
+                                  "universe": {
+                                    "members": [
+                                      {
+                                        "kind": "fold",
+                                        "universe": {
+                                          "members": []
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                {
+                                  "kind": "product",
+                                  "factors": [
+                                    {
+                                      "kind": "closure"
+                                    },
+                                    {
+                                      "kind": "universe",
+                                      "universe": {
+                                        "members": [
+                                          {
+                                            "kind": "face",
+                                            "text": [
+                                              48
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "kind": "universe",
+                "universe": {
+                  "members": [
+                    {
+                      "kind": "product",
+                      "factors": [
+                        {
+                          "kind": "universe",
+                          "universe": {
+                            "members": [
+                              {
+                                "kind": "face",
+                                "text": [
+                                  48
+                                ]
+                              },
+                              {
+                                "kind": "product",
+                                "factors": [
+                                  {
+                                    "kind": "universe",
+                                    "universe": {
+                                      "members": [
+                                        {
+                                          "kind": "face",
+                                          "text": [
+                                            49
+                                          ]
+                                        },
+                                        {
+                                          "kind": "face",
+                                          "text": [
+                                            50
+                                          ]
+                                        },
+                                        {
+                                          "kind": "face",
+                                          "text": [
+                                            51
+                                          ]
+                                        },
+                                        {
+                                          "kind": "face",
+                                          "text": [
+                                            52
+                                          ]
+                                        },
+                                        {
+                                          "kind": "face",
+                                          "text": [
+                                            53
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  }
+                                ]
+                              },
+                              {
+                                "kind": "subtract",
+                                "universe": {
+                                  "members": [
+                                    {
+                                      "kind": "face",
+                                      "text": [
+                                        48
+                                      ]
+                                    },
+                                    {
+                                      "kind": "product",
+                                      "factors": [
+                                        {
+                                          "kind": "universe",
+                                          "universe": {
+                                            "members": [
+                                              {
+                                                "kind": "face",
+                                                "text": [
+                                                  49
+                                                ]
+                                              },
+                                              {
+                                                "kind": "face",
+                                                "text": [
+                                                  50
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "limit": 0,
+      "entries": null,
+      "contains": {
+        "4": true,
+        "04": true,
+        "0005": true,
+        "06": false,
+        "2": false,
+        "": false
+      }
     }
   ]
 }

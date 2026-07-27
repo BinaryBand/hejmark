@@ -4,8 +4,9 @@ The language-neutral contract between hejmark engine implementations. Each `*.js
 
 The Python implementation is today's source of truth: expected answers are generated from it, then checked in and reviewed as ordinary diffs. Coverage is hand-picked for what a second implementation is most likely to get wrong.
 
-- Runner and case inputs: `tests/integration/test_conformance.py`
-- Regenerate: `HEJMARK_UPDATE_CONFORMANCE=payloads|all uv run pytest tests/integration/test_conformance.py`
+- Case inputs and generator: `tests/integration/test_conformance_build.py`
+- Runner (drives the checked-in payloads): `tests/integration/test_conformance_cases.py`
+- Regenerate: `HEJMARK_UPDATE_CONFORMANCE=payloads|all uv run pytest tests/integration/test_conformance_build.py`
 - Payload formats: `hejmark/core/ir/wire.py` (programs), `hejmark/core/ir/codec.py` (universes)
 
 A stale corpus is a test failure, so a change in lowering surfaces as a corpus diff in review rather than as silent drift between implementations.
@@ -39,11 +40,13 @@ The core: does a universe wear a spelling, and what are its entries in declarati
 | --- | --- |
 | `source` | The expression, for diagnostics. A top-level product is already wrapped in one brace pair so it denotes as one universe |
 | `universe` | The floor payload to denote (`codec.py` shapes) |
-| `limit` | `null` for a finite universe (assert *every* entry); an integer for an infinite one (assert that many, streamed lazily) |
+| `limit` | `null` for a finite universe (assert *every* entry); an integer for an infinite one (assert that many, streamed lazily); `0` where the entries cannot be enumerated at all |
 | `entries` | Entries in order, each a list of faces, canonical face first |
 | `contains` | Spelling -> whether some entry wears it |
 
 Entries must be produced **lazily**: a case with a `limit` is infinite, and an implementation that materializes before truncating will not terminate.
+
+`limit: 0` carries `"entries": null` and asserts membership only, because some universes cannot be enumerated *at all* -- not even one entry. `{0..9}[where 3..5 padfree]` is the case in the corpus: it has finitely many entries, but the first one wears unboundedly many faces (`3`, `03`, `003`, ...). Truncating the entry stream does not help, since the hang is *inside* building one entry's face list. An engine that materializes an entry's faces eagerly will not survive this row; membership stays decidable and fast.
 
 ### `match.json` -- scanning
 
@@ -99,4 +102,4 @@ Three properties any transport must respect:
 
 ## Adding a case
 
-Add the input row to the table at the top of `tests/integration/test_conformance.py`, regenerate, and review the generated answer as carefully as you would hand-write it: regeneration will happily enshrine a bug. The corpus is only as good as the review of its diff.
+Add the input row to the table at the top of `tests/integration/test_conformance_build.py`, regenerate, and review the generated answer as carefully as you would hand-write it: regeneration will happily enshrine a bug. The corpus is only as good as the review of its diff.

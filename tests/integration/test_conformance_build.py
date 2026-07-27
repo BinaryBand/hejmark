@@ -1,40 +1,29 @@
-"""The conformance corpus: what any hejmark engine must agree on, as JSON.
+"""Generating the conformance corpus: the inputs, and what derives from them.
 
-`static/conformance/*.json` is the language-neutral contract between engine
-implementations. Every case carries the *lowered payload* -- floor JSON or a
-`Program` -- beside its expected answer, so a host with an engine and no
-compiler can run the whole corpus without parsing a line of hejmark. That is
-the point: the corpus proves the payload is sufficient.
+The other half of `test_conformance_cases.py`, split from it because the corpus
+is expected to grow. This module owns the authored inputs and the code that
+turns them into `static/conformance/*.json`; that one owns running the result.
+Nothing is shared but the small constants each needs, so neither can quietly
+depend on the other's state.
 
-Two test families keep it honest, and they check opposite directions:
-
-- `test_*_case` runs the **checked-in payload** through the engine's decode
-  path and asserts the checked-in answer. This is exactly what a port runs, and
-  nothing here reaches for the compiler unless a case says it must.
-- `test_suite_is_fresh` re-derives each suite from its source and asserts it
-  reproduces the file byte for byte, so a change in lowering shows up as a
-  corpus diff in review rather than as silent drift.
-
-Expected answers are generated, not hand-written -- the Python implementation
-is today's source of truth and the corpus is how that truth becomes portable.
-What is authored here is the *coverage*: rows chosen for what a second
-implementation is most likely to get wrong. Regenerate with
-`HEJMARK_UPDATE_CONFORMANCE=1 uv run pytest tests/integration/test_conformance.py`.
+What is authored here is the *coverage* -- rows chosen for what a second
+implementation is most likely to get wrong. The answers are generated, because
+the Python implementation is today's reference engine and the corpus is how
+that reference becomes portable.
 """
 
 from __future__ import annotations
 
 import json
 import os
+from collections.abc import Iterator
 from itertools import islice
 from pathlib import Path
-from typing import cast
 
 import pytest
 
 import hejmark
-from hejmark.core.engine import execute
-from hejmark.core.engine.denote.universe import denote
+from hejmark.core.engine.denote.universe import Entry, Universe, denote
 from hejmark.core.engine.scan.capture import canonical_face, factor_faces
 from hejmark.core.engine.scan.match import load_query
 from hejmark.core.engine.scan.match import match as engine_match
@@ -53,12 +42,6 @@ from hejmark.core.ir.wire import decode_program
 CORPUS = Path(__file__).resolve().parents[2] / "static" / "conformance"
 FORMAT = "hejmark-conformance"
 VERSION = 1
-UPDATE = os.environ.get("HEJMARK_UPDATE_CONFORMANCE", "")
-
-# The fields derived from the *engine*. Everything else in a case is either
-# authored or derived from the compiler, so only these have to freeze the day
-# the reference engine stops existing -- see `_read`.
-EXPECTATION_FIELDS = frozenset({"entries", "contains", "match", "output", "error"})
 
 ERRORS = {
     "scope": HimarkScopeError,
@@ -66,7 +49,30 @@ ERRORS = {
     "payload": HimarkPayloadError,
 }
 
-# (source, entry limit or None when finite, spellings to probe for membership).
+
+def _no_resolver(_slot: int, _faces: tuple[str, ...]) -> UniverseNode:
+    """The resolver a standalone payload must never reach for."""
+    msg = "a slot-free payload must not need a late resolver"
+    raise AssertionError(msg)
+
+
+def _stream(universe: Universe, limit: int | None) -> Iterator[Entry]:
+    """The entry stream, truncated to *limit* when the universe is infinite."""
+    return universe.entries() if limit is None else islice(universe.entries(), limit)
+
+
+UPDATE = os.environ.get("HEJMARK_UPDATE_CONFORMANCE", "")
+
+# The fields derived from the *engine*. Everything else in a case is either
+# authored or derived from the compiler, so only these have to freeze the day
+# the reference engine stops existing -- see `_read`.
+EXPECTATION_FIELDS = frozenset({"entries", "contains", "match", "output", "error"})
+
+# (source, entry limit, spellings to probe for membership). The limit is None
+# for a finite universe (assert every entry), an integer for an infinite one
+# (assert that many), or 0 where the entries cannot be enumerated at all --
+# `padfree` gives one entry wearing unboundedly many faces, so such a case
+# asserts membership only.
 DENOTE: tuple[tuple[str, int | None, tuple[str, ...]], ...] = (
     ("{a,b,c}", None, ("a", "c", "d", "")),
     ("{a,b,a}", None, ("a", "b")),
@@ -88,6 +94,19 @@ DENOTE: tuple[tuple[str, int | None, tuple[str, ...]], ...] = (
     ("{a,b,&{a,b}}{b}", 4, ("ab", "aab", "a")),
     ("{0,{1..9,&{0..9}}}", 12, ("0", "10", "1024", "01")),
     ("{ab,{a}&{b}}", 4, ("ab", "aabb", "ba")),
+    # The L3 standard library, which is ordinary surface source: every row here
+    # expands to the five constructors, so the payload is eager and standalone.
+    ("{@hex}", None, ("0", "f", "g")),
+    ("{0..9}[where 8..12]", None, ("8", "12", "7", "13")),
+    ("{0..9}[below 8..12]", None, ("8", "11", "12", "13")),
+    ("{a..z}[where aa..cc]", 6, ("a", "cc", "cd")),
+    ("{0..9}[where 8..12][pad 1..2]", None, ("8", "88", "08")),
+    ("{a,b}^1..2", None, ("a", "ab", "aaa")),
+    ("{a,b}^3..1", None, ("a", "")),
+    ("{@str}", 1, ("", "a", "abc", "\ufdd0")),
+    # One entry, unboundedly many faces: enumerating it never returns, so this
+    # row is membership only. A port that materializes an entry's faces hangs.
+    ("{0..9}[where 3..5 padfree]", 0, ("4", "04", "0005", "06", "2", "")),
 )
 
 # (query source, target text): the leftmost match, its parts and its captures.
@@ -122,6 +141,15 @@ RUN: tuple[tuple[str, str], ...] = (
     ('{a} <=> "a"', "aaa"),
     ('sentinel end\n{@str} => "{{$}}{{@end}}"\n{-}{@end} => "{{@end}}"', "abc-"),
     ('{a..z}{$1} => "!"', "aab"),
+    # The `resolve` channel, which one case cannot cover. A slot may read a
+    # factor that is not its neighbour, read two at once, be one of several
+    # reading the same factor, or drive a value cut -- and each distinct
+    # binding is a separate resolution the engine must key its memo on.
+    ('{a..z}{0..9}{$1} => "!"', "a1a b2b x9y"),
+    ('{a..z}{0..9}{$1$2} => "!"', "a1a1 b2b2 c3d4"),
+    ('{a..z}{$1}{$1} => "!"', "aaa bbb abc"),
+    ('{a..z}{$1} => "[{{$1}}]"', "aabbcc"),
+    ('{0..9}{0..9}[below 0..$1] => "<"', "53 35 90"),
 )
 
 # (name, stage that refuses, script source, document).
@@ -132,44 +160,24 @@ REFUSE_RUN: tuple[tuple[str, str, str, str], ...] = (
 )
 
 # (name, malformed wire object a decoder must refuse rather than repair).
+_WELL_FORMED: dict[str, object] = {
+    "format": "hejmark-program",
+    "version": 4,
+    "sentinels": [],
+    "statements": [],
+}
+_BAD_POINT = [{"kind": "template", "parts": [{"kind": "text", "text": [1114112]}]}]
 REFUSE_PAYLOAD: tuple[tuple[str, object], ...] = (
     ("not-an-object", "hejmark-program"),
-    ("wrong-format", {"format": "other", "version": 4, "sentinels": [], "statements": []}),
-    (
-        "wrong-version",
-        {"format": "hejmark-program", "version": 1, "sentinels": [], "statements": []},
-    ),
-    ("missing-statements", {"format": "hejmark-program", "version": 4, "sentinels": []}),
-    (
-        "unknown-statement-kind",
-        {
-            "format": "hejmark-program",
-            "version": 4,
-            "sentinels": [],
-            "statements": [{"kind": "nonesuch", "steps": []}],
-        },
-    ),
+    ("wrong-format", {**_WELL_FORMED, "format": "other"}),
+    ("wrong-version", {**_WELL_FORMED, "version": 1}),
+    ("missing-statements", {k: v for k, v in _WELL_FORMED.items() if k != "statements"}),
+    ("unknown-statement-kind", {**_WELL_FORMED, "statements": [{"kind": "nonesuch", "steps": []}]}),
     (
         "code-point-past-the-plane-space",
-        {
-            "format": "hejmark-program",
-            "version": 4,
-            "sentinels": [],
-            "statements": [
-                {
-                    "kind": "statement",
-                    "steps": [{"kind": "template", "parts": [{"kind": "text", "text": [1114112]}]}],
-                }
-            ],
-        },
+        {**_WELL_FORMED, "statements": [{"kind": "statement", "steps": _BAD_POINT}]},
     ),
 )
-
-
-def _no_resolver(_slot: int, _faces: tuple[str, ...]) -> UniverseNode:
-    """The resolver a standalone payload must never reach for."""
-    msg = "a slot-free payload must not need a late resolver"
-    raise AssertionError(msg)
 
 
 def _one_universe(source: str) -> str:
@@ -195,14 +203,14 @@ def _build_denote() -> list[dict[str, object]]:
         wrapped = _one_universe(source)
         payload = json.loads(hejmark.emit_json(wrapped))["universes"][0]
         universe = denote(decode_universe(payload))
-        stream = universe.entries() if limit is None else islice(universe.entries(), limit)
+        entries = None if limit == 0 else [list(e.faces) for e in _stream(universe, limit)]
         built.append(
             {
                 "name": source,
                 "source": wrapped,
                 "universe": payload,
                 "limit": limit,
-                "entries": [list(entry.faces) for entry in stream],
+                "entries": entries,
                 "contains": {probe: universe.contains(probe) for probe in probes},
             }
         )
@@ -321,70 +329,9 @@ def _read(name: str) -> dict[str, object]:
     return json.loads(path.read_text())
 
 
-def _cases(name: str) -> list[dict[str, object]]:
-    """The checked-in cases of one suite, for parametrization."""
-    return cast("list[dict[str, object]]", _read(name)["cases"])
-
-
 @pytest.mark.parametrize("name", list(BUILDERS), ids=list(BUILDERS))
 def test_suite_is_fresh(name: str) -> None:
     """Re-deriving a suite from its sources reproduces the checked-in file."""
     assert _read(name) == _suite(name), (
         f"{name}.json is stale -- rerun with HEJMARK_UPDATE_CONFORMANCE=1 and review the diff"
     )
-
-
-@pytest.mark.parametrize("case", _cases("denote"), ids=lambda c: c["name"])
-def test_denote_case(case: dict) -> None:
-    """A floor payload denotes to the corpus's entries and membership answers."""
-    universe = denote(decode_universe(case["universe"]))
-    limit = case["limit"]
-    stream = universe.entries() if limit is None else islice(universe.entries(), limit)
-
-    assert [list(entry.faces) for entry in stream] == case["entries"]
-    assert {p: universe.contains(p) for p in case["contains"]} == case["contains"]
-
-
-@pytest.mark.parametrize("case", _cases("match"), ids=lambda c: c["name"])
-def test_match_case(case: dict) -> None:
-    """A query payload finds the corpus's leftmost match, parts and captures."""
-    query = load_query(
-        CompiledQuery("", tuple(EagerFactor(decode_universe(u)) for u in case["query"])),
-        _no_resolver,
-    )
-    found = engine_match(query, case["text"])
-    if case["match"] is None:
-        assert found is None
-        return
-    assert found is not None
-    assert list(found.span) == case["match"]["span"]
-    assert [{"span": list(p.span), "face": p.face} for p in found.parts] == case["match"]["parts"]
-    assert canonical_face(query, found) == case["match"]["canonical"]
-    assert list(factor_faces(query, found)) == case["match"]["factors"]
-
-
-@pytest.mark.parametrize("case", _cases("run"), ids=lambda c: c["name"])
-def test_run_case(case: dict) -> None:
-    """A Program payload splices the corpus's document.
-
-    A case needing the late resolver is run through the compiler instead, since
-    the resolver is the one thing a payload cannot carry -- which is exactly
-    what its `requires` marks for a host that has no compiler.
-    """
-    if case["requires"]:
-        assert hejmark.run(case["source"], case["document"]) == case["output"]
-        return
-    program = decode_program(case["program"])
-    assert execute.run(program, case["document"], _no_resolver) == case["output"]
-
-
-@pytest.mark.parametrize("case", _cases("refuse"), ids=lambda c: c["name"])
-def test_refuse_case(case: dict) -> None:
-    """A refusal refuses, with the corpus's error, on the stage that owns it."""
-    expected = ERRORS[case["error"]]
-    if case["case"] == "payload":
-        with pytest.raises(expected):
-            decode_program(case["payload"])
-        return
-    with pytest.raises(expected):
-        hejmark.run(case["source"], case["document"])

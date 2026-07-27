@@ -641,6 +641,333 @@
       "requires": [
         "late-resolver"
       ]
+    },
+    {
+      "name": "{a..z}{0..9}{$1} => \"!\" on 'a1a b2b x9y'",
+      "source": "{a..z}{0..9}{$1} => \"!\"",
+      "program": {
+        "format": "hejmark-program",
+        "version": 4,
+        "sentinels": [],
+        "statements": [
+          {
+            "kind": "statement",
+            "steps": [
+              {
+                "kind": "query",
+                "source": "",
+                "factors": [
+                  {
+                    "kind": "universe",
+                    "universe": {
+                      "members": [
+                        {
+                          "kind": "range",
+                          "lo": 97,
+                          "hi": 122
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "kind": "universe",
+                    "universe": {
+                      "members": [
+                        {
+                          "kind": "range",
+                          "lo": 48,
+                          "hi": 57
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "kind": "slot",
+                    "slot": 0,
+                    "needs": [
+                      1
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "template",
+                "parts": [
+                  {
+                    "kind": "text",
+                    "text": [
+                      33
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "document": "a1a b2b x9y",
+      "output": "! ! x9y",
+      "requires": [
+        "late-resolver"
+      ]
+    },
+    {
+      "name": "{a..z}{0..9}{$1$2} => \"!\" on 'a1a1 b2b2 c3d4'",
+      "source": "{a..z}{0..9}{$1$2} => \"!\"",
+      "program": {
+        "format": "hejmark-program",
+        "version": 4,
+        "sentinels": [],
+        "statements": [
+          {
+            "kind": "statement",
+            "steps": [
+              {
+                "kind": "query",
+                "source": "",
+                "factors": [
+                  {
+                    "kind": "universe",
+                    "universe": {
+                      "members": [
+                        {
+                          "kind": "range",
+                          "lo": 97,
+                          "hi": 122
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "kind": "universe",
+                    "universe": {
+                      "members": [
+                        {
+                          "kind": "range",
+                          "lo": 48,
+                          "hi": 57
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "kind": "slot",
+                    "slot": 0,
+                    "needs": [
+                      1,
+                      2
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "template",
+                "parts": [
+                  {
+                    "kind": "text",
+                    "text": [
+                      33
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "document": "a1a1 b2b2 c3d4",
+      "output": "! ! c3d4",
+      "requires": [
+        "late-resolver"
+      ]
+    },
+    {
+      "name": "{a..z}{$1}{$1} => \"!\" on 'aaa bbb abc'",
+      "source": "{a..z}{$1}{$1} => \"!\"",
+      "program": {
+        "format": "hejmark-program",
+        "version": 4,
+        "sentinels": [],
+        "statements": [
+          {
+            "kind": "statement",
+            "steps": [
+              {
+                "kind": "query",
+                "source": "",
+                "factors": [
+                  {
+                    "kind": "universe",
+                    "universe": {
+                      "members": [
+                        {
+                          "kind": "range",
+                          "lo": 97,
+                          "hi": 122
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "kind": "slot",
+                    "slot": 0,
+                    "needs": [
+                      1
+                    ]
+                  },
+                  {
+                    "kind": "slot",
+                    "slot": 1,
+                    "needs": [
+                      1
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "template",
+                "parts": [
+                  {
+                    "kind": "text",
+                    "text": [
+                      33
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "document": "aaa bbb abc",
+      "output": "! ! abc",
+      "requires": [
+        "late-resolver"
+      ]
+    },
+    {
+      "name": "{a..z}{$1} => \"[{{$1}}]\" on 'aabbcc'",
+      "source": "{a..z}{$1} => \"[{{$1}}]\"",
+      "program": {
+        "format": "hejmark-program",
+        "version": 4,
+        "sentinels": [],
+        "statements": [
+          {
+            "kind": "statement",
+            "steps": [
+              {
+                "kind": "query",
+                "source": "",
+                "factors": [
+                  {
+                    "kind": "universe",
+                    "universe": {
+                      "members": [
+                        {
+                          "kind": "range",
+                          "lo": 97,
+                          "hi": 122
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "kind": "slot",
+                    "slot": 0,
+                    "needs": [
+                      1
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "template",
+                "parts": [
+                  {
+                    "kind": "text",
+                    "text": [
+                      91
+                    ]
+                  },
+                  {
+                    "kind": "capture",
+                    "capture": "$1"
+                  },
+                  {
+                    "kind": "text",
+                    "text": [
+                      93
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "document": "aabbcc",
+      "output": "[a][b][c]",
+      "requires": [
+        "late-resolver"
+      ]
+    },
+    {
+      "name": "{0..9}{0..9}[below 0..$1] => \"<\" on '53 35 90'",
+      "source": "{0..9}{0..9}[below 0..$1] => \"<\"",
+      "program": {
+        "format": "hejmark-program",
+        "version": 4,
+        "sentinels": [],
+        "statements": [
+          {
+            "kind": "statement",
+            "steps": [
+              {
+                "kind": "query",
+                "source": "",
+                "factors": [
+                  {
+                    "kind": "universe",
+                    "universe": {
+                      "members": [
+                        {
+                          "kind": "range",
+                          "lo": 48,
+                          "hi": 57
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "kind": "slot",
+                    "slot": 0,
+                    "needs": [
+                      1
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "template",
+                "parts": [
+                  {
+                    "kind": "text",
+                    "text": [
+                      60
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "document": "53 35 90",
+      "output": "< 35 <",
+      "requires": [
+        "late-resolver"
+      ]
     }
   ]
 }
