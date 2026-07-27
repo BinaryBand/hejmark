@@ -1,0 +1,1052 @@
+{
+  "format": "hejmark-conformance",
+  "version": 1,
+  "suite": "denote",
+  "cases": [
+    {
+      "name": "{a,b,c}",
+      "source": "{a,b,c}",
+      "universe": {
+        "members": [
+          {
+            "kind": "face",
+            "text": [
+              97
+            ]
+          },
+          {
+            "kind": "face",
+            "text": [
+              98
+            ]
+          },
+          {
+            "kind": "face",
+            "text": [
+              99
+            ]
+          }
+        ]
+      },
+      "limit": null,
+      "entries": [
+        [
+          "a"
+        ],
+        [
+          "b"
+        ],
+        [
+          "c"
+        ]
+      ],
+      "contains": {
+        "a": true,
+        "c": true,
+        "d": false,
+        "": false
+      }
+    },
+    {
+      "name": "{a,b,a}",
+      "source": "{a,b,a}",
+      "universe": {
+        "members": [
+          {
+            "kind": "face",
+            "text": [
+              97
+            ]
+          },
+          {
+            "kind": "face",
+            "text": [
+              98
+            ]
+          },
+          {
+            "kind": "face",
+            "text": [
+              97
+            ]
+          }
+        ]
+      },
+      "limit": null,
+      "entries": [
+        [
+          "a"
+        ],
+        [
+          "b"
+        ]
+      ],
+      "contains": {
+        "a": true,
+        "b": true
+      }
+    },
+    {
+      "name": "{a..e}",
+      "source": "{a..e}",
+      "universe": {
+        "members": [
+          {
+            "kind": "range",
+            "lo": 97,
+            "hi": 101
+          }
+        ]
+      },
+      "limit": null,
+      "entries": [
+        [
+          "a"
+        ],
+        [
+          "b"
+        ],
+        [
+          "c"
+        ],
+        [
+          "d"
+        ],
+        [
+          "e"
+        ]
+      ],
+      "contains": {
+        "a": true,
+        "e": true,
+        "f": false
+      }
+    },
+    {
+      "name": "{e..a}",
+      "source": "{e..a}",
+      "universe": {
+        "members": [
+          {
+            "kind": "range",
+            "lo": 101,
+            "hi": 97
+          }
+        ]
+      },
+      "limit": null,
+      "entries": [],
+      "contains": {
+        "a": false,
+        "e": false
+      }
+    },
+    {
+      "name": "{{cat,feline}}",
+      "source": "{{cat,feline}}",
+      "universe": {
+        "members": [
+          {
+            "kind": "fold",
+            "universe": {
+              "members": [
+                {
+                  "kind": "face",
+                  "text": [
+                    99,
+                    97,
+                    116
+                  ]
+                },
+                {
+                  "kind": "face",
+                  "text": [
+                    102,
+                    101,
+                    108,
+                    105,
+                    110,
+                    101
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "limit": null,
+      "entries": [
+        [
+          "cat",
+          "feline"
+        ]
+      ],
+      "contains": {
+        "cat": true,
+        "feline": true,
+        "dog": false
+      }
+    },
+    {
+      "name": "{a..h,!{b,d}}",
+      "source": "{a..h,!{b,d}}",
+      "universe": {
+        "members": [
+          {
+            "kind": "range",
+            "lo": 97,
+            "hi": 104
+          },
+          {
+            "kind": "subtract",
+            "universe": {
+              "members": [
+                {
+                  "kind": "face",
+                  "text": [
+                    98
+                  ]
+                },
+                {
+                  "kind": "face",
+                  "text": [
+                    100
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "limit": null,
+      "entries": [
+        [
+          "a"
+        ],
+        [
+          "c"
+        ],
+        [
+          "e"
+        ],
+        [
+          "f"
+        ],
+        [
+          "g"
+        ],
+        [
+          "h"
+        ]
+      ],
+      "contains": {
+        "a": true,
+        "b": false,
+        "c": true,
+        "d": false,
+        "h": true
+      }
+    },
+    {
+      "name": "{{cat,feline},!{feline}}",
+      "source": "{{cat,feline},!{feline}}",
+      "universe": {
+        "members": [
+          {
+            "kind": "fold",
+            "universe": {
+              "members": [
+                {
+                  "kind": "face",
+                  "text": [
+                    99,
+                    97,
+                    116
+                  ]
+                },
+                {
+                  "kind": "face",
+                  "text": [
+                    102,
+                    101,
+                    108,
+                    105,
+                    110,
+                    101
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "kind": "subtract",
+            "universe": {
+              "members": [
+                {
+                  "kind": "face",
+                  "text": [
+                    102,
+                    101,
+                    108,
+                    105,
+                    110,
+                    101
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "limit": null,
+      "entries": [
+        [
+          "cat"
+        ]
+      ],
+      "contains": {
+        "cat": true,
+        "feline": false
+      }
+    },
+    {
+      "name": "{cat}{dog}",
+      "source": "{{cat}{dog}}",
+      "universe": {
+        "members": [
+          {
+            "kind": "product",
+            "factors": [
+              {
+                "kind": "universe",
+                "universe": {
+                  "members": [
+                    {
+                      "kind": "face",
+                      "text": [
+                        99,
+                        97,
+                        116
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "kind": "universe",
+                "universe": {
+                  "members": [
+                    {
+                      "kind": "face",
+                      "text": [
+                        100,
+                        111,
+                        103
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "limit": null,
+      "entries": [
+        [
+          "catdog"
+        ]
+      ],
+      "contains": {
+        "catdog": true,
+        "cat": false,
+        "dogcat": false
+      }
+    },
+    {
+      "name": "{{a,ab}{b,c}}",
+      "source": "{{a,ab}{b,c}}",
+      "universe": {
+        "members": [
+          {
+            "kind": "product",
+            "factors": [
+              {
+                "kind": "universe",
+                "universe": {
+                  "members": [
+                    {
+                      "kind": "face",
+                      "text": [
+                        97
+                      ]
+                    },
+                    {
+                      "kind": "face",
+                      "text": [
+                        97,
+                        98
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "kind": "universe",
+                "universe": {
+                  "members": [
+                    {
+                      "kind": "face",
+                      "text": [
+                        98
+                      ]
+                    },
+                    {
+                      "kind": "face",
+                      "text": [
+                        99
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "limit": null,
+      "entries": [
+        [
+          "ab"
+        ],
+        [
+          "ac"
+        ],
+        [
+          "abb"
+        ],
+        [
+          "abc"
+        ]
+      ],
+      "contains": {
+        "ab": true,
+        "ac": true,
+        "abb": true,
+        "abc": true,
+        "a": false
+      }
+    },
+    {
+      "name": "{{a,ab}{c,bc}}",
+      "source": "{{a,ab}{c,bc}}",
+      "universe": {
+        "members": [
+          {
+            "kind": "product",
+            "factors": [
+              {
+                "kind": "universe",
+                "universe": {
+                  "members": [
+                    {
+                      "kind": "face",
+                      "text": [
+                        97
+                      ]
+                    },
+                    {
+                      "kind": "face",
+                      "text": [
+                        97,
+                        98
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "kind": "universe",
+                "universe": {
+                  "members": [
+                    {
+                      "kind": "face",
+                      "text": [
+                        99
+                      ]
+                    },
+                    {
+                      "kind": "face",
+                      "text": [
+                        98,
+                        99
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "limit": null,
+      "entries": [
+        [
+          "ac"
+        ],
+        [
+          "abc"
+        ],
+        [
+          "abbc"
+        ]
+      ],
+      "contains": {
+        "ac": true,
+        "abc": true,
+        "abbc": true,
+        "ab": false
+      }
+    },
+    {
+      "name": "{a,!{a}}",
+      "source": "{a,!{a}}",
+      "universe": {
+        "members": [
+          {
+            "kind": "face",
+            "text": [
+              97
+            ]
+          },
+          {
+            "kind": "subtract",
+            "universe": {
+              "members": [
+                {
+                  "kind": "face",
+                  "text": [
+                    97
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "limit": null,
+      "entries": [],
+      "contains": {
+        "a": false,
+        "": false
+      }
+    },
+    {
+      "name": "{{}}",
+      "source": "{{}}",
+      "universe": {
+        "members": [
+          {
+            "kind": "fold",
+            "universe": {
+              "members": []
+            }
+          }
+        ]
+      },
+      "limit": null,
+      "entries": [
+        [
+          ""
+        ]
+      ],
+      "contains": {
+        "": true,
+        "a": false
+      }
+    },
+    {
+      "name": "{{{},0}}",
+      "source": "{{{},0}}",
+      "universe": {
+        "members": [
+          {
+            "kind": "fold",
+            "universe": {
+              "members": [
+                {
+                  "kind": "fold",
+                  "universe": {
+                    "members": []
+                  }
+                },
+                {
+                  "kind": "face",
+                  "text": [
+                    48
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "limit": null,
+      "entries": [
+        [
+          "",
+          "0"
+        ]
+      ],
+      "contains": {
+        "": true,
+        "0": true,
+        "00": false
+      }
+    },
+    {
+      "name": "{{{},0}}{0,00}",
+      "source": "{{{{},0}}{0,00}}",
+      "universe": {
+        "members": [
+          {
+            "kind": "product",
+            "factors": [
+              {
+                "kind": "universe",
+                "universe": {
+                  "members": [
+                    {
+                      "kind": "fold",
+                      "universe": {
+                        "members": [
+                          {
+                            "kind": "fold",
+                            "universe": {
+                              "members": []
+                            }
+                          },
+                          {
+                            "kind": "face",
+                            "text": [
+                              48
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "kind": "universe",
+                "universe": {
+                  "members": [
+                    {
+                      "kind": "face",
+                      "text": [
+                        48
+                      ]
+                    },
+                    {
+                      "kind": "face",
+                      "text": [
+                        48,
+                        48
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "limit": null,
+      "entries": [
+        [
+          "0",
+          "00"
+        ],
+        [
+          "000"
+        ]
+      ],
+      "contains": {
+        "0": true,
+        "00": true,
+        "000": true
+      }
+    },
+    {
+      "name": "{&}",
+      "source": "{&}",
+      "universe": {
+        "members": [
+          {
+            "kind": "closure"
+          }
+        ]
+      },
+      "limit": null,
+      "entries": [],
+      "contains": {
+        "a": false,
+        "": false
+      }
+    },
+    {
+      "name": "{a,&}",
+      "source": "{a,&}",
+      "universe": {
+        "members": [
+          {
+            "kind": "face",
+            "text": [
+              97
+            ]
+          },
+          {
+            "kind": "closure"
+          }
+        ]
+      },
+      "limit": null,
+      "entries": [
+        [
+          "a"
+        ]
+      ],
+      "contains": {
+        "a": true,
+        "aa": false
+      }
+    },
+    {
+      "name": "{a,b,&{a,b}}",
+      "source": "{a,b,&{a,b}}",
+      "universe": {
+        "members": [
+          {
+            "kind": "face",
+            "text": [
+              97
+            ]
+          },
+          {
+            "kind": "face",
+            "text": [
+              98
+            ]
+          },
+          {
+            "kind": "product",
+            "factors": [
+              {
+                "kind": "closure"
+              },
+              {
+                "kind": "universe",
+                "universe": {
+                  "members": [
+                    {
+                      "kind": "face",
+                      "text": [
+                        97
+                      ]
+                    },
+                    {
+                      "kind": "face",
+                      "text": [
+                        98
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "limit": 6,
+      "entries": [
+        [
+          "a"
+        ],
+        [
+          "b"
+        ],
+        [
+          "aa"
+        ],
+        [
+          "ab"
+        ],
+        [
+          "ba"
+        ],
+        [
+          "bb"
+        ]
+      ],
+      "contains": {
+        "a": true,
+        "ab": true,
+        "abab": true,
+        "c": false
+      }
+    },
+    {
+      "name": "{a,b,&{a,b}}{b}",
+      "source": "{{a,b,&{a,b}}{b}}",
+      "universe": {
+        "members": [
+          {
+            "kind": "product",
+            "factors": [
+              {
+                "kind": "universe",
+                "universe": {
+                  "members": [
+                    {
+                      "kind": "face",
+                      "text": [
+                        97
+                      ]
+                    },
+                    {
+                      "kind": "face",
+                      "text": [
+                        98
+                      ]
+                    },
+                    {
+                      "kind": "product",
+                      "factors": [
+                        {
+                          "kind": "closure"
+                        },
+                        {
+                          "kind": "universe",
+                          "universe": {
+                            "members": [
+                              {
+                                "kind": "face",
+                                "text": [
+                                  97
+                                ]
+                              },
+                              {
+                                "kind": "face",
+                                "text": [
+                                  98
+                                ]
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "kind": "universe",
+                "universe": {
+                  "members": [
+                    {
+                      "kind": "face",
+                      "text": [
+                        98
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "limit": 4,
+      "entries": [
+        [
+          "ab"
+        ],
+        [
+          "bb"
+        ],
+        [
+          "aab"
+        ],
+        [
+          "abb"
+        ]
+      ],
+      "contains": {
+        "ab": true,
+        "aab": true,
+        "a": false
+      }
+    },
+    {
+      "name": "{0,{1..9,&{0..9}}}",
+      "source": "{0,{1..9,&{0..9}}}",
+      "universe": {
+        "members": [
+          {
+            "kind": "face",
+            "text": [
+              48
+            ]
+          },
+          {
+            "kind": "fold",
+            "universe": {
+              "members": [
+                {
+                  "kind": "range",
+                  "lo": 49,
+                  "hi": 57
+                },
+                {
+                  "kind": "product",
+                  "factors": [
+                    {
+                      "kind": "closure"
+                    },
+                    {
+                      "kind": "universe",
+                      "universe": {
+                        "members": [
+                          {
+                            "kind": "range",
+                            "lo": 48,
+                            "hi": 57
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "limit": 12,
+      "entries": [
+        [
+          "0"
+        ],
+        [
+          "1"
+        ],
+        [
+          "2"
+        ],
+        [
+          "3"
+        ],
+        [
+          "4"
+        ],
+        [
+          "5"
+        ],
+        [
+          "6"
+        ],
+        [
+          "7"
+        ],
+        [
+          "8"
+        ],
+        [
+          "9"
+        ],
+        [
+          "10"
+        ],
+        [
+          "11"
+        ]
+      ],
+      "contains": {
+        "0": true,
+        "10": true,
+        "1024": true,
+        "01": false
+      }
+    },
+    {
+      "name": "{ab,{a}&{b}}",
+      "source": "{ab,{a}&{b}}",
+      "universe": {
+        "members": [
+          {
+            "kind": "face",
+            "text": [
+              97,
+              98
+            ]
+          },
+          {
+            "kind": "product",
+            "factors": [
+              {
+                "kind": "universe",
+                "universe": {
+                  "members": [
+                    {
+                      "kind": "face",
+                      "text": [
+                        97
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "kind": "closure"
+              },
+              {
+                "kind": "universe",
+                "universe": {
+                  "members": [
+                    {
+                      "kind": "face",
+                      "text": [
+                        98
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "limit": 4,
+      "entries": [
+        [
+          "ab"
+        ],
+        [
+          "aabb"
+        ],
+        [
+          "aaabbb"
+        ],
+        [
+          "aaaabbbb"
+        ]
+      ],
+      "contains": {
+        "ab": true,
+        "aabb": true,
+        "ba": false
+      }
+    }
+  ]
+}

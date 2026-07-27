@@ -1,0 +1,221 @@
+{
+  "format": "hejmark-conformance",
+  "version": 1,
+  "suite": "refuse",
+  "cases": [
+    {
+      "name": "ingest-spells-a-sentinel",
+      "case": "run",
+      "stage": "ingest",
+      "source": "{a} => \"b\"",
+      "program": {
+        "format": "hejmark-program",
+        "version": 3,
+        "sentinels": [],
+        "statements": [
+          {
+            "kind": "statement",
+            "steps": [
+              {
+                "kind": "query",
+                "source": "",
+                "factors": [
+                  {
+                    "kind": "universe",
+                    "universe": {
+                      "members": [
+                        {
+                          "kind": "face",
+                          "text": [
+                            97
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "kind": "template",
+                "parts": [
+                  {
+                    "kind": "text",
+                    "text": [
+                      98
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "document": "a﷐b",
+      "error": "sentinel"
+    },
+    {
+      "name": "capture-on-a-detached-branch",
+      "case": "run",
+      "stage": "engine",
+      "source": "\"{{$}}\"",
+      "program": {
+        "format": "hejmark-program",
+        "version": 3,
+        "sentinels": [],
+        "statements": [
+          {
+            "kind": "statement",
+            "steps": [
+              {
+                "kind": "template",
+                "parts": [
+                  {
+                    "kind": "capture",
+                    "capture": "$"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "document": "abc",
+      "error": "scope"
+    },
+    {
+      "name": "factor-read-past-the-query",
+      "case": "run",
+      "stage": "engine",
+      "source": "{a..z} => \"{{$2}}\"",
+      "program": {
+        "format": "hejmark-program",
+        "version": 3,
+        "sentinels": [],
+        "statements": [
+          {
+            "kind": "statement",
+            "steps": [
+              {
+                "kind": "query",
+                "source": "",
+                "factors": [
+                  {
+                    "kind": "universe",
+                    "universe": {
+                      "members": [
+                        {
+                          "kind": "range",
+                          "lo": 97,
+                          "hi": 122
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "kind": "template",
+                "parts": [
+                  {
+                    "kind": "capture",
+                    "capture": "$2"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "document": "hi",
+      "error": "scope"
+    },
+    {
+      "name": "not-an-object",
+      "case": "payload",
+      "stage": "decode",
+      "payload": "hejmark-program",
+      "error": "payload"
+    },
+    {
+      "name": "wrong-format",
+      "case": "payload",
+      "stage": "decode",
+      "payload": {
+        "format": "other",
+        "version": 3,
+        "sentinels": [],
+        "statements": []
+      },
+      "error": "payload"
+    },
+    {
+      "name": "wrong-version",
+      "case": "payload",
+      "stage": "decode",
+      "payload": {
+        "format": "hejmark-program",
+        "version": 1,
+        "sentinels": [],
+        "statements": []
+      },
+      "error": "payload"
+    },
+    {
+      "name": "missing-statements",
+      "case": "payload",
+      "stage": "decode",
+      "payload": {
+        "format": "hejmark-program",
+        "version": 3,
+        "sentinels": []
+      },
+      "error": "payload"
+    },
+    {
+      "name": "unknown-statement-kind",
+      "case": "payload",
+      "stage": "decode",
+      "payload": {
+        "format": "hejmark-program",
+        "version": 3,
+        "sentinels": [],
+        "statements": [
+          {
+            "kind": "nonesuch",
+            "steps": []
+          }
+        ]
+      },
+      "error": "payload"
+    },
+    {
+      "name": "code-point-past-the-plane-space",
+      "case": "payload",
+      "stage": "decode",
+      "payload": {
+        "format": "hejmark-program",
+        "version": 3,
+        "sentinels": [],
+        "statements": [
+          {
+            "kind": "statement",
+            "steps": [
+              {
+                "kind": "template",
+                "parts": [
+                  {
+                    "kind": "text",
+                    "text": [
+                      1114112
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "error": "payload"
+    }
+  ]
+}

@@ -1,0 +1,801 @@
+{
+  "format": "hejmark-conformance",
+  "version": 1,
+  "suite": "match",
+  "cases": [
+    {
+      "name": "{b} on 'abc'",
+      "source": "{b}",
+      "query": [
+        {
+          "members": [
+            {
+              "kind": "face",
+              "text": [
+                98
+              ]
+            }
+          ]
+        }
+      ],
+      "text": "abc",
+      "match": {
+        "span": [
+          1,
+          2
+        ],
+        "parts": [
+          {
+            "span": [
+              1,
+              2
+            ],
+            "face": "b"
+          }
+        ],
+        "canonical": "b",
+        "factors": [
+          "b"
+        ]
+      }
+    },
+    {
+      "name": "{b} on 'xyz'",
+      "source": "{b}",
+      "query": [
+        {
+          "members": [
+            {
+              "kind": "face",
+              "text": [
+                98
+              ]
+            }
+          ]
+        }
+      ],
+      "text": "xyz",
+      "match": null
+    },
+    {
+      "name": "{a..z} on 'Hi'",
+      "source": "{a..z}",
+      "query": [
+        {
+          "members": [
+            {
+              "kind": "range",
+              "lo": 97,
+              "hi": 122
+            }
+          ]
+        }
+      ],
+      "text": "Hi",
+      "match": {
+        "span": [
+          1,
+          2
+        ],
+        "parts": [
+          {
+            "span": [
+              1,
+              2
+            ],
+            "face": "i"
+          }
+        ],
+        "canonical": "i",
+        "factors": [
+          "i"
+        ]
+      }
+    },
+    {
+      "name": "{a..z} on 'HELLO'",
+      "source": "{a..z}",
+      "query": [
+        {
+          "members": [
+            {
+              "kind": "range",
+              "lo": 97,
+              "hi": 122
+            }
+          ]
+        }
+      ],
+      "text": "HELLO",
+      "match": null
+    },
+    {
+      "name": "{a,ab} on 'abc'",
+      "source": "{a,ab}",
+      "query": [
+        {
+          "members": [
+            {
+              "kind": "face",
+              "text": [
+                97
+              ]
+            },
+            {
+              "kind": "face",
+              "text": [
+                97,
+                98
+              ]
+            }
+          ]
+        }
+      ],
+      "text": "abc",
+      "match": {
+        "span": [
+          0,
+          2
+        ],
+        "parts": [
+          {
+            "span": [
+              0,
+              2
+            ],
+            "face": "ab"
+          }
+        ],
+        "canonical": "ab",
+        "factors": [
+          "ab"
+        ]
+      }
+    },
+    {
+      "name": "{a,ab}{b,c} on 'ab'",
+      "source": "{a,ab}{b,c}",
+      "query": [
+        {
+          "members": [
+            {
+              "kind": "face",
+              "text": [
+                97
+              ]
+            },
+            {
+              "kind": "face",
+              "text": [
+                97,
+                98
+              ]
+            }
+          ]
+        },
+        {
+          "members": [
+            {
+              "kind": "face",
+              "text": [
+                98
+              ]
+            },
+            {
+              "kind": "face",
+              "text": [
+                99
+              ]
+            }
+          ]
+        }
+      ],
+      "text": "ab",
+      "match": {
+        "span": [
+          0,
+          2
+        ],
+        "parts": [
+          {
+            "span": [
+              0,
+              1
+            ],
+            "face": "a"
+          },
+          {
+            "span": [
+              1,
+              2
+            ],
+            "face": "b"
+          }
+        ],
+        "canonical": "ab",
+        "factors": [
+          "a",
+          "b"
+        ]
+      }
+    },
+    {
+      "name": "{a,ab}{b,c} on 'abc'",
+      "source": "{a,ab}{b,c}",
+      "query": [
+        {
+          "members": [
+            {
+              "kind": "face",
+              "text": [
+                97
+              ]
+            },
+            {
+              "kind": "face",
+              "text": [
+                97,
+                98
+              ]
+            }
+          ]
+        },
+        {
+          "members": [
+            {
+              "kind": "face",
+              "text": [
+                98
+              ]
+            },
+            {
+              "kind": "face",
+              "text": [
+                99
+              ]
+            }
+          ]
+        }
+      ],
+      "text": "abc",
+      "match": {
+        "span": [
+          0,
+          3
+        ],
+        "parts": [
+          {
+            "span": [
+              0,
+              2
+            ],
+            "face": "ab"
+          },
+          {
+            "span": [
+              2,
+              3
+            ],
+            "face": "c"
+          }
+        ],
+        "canonical": "abc",
+        "factors": [
+          "ab",
+          "c"
+        ]
+      }
+    },
+    {
+      "name": "{a,ab}{b,c} on 'xyz'",
+      "source": "{a,ab}{b,c}",
+      "query": [
+        {
+          "members": [
+            {
+              "kind": "face",
+              "text": [
+                97
+              ]
+            },
+            {
+              "kind": "face",
+              "text": [
+                97,
+                98
+              ]
+            }
+          ]
+        },
+        {
+          "members": [
+            {
+              "kind": "face",
+              "text": [
+                98
+              ]
+            },
+            {
+              "kind": "face",
+              "text": [
+                99
+              ]
+            }
+          ]
+        }
+      ],
+      "text": "xyz",
+      "match": null
+    },
+    {
+      "name": "{{cat,feline}} on 'the cat sat'",
+      "source": "{{cat,feline}}",
+      "query": [
+        {
+          "members": [
+            {
+              "kind": "fold",
+              "universe": {
+                "members": [
+                  {
+                    "kind": "face",
+                    "text": [
+                      99,
+                      97,
+                      116
+                    ]
+                  },
+                  {
+                    "kind": "face",
+                    "text": [
+                      102,
+                      101,
+                      108,
+                      105,
+                      110,
+                      101
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "text": "the cat sat",
+      "match": {
+        "span": [
+          4,
+          7
+        ],
+        "parts": [
+          {
+            "span": [
+              4,
+              7
+            ],
+            "face": "cat"
+          }
+        ],
+        "canonical": "cat",
+        "factors": [
+          "cat"
+        ]
+      }
+    },
+    {
+      "name": "{{cat,feline}} on 'a feline appeared'",
+      "source": "{{cat,feline}}",
+      "query": [
+        {
+          "members": [
+            {
+              "kind": "fold",
+              "universe": {
+                "members": [
+                  {
+                    "kind": "face",
+                    "text": [
+                      99,
+                      97,
+                      116
+                    ]
+                  },
+                  {
+                    "kind": "face",
+                    "text": [
+                      102,
+                      101,
+                      108,
+                      105,
+                      110,
+                      101
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "text": "a feline appeared",
+      "match": {
+        "span": [
+          2,
+          8
+        ],
+        "parts": [
+          {
+            "span": [
+              2,
+              8
+            ],
+            "face": "feline"
+          }
+        ],
+        "canonical": "cat",
+        "factors": [
+          "feline"
+        ]
+      }
+    },
+    {
+      "name": "{a..z,!{a,e,i,o,u}} on 'aegis'",
+      "source": "{a..z,!{a,e,i,o,u}}",
+      "query": [
+        {
+          "members": [
+            {
+              "kind": "range",
+              "lo": 97,
+              "hi": 122
+            },
+            {
+              "kind": "subtract",
+              "universe": {
+                "members": [
+                  {
+                    "kind": "face",
+                    "text": [
+                      97
+                    ]
+                  },
+                  {
+                    "kind": "face",
+                    "text": [
+                      101
+                    ]
+                  },
+                  {
+                    "kind": "face",
+                    "text": [
+                      105
+                    ]
+                  },
+                  {
+                    "kind": "face",
+                    "text": [
+                      111
+                    ]
+                  },
+                  {
+                    "kind": "face",
+                    "text": [
+                      117
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "text": "aegis",
+      "match": {
+        "span": [
+          2,
+          3
+        ],
+        "parts": [
+          {
+            "span": [
+              2,
+              3
+            ],
+            "face": "g"
+          }
+        ],
+        "canonical": "g",
+        "factors": [
+          "g"
+        ]
+      }
+    },
+    {
+      "name": "{a,&{b}} on 'xabbby'",
+      "source": "{a,&{b}}",
+      "query": [
+        {
+          "members": [
+            {
+              "kind": "face",
+              "text": [
+                97
+              ]
+            },
+            {
+              "kind": "product",
+              "factors": [
+                {
+                  "kind": "closure"
+                },
+                {
+                  "kind": "universe",
+                  "universe": {
+                    "members": [
+                      {
+                        "kind": "face",
+                        "text": [
+                          98
+                        ]
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "text": "xabbby",
+      "match": {
+        "span": [
+          1,
+          5
+        ],
+        "parts": [
+          {
+            "span": [
+              1,
+              5
+            ],
+            "face": "abbb"
+          }
+        ],
+        "canonical": "abbb",
+        "factors": [
+          "abbb"
+        ]
+      }
+    },
+    {
+      "name": "{0,{1..9,&{0..9}}} on 'a1024z'",
+      "source": "{0,{1..9,&{0..9}}}",
+      "query": [
+        {
+          "members": [
+            {
+              "kind": "face",
+              "text": [
+                48
+              ]
+            },
+            {
+              "kind": "fold",
+              "universe": {
+                "members": [
+                  {
+                    "kind": "range",
+                    "lo": 49,
+                    "hi": 57
+                  },
+                  {
+                    "kind": "product",
+                    "factors": [
+                      {
+                        "kind": "closure"
+                      },
+                      {
+                        "kind": "universe",
+                        "universe": {
+                          "members": [
+                            {
+                              "kind": "range",
+                              "lo": 48,
+                              "hi": 57
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "text": "a1024z",
+      "match": {
+        "span": [
+          1,
+          5
+        ],
+        "parts": [
+          {
+            "span": [
+              1,
+              5
+            ],
+            "face": "1024"
+          }
+        ],
+        "canonical": "1024",
+        "factors": [
+          "1024"
+        ]
+      }
+    },
+    {
+      "name": "{{a,ab}{c,bc}} on 'abc'",
+      "source": "{{a,ab}{c,bc}}",
+      "query": [
+        {
+          "members": [
+            {
+              "kind": "product",
+              "factors": [
+                {
+                  "kind": "universe",
+                  "universe": {
+                    "members": [
+                      {
+                        "kind": "face",
+                        "text": [
+                          97
+                        ]
+                      },
+                      {
+                        "kind": "face",
+                        "text": [
+                          97,
+                          98
+                        ]
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "universe",
+                  "universe": {
+                    "members": [
+                      {
+                        "kind": "face",
+                        "text": [
+                          99
+                        ]
+                      },
+                      {
+                        "kind": "face",
+                        "text": [
+                          98,
+                          99
+                        ]
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "text": "abc",
+      "match": {
+        "span": [
+          0,
+          3
+        ],
+        "parts": [
+          {
+            "span": [
+              0,
+              3
+            ],
+            "face": "abc"
+          }
+        ],
+        "canonical": "abc",
+        "factors": [
+          "abc"
+        ]
+      }
+    },
+    {
+      "name": "{a,ab}{c,bc} on 'abc'",
+      "source": "{a,ab}{c,bc}",
+      "query": [
+        {
+          "members": [
+            {
+              "kind": "face",
+              "text": [
+                97
+              ]
+            },
+            {
+              "kind": "face",
+              "text": [
+                97,
+                98
+              ]
+            }
+          ]
+        },
+        {
+          "members": [
+            {
+              "kind": "face",
+              "text": [
+                99
+              ]
+            },
+            {
+              "kind": "face",
+              "text": [
+                98,
+                99
+              ]
+            }
+          ]
+        }
+      ],
+      "text": "abc",
+      "match": {
+        "span": [
+          0,
+          3
+        ],
+        "parts": [
+          {
+            "span": [
+              0,
+              2
+            ],
+            "face": "ab"
+          },
+          {
+            "span": [
+              2,
+              3
+            ],
+            "face": "c"
+          }
+        ],
+        "canonical": "abc",
+        "factors": [
+          "a",
+          "bc"
+        ]
+      }
+    },
+    {
+      "name": "{{}} on 'abc'",
+      "source": "{{}}",
+      "query": [
+        {
+          "members": [
+            {
+              "kind": "fold",
+              "universe": {
+                "members": []
+              }
+            }
+          ]
+        }
+      ],
+      "text": "abc",
+      "match": null
+    }
+  ]
+}

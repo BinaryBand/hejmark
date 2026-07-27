@@ -1,0 +1,645 @@
+{
+  "format": "hejmark-conformance",
+  "version": 1,
+  "suite": "run",
+  "cases": [
+    {
+      "name": "{a..z} => \"X\" on 'hi there'",
+      "source": "{a..z} => \"X\"",
+      "program": {
+        "format": "hejmark-program",
+        "version": 3,
+        "sentinels": [],
+        "statements": [
+          {
+            "kind": "statement",
+            "steps": [
+              {
+                "kind": "query",
+                "source": "",
+                "factors": [
+                  {
+                    "kind": "universe",
+                    "universe": {
+                      "members": [
+                        {
+                          "kind": "range",
+                          "lo": 97,
+                          "hi": 122
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "kind": "template",
+                "parts": [
+                  {
+                    "kind": "text",
+                    "text": [
+                      88
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "document": "hi there",
+      "output": "XX XXXXX",
+      "requires": []
+    },
+    {
+      "name": "{a..z} => \"{{$}}\" on 'hi'",
+      "source": "{a..z} => \"{{$}}\"",
+      "program": {
+        "format": "hejmark-program",
+        "version": 3,
+        "sentinels": [],
+        "statements": [
+          {
+            "kind": "statement",
+            "steps": [
+              {
+                "kind": "query",
+                "source": "",
+                "factors": [
+                  {
+                    "kind": "universe",
+                    "universe": {
+                      "members": [
+                        {
+                          "kind": "range",
+                          "lo": 97,
+                          "hi": 122
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "kind": "template",
+                "parts": [
+                  {
+                    "kind": "capture",
+                    "capture": "$"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "document": "hi",
+      "output": "hi",
+      "requires": []
+    },
+    {
+      "name": "{{a,ab}{c,bc}} => \"{{$0}}\" on 'abc'",
+      "source": "{{a,ab}{c,bc}} => \"{{$0}}\"",
+      "program": {
+        "format": "hejmark-program",
+        "version": 3,
+        "sentinels": [],
+        "statements": [
+          {
+            "kind": "statement",
+            "steps": [
+              {
+                "kind": "query",
+                "source": "",
+                "factors": [
+                  {
+                    "kind": "universe",
+                    "universe": {
+                      "members": [
+                        {
+                          "kind": "product",
+                          "factors": [
+                            {
+                              "kind": "universe",
+                              "universe": {
+                                "members": [
+                                  {
+                                    "kind": "face",
+                                    "text": [
+                                      97
+                                    ]
+                                  },
+                                  {
+                                    "kind": "face",
+                                    "text": [
+                                      97,
+                                      98
+                                    ]
+                                  }
+                                ]
+                              }
+                            },
+                            {
+                              "kind": "universe",
+                              "universe": {
+                                "members": [
+                                  {
+                                    "kind": "face",
+                                    "text": [
+                                      99
+                                    ]
+                                  },
+                                  {
+                                    "kind": "face",
+                                    "text": [
+                                      98,
+                                      99
+                                    ]
+                                  }
+                                ]
+                              }
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "kind": "template",
+                "parts": [
+                  {
+                    "kind": "capture",
+                    "capture": "$0"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "document": "abc",
+      "output": "abc",
+      "requires": []
+    },
+    {
+      "name": "{a..z}{0..9} => \"{{$2}}{{$1}}\" on 'a1 b2'",
+      "source": "{a..z}{0..9} => \"{{$2}}{{$1}}\"",
+      "program": {
+        "format": "hejmark-program",
+        "version": 3,
+        "sentinels": [],
+        "statements": [
+          {
+            "kind": "statement",
+            "steps": [
+              {
+                "kind": "query",
+                "source": "",
+                "factors": [
+                  {
+                    "kind": "universe",
+                    "universe": {
+                      "members": [
+                        {
+                          "kind": "range",
+                          "lo": 97,
+                          "hi": 122
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "kind": "universe",
+                    "universe": {
+                      "members": [
+                        {
+                          "kind": "range",
+                          "lo": 48,
+                          "hi": 57
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "kind": "template",
+                "parts": [
+                  {
+                    "kind": "capture",
+                    "capture": "$2"
+                  },
+                  {
+                    "kind": "capture",
+                    "capture": "$1"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "document": "a1 b2",
+      "output": "1a 2b",
+      "requires": []
+    },
+    {
+      "name": "{a..z} => \"[\" => \"{{$}}\" on 'hi'",
+      "source": "{a..z} => \"[\" => \"{{$}}\"",
+      "program": {
+        "format": "hejmark-program",
+        "version": 3,
+        "sentinels": [],
+        "statements": [
+          {
+            "kind": "statement",
+            "steps": [
+              {
+                "kind": "query",
+                "source": "",
+                "factors": [
+                  {
+                    "kind": "universe",
+                    "universe": {
+                      "members": [
+                        {
+                          "kind": "range",
+                          "lo": 97,
+                          "hi": 122
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "kind": "template",
+                "parts": [
+                  {
+                    "kind": "text",
+                    "text": [
+                      91
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "template",
+                "parts": [
+                  {
+                    "kind": "capture",
+                    "capture": "$"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "document": "hi",
+      "output": "[[",
+      "requires": []
+    },
+    {
+      "name": "{a} <=> \"a\" on 'aaa'",
+      "source": "{a} <=> \"a\"",
+      "program": {
+        "format": "hejmark-program",
+        "version": 3,
+        "sentinels": [],
+        "statements": [
+          {
+            "kind": "iter",
+            "query": {
+              "kind": "query",
+              "source": "",
+              "factors": [
+                {
+                  "kind": "universe",
+                  "universe": {
+                    "members": [
+                      {
+                        "kind": "face",
+                        "text": [
+                          97
+                        ]
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            "template": {
+              "kind": "template",
+              "parts": [
+                {
+                  "kind": "text",
+                  "text": [
+                    97
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "document": "aaa",
+      "output": "aaa",
+      "requires": []
+    },
+    {
+      "name": "sentinel end on 'abc-'",
+      "source": "sentinel end\n{@str} => \"{{$}}{{@end}}\"\n{-}{@end} => \"{{@end}}\"",
+      "program": {
+        "format": "hejmark-program",
+        "version": 3,
+        "sentinels": [
+          {
+            "name": "end",
+            "face": [
+              64976
+            ]
+          }
+        ],
+        "statements": [
+          {
+            "kind": "statement",
+            "steps": [
+              {
+                "kind": "query",
+                "source": "",
+                "factors": [
+                  {
+                    "kind": "universe",
+                    "universe": {
+                      "members": [
+                        {
+                          "kind": "fold",
+                          "universe": {
+                            "members": [
+                              {
+                                "kind": "fold",
+                                "universe": {
+                                  "members": [
+                                    {
+                                      "kind": "fold",
+                                      "universe": {
+                                        "members": []
+                                      }
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "kind": "product",
+                                "factors": [
+                                  {
+                                    "kind": "closure"
+                                  },
+                                  {
+                                    "kind": "universe",
+                                    "universe": {
+                                      "members": [
+                                        {
+                                          "kind": "range",
+                                          "lo": 0,
+                                          "hi": 1114111
+                                        },
+                                        {
+                                          "kind": "subtract",
+                                          "universe": {
+                                            "members": [
+                                              {
+                                                "kind": "range",
+                                                "lo": 64976,
+                                                "hi": 65007
+                                              },
+                                              {
+                                                "kind": "range",
+                                                "lo": 65534,
+                                                "hi": 65535
+                                              },
+                                              {
+                                                "kind": "range",
+                                                "lo": 131070,
+                                                "hi": 131071
+                                              },
+                                              {
+                                                "kind": "range",
+                                                "lo": 196606,
+                                                "hi": 196607
+                                              },
+                                              {
+                                                "kind": "range",
+                                                "lo": 262142,
+                                                "hi": 262143
+                                              },
+                                              {
+                                                "kind": "range",
+                                                "lo": 327678,
+                                                "hi": 327679
+                                              },
+                                              {
+                                                "kind": "range",
+                                                "lo": 393214,
+                                                "hi": 393215
+                                              },
+                                              {
+                                                "kind": "range",
+                                                "lo": 458750,
+                                                "hi": 458751
+                                              },
+                                              {
+                                                "kind": "range",
+                                                "lo": 524286,
+                                                "hi": 524287
+                                              },
+                                              {
+                                                "kind": "range",
+                                                "lo": 589822,
+                                                "hi": 589823
+                                              },
+                                              {
+                                                "kind": "range",
+                                                "lo": 655358,
+                                                "hi": 655359
+                                              },
+                                              {
+                                                "kind": "range",
+                                                "lo": 720894,
+                                                "hi": 720895
+                                              },
+                                              {
+                                                "kind": "range",
+                                                "lo": 786430,
+                                                "hi": 786431
+                                              },
+                                              {
+                                                "kind": "range",
+                                                "lo": 851966,
+                                                "hi": 851967
+                                              },
+                                              {
+                                                "kind": "range",
+                                                "lo": 917502,
+                                                "hi": 917503
+                                              },
+                                              {
+                                                "kind": "range",
+                                                "lo": 983038,
+                                                "hi": 983039
+                                              },
+                                              {
+                                                "kind": "range",
+                                                "lo": 1048574,
+                                                "hi": 1048575
+                                              },
+                                              {
+                                                "kind": "range",
+                                                "lo": 1114110,
+                                                "hi": 1114111
+                                              }
+                                            ]
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "kind": "template",
+                "parts": [
+                  {
+                    "kind": "capture",
+                    "capture": "$"
+                  },
+                  {
+                    "kind": "sentinel",
+                    "name": "end"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "statement",
+            "steps": [
+              {
+                "kind": "query",
+                "source": "",
+                "factors": [
+                  {
+                    "kind": "universe",
+                    "universe": {
+                      "members": [
+                        {
+                          "kind": "face",
+                          "text": [
+                            45
+                          ]
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "kind": "universe",
+                    "universe": {
+                      "members": [
+                        {
+                          "kind": "face",
+                          "text": [
+                            64976
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "kind": "template",
+                "parts": [
+                  {
+                    "kind": "sentinel",
+                    "name": "end"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "document": "abc-",
+      "output": "abc",
+      "requires": []
+    },
+    {
+      "name": "{a..z}{$1} => \"!\" on 'aab'",
+      "source": "{a..z}{$1} => \"!\"",
+      "program": {
+        "format": "hejmark-program",
+        "version": 3,
+        "sentinels": [],
+        "statements": [
+          {
+            "kind": "statement",
+            "steps": [
+              {
+                "kind": "query",
+                "source": "",
+                "factors": [
+                  {
+                    "kind": "universe",
+                    "universe": {
+                      "members": [
+                        {
+                          "kind": "range",
+                          "lo": 97,
+                          "hi": 122
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "kind": "slot",
+                    "slot": 0,
+                    "needs": [
+                      1
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "template",
+                "parts": [
+                  {
+                    "kind": "text",
+                    "text": [
+                      33
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "document": "aab",
+      "output": "!b",
+      "requires": [
+        "late-resolver"
+      ]
+    }
+  ]
+}
