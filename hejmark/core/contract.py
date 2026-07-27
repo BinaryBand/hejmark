@@ -19,15 +19,7 @@ rewrites and refusals land here, never in the driver that calls them.
 from __future__ import annotations
 
 from hejmark.core.ir.errors import HimarkSentinelError
-from hejmark.core.ir.program import Program
-
-# The Unicode noncharacters: the contiguous block U+FDD0..U+FDEF, plus the last
-# two code points of every plane -- masking the low 16 bits reaches xFFFE/xFFFF
-# in any of the 17 planes at once.
-_BLOCK_LO = 0xFDD0
-_BLOCK_HI = 0xFDEF
-_PLANE_MASK = 0xFFFF
-_PLANE_END = 0xFFFE
+from hejmark.core.ir.program import Program, is_noncharacter
 
 
 def apply(program: Program) -> Program:
@@ -42,16 +34,6 @@ def apply(program: Program) -> Program:
     return program
 
 
-def _is_noncharacter(code_point: int) -> bool:
-    """Whether a code point is a Unicode noncharacter -- the sentinel space.
-
-    The 66 that ``char`` subtracts (:mod:`hejmark.core.compiler.alphabet`): the
-    contiguous block ``U+FDD0..U+FDEF``, and the last two code points ``xFFFE``
-    and ``xFFFF`` of every one of the 17 planes.
-    """
-    return _BLOCK_LO <= code_point <= _BLOCK_HI or code_point & _PLANE_MASK >= _PLANE_END
-
-
 def check_ingest(document: str) -> None:
     """Refuse a document that arrives spelling a noncharacter.
 
@@ -64,7 +46,7 @@ def check_ingest(document: str) -> None:
         HimarkSentinelError: the document spells a noncharacter.
     """
     for position, character in enumerate(document):
-        if _is_noncharacter(ord(character)):
+        if is_noncharacter(ord(character)):
             msg = (
                 f"document spells the noncharacter U+{ord(character):04X} at "
                 f"position {position}: the sentinel space is engine-private"

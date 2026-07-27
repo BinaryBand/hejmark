@@ -33,7 +33,6 @@ from hejmark.core.engine.scan.capture import canonical_face, factor_faces
 from hejmark.core.engine.scan.match import Query, finditer, load_query
 from hejmark.core.ir.errors import HimarkScopeError
 from hejmark.core.ir.program import (
-    CapturePart,
     CompiledIter,
     CompiledLine,
     CompiledQuery,
@@ -109,19 +108,6 @@ def _read(branch: Branch, capture: str) -> str:
     return faces[index - 1]
 
 
-def _sentinel(name: str, sentinels: dict[str, str]) -> str:
-    """Render one sentinel read: the face a ``sentinel`` declaration allocated.
-
-    Raises:
-        HimarkScopeError: the name declares no sentinel.
-    """
-    face = sentinels.get(name)
-    if face is None:
-        msg = f"{{{{@{name}}}}} reads no sentinel"
-        raise HimarkScopeError(msg)
-    return face
-
-
 def _splice(text: str, pieces: list[tuple[int, int, str]]) -> str:
     """Lay committed strings over their spans, keeping the text between.
 
@@ -138,24 +124,20 @@ def _splice(text: str, pieces: list[tuple[int, int, str]]) -> str:
     return "".join(out)
 
 
-def _refine(
-    query: Query, branch: Branch, rest: tuple[_Step, ...], sentinels: dict[str, str]
-) -> str:
+def _refine(query: Query, branch: Branch, rest: tuple[_Step, ...]) -> str:
     """A query step: tile the branch's text, and continue on each sub-branch."""
     face = branch.face
     pieces = []
     for found in finditer(query, face):
         start, end = found.span
         child = Branch(face, start, end, query, found)
-        pieces.append((start, end, _steps(rest, child, sentinels)))
+        pieces.append((start, end, _steps(rest, child)))
     if not pieces:
         return face
     return _splice(face, pieces)
 
 
-def _construct(
-    template: CompiledTemplate, branch: Branch, rest: tuple[_Step, ...], sentinels: dict[str, str]
-) -> str:
+def _construct(template: CompiledTemplate, branch: Branch, rest: tuple[_Step, ...]) -> str:
     """A template step: build the string, and continue at each interpolation site."""
     out = []
     sites = []
@@ -163,10 +145,7 @@ def _construct(
         if isinstance(part, TextPart):
             out.append(part.text)
             continue
-        if isinstance(part, CapturePart):
-            rendered = _read(branch, part.capture)
-        else:
-            rendered = _sentinel(part.name, sentinels)
+        rendered = _read(branch, part.capture)
         start = sum(len(piece) for piece in out)
         out.append(rendered)
         sites.append((start, start + len(rendered)))
@@ -174,23 +153,23 @@ def _construct(
     if not rest:
         return built
     pieces = [
-        (start, end, _steps(rest, Branch(built, start, end, branch.bound, branch.found), sentinels))
+        (start, end, _steps(rest, Branch(built, start, end, branch.bound, branch.found)))
         for start, end in sites
     ]
     return _splice(built, pieces)
 
 
-def _steps(steps: tuple[_Step, ...], branch: Branch, sentinels: dict[str, str]) -> str:
+def _steps(steps: tuple[_Step, ...], branch: Branch) -> str:
     """Run a step chain over one branch, returning what commits over its span."""
     if not steps:
         return branch.face
     head, rest = steps[0], steps[1:]
     if isinstance(head, Query):
-        return _refine(head, branch, rest, sentinels)
-    return _construct(head, branch, rest, sentinels)
+        return _refine(head, branch, rest)
+    return _construct(head, branch, rest)
 
 
-def _statement(stmt: _Statement, document: str, sentinels: dict[str, str]) -> str:
+def _statement(stmt: _Statement, document: str) -> str:
     """Run one statement against *document*, returning the spliced result.
 
     A leading query branches into the document. A leading template is detached:
@@ -200,13 +179,13 @@ def _statement(stmt: _Statement, document: str, sentinels: dict[str, str]) -> st
         return document
     if isinstance(stmt.steps[0], CompiledTemplate):
         detached = Branch("", 0, 0)
-        _steps(stmt.steps, detached, sentinels)
+        _steps(stmt.steps, detached)
         return document
     root = Branch(document, 0, len(document))
-    return _steps(stmt.steps, root, sentinels)
+    return _steps(stmt.steps, root)
 
 
-def _iterate(stmt: _Contract, document: str, sentinels: dict[str, str]) -> str:
+def _iterate(stmt: _Contract, document: str) -> str:
     """Iterate a contracting statement to its fixpoint: the document unchanged.
 
     The pass is the ordinary two-step statement, re-run until it rewrites the
@@ -217,20 +196,20 @@ def _iterate(stmt: _Contract, document: str, sentinels: dict[str, str]) -> str:
     """
     once = _Statement((stmt.query, stmt.template))
     while True:
-        rewritten = _statement(once, document, sentinels)
+        rewritten = _statement(once, document)
         if rewritten == document:
             return document
         document = rewritten
 
 
-def _strip(document: str, sentinels: dict[str, str]) -> str:
+def _strip(document: str, sentinels: tuple[str, ...]) -> str:
     """Clear every declared sentinel from the final document.
 
     A sentinel is a real noncharacter while the script runs, so statements can
     match it; at exit it is stripped, so nothing engine-private crosses the
     boundary and no cleanup statement has to be written.
     """
-    for face in sentinels.values():
+    for face in sentinels:
         document = document.replace(face, "")
     return document
 
@@ -255,11 +234,10 @@ def run(program: Program, document: str, resolver: LateResolver) -> str:
     Sentinels are engine-private: any sentinel still standing at exit is
     stripped, so nothing engine-private crosses the boundary.
     """
-    sentinels = {sentinel.name: sentinel.face for sentinel in program.sentinels}
     loaded = tuple(_load(line, resolver) for line in program.statements)
     for stmt in loaded:
         if isinstance(stmt, _Contract):
-            document = _iterate(stmt, document, sentinels)
+            document = _iterate(stmt, document)
         else:
-            document = _statement(stmt, document, sentinels)
-    return _strip(document, sentinels)
+            document = _statement(stmt, document)
+    return _strip(document, program.sentinels)

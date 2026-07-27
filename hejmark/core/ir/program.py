@@ -14,9 +14,10 @@ thing both sides must name and neither may import across:
 :data:`ToFaces` runs the engine's denotation from inside the compiler. Each is
 injected by :mod:`hejmark.core.driver`, never imported by its caller.
 
-The sentinel space also lives here: sentinel faces are a boundary fact (the
-program carries the allocations), so the allocation base is defined where both
-sides can see it.
+The sentinel space is defined here once, for the three sides that need it and
+would otherwise each carry their own copy: the compiler allocates from it and
+subtracts it from ``char``, the L2 contract refuses a document that spells one,
+and a program carries the faces the engine strips on the way out.
 """
 
 from __future__ import annotations
@@ -26,9 +27,36 @@ from dataclasses import dataclass
 
 from hejmark.core.floor.syntax import UniverseNode
 
-# Sentinel faces are allocated from the first noncharacter block, in
+# The Unicode noncharacters: the contiguous block U+FDD0..U+FDEF, plus the last
+# two code points of every plane. Unicode reserves them for internal use, which
+# is what makes them safe to use as engine-private markers -- no legitimate
+# document spells one. Sentinel faces are allocated from the block base in
 # declaration order, so allocation is deterministic and per-script.
 SENTINEL_BASE = 0xFDD0
+SENTINEL_BLOCK_END = 0xFDEF
+_PLANE_MASK = 0xFFFF
+_PLANE_END = 0xFFFE
+
+
+# The same space as inclusive code-point ranges, for the caller that must
+# *subtract* it rather than test it (the compiler's seeded ``char``). Derived
+# from the constants above, so the two views cannot drift apart.
+NONCHARACTER_RANGES: tuple[tuple[int, int], ...] = (
+    (SENTINEL_BASE, SENTINEL_BLOCK_END),
+    *((plane + _PLANE_END, plane + _PLANE_MASK) for plane in range(0, 0x110000, 0x10000)),
+)
+
+
+def is_noncharacter(code_point: int) -> bool:
+    """Whether a code point is a Unicode noncharacter -- the sentinel space.
+
+    The 66 of them: the contiguous block ``U+FDD0..U+FDEF``, and the last two
+    code points ``xFFFE`` and ``xFFFF`` of every one of the 17 planes (masking
+    the low 16 bits reaches both in any plane at once).
+    """
+    return (
+        SENTINEL_BASE <= code_point <= SENTINEL_BLOCK_END or code_point & _PLANE_MASK >= _PLANE_END
+    )
 
 
 @dataclass(frozen=True)
@@ -93,14 +121,7 @@ class CapturePart:
     capture: str
 
 
-@dataclass(frozen=True)
-class SentinelPart:
-    """A sentinel splice ``{{@name}}``, looked up in the program's table at render."""
-
-    name: str
-
-
-TemplatePart = TextPart | CapturePart | SentinelPart
+TemplatePart = TextPart | CapturePart
 
 
 @dataclass(frozen=True)
@@ -132,16 +153,16 @@ CompiledLine = CompiledStatement | CompiledIter
 
 
 @dataclass(frozen=True)
-class Sentinel:
-    """One sentinel allocation: a declared name and its noncharacter face."""
-
-    name: str
-    face: str
-
-
-@dataclass(frozen=True)
 class Program:
-    """A compiled script: statements in source order plus the sentinel table."""
+    """A compiled script: statements in source order, plus the faces to strip.
+
+    ``sentinels`` is the allocated faces and nothing more. A ``{{@name}}``
+    splice is resolved to its face while lowering -- the compiler is the side
+    that allocated it, so the name never has to cross -- which leaves the engine
+    one job: clear these from the finished document, so nothing engine-private
+    escapes. An undeclared name is refused at compile time, where scope errors
+    belong.
+    """
 
     statements: tuple[CompiledLine, ...]
-    sentinels: tuple[Sentinel, ...]
+    sentinels: tuple[str, ...]

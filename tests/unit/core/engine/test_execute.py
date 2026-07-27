@@ -81,12 +81,6 @@ def test_a_sentinel_read_renders_its_allocated_face() -> None:
     assert run(source, "banana") == "bAnAnA"
 
 
-def test_a_sentinel_read_of_no_sentinel_is_a_scope_error() -> None:
-    """The read is of the environment, and an undeclared name refuses."""
-    with pytest.raises(HimarkScopeError, match="reads no sentinel"):
-        run('{a} => "{{@nope}}"', "a")
-
-
 def test_a_surviving_sentinel_is_stripped_at_exit() -> None:
     """A sentinel left in the document is cleared at exit, not shipped."""
     assert run('sentinel s\n{a} => "{{@s}}"', "a") == ""

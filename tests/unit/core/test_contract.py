@@ -10,7 +10,6 @@ from hejmark.core.ir.program import (
     CompiledStatement,
     CompiledTemplate,
     Program,
-    Sentinel,
     TextPart,
 )
 
@@ -25,7 +24,7 @@ def test_the_seam_leaves_a_populated_program_untouched() -> None:
     """Statements and sentinels cross the seam exactly as compiled -- no rewrite."""
     program = Program(
         (CompiledStatement((CompiledTemplate((TextPart("x"),)),)),),
-        (Sentinel("s", "\ufdd0"),),
+        ("\ufdd0",),
     )
     result = contract.apply(program)
     assert result is program

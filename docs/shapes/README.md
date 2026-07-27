@@ -49,10 +49,10 @@ hold queries and templates.
 
 | Page | Covers |
 | --- | --- |
-| [Program](program.md) | The compiled script, and its sentinel table |
+| [Program](program.md) | The compiled script, and the faces to strip on exit |
 | [Statements](statements.md) | `=>` chains, and `<=>` repeat-to-a-fixpoint |
 | [Queries](queries.md) | A query's factors: eager ones, and late slots |
-| [Templates](templates.md) | The `"..."` side: text, captures, sentinel splices |
+| [Templates](templates.md) | The `"..."` side: literal text and capture reads |
 
 ## A note on JSON
 

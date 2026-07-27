@@ -40,8 +40,6 @@ from hejmark.core.ir.program import (
     LateResolver,
     Program,
     QueryFactor,
-    Sentinel,
-    SentinelPart,
     TemplatePart,
     TextPart,
     ToFaces,
@@ -98,8 +96,7 @@ def compile_script(faces: ToFaces, node: ScriptNode, env: Env) -> tuple[Program,
             lines.append(_contract(faces, stmt, env, table))
         else:
             lines.append(_statement(faces, stmt, env, table))
-    sentinels = tuple(Sentinel(name, face) for name, face in env.sentinels.items())
-    return Program(tuple(lines), sentinels), table.resolve
+    return Program(tuple(lines), tuple(env.sentinels.values())), table.resolve
 
 
 def compile_single(
@@ -236,7 +233,7 @@ def _statement(faces: ToFaces, stmt: Statement, env: Env, table: SlotTable) -> C
         if isinstance(step, Expr):
             steps.append(compile_query(faces, step, env, table))
         else:
-            steps.append(_template(step))
+            steps.append(_template(step, env))
     return CompiledStatement(tuple(steps))
 
 
@@ -244,18 +241,31 @@ def _contract(faces: ToFaces, stmt: IterStatement, env: Env, table: SlotTable) -
     """Lower a contracting statement: its query and template, iterated to a fixpoint."""
     return CompiledIter(
         compile_query(faces, stmt.query, env, table),
-        _template(stmt.template),
+        _template(stmt.template, env),
     )
 
 
-def _template(template: Template) -> CompiledTemplate:
-    """Lower a template part by part: text, capture reads, sentinel splices."""
+def _template(template: Template, env: Env) -> CompiledTemplate:
+    """Lower a template part by part: text, capture reads, sentinel splices.
+
+    A ``{{@name}}`` splice resolves to the face *here*: the compiler allocated
+    it, so substituting it now leaves the engine a template of text and capture
+    reads only, and turns an undeclared name into a compile-time refusal rather
+    than one raised mid-render.
+
+    Raises:
+        HimarkScopeError: a splice names no declared sentinel.
+    """
     parts: list[TemplatePart] = []
     for part in template.parts:
         if isinstance(part, Interp):
             parts.append(CapturePart(part.capture))
         elif isinstance(part, RefInterp):
-            parts.append(SentinelPart(part.name))
+            face = env.sentinels.get(part.name)
+            if face is None:
+                msg = f"{{{{@{part.name}}}}} reads no sentinel"
+                raise HimarkScopeError(msg)
+            parts.append(TextPart(face))
         else:
             parts.append(TextPart(part.text))
     return CompiledTemplate(tuple(parts))

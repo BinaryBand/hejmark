@@ -5,10 +5,21 @@ The language-neutral contract between hejmark engine implementations. Each `*.js
 The Python implementation is today's source of truth: expected answers are generated from it, then checked in and reviewed as ordinary diffs. Coverage is hand-picked for what a second implementation is most likely to get wrong.
 
 - Runner and case inputs: `tests/integration/test_conformance.py`
-- Regenerate: `HEJMARK_UPDATE_CONFORMANCE=1 uv run pytest tests/integration/test_conformance.py`
+- Regenerate: `HEJMARK_UPDATE_CONFORMANCE=payloads|all uv run pytest tests/integration/test_conformance.py`
 - Payload formats: `hejmark/core/ir/wire.py` (programs), `hejmark/core/ir/codec.py` (universes)
 
 A stale corpus is a test failure, so a change in lowering surfaces as a corpus diff in review rather than as silent drift between implementations.
+
+### Two halves, two lifetimes
+
+A case is part **payload** (the lowered universe or program, derived from the compiler) and part **expected answer** (derived from the engine). They do not age the same way, so regeneration has two modes:
+
+| Mode | Rewrites | Use when |
+| --- | --- | --- |
+| `payloads` | The compiler's half only; every expected answer is kept verbatim | Lowering changed. The safe default |
+| `all` | Payloads *and* expected answers | Engine behaviour changed on purpose, and a reference engine exists to regenerate from |
+
+`all` is the mode with an expiry date. Once the reference engine is retired the answers *are* the contract and nothing can regenerate them -- an expectation regenerated from the implementation under test cannot catch that implementation's bugs. `payloads` keeps working, because the compiler stays. Deleting the `all` branch is then the whole migration.
 
 ## File shape
 
@@ -59,7 +70,7 @@ The empty spelling is never matched: zero-width never hits.
 
 `requires: ["late-resolver"]` marks a program carrying a `LateSlot`. A back-referencing factor cannot be lowered ahead of a binding, so resolving one means calling back into the compiler that emitted the program -- the one thing a payload cannot carry. A standalone engine should **skip** these cases rather than fail them, and report them as skipped.
 
-Sentinels are engine-private: allocated per script from the noncharacter block, matchable while the script runs, and stripped from the final document.
+Sentinels are engine-private: allocated per script from the noncharacter block, matchable while the script runs, and stripped from the final document. The compiler resolves `{{@name}}` to its face while lowering, so `sentinels` is a list of faces and no name crosses.
 
 ### `refuse.json` -- what must be declined
 

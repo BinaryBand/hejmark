@@ -10,10 +10,10 @@ The `"..."` side of a statement, already broken into parts.
 
 | Field | Type | Meaning |
 | --- | --- | --- |
-| `parts` | list | Literal text, capture reads and sentinel splices, in order |
+| `parts` | list | Literal text and capture reads, in order |
 
 Render each part in order and join them. Literal text passes through; captures
-and sentinels are looked up and substituted.
+are looked up and substituted.
 
 Every substituted part also records *where* it landed in the finished string, so
 a later step in the chain can continue working inside it.
@@ -68,20 +68,16 @@ The difference between `{{$}}` and `{{$0}}` is the whole point of faces: match
 {"kind": "capture", "capture": "$0"}
 ```
 
-## Sentinel splice
+## What happened to sentinel splices
 
-Writes a declared sentinel's character into the output.
+`{{@name}}` exists in the *source* language, but never reaches a payload. The
+compiler allocated the sentinel, so it substitutes the face while lowering and
+the splice arrives as ordinary text. An undeclared name is refused at compile
+time.
 
-| Field | Type | Meaning |
-| --- | --- | --- |
-| `name` | string | The declared sentinel's name |
-
-Look the name up in the program's sentinel table (see [Program](program.md)) and
-emit the character it was given. An unknown name is an error.
-
-```json
-{"kind": "sentinel", "name": "end"}
-```
+That is why there are only two kinds of part. An engine never resolves a
+sentinel name, and a `Program` carries faces rather than names -- see
+[Program](program.md).
 
 ## Watch out
 
@@ -91,5 +87,6 @@ emit the character it was given. An unknown name is an error.
 - `$k` past the number of written factors is refused.
 - `$0` and `$k` agree with each other, and both may disagree with the pieces the
   matcher stepped through -- see [Product](product.md).
-- Sentinels are real characters while the script runs, so later statements can
-  match them; that is what makes them useful as anchors.
+- A sentinel's face arrives as ordinary text, and is a real character while the
+  script runs, so later statements can match it -- that is what makes it useful
+  as an anchor. It is cleared at exit.

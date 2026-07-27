@@ -22,8 +22,6 @@ from hejmark.core.ir.program import (
     EagerFactor,
     LateSlot,
     Program,
-    Sentinel,
-    SentinelPart,
     TextPart,
 )
 from hejmark.core.ir.wire import decode_program, encode_program
@@ -45,11 +43,11 @@ def _program() -> Program:
     """One program touching every IR node kind."""
     eager = UniverseNode((Face("a"), Range("0", "9"), Product((Closure(),))))
     query = CompiledQuery("{a,0..9,{&}}{$1}", (EagerFactor(eager), LateSlot(0, (1,))))
-    template = CompiledTemplate((TextPart("<"), CapturePart("$1"), SentinelPart("end")))
+    template = CompiledTemplate((TextPart("<"), CapturePart("$1")))
     contract = CompiledIter(query, template)
     return Program(
         (CompiledStatement((query, template)), contract),
-        (Sentinel("end", "﷐"),),
+        ("﷐",),
     )
 
 
@@ -63,7 +61,7 @@ def test_the_wire_object_is_versioned_and_tagged() -> None:
     """A reader can dispatch on the format tag before touching anything else."""
     encoded = encode_program(_program())
     assert encoded["format"] == "hejmark-program"
-    assert encoded["version"] == 3
+    assert encoded["version"] == 4
 
 
 def test_a_slot_rides_as_an_id_and_its_reads() -> None:
@@ -84,7 +82,7 @@ def test_a_foreign_format_tag_is_refused() -> None:
 def test_a_future_version_is_refused() -> None:
     """Version drift refuses rather than misreads."""
     encoded = encode_program(_program())
-    encoded["version"] = 4
+    encoded["version"] = 5
     with pytest.raises(HimarkPayloadError, match="version"):
         decode_program(encoded)
 

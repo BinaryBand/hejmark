@@ -15,8 +15,6 @@ from hejmark.core.ir.program import (
     LateResolver,
     LateSlot,
     Program,
-    Sentinel,
-    SentinelPart,
     TextPart,
 )
 
@@ -41,13 +39,13 @@ def test_nodes_compare_by_value() -> None:
 
 
 def test_a_program_holds_statements_and_the_sentinel_table() -> None:
-    """Statements stay in source order; sentinels ride as name-face pairs."""
-    template = CompiledTemplate((TextPart("x"), CapturePart("$1"), SentinelPart("end")))
+    """Statements stay in source order; sentinels ride as bare faces to strip."""
+    template = CompiledTemplate((TextPart("x"), CapturePart("$1")))
     line = CompiledStatement((_query(), template))
     contract = CompiledIter(_query(), template)
-    program = Program((line, contract), (Sentinel("end", "﷐"),))
+    program = Program((line, contract), ("﷐",))
     assert program.statements == (line, contract)
-    assert program.sentinels[0].face == "﷐"
+    assert program.sentinels[0] == "﷐"
 
 
 def test_a_resolver_is_a_plain_callable() -> None:

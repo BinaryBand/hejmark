@@ -53,7 +53,12 @@ from hejmark.core.ir.wire import decode_program
 CORPUS = Path(__file__).resolve().parents[2] / "static" / "conformance"
 FORMAT = "hejmark-conformance"
 VERSION = 1
-UPDATE = os.environ.get("HEJMARK_UPDATE_CONFORMANCE") == "1"
+UPDATE = os.environ.get("HEJMARK_UPDATE_CONFORMANCE", "")
+
+# The fields derived from the *engine*. Everything else in a case is either
+# authored or derived from the compiler, so only these have to freeze the day
+# the reference engine stops existing -- see `_read`.
+EXPECTATION_FIELDS = frozenset({"entries", "contains", "match", "output", "error"})
 
 ERRORS = {
     "scope": HimarkScopeError,
@@ -129,17 +134,17 @@ REFUSE_RUN: tuple[tuple[str, str, str, str], ...] = (
 # (name, malformed wire object a decoder must refuse rather than repair).
 REFUSE_PAYLOAD: tuple[tuple[str, object], ...] = (
     ("not-an-object", "hejmark-program"),
-    ("wrong-format", {"format": "other", "version": 3, "sentinels": [], "statements": []}),
+    ("wrong-format", {"format": "other", "version": 4, "sentinels": [], "statements": []}),
     (
         "wrong-version",
         {"format": "hejmark-program", "version": 1, "sentinels": [], "statements": []},
     ),
-    ("missing-statements", {"format": "hejmark-program", "version": 3, "sentinels": []}),
+    ("missing-statements", {"format": "hejmark-program", "version": 4, "sentinels": []}),
     (
         "unknown-statement-kind",
         {
             "format": "hejmark-program",
-            "version": 3,
+            "version": 4,
             "sentinels": [],
             "statements": [{"kind": "nonesuch", "steps": []}],
         },
@@ -148,7 +153,7 @@ REFUSE_PAYLOAD: tuple[tuple[str, object], ...] = (
         "code-point-past-the-plane-space",
         {
             "format": "hejmark-program",
-            "version": 3,
+            "version": 4,
             "sentinels": [],
             "statements": [
                 {
@@ -284,17 +289,35 @@ BUILDERS = {
 }
 
 
-def _suite(name: str) -> dict[str, object]:
-    """Build one suite as the object its file holds."""
-    return {"format": FORMAT, "version": VERSION, "suite": name, "cases": BUILDERS[name]()}
+def _suite(name: str, cases: list[dict[str, object]] | None = None) -> dict[str, object]:
+    """One suite as the object its file holds."""
+    built = BUILDERS[name]() if cases is None else cases
+    return {"format": FORMAT, "version": VERSION, "suite": name, "cases": built}
+
+
+def _freeze(stored: list[dict[str, object]], built: list[dict[str, object]]) -> list:
+    """Rebuilt cases, with the engine-derived answers taken from *stored*."""
+    kept = {case["name"]: case for case in stored}
+    return [
+        {**case, **{k: v for k, v in kept.get(case["name"], {}).items() if k in EXPECTATION_FIELDS}}
+        for case in built
+    ]
 
 
 def _read(name: str) -> dict[str, object]:
-    """The checked-in suite; regenerated first when the update flag is set."""
+    """The checked-in suite, regenerated first when the update flag asks.
+
+    ``payloads`` re-derives the compiler's half and keeps every expected answer
+    as checked in; ``all`` regenerates the answers too, which is meaningful only
+    while a reference engine exists. See `static/conformance/README.md`.
+    """
     path = CORPUS / f"{name}.json"
-    if UPDATE:
+    if UPDATE in {"1", "all", "payloads"}:
+        cases = BUILDERS[name]()
+        if UPDATE == "payloads" and path.exists():
+            cases = _freeze(json.loads(path.read_text())["cases"], cases)
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(_suite(name), indent=2, ensure_ascii=False) + "\n")
+        path.write_text(json.dumps(_suite(name, cases), indent=2, ensure_ascii=False) + "\n")
     return json.loads(path.read_text())
 
 

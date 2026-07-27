@@ -37,7 +37,7 @@ str (source)
 | --- | --- | --- |
 | `ScriptNode` | `core/compiler/ast.py` | Faithful surface AST: lines, in source order. Nothing resolved yet |
 | `Env` | `core/compiler/resolve.py` | Name -> declaration bindings, `uni`/`def` merged with the prelude, already acyclicity-checked |
-| `Program` | `core/ir/program.py` | Plain-data compiled script: statements, templates, sentinel table. Fully serializable |
+| `Program` | `core/ir/program.py` | Plain-data compiled script: statements, templates, and the faces to strip on exit. Fully serializable |
 | `LateResolver` | `core/ir/program.py` | `Callable[[int, tuple[str, ...]], UniverseNode]` -- one of the **two** non-data values in the pipeline; a back-reference slot's resolver, kept out of `Program` on purpose so the wire format stays pure data. Compiler-implemented, engine-called, at match time |
 | `ToFaces` | `core/ir/program.py` | `Callable[[UniverseNode], Iterator[str]]` -- the other one, pointing the other way: `engine/denote/universe.py`'s `canonical_faces`, injected by `driver.py` so expansion can read a denotation (`@0`, value cuts) without importing one. Engine-implemented, compiler-called, at expansion time |
 | `Query` | `core/engine/scan/match.py` | `parse`/`match`/`finditer`'s payload -- one compiled+loaded query, the `compile_single` sibling of `Program` |

@@ -15,20 +15,17 @@ from __future__ import annotations
 
 from hejmark.core.compiler.ast import Expr, Subtract, Unit, UniverseNode
 from hejmark.core.floor.syntax import Range
+from hejmark.core.ir.program import NONCHARACTER_RANGES
 
 # The greatest code point; the least is the null character.
 _MAX = "\U0010ffff"
 _MIN = "\x00"
 
-# The noncharacters: one contiguous block plus the last two points of every
-# plane. Unicode reserves them for internal use; the engine's internal use is
-# sentinels, so `char` subtracts them and the alphabet never contains one.
-_NONCHARACTERS = UniverseNode(
-    (
-        Range("\ufdd0", "\ufdef"),
-        *(Range(chr(plane + 0xFFFE), chr(plane + 0xFFFF)) for plane in range(0, 0x110000, 0x10000)),
-    )
-)
+# The noncharacters, read from the boundary's own definition of the sentinel
+# space (:mod:`hejmark.core.ir.program`) rather than restated here: Unicode
+# reserves them for internal use, the engine's internal use is sentinels, so
+# `char` subtracts them and no `@char`-derived universe can reach one.
+_NONCHARACTERS = UniverseNode(tuple(Range(chr(lo), chr(hi)) for lo, hi in NONCHARACTER_RANGES))
 
 # `char` as a bounded range over the whole code space, minus the sentinel space.
 _CHAR = Expr((Unit(UniverseNode((Range(_MIN, _MAX), Subtract(_NONCHARACTERS)))),))

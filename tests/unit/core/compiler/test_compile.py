@@ -26,7 +26,6 @@ from hejmark.core.ir.program import (
     LateResolver,
     LateSlot,
     Program,
-    SentinelPart,
     TextPart,
 )
 
@@ -56,7 +55,7 @@ def test_a_statement_lowers_to_queries_and_templates() -> None:
     assert isinstance(query, CompiledQuery)
     assert query.factors == (EagerFactor(UniverseNode((Face("a"),))),)
     assert isinstance(template, CompiledTemplate)
-    assert template.parts == (TextPart("x"), CapturePart("$1"), SentinelPart("s"))
+    assert template.parts == (TextPart("x"), CapturePart("$1"), TextPart("\ufdd0"))
 
 
 def test_a_back_reference_lowers_to_a_slot_and_its_resolver_answers() -> None:
@@ -73,8 +72,8 @@ def test_a_back_reference_lowers_to_a_slot_and_its_resolver_answers() -> None:
 def test_the_sentinel_table_rides_the_program() -> None:
     """Allocations cross as name-face pairs, in declaration order."""
     program, _ = _compile("sentinel s\nsentinel t")
-    assert [sentinel.name for sentinel in program.sentinels] == ["s", "t"]
-    assert all(ord(sentinel.face) >= SENTINEL_BASE for sentinel in program.sentinels)
+    assert len(program.sentinels) == 2
+    assert all(ord(face) >= SENTINEL_BASE for face in program.sentinels)
 
 
 def test_lower_expands_each_factor_to_its_pre_denotation_ast() -> None:
@@ -143,3 +142,11 @@ def test_a_fragment_holding_two_queries_is_still_refused() -> None:
     error = lower_fragments(_to_ast, canonical_faces, ["{a}\n{b}"])[0].error
     assert error is not None
     assert "single query expression" in error
+
+
+def test_an_undeclared_sentinel_splice_is_refused_while_lowering() -> None:
+    """`{{@name}}` resolves to its face at compile time, so an unknown name
+    refuses here rather than mid-render -- the engine never sees a name."""
+    node, env = script(_to_ast, '{a} => "{{@nope}}"')
+    with pytest.raises(HimarkScopeError, match="reads no sentinel"):
+        compile_script(canonical_faces, node, env)

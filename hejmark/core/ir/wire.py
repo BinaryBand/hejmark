@@ -5,7 +5,7 @@ foundation docs deliberately stop at the language; the payload is a host
 concern). A program serializes as::
 
     {"format": "hejmark-program", "version": 3,
-     "sentinels": [{"name": "end", "face": [64976]}],
+     "sentinels": [[64976]],
      "statements": [
        {"kind": "statement", "steps": [
          {"kind": "query", "source": "{a}{$1}", "factors": [
@@ -13,13 +13,14 @@ concern). A program serializes as::
             {"kind": "slot", "slot": 0, "needs": [1]}]},
          {"kind": "template", "parts": [
             {"kind": "text", "text": [99, 97, 116]},
-            {"kind": "capture", "capture": "$1"},
-            {"kind": "sentinel", "name": "end"}]}]},
+            {"kind": "capture", "capture": "$1"}]}]},
        {"kind": "iter", "query": {...}, "template": {...}}]}
 
 Universes are :mod:`~hejmark.core.ir.codec`'s shapes. Faces, template text and
-sentinel faces are code-point arrays (the lone-surrogate rule); names, capture
-spellings and the diagnostic ``source`` stay JSON strings. A decoded program
+sentinel faces are code-point arrays (the lone-surrogate rule); capture
+spellings and the diagnostic ``source`` stay JSON strings. ``sentinels`` is the
+allocated faces alone -- a ``{{@name}}`` splice is resolved to its face while
+lowering, so no name crosses and the engine only strips. A decoded program
 holding a slot executes only against a resolver honoring its slot ids; a
 slot-free program is fully standalone.
 """
@@ -48,14 +49,12 @@ from hejmark.core.ir.program import (
     LateSlot,
     Program,
     QueryFactor,
-    Sentinel,
-    SentinelPart,
     TemplatePart,
     TextPart,
 )
 
 FORMAT = "hejmark-program"
-VERSION = 3
+VERSION = 4
 
 
 def encode_program(program: Program) -> dict[str, object]:
@@ -63,10 +62,7 @@ def encode_program(program: Program) -> dict[str, object]:
     return {
         "format": FORMAT,
         "version": VERSION,
-        "sentinels": [
-            {"name": sentinel.name, "face": _points(sentinel.face)}
-            for sentinel in program.sentinels
-        ],
+        "sentinels": [_points(face) for face in program.sentinels],
         "statements": [_encode_line(line) for line in program.statements],
     }
 
@@ -87,7 +83,7 @@ def decode_program(obj: object) -> Program:
     statements = require_array(require_field(obj, "statements", "program"), "statements")
     return Program(
         tuple(_decode_line(line) for line in statements),
-        tuple(_decode_sentinel(item) for item in sentinels),
+        tuple(decode_text(item) for item in sentinels),
     )
 
 
@@ -202,8 +198,6 @@ def _encode_part(part: TemplatePart) -> dict[str, object]:
         payload = {"kind": "text", "text": _points(part.text)}
     elif isinstance(part, CapturePart):
         payload = {"kind": "capture", "capture": part.capture}
-    elif isinstance(part, SentinelPart):
-        payload = {"kind": "sentinel", "name": part.name}
     else:
         assert_never(part)
     return payload
@@ -217,20 +211,10 @@ def _decode_part(obj: object) -> TemplatePart:
         part = TextPart(decode_text(require_field(obj, "text", "text")))
     elif kind == "capture":
         part = CapturePart(_str(require_field(obj, "capture", "capture"), "capture"))
-    elif kind == "sentinel":
-        part = SentinelPart(_str(require_field(obj, "name", "sentinel"), "name"))
     else:
         msg = f"malformed part: unknown kind {kind!r}"
         raise HimarkPayloadError(msg)
     return part
-
-
-def _decode_sentinel(obj: object) -> Sentinel:
-    """Decode one sentinel allocation."""
-    return Sentinel(
-        _str(require_field(obj, "name", "sentinel"), "name"),
-        decode_text(require_field(obj, "face", "sentinel")),
-    )
 
 
 def _points(text: str) -> list[int]:
