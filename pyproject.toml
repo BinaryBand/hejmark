@@ -190,6 +190,7 @@ name = "engine pipeline"
 type = "layers"
 containers = ["hejmark.core.engine"]
 layers = [
+    "service",
     "execute",
     "scan",
     "denote",
@@ -219,6 +220,7 @@ containers = ["hejmark.core.ir"]
 layers = [
     "wire",
     "codec",
+    "ports",
     "program",
     "errors",
 ]

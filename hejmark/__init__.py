@@ -16,6 +16,7 @@ from hejmark.adapters.parser import AntlrParser
 from hejmark.core.compiler.compile import Fragment
 from hejmark.core.compiler.compile import lower as _lower
 from hejmark.core.compiler.compile import lower_fragments as _lower_fragments
+from hejmark.core.driver import Adapters
 from hejmark.core.driver import compile_program as _compile_program
 from hejmark.core.driver import finditer as _finditer
 from hejmark.core.driver import match as _match
@@ -23,32 +24,34 @@ from hejmark.core.driver import parse as _parse
 from hejmark.core.driver import run as _run
 from hejmark.core.engine.denote.universe import Entry, Universe, canonical_faces
 from hejmark.core.engine.scan.match import Match, MatchPart, Query
+from hejmark.core.engine.service import InProcess
 from hejmark.core.floor.syntax import HimarkSyntaxError
 from hejmark.core.ir.codec import encode_query as _encode_query
 from hejmark.core.ir.errors import HimarkScopeError
 from hejmark.core.ir.wire import encode_program as _encode_program
 
 _to_ast = AntlrParser().to_ast
+_adapters = Adapters(_to_ast, InProcess())
 
 
 def parse(source: str) -> Query:
     """Parse and denote *source* into a :class:`Query`."""
-    return _parse(_to_ast, source, standard_library())
+    return _parse(_adapters, source, standard_library())
 
 
 def match(query: Query | str, text: str, start: int = 0) -> Match | None:
     """Return the leftmost match of *query* in *text* at or after *start*."""
-    return _match(_to_ast, query, text, start, standard_library())
+    return _match(_adapters, query, text, start, standard_library())
 
 
 def finditer(query: Query | str, text: str) -> Iterator[Match]:
     """Yield non-overlapping matches of *query* across *text*, left to right."""
-    return _finditer(_to_ast, query, text, standard_library())
+    return _finditer(_adapters, query, text, standard_library())
 
 
 def run(source: str, text: str) -> str:
     """Run a whole script against *text*, returning the spliced document."""
-    return _run(_to_ast, source, text, standard_library())
+    return _run(_adapters, source, text, standard_library())
 
 
 def emit_json(source: str) -> str:
@@ -100,7 +103,7 @@ def emit_program(source: str) -> str:
     needs the compiler that emitted it, so a program carrying one executes only
     in this process.
     """
-    return json.dumps(_encode_program(_compile_program(_to_ast, source, standard_library())))
+    return json.dumps(_encode_program(_compile_program(_adapters, source, standard_library())))
 
 
 __all__ = [

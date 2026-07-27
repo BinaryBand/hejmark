@@ -10,68 +10,95 @@ engine never import each other, and only the data defined in
 :mod:`hejmark.core.ir` passes between them.
 
 Both callbacks over that seam are wired here, one in each direction. The
-engine's :func:`~hejmark.core.engine.denote.universe.canonical_faces` goes *in*
-as the compiler's :data:`~hejmark.core.ir.program.ToFaces`, which is how
-expansion reads a denotation without importing one; the compiler's late
-resolver comes *out* with the program, which is how the engine expands a
-back-reference without importing the expander.
+engine's ``canonical_faces`` goes *in* as the compiler's
+:data:`~hejmark.core.ir.program.ToFaces`, which is how expansion reads a
+denotation without importing one; the compiler's late resolver comes *out* with
+the program, which is how the engine expands a back-reference without importing
+the expander.
+
+The engine itself arrives as the :class:`~hejmark.core.ir.ports.Engine` port,
+the same way the parser arrives as :class:`ToAst`, so nothing here names a
+concrete engine and an out-of-process one substitutes without a change above.
+The one exception is :func:`parse` and the scans built on it: those hand back a
+live denoted :class:`Query` for the caller to inspect, which is an in-process
+capability rather than an engine verb, so they still reach for the local
+scanner. ``docs/protocol.md`` says why the protocol has no verb for it.
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterator
+from dataclasses import dataclass
 
 from hejmark.core import contract
 from hejmark.core.compiler.compile import compile_script, compile_single, script
 from hejmark.core.compiler.ports import ToAst
-from hejmark.core.engine import execute
-from hejmark.core.engine.denote.universe import canonical_faces
 from hejmark.core.engine.scan.match import Match, Query, load_query
 from hejmark.core.engine.scan.match import finditer as _finditer
 from hejmark.core.engine.scan.match import match as _match
+from hejmark.core.ir.ports import Engine
 from hejmark.core.ir.program import Program
 
 
-def parse(to_ast: ToAst, source: str, prelude: str | None = None) -> Query:
+@dataclass(frozen=True)
+class Adapters:
+    """The concrete pieces a run is composed from: a parser, and an engine.
+
+    Both arrive as ports (:class:`ToAst`, :class:`~hejmark.core.ir.ports.Engine`)
+    and travel together, because every entry point below needs both and neither
+    may be reached by import from here. Concrete implementations live in
+    ``hejmark/adapters/`` and, for the engine that runs in this interpreter,
+    :class:`hejmark.core.engine.service.InProcess`.
+    """
+
+    to_ast: ToAst
+    engine: Engine
+
+
+def parse(adapters: Adapters, source: str, prelude: str | None = None) -> Query:
     """Parse, compile and load *source* into a :class:`Query` ready to scan.
+
+    In-process only: the query it returns holds live denoted universes, which
+    is what lets a caller inspect them and what an out-of-process engine cannot
+    hand back. *engine* supplies the denotation expansion reads, not the scan.
 
     Raises:
         HimarkScopeError: *source* is not a single query expression.
     """
-    node, env = script(to_ast, source, prelude)
-    compiled, resolver = compile_single(canonical_faces, node, env, source)
+    node, env = script(adapters.to_ast, source, prelude)
+    compiled, resolver = compile_single(adapters.engine.canonical_faces, node, env, source)
     return load_query(compiled, resolver)
 
 
-def _as_query(to_ast: ToAst, value: Query | str, prelude: str | None) -> Query:
+def _as_query(adapters: Adapters, value: Query | str, prelude: str | None) -> Query:
     """Coerce raw source to a loaded query; pass an existing query through."""
-    return parse(to_ast, value, prelude) if isinstance(value, str) else value
+    return parse(adapters, value, prelude) if isinstance(value, str) else value
 
 
 def match(
-    to_ast: ToAst, value: Query | str, text: str, start: int = 0, prelude: str | None = None
+    adapters: Adapters, value: Query | str, text: str, start: int = 0, prelude: str | None = None
 ) -> Match | None:
     """Return the leftmost match of *value* in *text* at or after *start*."""
-    return _match(_as_query(to_ast, value, prelude), text, start)
+    return _match(_as_query(adapters, value, prelude), text, start)
 
 
 def finditer(
-    to_ast: ToAst, value: Query | str, text: str, prelude: str | None = None
+    adapters: Adapters, value: Query | str, text: str, prelude: str | None = None
 ) -> Iterator[Match]:
     """Yield non-overlapping matches of *value* across *text*, left to right."""
-    return _finditer(_as_query(to_ast, value, prelude), text)
+    return _finditer(_as_query(adapters, value, prelude), text)
 
 
-def run(to_ast: ToAst, source: str, document: str, prelude: str | None = None) -> str:
-    """Compile a whole script and run it against *document*."""
-    node, env = script(to_ast, source, prelude)
-    program, resolver = compile_script(canonical_faces, node, env)
+def run(adapters: Adapters, source: str, document: str, prelude: str | None = None) -> str:
+    """Compile a whole script and hand it to *engine* to run against *document*."""
+    node, env = script(adapters.to_ast, source, prelude)
+    program, resolver = compile_script(adapters.engine.canonical_faces, node, env)
     program = contract.apply(program)
     contract.check_ingest(document)
-    return execute.run(program, document, resolver)
+    return adapters.engine.run(program, document, resolver)
 
 
-def compile_program(to_ast: ToAst, source: str, prelude: str | None = None) -> Program:
+def compile_program(adapters: Adapters, source: str, prelude: str | None = None) -> Program:
     """Compile a whole script to its pure-data program, with no engine attached.
 
     The same first half :func:`run` performs, stopping where the data is: what
@@ -80,6 +107,6 @@ def compile_program(to_ast: ToAst, source: str, prelude: str | None = None) -> P
     back edge, and the one thing that is not data -- is dropped here, so a
     program carrying a late slot is one only an in-process engine can run.
     """
-    node, env = script(to_ast, source, prelude)
-    program, _resolver = compile_script(canonical_faces, node, env)
+    node, env = script(adapters.to_ast, source, prelude)
+    program, _resolver = compile_script(adapters.engine.canonical_faces, node, env)
     return program

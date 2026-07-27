@@ -63,6 +63,21 @@ Three categories, named not messaged -- messages are deliberately unpinned.
 | `scope` | A capture read nothing anchors, or a factor read past the query |
 | `sentinel` | A document arrived already spelling a noncharacter (the L2 guard) |
 
+## The host side
+
+`hejmark/core/ir/ports.py` declares this contract as a Python `Protocol`, and
+`hejmark/core/driver.py` reaches an engine only through it -- carried in an
+`Adapters(to_ast, engine)` bundle beside the parser. `hejmark/core/engine/service.py`
+is the in-process implementation and the reference the corpus is generated from.
+
+An out-of-process engine is therefore an *adapter*: something under
+`hejmark/adapters/` that satisfies the same two verbs by talking to another
+process. Nothing under `core/` changes to accommodate it.
+
+`zero` and `digits` appear on that Protocol as the single lazy `canonical_faces`,
+because in-process laziness expresses both: taking one face is `zero`, taking
+all of them is `digits`. Over a wire they are two bounded calls.
+
 ## Conformance
 
 `static/conformance/` is the executable form of this document: cases carrying a payload and the answer any engine must produce. Making it pass is the definition of a working engine. Start there, not here.
