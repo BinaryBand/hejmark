@@ -15,13 +15,36 @@
 //! Streaming is callbacks rather than iterators. Python gets laziness free from
 //! generators; here [`Flow`] carries the same discipline explicitly, and it has
 //! to, because nothing may materialise an infinite universe.
+//!
+//! L2's refusals arrive here as a **latch** rather than as `Result` on every
+//! signature, and that is a deliberate reading of the porting rule. Python
+//! raises, and raising unwinds a whole recursion from wherever it happens;
+//! threading `Answer` through `contains`, `walk`, `spells`, both split searches
+//! and every streaming callback would rewrite each of those bodies and leave
+//! nothing diffable against its counterpart. [`Denoter::refuse`] records the
+//! refusal instead, every entry point short-circuits on it, and the boundary in
+//! `scan.rs` and `execute.rs` -- which already returns [`Answer`] -- turns it
+//! back into one. Same effect as unwinding: the run is abandoned and the caller
+//! is told which refusal it was.
+//!
+//! Two of them can land: absence in an unguarded closure, which no stage bounds,
+//! and a run past this host's work budget. The first is semantic and the corpus
+//! pins it; the second's size is this host's choice.
 
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
+use crate::errors::{budget, unsettled, Fault};
 use crate::spelling::{compare, empty, spelling, Flow, Spelling, Window, GO, STOP};
 use crate::syntax::{Arena, Factor, Member, NodeId};
+
+/// How many membership questions one run may spend (= `engine/budget.py`).
+///
+/// Its existence is L2's contract; the number is this host's choice, so no
+/// conformance case fixes it. Far above any hand-written script and far below
+/// the point where a wait stops being a wait.
+pub const BUDGET: u64 = 5_000_000;
 
 /// A denoted universe: a brace group plus what its free `&` reads.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -67,6 +90,10 @@ pub struct Denoter {
     interned: RefCell<HashMap<Key, Univ>>,
     contains_memo: ContainsMemo,
     spells_memo: SpellsMemo,
+    /// The refusal a walk hit, standing in for Python's raise.
+    fault: RefCell<Option<Fault>>,
+    /// The open run's meter: what it may spend, and what it has spent.
+    meter: RefCell<Option<(u64, u64)>>,
 }
 
 impl Denoter {
@@ -78,7 +105,64 @@ impl Denoter {
             interned: RefCell::new(HashMap::new()),
             contains_memo: RefCell::new(HashMap::new()),
             spells_memo: RefCell::new(HashMap::new()),
+            fault: RefCell::new(None),
+            meter: RefCell::new(None),
         }
+    }
+
+    /// Open a work budget over this run, unless an outer run already holds one.
+    ///
+    /// Runs nest -- a contracting pass is made of matches -- and the outermost
+    /// is the one that holds, so a pass is priced whole rather than per match
+    /// inside it. Answers whether this call opened it, which is what the caller
+    /// must hand back to [`Denoter::close_run`].
+    pub fn open_run(&self) -> bool {
+        let mut meter = self.meter.borrow_mut();
+        if meter.is_some() {
+            return false;
+        }
+        *meter = Some((BUDGET, 0));
+        true
+    }
+
+    /// Close a budget this caller opened, clearing the latch with it.
+    pub fn close_run(&self, opened: bool) {
+        if opened {
+            *self.meter.borrow_mut() = None;
+            *self.fault.borrow_mut() = None;
+        }
+    }
+
+    /// Charge one membership question against the open budget; free where none is.
+    fn charge(&self) {
+        let mut held = self.meter.borrow_mut();
+        let Some((budgeted, spent)) = held.as_mut() else { return };
+        *spent += 1;
+        if *spent > *budgeted {
+            let cost = *budgeted;
+            drop(held);
+            self.refuse(budget(format!(
+                "a run spent past this host's work budget of {cost} membership questions"
+            )));
+        }
+    }
+
+    /// Record a refusal, keeping the first: the run ended where it first could not go.
+    fn refuse(&self, fault: Fault) {
+        let mut held = self.fault.borrow_mut();
+        if held.is_none() {
+            *held = Some(fault);
+        }
+    }
+
+    /// Whether a refusal is standing, so every walk should unwind rather than answer.
+    pub fn faulted(&self) -> bool {
+        self.fault.borrow().is_some()
+    }
+
+    /// The standing refusal, taken -- so a caller reads it once and turns it into an `Err`.
+    pub fn take_fault(&self) -> Option<Fault> {
+        self.fault.borrow_mut().take()
     }
 
     /// Denote a node: the universe it is, read outside any binder.
@@ -104,14 +188,35 @@ impl Denoter {
         self.keys.borrow()[universe.0 as usize]
     }
 
+    /// How long a face this universe can wear, or `None` when unbounded.
+    ///
+    /// The interned universe's own reach, which is its node's: truncating a
+    /// closure to a stage cannot lengthen a face, so the node's bound holds for
+    /// every stage universe over it too.
+    pub fn univ_reach(&self, universe: Univ) -> Option<usize> {
+        self.arena.reach(self.key(universe).node)
+    }
+
     /// Whether some entry of *universe* wears *face*.
+    ///
+    /// The one place the work budget is charged, this being the question a run
+    /// asks over and over, and deliberately outside the memo: an answer served
+    /// from it still cost the clock it took to ask for. Also the one place the
+    /// latch is read, so a standing refusal unwinds the recursion rather than
+    /// letting it grind on to an answer nobody will use.
     pub fn contains(&self, universe: Univ, face: &Spelling) -> bool {
+        if self.faulted() {
+            return false;
+        }
+        self.charge();
         let memo_key = (universe, face.clone());
         if let Some(&found) = self.contains_memo.borrow().get(&memo_key) {
             return found;
         }
         let answer = self.contains_fresh(universe, face);
-        self.contains_memo.borrow_mut().insert(memo_key, answer);
+        if !self.faulted() {
+            self.contains_memo.borrow_mut().insert(memo_key, answer);
+        }
         answer
     }
 
@@ -123,15 +228,73 @@ impl Denoter {
         if stages.is_none() {
             self.shorter_first(universe, face);
         }
-        // A guarded body settles by `len + 1`, so this is exact; an unguarded one
-        // only semi-decides, and a face no stage up to the bound shows reads as
-        // absent -- which a later stage of an unsettled body could contradict.
+        // A guarded body settles by `len + 1` and a truncated stage universe was
+        // only ever asked about that stage, so a miss is a decided absence in
+        // both. Only the closure at omega over an unguarded body has a miss
+        // meaning nothing, and that one refuses.
         let bound =
             stages.unwrap_or_else(|| u32::try_from(face.len()).expect("spelling too long") + 1);
-        (0..bound).any(|stage| {
+        let shown = (0..bound).any(|stage| {
             let prev = self.univ(node, amp, Some(stage));
             self.walk(node, self.arena.width(node), Some(prev), face)
+        });
+        if shown || stages.is_some() || self.settled(node) {
+            return shown;
+        }
+        self.refuse(unsettled(format!(
+            "membership of {face:?} in an unguarded closure has no stage bound"
+        )));
+        false
+    }
+
+    /// Whether every free `&` is guarded, so each pass lengthens and stage
+    /// `len + 1` is exact (= `floor/binder.py`'s `settled`).
+    ///
+    /// A bare `&` is unguarded: the pass can reproduce itself. A `&` in a product
+    /// is guarded when some sibling factor cannot spell the empty face -- which
+    /// is the one clause here that is not syntactic, and the reason this sits in
+    /// the denoter rather than in the arena beside `binds`.
+    fn settled(&self, node: NodeId) -> bool {
+        let group = self.arena.node(node);
+        group.members.iter().all(|member| match member {
+            Member::Closure => false,
+            Member::Product(factors) if factors.iter().any(|f| matches!(f, Factor::Closure)) => {
+                factors.iter().any(|factor| match factor {
+                    Factor::Universe(inner) => !self.spells_empty(*inner),
+                    Factor::Closure => false,
+                })
+            }
+            Member::Subtract(inner) => self.settled(*inner),
+            _ => true,
         })
+    }
+
+    /// The emptiness oracle `settled` needs: does this group wear the empty face?
+    ///
+    /// A factor guards by *failing* to spell the empty face, so an oracle that
+    /// cannot answer must not report one. An undecidable answer therefore reads
+    /// as "spells it", leaving the refusal conservative -- able to decline a
+    /// closure a deeper analysis would settle, never to accept one it cannot.
+    fn spells_empty(&self, node: NodeId) -> bool {
+        let answer = self.contains(self.denote(node), &empty());
+        if self.clear_unsettled() {
+            return true;
+        }
+        answer
+    }
+
+    /// Drop a standing *unsettled* refusal, reporting whether there was one.
+    ///
+    /// Only that one: a budget refusal is the run ending, and a question asked
+    /// inside it has no more right to carry on than the run does. Python says
+    /// the same thing by catching one exception class and not the other.
+    fn clear_unsettled(&self) -> bool {
+        let mut held = self.fault.borrow_mut();
+        if matches!(*held, Some(Fault::Unsettled(_))) {
+            *held = None;
+            return true;
+        }
+        false
     }
 
     /// Answer the shorter prefixes before the whole, so the descent stays shallow.
@@ -140,10 +303,17 @@ impl Denoter {
     /// shorter ones, so the recursion is naturally as deep as the face is long.
     /// Walking the prefixes upward first puts each answer the descent will want
     /// in the memo, so the descent finds it there rather than a frame deeper.
-    /// Pure warming: no answer changes, only where it is computed.
+    ///
+    /// Pure warming: no answer changes, only where it is computed. An unguarded
+    /// body has none to warm with, and naming that refusal is the real
+    /// question's job rather than a prefix's, so the walk stops rather than
+    /// refuse under the wrong spelling.
     fn shorter_first(&self, universe: Univ, face: &Spelling) {
         for end in 1..face.len() {
             self.contains(universe, &spelling(&face[..end]));
+            if self.clear_unsettled() || self.faulted() {
+                return;
+            }
         }
     }
 
@@ -217,10 +387,26 @@ impl Denoter {
     }
 
     /// Whether *face* splits into consecutive pieces, one per factor's faces.
+    ///
+    /// Cut where reach allows, at both ends (= `denote/split.py`): no factor is
+    /// offered a piece longer than it can wear, nor a cut leaving the factors
+    /// after it more text than they could ever cover. `tails[i]` bounds
+    /// `factors[i..]`, `None` propagating leftward from the first unbounded
+    /// factor. Both bounds come off the expression, so the splits are unchanged.
     fn splits(&self, factors: &[Factor], amp: Option<Univ>, face: &Spelling) -> bool {
         let length = face.len();
+        let mut tails: Vec<Option<usize>> = vec![Some(0)];
+        for factor in factors.iter().rev() {
+            let far = self.arena.factor_reach(factor);
+            let tail = *tails.last().expect("seeded with the empty tail");
+            tails.push(match (far, tail) {
+                (Some(far), Some(tail)) => Some(far + tail),
+                _ => None,
+            });
+        }
+        tails.reverse();
         let mut memo: HashMap<(usize, usize), bool> = HashMap::new();
-        self.rest(factors, amp, face, length, 0, 0, &mut memo)
+        self.rest(factors, amp, face, length, 0, 0, &tails, &mut memo)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -232,6 +418,7 @@ impl Denoter {
         length: usize,
         index: usize,
         pos: usize,
+        tails: &[Option<usize>],
         memo: &mut HashMap<(usize, usize), bool>,
     ) -> bool {
         if index == factors.len() {
@@ -240,10 +427,18 @@ impl Denoter {
         if let Some(&found) = memo.get(&(index, pos)) {
             return found;
         }
+        let stop = match self.arena.factor_reach(&factors[index]) {
+            Some(far) => length.min(pos + far),
+            None => length,
+        };
+        let start = match tails[index + 1] {
+            Some(tail) => pos.max(length.saturating_sub(tail)),
+            None => pos,
+        };
         let mut answer = false;
-        for end in pos..=length {
+        for end in start..=stop {
             if self.factor_contains(&factors[index], amp, &spelling(&face[pos..end]))
-                && self.rest(factors, amp, face, length, index + 1, end, memo)
+                && self.rest(factors, amp, face, length, index + 1, end, tails, memo)
             {
                 answer = true;
                 break;
@@ -262,7 +457,13 @@ impl Denoter {
     }
 
     /// Stream the entries in declaration order, lazily -- safe over infinity.
+    ///
+    /// Unwinds on a standing refusal, so a stream begun before one landed does
+    /// not go on producing entries the caller will discard.
     pub fn entries(&self, universe: Univ, sink: Sink) -> Flow {
+        if self.faulted() {
+            return STOP;
+        }
         let Key { node, amp, stages } = self.key(universe);
         if self.arena.binds(node) {
             return self.closure_entries(node, amp, stages, sink);

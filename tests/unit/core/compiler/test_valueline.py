@@ -88,3 +88,67 @@ def test_cut_never_leans_on_shortlex() -> None:
 def test_cut_spans_a_width_boundary_over_letters() -> None:
     # `aa` canonicalizes to `a`, value 0, so the width-1 numerals enter.
     assert len(faces(cut(canonical_faces, LETTERS, "aa", "cc"))) == 55
+
+
+def test_a_single_digit_cut_collapses_to_a_range() -> None:
+    """L2's value-cut collapse: where value order and shortlex agree, a cut is a range.
+
+    The digit-walk would say the same thing as a union of numerals with another
+    union subtracted; over consecutive single-code-point digits it is one range,
+    and saying so is a rewrite rather than a shortcut -- the entries are
+    identical either way.
+    """
+    node = cut(canonical_faces, DECIMAL, "3", "7")
+    assert node == syntax.UniverseNode((syntax.Range("3", "7"),))
+    assert faces(node) == list("34567")
+
+
+def test_the_collapse_holds_over_any_contiguous_radix() -> None:
+    """Nothing here is about decimal: `a..z` cut `c..g` is `{c..g}` on the same rule."""
+    assert cut(canonical_faces, LETTERS, "c", "g") == syntax.UniverseNode((syntax.Range("c", "g"),))
+
+
+def test_a_wide_faced_radix_does_not_collapse() -> None:
+    """The premise is checked, not assumed: a two-character digit is no range.
+
+    `WIDE`'s digit at value 1 wears `bb`, so its numerals in value order are not
+    an interval of the code space and the walk has to stand. Collapsing anyway
+    would silently denote something else.
+    """
+    node = cut(canonical_faces, WIDE, "a", "bb")
+    assert node != syntax.UniverseNode((syntax.Range("a", "bb"),))
+    assert faces(node) == ["a", "bb"]
+
+
+def test_a_multi_digit_cut_does_not_collapse() -> None:
+    """Past the radix the numerals are products, and no single range spells those."""
+    node = cut(canonical_faces, DECIMAL, "8", "12")
+    assert faces(node) == ["8", "9", "10", "11", "12"]
+    assert not any(isinstance(m, syntax.Range) for m in node.members)
+
+
+def test_a_non_contiguous_radix_does_not_collapse() -> None:
+    """Single code points are not enough -- they must also be adjacent ones.
+
+    `{a,c,e}` cut across its whole span is three faces with gaps between them, so
+    a range over `a..e` would wear `b` and `d` that the radix never declared.
+    """
+    sparse = syntax.UniverseNode((syntax.Face("a"), syntax.Face("c"), syntax.Face("e")))
+    assert faces(cut(canonical_faces, sparse, "a", "e")) == ["a", "c", "e"]
+
+
+def test_an_unbounded_head_is_refused_rather_than_read_forever() -> None:
+    """L2's digit budget: a value cut needs a radix, and an unbounded head has none.
+
+    Reading the bound means knowing every digit's position, so there is no
+    partial answer to give. The head here streams without end, and the point of
+    the budget is that this returns at all.
+    """
+    unbounded = syntax.UniverseNode(
+        (
+            syntax.Face("0"),
+            syntax.Product((syntax.Closure(), syntax.UniverseNode((syntax.Range("0", "9"),)))),
+        )
+    )
+    with pytest.raises(ValueLineError, match="bounded radix"):
+        digits(canonical_faces, unbounded)

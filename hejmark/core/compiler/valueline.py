@@ -24,11 +24,21 @@ denotation through the engine's :data:`~hejmark.core.ir.program.ToFaces`, which
 the caller carries in; this module denotes nothing itself.
 """
 
+from itertools import islice, pairwise
+
 from hejmark.core.floor import syntax
 from hejmark.core.ir.errors import HimarkScopeError
 from hejmark.core.ir.program import ToFaces
 
 EMPTY = syntax.UniverseNode(())
+
+# How many digits a head may offer before the cut is refused. A value cut needs
+# the whole radix -- reading a bound means knowing every digit's position -- so
+# an unbounded head has no radix at all and streaming it never returns. L2 makes
+# that a diagnostic rather than a hang; the number is a host's choice, and this
+# one sits far above any radix anyone writes (`{@hex}` is 16) and far below the
+# code space a head like `{@char}` would offer.
+RADIX_BUDGET = 4096
 
 
 class ValueLineError(HimarkScopeError):
@@ -40,10 +50,21 @@ def digits(faces: ToFaces, head: syntax.UniverseNode) -> tuple[str, ...]:
 
     The value family cuts the value axis and leaves the face axis to the stages
     that follow it, so each entry reads at its canonical face -- exactly what
-    the bare ``@0`` register reads. Streams the head's entries, so an unbounded
-    radix never returns.
+    the bare ``@0`` register reads.
+
+    Bounded by :data:`RADIX_BUDGET`, which is L2's contract here. The stream is
+    lazy, so one digit past the budget is enough to know the head is offering
+    more than a radix can be read from, and the cut is refused rather than left
+    reading an unbounded head forever.
+
+    Raises:
+        ValueLineError: the head offers more than :data:`RADIX_BUDGET` digits.
     """
-    return tuple(faces(head))
+    found = tuple(islice(faces(head), RADIX_BUDGET + 1))
+    if len(found) > RADIX_BUDGET:
+        msg = f"a value cut needs a bounded radix; this head exceeds {RADIX_BUDGET} digits"
+        raise ValueLineError(msg)
+    return found
 
 
 def value_of(spelling: str, alphabet: tuple[str, ...]) -> int:
@@ -149,16 +170,42 @@ def _from_low(
     return syntax.UniverseNode((*upper.members, syntax.Subtract(_less_than(low, alphabet))))
 
 
+def _collapsed(alphabet: tuple[str, ...], low: int, high: int) -> syntax.UniverseNode | None:
+    """The cut as one range, where value order and shortlex agree; else ``None``.
+
+    L2's second permitted rewrite (``docs/foundation/L2.md``). Over
+    single-code-point digits laid out consecutively in the code space the two
+    orders are the same order, so a cut of a contiguous span of them *is* a
+    contiguous range -- and the digit-walk below, which would build a union of
+    numerals and subtract another to say the same thing, collapses to one node.
+
+    The premise is checked, never assumed, which is why this is partial: the cut
+    must stay inside single-digit numerals (``high`` below the radix), every
+    digit it takes must be one code point, and they must be adjacent code points
+    in value order. A radix whose digits wear wider faces, or one that skips
+    around the code space, fails the check and walks.
+    """
+    if high >= len(alphabet):
+        return None
+    span = alphabet[low : high + 1]
+    if any(len(face) != 1 for face in span):
+        return None
+    if any(ord(face) + 1 != ord(nxt) for face, nxt in pairwise(span)):
+        return None
+    return syntax.UniverseNode((syntax.Range(span[0], span[-1]),))
+
+
 def cut(faces: ToFaces, head: syntax.UniverseNode, lo: str, hi: str) -> syntax.UniverseNode:
     """The head's value line cut to the entries at values ``lo`` through ``hi``.
 
     Both bounds are always given -- there is no open cut. Total in the floor's
     manner: ``hi`` below ``lo`` reads as the empty universe, and an empty head
     has no entries to cut. An unbounded head has no finite radix, so
-    :func:`digits` streams it without returning.
+    :func:`digits` refuses it rather than reading forever.
 
     Raises:
-        ValueLineError: the head carries a bound it cannot spell.
+        ValueLineError: the head carries a bound it cannot spell, or offers more
+            digits than a radix may.
     """
     alphabet = digits(faces, head)
     if not alphabet:
@@ -167,4 +214,7 @@ def cut(faces: ToFaces, head: syntax.UniverseNode, lo: str, hi: str) -> syntax.U
     high = value_of(hi, alphabet)
     if high < low:
         return EMPTY
+    collapsed = _collapsed(alphabet, low, high)
+    if collapsed is not None:
+        return collapsed
     return _from_low(_less_than(high + 1, alphabet), low, alphabet)

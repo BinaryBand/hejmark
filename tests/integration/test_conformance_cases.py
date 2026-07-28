@@ -61,13 +61,27 @@ def _cases(name: str) -> list[dict[str, object]]:
     return loaded
 
 
+def _membership(universe: Universe, probe: str) -> bool | str:
+    """The membership answer, or the category naming the refusal that replaced it."""
+    try:
+        return universe.contains(probe)
+    except tuple(ERRORS.values()) as refusal:
+        return next(name for name, cls in ERRORS.items() if isinstance(refusal, cls))
+
+
 @pytest.mark.parametrize("case", _cases("denote"), ids=lambda c: c["name"])
 def test_denote_case(case: dict) -> None:
-    """A floor payload denotes to the corpus's entries and membership answers."""
+    """A floor payload denotes to the corpus's entries and membership answers.
+
+    An answer may be a refusal rather than a boolean: absence in an unguarded
+    closure has no stage bound, so L2 declines it. Comparing the whole map at
+    once is what makes that checkable -- a port that answers ``false`` where the
+    corpus says ``"unsettled"`` fails here rather than passing quietly.
+    """
     universe = denote(decode_universe(case["universe"]))
     if case["entries"] is not None:
         assert [list(e.faces) for e in _stream(universe, case["limit"])] == case["entries"]
-    assert {p: universe.contains(p) for p in case["contains"]} == case["contains"]
+    assert {p: _membership(universe, p) for p in case["contains"]} == case["contains"]
 
 
 @pytest.mark.parametrize("case", _cases("match"), ids=lambda c: c["name"])

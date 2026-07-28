@@ -22,21 +22,23 @@ L1.5 guards well-formedness only -- an unknown name, a malformed definition, a f
 - Names -- `uni hex = {0..9,a..f}`: declaration and `@name` splice-by-name (one sigiled namespace whose reserved names are the registers). Pure compression; the floor's splice rule already anticipates the name.
 - Definitions -- `def name args = body`, applied only through the modifier pipeline `A[f x g y]`; application is substitution over the operand and its arguments, and every application expands to a floor expression. Juxtaposition is always a product, never application. Brackets chain: `A[m][n]` re-points the head to each left operand, where the fused `A[f g]` pins it to the base.
 - Registers -- the in-language spellings of the expander's metafunctions: expansion-time reads on the same footing as the shortlex interval the floor's own `{a..z}` lists, never a runtime store. The inventory is closed at two tokens (`@`, `$`) carrying two addressed families -- `@lo..hi` the head's value line by value (`@0` its degenerate cut), `$1..$n` the hit's written factors -- plus the one face-zero read `$0`, and a new register faces the scrutiny a new axiom does.
-- Emit -- `=>` statements joining branches (spans carrying the floor's capture) to text objects: a query refines and guards, a template commits and continues per interpolation site, and `<=>` iterates a statement to a fixpoint. Bounding a run that never settles is deferred with L2 (`docs/.TODO.md`). A cast by value -- writing a bound value under a second universe -- stays uncomputable: value-indexing across two radixes, which no expression computes and no register spells.
+- Emit -- `=>` statements joining branches (spans carrying the floor's capture) to text objects: a query refines and guards, a template commits and continues per interpolation site, and `<=>` iterates a statement to a fixpoint. Bounding a run that never settles is L2's, and landed there: the iteration is one metered run, so a contraction that never reaches a fixpoint is refused rather than waited on. A cast by value -- writing a bound value under a second universe -- stays uncomputable: value-indexing across two radixes, which no expression computes and no register spells.
 - Diagnostics -- compiler errors live here: unknown name, malformed definition, unguarded matcher scope. The floor never rejects, so rejection is interpretation's whole job.
 
 > Finish line: the surface suffices to write all of the standard library (L3 below) in-language -- no built-in named modifiers, no host code per entry.
 >
 > Frontier: a value cut across two radixes is uncomputable today -- no register spells it (see Emit above). A future surface capability -- an expressive render layer that carries a computed value and wraps it against a universe's cardinality (its *ceiling*) -- would lift that. It is a denotational addition, so it grows L1.5, not the execution contract.
 
-## Layer 2 -- Finite-Execution Contract (operational)
+## Layer 2 -- Finite-Execution Contract (operational) -- landed
 
-The normative layer is `L2.md`. L1's denotation is total and L1.5's surface adds none, yet execution is finite -- this layer is where that finiteness is enforced.
+The normative layer is `L2.md`. L1's denotation is total and L1.5's surface adds none, yet execution is finite -- this layer is where that finiteness is enforced. Two halves, both now in the tree.
 
-- Decide guarded query budget in time polynomial.
-- Add non-character boundary hygiene.
-- Identify and execute efficient, meaning-preserving rewrites.
-  - E.g. `{a..z}[where c..g]` rewrites to `{c..g}`.
+- Rewrites -- reach (the bound read off the expression, narrowing both split searches and the scan) and the value-cut collapse (a single-digit cut is a range; a top-exclusive one folds its subtraction away). Meaning-preserving by construction: the answers are identical and only the work differs.
+- Refusals -- the unguarded-closure membership, the read budget over `$0`/`$k`, the digit budget over a value cut, the work budget over a scan and over a `<=>` iteration, and both edges of the sentinel space. Every one declines a program that *denotes*, which is what makes them this layer's and not L1.5's.
+
+The obligations land where they are enforceable rather than in one module: reach on the floor where both searches share it, the digit budget in the compiler's expander, the rest in the engine, and the `Program -> Program` rewrite at the `core/contract.py` seam. What marks a refusal as L2's is the error class it raises, not the file it lives in.
+
+Two things are deliberately *not* uniform across implementations. The unguarded-closure refusal is semantic -- an engine answering "absent" there is wrong, and the conformance corpus pins it as a third possible answer to a membership question. The three budgets are host choices: their existence is the contract, their size is not, and no case fixes a number.
 
 ## Layer 3 -- Standard Library (content)
 

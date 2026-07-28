@@ -181,11 +181,13 @@ layers = [
 exhaustive = true
 
 [[tool.importlinter.contracts]]
-# The engine's three strata: the executor drives the scanner, the scanner asks
-# denotation, and denotation knows about neither. `denote` is the bottom because
-# it is the one stratum written against floor syntax alone -- the piece a host in
-# another language must reimplement, and the piece the compiler is allowed to
-# reach only as an injected callback.
+# The engine's strata: the executor drives the scanner, the scanner asks
+# denotation, and denotation knows about neither. `denote` is the piece written
+# against floor syntax alone -- what a host in another language must reimplement,
+# and what the compiler may reach only as an injected callback. `budget` sits
+# under it because L2's work budget is charged at the membership question, which
+# is denotation's own chokepoint, while the runs that *open* one are up in
+# `scan` and `execute`; a meter is the one thing every stratum can touch.
 name = "engine pipeline"
 type = "layers"
 containers = ["hejmark.core.engine"]
@@ -194,18 +196,22 @@ layers = [
     "execute",
     "scan",
     "denote",
+    "budget",
 ]
 exhaustive = true
 
 [[tool.importlinter.contracts]]
-# Denotation's own order: `universe` denotes a brace expression, `window` views a
-# range as a half-open interval, `order` fixes the shortlex order both are
-# defined against. A leaf per level, nothing circular.
+# Denotation's own order: `universe` denotes a brace expression, `split` decides
+# a product by searching its tilings (reach-cut, and told how to price a factor
+# rather than knowing), `window` views a range as a half-open interval, `order`
+# fixes the shortlex order they are all defined against. A leaf per level,
+# nothing circular.
 name = "denote stratum"
 type = "layers"
 containers = ["hejmark.core.engine.denote"]
 layers = [
     "universe",
+    "split",
     "window",
     "order",
 ]

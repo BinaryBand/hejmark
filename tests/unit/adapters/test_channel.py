@@ -137,7 +137,13 @@ def test_restore_returns_the_exception_the_far_side_raised() -> None:
 
 
 def test_restore_keeps_a_category_it_does_not_know() -> None:
-    """A host that has not heard of a category must not pretend that it has."""
-    unknown = RefusalError("budget", "out of steps")
+    """A host that has not heard of a category must not pretend that it has.
+
+    The name here is deliberately not one of ``CATEGORIES``: a category the
+    reader does not know stays unread, so a newer engine naming a refusal this
+    host has never seen surfaces as the wire error it is rather than as the
+    wrong exception.
+    """
+    unknown = RefusalError("nonesuch", "a refusal from a later protocol")
 
     assert restore(unknown) is unknown

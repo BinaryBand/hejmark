@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from hejmark.core.ir.errors import (
     CATEGORIES,
+    HimarkBudgetError,
     HimarkPayloadError,
     HimarkScopeError,
     HimarkSentinelError,
+    HimarkUnsettledError,
 )
 
 
@@ -32,9 +34,11 @@ def test_every_refusal_has_a_wire_name() -> None:
         HimarkPayloadError,
         HimarkScopeError,
         HimarkSentinelError,
+        HimarkUnsettledError,
+        HimarkBudgetError,
     }
 
 
 def test_the_categories_are_the_names_the_protocol_states() -> None:
     """docs/protocol.md's error table, as data -- neither side restates it."""
-    assert sorted(CATEGORIES) == ["payload", "scope", "sentinel"]
+    assert sorted(CATEGORIES) == ["budget", "payload", "scope", "sentinel", "unsettled"]

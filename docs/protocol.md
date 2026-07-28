@@ -60,7 +60,7 @@ Ids pair a call with its answer and are per-direction: each end numbers its own 
 
 `program` is the `hejmark-program` object; `universe` is the codec's; **`document`, `face` and `faces` are code-point arrays**, same rule as everything else that carries a spelling. That is not free -- a document costs several times its length -- but a document is exactly where a lone surrogate would turn up, and a transport that mangles one is worse than a slow one.
 
-`error.category` is one of the three below and nothing else; a category the reader does not know stays unread rather than being guessed at.
+`error.category` is one of the five below and nothing else; a category the reader does not know stays unread rather than being guessed at.
 
 The requirement re-entrancy places on all this is small in code and non-negotiable in effect: **both ends run the same loop**, and waiting for an answer differs from serving only in when it stops. An end reads messages, answers requests as they arrive, and returns when the answer it is waiting for shows up. Nesting is that loop entered again from inside a dispatch, which is what `digits`-inside-`resolve`-inside-`run` actually is.
 
@@ -74,6 +74,7 @@ The split is chosen so no logic exists on both sides.
 | Matching: leftmost-greedy, no zero-width | Sentinel allocation, and resolving `{{@name}}` to a face |
 | Capture binding: `$`, `$0`, `$k` | Lowering to the payload, and `resolve` |
 | Stripping sentinel faces on exit | The L2 ingest refusal, before `run` is called |
+| L2's run-time refusals: unsettled membership, the read and work budgets | L2's rewrites: reach and the value-cut collapse, already applied to the payload |
 
 Two consequences worth stating, because they are easy to get backwards:
 
@@ -82,13 +83,17 @@ Two consequences worth stating, because they are easy to get backwards:
 
 ## Errors
 
-Three categories, named not messaged -- messages are deliberately unpinned.
+Five categories, named not messaged -- messages are deliberately unpinned.
 
 | Category | Means |
 | --- | --- |
 | `payload` | The JSON did not decode. Refuse; never repair or guess |
-| `scope` | A capture read nothing anchors, or a factor read past the query |
+| `scope` | A capture read nothing anchors, a factor read past the query, or a read past its budget |
 | `sentinel` | A document arrived already spelling a noncharacter (the L2 guard) |
+| `unsettled` | Absence in an unguarded closure, which no stage bounds (L2) |
+| `budget` | A run spent past the host's work budget (L2) |
+
+The last two are L2's, and they are the reason an engine may decline a question rather than answer it. `unsettled` is a *semantic* requirement: a port that answers `false` for absence in an unguarded body is wrong, not lenient, and `static/conformance/denote.json` pins it -- a `contains` answer there may be `true`, `false`, or the string `"unsettled"`. `budget` is not: its existence is the contract and its size is the host's choice, so a port may set its own and no case fixes a number.
 
 `hejmark/core/ir/errors.py` holds that table as `CATEGORIES`, so the name and the exception it becomes are stated once. A refusal that crosses the wire arrives on the far side as the exception it was raised as -- a refused program raises the same thing whether the engine ran here or elsewhere.
 

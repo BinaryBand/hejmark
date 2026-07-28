@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from itertools import islice
 
+import pytest
+
 from hejmark.core.engine.denote.universe import canonical_faces, denote
 from hejmark.core.floor.syntax import (
     Closure,
@@ -19,6 +21,7 @@ from hejmark.core.floor.syntax import (
     Subtract,
     UniverseNode,
 )
+from hejmark.core.ir.errors import HimarkUnsettledError
 
 
 def _faces(node: UniverseNode, limit: int | None = None) -> list[tuple[str, ...]]:
@@ -137,12 +140,14 @@ def test_closure_of_nothing_is_empty() -> None:
     assert _faces(UniverseNode((Closure(),))) == []
 
 
-def test_unguarded_closure_enumerates_and_membership_semi_decides() -> None:
-    """Totality is denotation's; an unguarded absence is only semi-decided.
+def test_unguarded_closure_enumerates_but_absence_is_refused() -> None:
+    """Totality is denotation's; an unguarded absence is L2's to refuse.
 
-    Presence is still reported when a stage shows it; a spelling no stage up to
-    ``len + 1`` shows reads as absent -- which a later stage could contradict,
-    but nothing here refuses it.
+    The body here is a product, but its other factor folds to the unit and so
+    wears the empty face -- a pass need not lengthen, and the stage bound that
+    settles a guarded body proves nothing. Presence is still reported the moment
+    a stage shows it, and enumeration is untouched. Only the "no" is withheld,
+    because a later stage could contradict it.
     """
     fill = UniverseNode((Fold(UniverseNode((Fold(UniverseNode(())), Face("0")))),))
     node = UniverseNode((Face("a"), Product((fill, Closure()))))
@@ -150,7 +155,24 @@ def test_unguarded_closure_enumerates_and_membership_semi_decides() -> None:
 
     assert _faces(node, 3) == [("a",), ("0a",), ("00a",)]
     assert universe.contains("00a")
-    assert not universe.contains("xyz")
+    with pytest.raises(HimarkUnsettledError, match="no stage bound"):
+        universe.contains("xyz")
+
+
+def test_a_guarded_closure_decides_absence_without_refusing() -> None:
+    """The other side of the boundary: a guard buys the bound, so "no" is an answer.
+
+    Every factor beside the ``&`` here spells at least one character, so each
+    pass strictly lengthens and stage ``len + 1`` is exact. Refusing here would
+    make the whole idiom -- ``{@x, &@x}``, which is most of the standard library
+    -- unusable, so this is the case that keeps the refusal narrow.
+    """
+    ab = UniverseNode((Face("a"), Face("b")))
+    universe = denote(UniverseNode((Face("a"), Face("b"), Product((Closure(), ab)))))
+
+    assert universe.contains("abab")
+    assert not universe.contains("c")
+    assert not universe.contains("aXb")
 
 
 def test_subtracted_self_reference_settles_at_stage_one() -> None:

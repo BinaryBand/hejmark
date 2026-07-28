@@ -29,6 +29,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from hejmark.core.engine.budget import budgeted
 from hejmark.core.engine.scan.capture import canonical_face, factor_faces
 from hejmark.core.engine.scan.match import Query, finditer, load_query
 from hejmark.core.ir.errors import HimarkScopeError
@@ -192,14 +193,24 @@ def _iterate(stmt: _Contract, document: str) -> str:
     document to itself -- the true fixpoint. A contraction whose matches
     reproduce the text they cover settles at once; one that keeps moving the
     document (an oscillating re-dress) never settles, and nothing here proves in
-    advance which it is.
+    advance which it is. L1.5 declines to guess and L2 declines to wait: the
+    whole iteration runs under one work budget, so a ``<=>`` that never reaches
+    a fixpoint is refused with a diagnostic instead of spinning.
+
+    One budget for the iteration, not one per pass. A pass is made of matches
+    and the iteration is made of passes; metering the outermost is what makes a
+    thousand cheap passes cost what a thousand cheap passes cost.
+
+    Raises:
+        HimarkBudgetError: the iteration spent past the host's work budget.
     """
     once = _Statement((stmt.query, stmt.template))
-    while True:
-        rewritten = _statement(once, document)
-        if rewritten == document:
-            return document
-        document = rewritten
+    with budgeted(f"the contraction {stmt.query.source!r}"):
+        while True:
+            rewritten = _statement(once, document)
+            if rewritten == document:
+                return document
+            document = rewritten
 
 
 def _strip(document: str, sentinels: tuple[str, ...]) -> str:

@@ -130,6 +130,59 @@
       "error": "scope"
     },
     {
+      "name": "match-against-an-unguarded-closure",
+      "case": "run",
+      "stage": "engine",
+      "source": "{a,&} => \"X\"",
+      "program": {
+        "format": "hejmark-program",
+        "version": 4,
+        "sentinels": [],
+        "statements": [
+          {
+            "kind": "statement",
+            "steps": [
+              {
+                "kind": "query",
+                "source": "",
+                "factors": [
+                  {
+                    "kind": "universe",
+                    "universe": {
+                      "members": [
+                        {
+                          "kind": "face",
+                          "text": [
+                            97
+                          ]
+                        },
+                        {
+                          "kind": "closure"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "kind": "template",
+                "parts": [
+                  {
+                    "kind": "text",
+                    "text": [
+                      88
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "document": "b",
+      "error": "unsettled"
+    },
+    {
       "name": "not-an-object",
       "case": "payload",
       "stage": "decode",

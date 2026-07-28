@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import pytest
 
+from hejmark import parse
 from hejmark.core.engine.denote.universe import denote
 from hejmark.core.engine.scan.match import Eager, Query, Slot, _plain, finditer, match
 from hejmark.core.floor.syntax import Face, Fold, UniverseNode
@@ -161,3 +162,40 @@ def test_universe_refuses_a_late_factor() -> None:
     assert query.universe(0).contains("a")
     with pytest.raises(HimarkScopeError, match="under a binding"):
         query.universe(1)
+
+
+def test_reach_bounds_the_probe_without_moving_the_match() -> None:
+    """L2's reach rewrite: a bounded factor is offered no piece it could not wear.
+
+    `{cat}` reaches 3, so at each start position three lengths are on offer
+    instead of one per remaining character. The rewrite is on the *probing*, so
+    the assertion that matters is that the hit is where it always was.
+    """
+    hit = match(parse("{cat}{0..9}"), "xx cat5 yy")
+    assert hit is not None
+    assert hit.span == (3, 7)
+    assert [part.face for part in hit.parts] == ["cat", "5"]
+
+
+def test_maximal_munch_survives_the_bound() -> None:
+    """Longest-first inside a narrowed range is still longest-first overall.
+
+    A bound that changed which face won would be a semantic change wearing an
+    optimization's clothes, so this pins the greedy choice specifically: `{a,ab}`
+    reaches 2 and must still take `ab` over `a`.
+    """
+    hit = match(parse("{a,ab}"), "abc")
+    assert hit is not None
+    assert hit.parts[0].face == "ab"
+
+
+def test_an_unbounded_factor_still_probes_the_whole_text() -> None:
+    """`&` reaches nowhere, so the text is the only bound -- the honest fallback.
+
+    The closure here has to take five characters before the tail can take one,
+    which only happens if an unbounded factor is offered every length.
+    """
+    hit = match(parse("{{a..z,&{a..z}}}{\\!}"), "hello!")
+    assert hit is not None
+    assert hit.span == (0, 6)
+    assert [part.face for part in hit.parts] == ["hello", "!"]

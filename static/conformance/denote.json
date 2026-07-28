@@ -691,8 +691,8 @@
       "limit": null,
       "entries": [],
       "contains": {
-        "a": false,
-        "": false
+        "a": "unsettled",
+        "": "unsettled"
       }
     },
     {
@@ -719,7 +719,65 @@
       ],
       "contains": {
         "a": true,
-        "aa": false
+        "aa": "unsettled"
+      }
+    },
+    {
+      "name": "{a,&{{},b}}",
+      "source": "{a,&{{},b}}",
+      "universe": {
+        "members": [
+          {
+            "kind": "face",
+            "text": [
+              97
+            ]
+          },
+          {
+            "kind": "product",
+            "factors": [
+              {
+                "kind": "closure"
+              },
+              {
+                "kind": "universe",
+                "universe": {
+                  "members": [
+                    {
+                      "kind": "fold",
+                      "universe": {
+                        "members": []
+                      }
+                    },
+                    {
+                      "kind": "face",
+                      "text": [
+                        98
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "limit": 3,
+      "entries": [
+        [
+          "a"
+        ],
+        [
+          "ab"
+        ],
+        [
+          "abb"
+        ]
+      ],
+      "contains": {
+        "a": true,
+        "ab": true,
+        "c": "unsettled"
       }
     },
     {
@@ -4188,89 +4246,9 @@
                           "universe": {
                             "members": [
                               {
-                                "kind": "face",
-                                "text": [
-                                  48
-                                ]
-                              },
-                              {
-                                "kind": "product",
-                                "factors": [
-                                  {
-                                    "kind": "universe",
-                                    "universe": {
-                                      "members": [
-                                        {
-                                          "kind": "face",
-                                          "text": [
-                                            49
-                                          ]
-                                        },
-                                        {
-                                          "kind": "face",
-                                          "text": [
-                                            50
-                                          ]
-                                        },
-                                        {
-                                          "kind": "face",
-                                          "text": [
-                                            51
-                                          ]
-                                        },
-                                        {
-                                          "kind": "face",
-                                          "text": [
-                                            52
-                                          ]
-                                        },
-                                        {
-                                          "kind": "face",
-                                          "text": [
-                                            53
-                                          ]
-                                        }
-                                      ]
-                                    }
-                                  }
-                                ]
-                              },
-                              {
-                                "kind": "subtract",
-                                "universe": {
-                                  "members": [
-                                    {
-                                      "kind": "face",
-                                      "text": [
-                                        48
-                                      ]
-                                    },
-                                    {
-                                      "kind": "product",
-                                      "factors": [
-                                        {
-                                          "kind": "universe",
-                                          "universe": {
-                                            "members": [
-                                              {
-                                                "kind": "face",
-                                                "text": [
-                                                  49
-                                                ]
-                                              },
-                                              {
-                                                "kind": "face",
-                                                "text": [
-                                                  50
-                                                ]
-                                              }
-                                            ]
-                                          }
-                                        }
-                                      ]
-                                    }
-                                  ]
-                                }
+                                "kind": "range",
+                                "lo": 51,
+                                "hi": 53
                               }
                             ]
                           }

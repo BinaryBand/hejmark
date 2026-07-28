@@ -3,12 +3,15 @@
 These verify :func:`hejmark.match` and :func:`hejmark.finditer` scanning
 behaviour: leftmost position, maximal munch, backtracking to the canonical
 parse, matching by any face, and the closure scope (guarded bodies match;
-unsettled ones semi-decide, reporting no match rather than guessing).
+unguarded ones are refused rather than guessed at -- L2's contract).
 """
 
 from __future__ import annotations
 
+import pytest
+
 from hejmark import finditer, match
+from hejmark.core.ir.errors import HimarkUnsettledError
 
 
 def test_leftmost_single_face_match() -> None:
@@ -72,9 +75,16 @@ def test_guarded_closure_matches_arbitrarily_deep() -> None:
     assert result.span == (2, 14)
 
 
-def test_unsettled_closure_semi_decides_a_non_member() -> None:
-    """An unguarded body still denotes; a non-member reads as no match, not a refusal."""
-    assert match("{a,{{{},0}}&}", "zzz") is None
+def test_matching_an_unguarded_closure_is_refused() -> None:
+    """L1.5's matcher is scoped to guarded bodies; stepping outside is L2's refusal.
+
+    Scanning asks the factor about faces it does not wear, and an unguarded body
+    cannot bound a "no" -- the fill factor here spells the empty face, so a pass
+    need not lengthen. Answering anyway would make the scan's result a guess, so
+    the run is declined instead.
+    """
+    with pytest.raises(HimarkUnsettledError, match="no stage bound"):
+        match("{a,{{{},0}}&}", "zzz")
 
 
 def test_finditer_non_overlapping() -> None:

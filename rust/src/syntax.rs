@@ -11,9 +11,14 @@
 //! that did not exist when the program was decoded. Nodes are handed out as
 //! `Rc`, so a borrow of one survives the arena growing under it.
 //!
-//! `binds` is precomputed per node. It is asked on every membership query, it is
-//! a pure function of the subtree, and answering it at push time turns the
-//! hottest predicate in the engine into a field read.
+//! `binds` and `reach` are both precomputed per node. Each is asked on every
+//! membership query, each is a pure function of the subtree, and answering them
+//! at push time turns the two hottest reads in the engine into field reads.
+//! `reach` is L2's first rewrite as data (= `floor/reach.py`): the length of the
+//! longest face a group can wear, or `None` for "no known bound", which is what
+//! a closure and anything beside one honestly are. Over-approximating is safe --
+//! a probe too many costs time -- so a shape not priced exactly is priced
+//! `None`; under-approximating would drop a match.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -56,6 +61,8 @@ pub struct Node {
     pub members: Vec<Member>,
     /// Whether a free `&` occurs in them, so this group is a closure binder.
     pub binds: bool,
+    /// The longest face the group can wear, or `None` when unbounded.
+    pub reach: Option<usize>,
 }
 
 /// Every node a program mentions, plus every node resolving a slot has minted.
@@ -70,12 +77,13 @@ impl Arena {
         Self::default()
     }
 
-    /// Add a brace group, working out whether it binds.
+    /// Add a brace group, working out whether it binds and how far it reaches.
     pub fn push(&self, members: Vec<Member>) -> NodeId {
         let binds = members.iter().any(|member| self.free_amp(member));
+        let reach = self.group_reach(&members);
         let mut nodes = self.nodes.borrow_mut();
         let id = u32::try_from(nodes.len()).expect("arena overflow");
-        nodes.push(Rc::new(Node { members, binds }));
+        nodes.push(Rc::new(Node { members, binds, reach }));
         id
     }
 
@@ -90,6 +98,45 @@ impl Arena {
     /// Whether the group at *id* is a closure binder.
     pub fn binds(&self, id: NodeId) -> bool {
         self.nodes.borrow()[id as usize].binds
+    }
+
+    /// How long a face the group at *id* can wear, or `None` when unbounded.
+    pub fn reach(&self, id: NodeId) -> Option<usize> {
+        self.nodes.borrow()[id as usize].reach
+    }
+
+    /// A product factor's reach; the closure token reads a stage and carries none.
+    pub fn factor_reach(&self, factor: &Factor) -> Option<usize> {
+        match factor {
+            Factor::Closure => None,
+            Factor::Universe(node) => self.reach(*node),
+        }
+    }
+
+    /// The longest face a member list can wear: the greatest of its adding members.
+    ///
+    /// A subtraction is skipped rather than measured -- stripping faces can only
+    /// shorten the set, so pricing the strip would raise the bound in exactly
+    /// the wrong direction.
+    fn group_reach(&self, members: &[Member]) -> Option<usize> {
+        let mut longest = 0;
+        for member in members {
+            let far = match member {
+                Member::Subtract(_) => continue,
+                Member::Face(text) => Some(text.len()),
+                Member::Range(lo, hi) => Some(usize::from(lo <= hi)),
+                Member::Fold(inner) => self.reach(*inner),
+                Member::Product(factors) => self.product_reach(factors),
+                Member::Closure => None,
+            };
+            longest = longest.max(far?);
+        }
+        Some(longest)
+    }
+
+    /// A product's faces are concatenations, so its reach is the sum of its factors'.
+    fn product_reach(&self, factors: &[Factor]) -> Option<usize> {
+        factors.iter().try_fold(0usize, |total, factor| Some(total + self.factor_reach(factor)?))
     }
 
     /// How many members the group at *id* has.

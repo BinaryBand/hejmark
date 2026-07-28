@@ -27,7 +27,12 @@ from hejmark.core.engine.scan.match import Match, MatchPart, Query
 from hejmark.core.engine.service import InProcess
 from hejmark.core.floor.syntax import HimarkSyntaxError
 from hejmark.core.ir.codec import encode_query as _encode_query
-from hejmark.core.ir.errors import HimarkScopeError, HimarkSentinelError
+from hejmark.core.ir.errors import (
+    HimarkBudgetError,
+    HimarkScopeError,
+    HimarkSentinelError,
+    HimarkUnsettledError,
+)
 from hejmark.core.ir.wire import encode_program as _encode_program
 
 _to_ast = AntlrParser().to_ast
@@ -108,9 +113,11 @@ def emit_program(source: str) -> str:
 
 __all__ = [
     "Entry",
+    "HimarkBudgetError",
     "HimarkScopeError",
     "HimarkSentinelError",
     "HimarkSyntaxError",
+    "HimarkUnsettledError",
     "Match",
     "MatchPart",
     "Query",

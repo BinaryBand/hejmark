@@ -1,12 +1,20 @@
-"""Leftmost-greedy matcher: set membership over spellings, nothing else.
+r"""Leftmost-greedy matcher: set membership over spellings, nothing else.
 
 A query is a product of factors. At each product position the matcher probes
-prefixes of the remaining text longest-first (maximal munch): a candidate face
-is a prefix of ``text[pos:]``, so there are at most ``len(text) - pos`` of
-them, and a single ``contains`` accepts or rejects each. The first length that
-lets the rest of the product match wins -- the canonical parse. The matcher
-knows only spellings: no value or ordinal semantics leak in, and the empty
-spelling is never accepted (no zero-width match).
+prefixes of the remaining text longest-first (maximal munch): a single
+``contains`` accepts or rejects each, and the first length that lets the rest of
+the product match wins -- the canonical parse. The matcher knows only spellings:
+no value or ordinal semantics leak in, and the empty spelling is never accepted
+(no zero-width match).
+
+Which prefixes are offered is L2's reach rewrite (``docs/foundation/L2.md``),
+read off the expression by :mod:`~hejmark.core.floor.reach`: a factor is never
+offered a piece longer than the longest face it could wear, nor a cut leaving
+the factors after it more text than they could ever cover. The matches are
+identical -- only the probes are fewer, and on the language's idiomatic
+``{{@x,&@x}}{\\!}`` the tail factor pins a whole scan of cuts to a single look.
+A scan also opens a work budget, so a query that is polynomial but not
+affordable is refused rather than waited on.
 
 A factor is a denoted universe -- or, where its unit back-references a factor
 to its left, a :class:`Slot` awaiting the faces bound so far. The matcher
@@ -25,7 +33,9 @@ from __future__ import annotations
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 
+from hejmark.core.engine.budget import budgeted
 from hejmark.core.engine.denote.universe import Universe, denote
+from hejmark.core.floor.reach import reach
 from hejmark.core.ir.errors import HimarkScopeError
 from hejmark.core.ir.program import CompiledQuery, LateResolver, LateSlot
 
@@ -153,6 +163,32 @@ def _plain(factors: tuple[Factor, ...]) -> int:
     return late[-1] + 1 if late else 0
 
 
+def factor_reach(factor: Factor) -> int | None:
+    """How long a face this query factor can wear, or ``None`` when unbounded.
+
+    A :class:`Slot` is unbounded by construction: it denotes only under a
+    binding, so nothing about the query alone bounds the face it will wear.
+    Public because the re-split in :mod:`~hejmark.core.engine.scan.capture` cuts
+    against the same bound.
+    """
+    return None if isinstance(factor, Slot) else reach(factor.universe.node)
+
+
+def suffix_reach(factors: tuple[Factor, ...]) -> tuple[int | None, ...]:
+    """How far each suffix of a query reaches: ``suffix_reach(f)[i]`` bounds ``f[i:]``.
+
+    The query-level twin of :func:`~hejmark.core.floor.reach.suffixes`, which
+    prices a floor product. It is a separate function only because a query
+    factor may be a slot, which the floor cannot name.
+    """
+    tails: list[int | None] = [0]
+    for factor in reversed(factors):
+        far = factor_reach(factor)
+        tail = tails[-1]
+        tails.append(None if far is None or tail is None else far + tail)
+    return tuple(reversed(tails))
+
+
 def _try_product(
     search: _Search, pos: int, depth: int, bound: tuple[str, ...]
 ) -> tuple[MatchPart, ...] | None:
@@ -168,12 +204,18 @@ def _try_product(
 def _probe(
     search: _Search, pos: int, depth: int, bound: tuple[str, ...]
 ) -> tuple[MatchPart, ...] | None:
-    """Try each face this factor could wear here, longest first, and recurse."""
+    """Try each face this factor could wear here, longest first, and recurse.
+
+    Reach fixes both ends of the range probed: the factor is offered nothing
+    longer than it can wear, and nothing that leaves its tail more text than the
+    tail can spell. Longest-first inside that range is still maximal munch, so
+    the match chosen is the same one an unbounded probe would find.
+    """
     if depth == len(search.factors):
         return ()
     factor = search.factors[depth]
     universe = universe_at(factor, bound)
-    for length in range(len(search.text) - pos, 0, -1):
+    for length in reversed(_lengths(search, factor, pos)):
         face = search.text[pos : pos + length]
         if not universe.contains(face):
             continue
@@ -182,6 +224,22 @@ def _probe(
         if tail is not None:
             return (MatchPart((pos, end), face), *tail)
     return None
+
+
+def _lengths(search: _Search, factor: Factor, pos: int) -> range:
+    """The face lengths worth trying at this position, ascending.
+
+    Reach bounds this from above only. A match covers a *prefix* of the
+    remaining text and may end anywhere, so what the factors after this one can
+    spell says nothing about where this one must stop -- the lower bound that
+    prices an exact tiling (:func:`~hejmark.core.floor.reach.cuts`, used by both
+    split searches) has no counterpart here. The floor is one because the
+    matcher accepts no zero-width part, where a product factor inside a universe
+    may take one.
+    """
+    far = factor_reach(factor)
+    remaining = len(search.text) - pos
+    return range(1, (remaining if far is None else min(far, remaining)) + 1)
 
 
 def _leftmost(search: _Search, start: int) -> Match | None:
@@ -200,21 +258,43 @@ def _search(query: Query, text: str) -> _Search:
 
 
 def match(query: Query, text: str, start: int = 0) -> Match | None:
-    """Return the leftmost match at or after ``start``, or ``None`` if there is none."""
-    return _leftmost(_search(query, text), start)
+    """Return the leftmost match at or after ``start``, or ``None`` if there is none.
+
+    Raises:
+        HimarkBudgetError: the scan spent past the host's work budget.
+        HimarkUnsettledError: a factor asked about absence in an unguarded
+            closure, which no stage bounds.
+    """
+    with budgeted(f"the query {query.source!r}"):
+        return _leftmost(_search(query, text), start)
 
 
 def finditer(query: Query, text: str) -> Iterator[Match]:
-    """Yield non-overlapping matches left to right, resuming past each span.
+    """The non-overlapping matches left to right, each resuming past the last.
 
     One chart serves the whole scan: the text does not change between matches,
-    so a tail derived for one match answers for the next.
+    so a tail derived for one match answers for the next. One budget serves it
+    too -- the scan is the run, not each match inside it -- so a query finding a
+    thousand cheap matches is not charged as a thousand runs.
+
+    The scan runs to the end before the first match is handed back, which is the
+    budget's doing rather than a convenience: a meter is a run's, and a
+    generator suspended at a yield would hold one open across whatever its
+    caller did next, or leak it outright when abandoned mid-scan. A budgeted
+    scan is finite by construction, so collecting what it found is bounded by
+    the same number that bounds the scan. A caller wanting one match should ask
+    for one -- :func:`match` is that question, and it is metered on its own.
+
+    Raises:
+        HimarkBudgetError: the scan spent past the host's work budget.
+        HimarkUnsettledError: a factor asked about absence in an unguarded
+            closure, which no stage bounds.
     """
-    search = _search(query, text)
-    pos = 0
-    while True:
-        found = _leftmost(search, pos)
-        if found is None:
-            return
-        yield found
-        pos = max(found.span[1], pos + 1)
+    with budgeted(f"the query {query.source!r}"):
+        search = _search(query, text)
+        found: list[Match] = []
+        pos = 0
+        while (hit := _leftmost(search, pos)) is not None:
+            found.append(hit)
+            pos = max(hit.span[1], pos + 1)
+    return iter(found)

@@ -29,7 +29,12 @@ from hejmark.core.engine.scan.match import load_query
 from hejmark.core.engine.scan.match import match as engine_match
 from hejmark.core.floor.syntax import UniverseNode
 from hejmark.core.ir.codec import decode_universe
-from hejmark.core.ir.errors import HimarkPayloadError, HimarkScopeError, HimarkSentinelError
+from hejmark.core.ir.errors import (
+    HimarkPayloadError,
+    HimarkScopeError,
+    HimarkSentinelError,
+    HimarkUnsettledError,
+)
 from hejmark.core.ir.program import (
     CompiledQuery,
     CompiledStatement,
@@ -47,6 +52,7 @@ ERRORS = {
     "scope": HimarkScopeError,
     "sentinel": HimarkSentinelError,
     "payload": HimarkPayloadError,
+    "unsettled": HimarkUnsettledError,
 }
 
 
@@ -90,6 +96,15 @@ DENOTE: tuple[tuple[str, int | None, tuple[str, ...]], ...] = (
     ("{{{},0}}{0,00}", None, ("0", "00", "000")),
     ("{&}", None, ("a", "")),
     ("{a,&}", None, ("a", "aa")),
+    # The guarded/unguarded boundary, which is L2's unsettled refusal. All three
+    # rows enumerate fine -- the stream stops at its fixpoint either way -- and
+    # they part on *membership*. `{a,&}` shows `a` at stage 0 and answers true;
+    # absence it cannot bound, so it refuses. The guard is what buys the bound,
+    # and having one is not the same as having a factor beside the `&`: below,
+    # `{{},b}` wears the empty face, so a pass need not lengthen and the body is
+    # as unsettled as a bare `&`. An engine reading "product means guarded" off
+    # the syntax answers `false` here and passes everything else.
+    ("{a,&{{},b}}", 3, ("a", "ab", "c")),
     ("{a,b,&{a,b}}", 6, ("a", "ab", "abab", "c")),
     ("{a,b,&{a,b}}{b}", 4, ("ab", "aab", "a")),
     ("{0,{1..9,&{0..9}}}", 12, ("0", "10", "1024", "01")),
@@ -164,6 +179,12 @@ REFUSE_RUN: tuple[tuple[str, str, str, str], ...] = (
     ("ingest-spells-a-sentinel", "ingest", '{a} => "b"', "a﷐b"),
     ("capture-on-a-detached-branch", "engine", '"{{$}}"', "abc"),
     ("factor-read-past-the-query", "engine", '{a..z} => "{{$2}}"', "hi"),
+    # The same unsettled refusal the `denote` suite pins, reached the way a wire
+    # can ask for it: scanning offers the factor a face it does not wear, and
+    # deciding that it does not is exactly what the unguarded body cannot do.
+    # Without this row the refusal is unreachable over the protocol, which has
+    # no verb for membership.
+    ("match-against-an-unguarded-closure", "engine", '{a,&} => "X"', "b"),
 )
 
 # (name, malformed wire object a decoder must refuse rather than repair).
@@ -203,6 +224,21 @@ def _needs_resolver(program: Program) -> bool:
     return any(isinstance(factor, LateSlot) for query in queries for factor in query.factors)
 
 
+def _membership(universe: Universe, probe: str) -> bool | str:
+    """Whether the universe wears *probe*, or the category naming why it will not say.
+
+    Membership is the one question a refusal can answer instead of a boolean, so
+    the corpus carries three outcomes here rather than two: an unguarded closure
+    has no stage bound on absence, and L2 refuses rather than reporting a "no" it
+    cannot justify. A port that answers `false` there is wrong, not lenient --
+    which is only checkable if the corpus can say so.
+    """
+    try:
+        return universe.contains(probe)
+    except HimarkUnsettledError:
+        return "unsettled"
+
+
 def _build_denote() -> list[dict[str, object]]:
     """Each row's floor payload, its entries (or a prefix) and its membership answers."""
     built = []
@@ -218,7 +254,7 @@ def _build_denote() -> list[dict[str, object]]:
                 "universe": payload,
                 "limit": limit,
                 "entries": entries,
-                "contains": {probe: universe.contains(probe) for probe in probes},
+                "contains": {probe: _membership(universe, probe) for probe in probes},
             }
         )
     return built

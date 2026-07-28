@@ -7,6 +7,11 @@
 //! floor's `<value, face>` are one datum seen twice, since the text over the
 //! span is exactly the bound face. Only branches cross `=>`.
 //!
+//! A contracting statement iterates the ordinary pass until it leaves the
+//! document unchanged -- the true fixpoint. Nothing proves in advance that it
+//! will, so the whole iteration runs under one L2 work budget: a `<=>` that
+//! never settles is refused with a diagnostic rather than waited on.
+//!
 //! One join rule does the rest. A query step *refines*: it tiles the branch's
 //! text, one sub-branch per match, and a query that matches nothing stops the
 //! branch. A template step *constructs*: it builds a string that commits over
@@ -131,9 +136,20 @@ impl Engine<'_> {
             Loaded::Query(query.clone()),
             Loaded::Template(template.clone()),
         ]);
-        let mut document = document.clone();
+        // One budget for the whole iteration, not one per pass: a pass is made
+        // of matches and the iteration is made of passes, so metering the
+        // outermost is what lets L2 refuse a `<=>` that never reaches a fixpoint
+        // instead of spinning on it. Nothing on the arrow proves in advance
+        // which contraction is which.
+        let opened = self.den.open_run();
+        let answer = self.contract(&once, document.clone());
+        self.den.close_run(opened);
+        answer
+    }
+
+    fn contract(&self, once: &Statement, mut document: Spelling) -> Answer<Spelling> {
         loop {
-            let rewritten = self.statement(&once, &document)?;
+            let rewritten = self.statement(once, &document)?;
             if rewritten == document {
                 return Ok(document);
             }

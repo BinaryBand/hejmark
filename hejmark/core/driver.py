@@ -106,7 +106,12 @@ def compile_program(adapters: Adapters, source: str, prelude: str | None = None)
     another language reads to execute a script itself. The resolver -- the one
     back edge, and the one thing that is not data -- is dropped here, so a
     program carrying a late slot is one only an in-process engine can run.
+
+    The contract runs here as it does in :func:`run`, so a program handed to
+    another engine is the same program this one would execute. The L2 rewrites
+    are the host's to perform, not the engine's to reproduce: an engine that
+    knows nothing of them still receives their result.
     """
     node, env = script(adapters.to_ast, source, prelude)
     program, _resolver = compile_script(adapters.engine.canonical_faces, node, env)
-    return program
+    return contract.apply(program)

@@ -11,7 +11,8 @@ Only ``$`` reads for free. Membership says *whether* a spelling is worn; it
 does not say which entry wears it -- yet the canonical face is that entry's
 face 0, and the bound tuple is the least ``<value, face>`` claimant where a
 spelling splits more than one way. Both reads therefore stream the entries,
-value order being iteration order.
+value order being iteration order, and refuse past a budget rather than hang:
+L2's bounded-read rule, of which the value cut's radix budget is the other half.
 """
 
 from __future__ import annotations
@@ -19,21 +20,50 @@ from __future__ import annotations
 from collections.abc import Iterator
 
 from hejmark.core.engine.denote.universe import Universe
-from hejmark.core.engine.scan.match import Factor, Match, Query, universe_at
+from hejmark.core.engine.scan.match import (
+    Factor,
+    Match,
+    Query,
+    factor_reach,
+    suffix_reach,
+    universe_at,
+)
 from hejmark.core.ir.errors import HimarkScopeError
+
+# How many entries a capture read will stream before giving up. Reaching a
+# wearer costs its position, and a position is not bounded by anything the
+# matcher knows: `{@char}` wears `￿` perfectly well, but only after every
+# shorter spelling and every code point below it -- some sixty-five thousand
+# entries for that one, and the whole plane space for a two-character face. The
+# budget sits far above any hand-written fold (the case `$0` exists for) and far
+# below the point where a wait stops being a wait.
+BUDGET = 100_000
 
 
 def canonical(universe: Universe, spelling: str) -> str | None:
     """The canonical face of the entry wearing *spelling*, or ``None`` if none does.
 
     Streams the entries until it finds the wearer, because membership says
-    *whether* a spelling is worn and not by which entry. A worn spelling always
-    sits at a finite position, so the search terminates -- though the position
-    can be astronomically large over an infinite universe.
+    *whether* a spelling is worn and not by which entry.
+
+    The stream is bounded. A worn spelling always sits at a finite position, so
+    the search terminates in principle, but the position can be astronomically
+    large over an infinite universe -- and the matcher, which only ever asked
+    ``contains``, cannot tell the caller which case it is in. Rather than hang
+    or guess, the read refuses past :data:`BUDGET`.
+
+    Raises:
+        HimarkScopeError: the wearer was not reached within :data:`BUDGET`.
     """
-    for entry in universe.entries():
+    for position, entry in enumerate(universe.entries()):
         if spelling in entry.faces:
             return entry.faces[0]
+        if position >= BUDGET:
+            msg = (
+                f"cannot read the canonical face of {spelling!r}: no entry wearing it "
+                f"appears within the first {BUDGET} of an unbounded universe"
+            )
+            raise HimarkScopeError(msg)
     return None
 
 
@@ -44,7 +74,13 @@ def _splits(factors: tuple[Factor, ...], text: str) -> Iterator[tuple[str, ...]]
     part, and the re-split honors the same rule. A late factor resolves under
     the faces this tiling has already chosen, so each candidate split carries
     its own bindings.
+
+    Cut against the same reach the matcher probes against, so the tilings found
+    are the tilings that exist -- the re-split is asking the same question of
+    the same expression, and must not offer a factor a piece the matcher never
+    would have.
     """
+    tails = suffix_reach(factors)
 
     def rest(pos: int, depth: int, bound: tuple[str, ...]) -> Iterator[tuple[str, ...]]:
         """Every tiling of ``text[pos:]`` by ``factors[depth:]``, given the bindings so far."""
@@ -53,7 +89,7 @@ def _splits(factors: tuple[Factor, ...], text: str) -> Iterator[tuple[str, ...]]
                 yield ()
             return
         universe = universe_at(factors[depth], bound)
-        for end in range(pos + 1, len(text) + 1):  # faces never empty
+        for end in _ends(factors[depth], tails[depth + 1], pos, len(text)):
             face = text[pos:end]
             if not universe.contains(face):
                 continue
@@ -63,18 +99,42 @@ def _splits(factors: tuple[Factor, ...], text: str) -> Iterator[tuple[str, ...]]
     yield from rest(0, 0, ())
 
 
+def _ends(factor: Factor, tail: int | None, pos: int, length: int) -> range:
+    """Where this factor may end its piece: reach at the top, its tail at the bottom.
+
+    The matcher's :func:`~hejmark.core.engine.scan.match._lengths` in end-position
+    form. One is added to the floor for the same reason it is there: a re-split
+    honors the no-zero-width rule the matcher accepted the hit under.
+    """
+    far = factor_reach(factor)
+    stop = length if far is None else min(pos + far, length)
+    start = pos if tail is None else max(pos, length - tail)
+    return range(max(start, pos + 1), stop + 1)
+
+
 def _address(universe: Universe, face: str) -> tuple[int, int]:
     """The ``<value, face>`` address of the entry wearing *face*.
 
     Value survives only as iteration order, so the value half is the wearer's
     stream position and the face half its index among the wearer's faces.
 
+    Bounded by :data:`BUDGET` exactly as :func:`canonical` is, and for the same
+    reason: pricing an address walks the stream to the wearer, and nothing the
+    matcher knows says how far that is.
+
     Raises:
-        HimarkScopeError: no entry of a finite universe wears *face*.
+        HimarkScopeError: no entry of a finite universe wears *face*, or none
+            wearing it was reached within :data:`BUDGET`.
     """
     for position, entry in enumerate(universe.entries()):
         if face in entry.faces:
             return position, entry.faces.index(face)
+        if position >= BUDGET:
+            msg = (
+                f"cannot address {face!r}: no entry wearing it appears within "
+                f"the first {BUDGET} of an unbounded universe"
+            )
+            raise HimarkScopeError(msg)
     msg = f"cannot address {face!r}: no entry wears it"
     raise HimarkScopeError(msg)
 

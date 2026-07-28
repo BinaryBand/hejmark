@@ -34,7 +34,7 @@ from hejmark.adapters.channel import (
 )
 from hejmark.core.floor.syntax import UniverseNode
 from hejmark.core.ir.codec import decode_text, decode_universe, require_field
-from hejmark.core.ir.errors import HimarkPayloadError, HimarkScopeError, HimarkSentinelError
+from hejmark.core.ir.errors import CATEGORIES, HimarkPayloadError
 from hejmark.core.ir.ports import Engine
 from hejmark.core.ir.program import LateResolver
 from hejmark.core.ir.wire import decode_program
@@ -51,12 +51,19 @@ def serve_stdio(engine: Engine) -> None:
 
 
 def _verbs(engine: Engine) -> Dispatch:
-    """The dispatch *engine* answers with, refusals turned into wire refusals."""
+    """The dispatch *engine* answers with, refusals turned into wire refusals.
+
+    Every refusal in :data:`~hejmark.core.ir.errors.CATEGORIES` crosses, read off
+    that table rather than listed again here: the table is what says which
+    exceptions have a wire name, so a refusal L2 adds later travels the moment it
+    is named there. Anything else is a fault in this process, not a refusal, and
+    is left to propagate as one.
+    """
 
     def dispatch(channel: Channel, verb: str, params: Params) -> object:
         try:
             return _answer(engine, channel, verb, params)
-        except (HimarkPayloadError, HimarkScopeError, HimarkSentinelError) as error:
+        except tuple(CATEGORIES.values()) as error:
             raise refuse(error) from error
 
     return dispatch

@@ -31,7 +31,7 @@ from hejmark.adapters.parser import AntlrParser
 from hejmark.adapters.remote import Remote, connect, reference_engine
 from hejmark.core.driver import Adapters, run
 from hejmark.core.floor.syntax import Face, UniverseNode
-from hejmark.core.ir.errors import HimarkScopeError
+from hejmark.core.ir.errors import HimarkScopeError, HimarkUnsettledError
 from hejmark.core.ir.ports import Engine
 from hejmark.core.ir.program import LateResolver, Program
 
@@ -122,6 +122,19 @@ def test_a_refusal_crosses_as_the_error_it_was(adapters: Adapters) -> None:
     """The engine declines and the host raises what it would have raised in process."""
     with pytest.raises(HimarkScopeError):
         run(adapters, '{a..z} => "{{$2}}"', "hi", standard_library())
+
+
+def test_an_l2_refusal_keeps_its_own_category_across_the_wire(adapters: Adapters) -> None:
+    """An unsettled membership arrives as itself, not flattened into a scope error.
+
+    The category table is what carries it, so this is really a test that a
+    refusal L2 added later travels: the engine raises `HimarkUnsettledError`
+    deep inside a scan, the wire names the category, and the host reconstructs
+    the same class. Getting this wrong looks like working code -- the run still
+    fails -- until a caller tries to tell the two refusals apart.
+    """
+    with pytest.raises(HimarkUnsettledError):
+        run(adapters, '{a,&} => "X"', "b", standard_library())
 
 
 def test_a_denotation_is_read_across_the_wire(wire: Remote) -> None:

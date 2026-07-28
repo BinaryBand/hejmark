@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import pytest
+
 from hejmark import parse
 from hejmark.core.engine.scan.capture import canonical, canonical_face, factor_faces
 from hejmark.core.engine.scan.match import match
+from hejmark.core.ir.errors import HimarkScopeError
 
 
 def test_canonical_finds_the_wearer_of_a_later_face() -> None:
@@ -98,3 +101,27 @@ def test_factor_faces_prices_a_late_factor_under_each_splits_own_binding() -> No
     assert found is not None
     assert [part.face for part in found.parts] == ["ab", "c", "a"]
     assert factor_faces(query, found) == ("a", "bc", "a")
+
+
+def test_a_canonical_read_refuses_past_the_budget() -> None:
+    """L2's bounded read: a wearer too deep in an infinite stream is refused.
+
+    `{@char}` wears the spelling asked for here, at a position no matcher knows
+    in advance -- the matcher only ever asked `contains`, which said yes at
+    once. Streaming to it would take the whole code space, so the read declines
+    rather than appear to hang.
+    """
+    universe = parse("{@char}{@char}").universe()
+    with pytest.raises(HimarkScopeError, match="within the first"):
+        canonical(universe, "\U0010fffe")
+
+
+def test_a_read_within_the_budget_still_answers() -> None:
+    """The bound is a bound, not a ban: a reachable wearer reads as it always did."""
+    universe = parse("{@char}").universe()
+    assert canonical(universe, "a") == "a"
+
+
+def test_the_budget_leaves_a_finite_universe_alone() -> None:
+    """A finite stream runs out on its own, and running out is not a refusal."""
+    assert canonical(parse("{a,b}").universe(), "z") is None

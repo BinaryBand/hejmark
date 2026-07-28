@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
 
-from hejmark import HimarkScopeError, run
+from hejmark import HimarkBudgetError, HimarkScopeError, run
+from hejmark.core.engine import budget
 from hejmark.core.engine.execute import Branch
 
 
@@ -131,3 +134,30 @@ def test_a_canonical_read_follows_the_floors_split() -> None:
     binds `(a, bc)`; `$0` reads that entry's canonical face `a`+`bc`, not `ab`+`C`.
     """
     assert run('{{a,abc},ab}{{C,c},bc} => "{{$0}}"', "abc") == "abc"
+
+
+def test_a_contraction_that_never_settles_is_refused() -> None:
+    """L2 bounds the one statement L1.5 cannot prove terminates.
+
+    `{a} <=> "aa"` grows the document at every pass, so no pass ever leaves it
+    unchanged and the fixpoint is never reached. Nothing on the arrow says in
+    advance which contraction is which -- L1.5 declines to guess -- so the run
+    is metered and refused rather than waited on.
+
+    The budget is lowered here rather than the default spent: the size is the
+    host's choice and the contract is only that one exists, so pinning the
+    number would be testing the wrong thing.
+    """
+    with mock.patch.object(budget, "BUDGET", 2000), pytest.raises(HimarkBudgetError):
+        run('{a} <=> "aa"', "a")
+
+
+def test_a_contraction_that_settles_is_untouched_by_the_budget() -> None:
+    """The bound must not cost the contractions that do reach a fixpoint.
+
+    Three passes rewrite `bbaa` toward sorted and the fourth leaves it alone,
+    which is well inside any budget worth having -- the north-star bubble sort
+    depends on exactly this.
+    """
+    with mock.patch.object(budget, "BUDGET", 2000):
+        assert run('{ba} <=> "ab"', "bbaa") == "aabb"

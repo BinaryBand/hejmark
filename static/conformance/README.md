@@ -42,9 +42,13 @@ The core: does a universe wear a spelling, and what are its entries in declarati
 | `universe` | The floor payload to denote (`codec.py` shapes) |
 | `limit` | `null` for a finite universe (assert *every* entry); an integer for an infinite one (assert that many, streamed lazily); `0` where the entries cannot be enumerated at all |
 | `entries` | Entries in order, each a list of faces, canonical face first |
-| `contains` | Spelling -> whether some entry wears it |
+| `contains` | Spelling -> `true`, `false`, or a refusal category naming why the engine will not say |
 
 Entries must be produced **lazily**: a case with a `limit` is infinite, and an implementation that materializes before truncating will not terminate.
+
+A `contains` answer may be the string `"unsettled"` rather than a boolean. Absence in an unguarded closure has no stage bound -- no pass proves the spelling will never appear -- so L2 refuses instead of guessing, and an engine that answers `false` there is wrong rather than lenient. `{&}`, `{a,&}` and `{a,&{{},b}}` are the rows that pin it; the last is the one that catches reading "product means guarded" off the syntax, since `{{},b}` wears the empty face and so guards nothing. `{a,b,&{a,b}}` on `"c"` is the other side of the line and must still answer `false`: refusing there would take most of the standard library with it.
+
+This is the only place the refusal can be checked, which is why it is here rather than in `refuse.json` alone. The protocol has no verb for membership, so a wire cannot ask the question at all.
 
 `limit: 0` carries `"entries": null` and asserts membership only, because some universes cannot be enumerated *at all* -- not even one entry. `{0..9}[where 3..5 padfree]` is the case in the corpus: it has finitely many entries, but the first one wears unboundedly many faces (`3`, `03`, `003`, ...). Truncating the entry stream does not help, since the hang is *inside* building one entry's face list. An engine that materializes an entry's faces eagerly will not survive this row; membership stays decidable and fast.
 
@@ -88,6 +92,10 @@ A refusal is a conformance requirement: an implementation that returns an answer
 | `error` | `sentinel`, `scope`, or `payload` |
 
 `stage: "ingest"` is the L2 boundary guard, not the engine's: a document arriving already spelling a sentinel is refused before execution. A host that does not implement L2 should skip those rather than treat them as engine cases. `error` names a category, not a message -- messages are deliberately unpinned.
+
+`match-against-an-unguarded-closure` is the `denote` suite's unsettled refusal reached the way a wire *can* ask for it: scanning offers the factor a face it does not wear, and deciding that it does not is precisely what the unguarded body cannot do. Without that row the refusal is unreachable over the protocol.
+
+No case fixes a work budget or a read budget. Those bounds exist by contract and their sizes are the host's choice, so an engine that sets its own still conforms.
 
 ## The two channels (for an out-of-process engine)
 

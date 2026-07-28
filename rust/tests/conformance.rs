@@ -90,8 +90,16 @@ fn denote_cases() {
         for (spelling, expected) in case["contains"].as_object().expect("contains") {
             let face: Spelling =
                 Rc::from(spelling.chars().map(|point| point as Point).collect::<Vec<Point>>());
+            // Three outcomes, not two: absence in an unguarded closure has no
+            // stage bound, so L2 refuses instead of answering. A port that says
+            // `false` there is wrong rather than lenient, and this is where that
+            // is caught -- the protocol has no verb to ask membership over.
             let answer = denoter.contains(universe, &face);
-            assert_eq!(answer, expected.as_bool().expect("bool"), "{name}: contains {spelling:?}");
+            let seen: Value = match denoter.take_fault() {
+                Some(fault) => Value::from(fault.category().expect("a refusal, not a fault")),
+                None => Value::from(answer),
+            };
+            assert_eq!(&seen, expected, "{name}: contains {spelling:?}");
         }
     }
 }
