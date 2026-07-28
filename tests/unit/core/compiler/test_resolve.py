@@ -15,8 +15,8 @@ from hejmark.core.compiler.resolve import (
     merge,
     statements,
 )
-from hejmark.core.ir.errors import HimarkScopeError
-from hejmark.core.ir.program import SENTINEL_BASE
+from hejmark.core.ir.errors import HimarkScopeError, HimarkSentinelError
+from hejmark.core.ir.program import SENTINEL_BASE, is_noncharacter
 
 _to_ast = AntlrParser().to_ast
 
@@ -82,10 +82,30 @@ def test_sentinel_faces_are_allocated_in_declaration_order() -> None:
 
 
 def test_the_sentinel_space_is_finite() -> None:
-    """The block runs out at its limit, as a diagnostic rather than an overflow."""
+    """The pool runs out at its size, refused rather than overflowed.
+
+    Unicode reserves 66 noncharacters, so a sixty-seventh declaration is a
+    finite pool outrun -- an L2 refusal of a script that denotes, which is why
+    it wears the sentinel error and not the surface's scope diagnostic.
+    """
+    assert SENTINEL_LIMIT == 66
     source = "\n".join(f"sentinel s{index}" for index in range(SENTINEL_LIMIT + 1))
-    with pytest.raises(HimarkScopeError, match="sentinel space exhausted"):
+    with pytest.raises(HimarkSentinelError, match="sentinel space exhausted"):
         _env(source)
+
+
+def test_allocation_draws_the_whole_noncharacter_pool() -> None:
+    """Allocation spans the plane-end pairs, not the U+FDD0 block alone.
+
+    The block seats only 32, so a script declaring more than that walks off it
+    -- and every face it draws must still be a noncharacter, or ``char`` would
+    admit one and the masking idiom would stop being sound.
+    """
+    env = _env("\n".join(f"sentinel s{index}" for index in range(SENTINEL_LIMIT)))
+    faces = list(env.sentinels.values())
+    assert len(set(faces)) == SENTINEL_LIMIT
+    assert all(is_noncharacter(ord(face)) for face in faces)
+    assert ord(faces[32]) == 0xFFFE
 
 
 def test_a_sentinel_name_collides_like_any_other() -> None:

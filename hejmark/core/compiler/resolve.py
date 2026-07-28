@@ -41,16 +41,18 @@ from hejmark.core.compiler.ast import (
     UniverseNode,
 )
 from hejmark.core.floor.syntax import Face
-from hejmark.core.ir.errors import HimarkScopeError
-from hejmark.core.ir.program import SENTINEL_BASE
+from hejmark.core.ir.errors import HimarkScopeError, HimarkSentinelError
+from hejmark.core.ir.program import SENTINEL_POOL
 
 # The reserved names: bare `@` is the head, `@0` its zero entry. Numerals are
 # not declarable, which is what keeps `@0` free.
 RESERVED = frozenset({"", "0"})
 
-# At most this many sentinels per script; allocation walks the block that
-# starts at the boundary's SENTINEL_BASE, in declaration order.
-SENTINEL_LIMIT = 32
+# At most this many sentinels per script: the whole noncharacter pool, which
+# allocation walks from U+FDD0 up in declaration order. The bound is the pool's
+# own size rather than a number written here, so it cannot drift from the space
+# ``char`` subtracts.
+SENTINEL_LIMIT = len(SENTINEL_POOL)
 
 
 @dataclass(frozen=True)
@@ -184,14 +186,18 @@ def collect(script: ScriptNode) -> Env:
 def _allocate(env: Env) -> str:
     """The next sentinel's face: one noncharacter, in declaration order.
 
+    Outrunning the pool is an L2 refusal, not an L1.5 diagnostic: the script
+    denotes perfectly well and it is the finite noncharacter space that cannot
+    seat it, which is why this is the one refusal resolution raises.
+
     Raises:
-        HimarkScopeError: the noncharacter block is exhausted.
+        HimarkSentinelError: the noncharacter pool is exhausted.
     """
     index = len(env.sentinels)
     if index == SENTINEL_LIMIT:
         msg = f"sentinel space exhausted: at most {SENTINEL_LIMIT} per script"
-        raise HimarkScopeError(msg)
-    return chr(SENTINEL_BASE + index)
+        raise HimarkSentinelError(msg)
+    return chr(SENTINEL_POOL[index])
 
 
 def statements(script: ScriptNode) -> tuple[Statement | IterStatement, ...]:

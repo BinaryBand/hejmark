@@ -6,6 +6,8 @@ import pytest
 
 from hejmark.core.floor.syntax import Face, UniverseNode
 from hejmark.core.ir.program import (
+    NONCHARACTER_RANGES,
+    SENTINEL_POOL,
     CapturePart,
     CompiledIter,
     CompiledQuery,
@@ -16,6 +18,7 @@ from hejmark.core.ir.program import (
     LateSlot,
     Program,
     TextPart,
+    is_noncharacter,
 )
 
 
@@ -46,6 +49,22 @@ def test_a_program_holds_statements_and_the_sentinel_table() -> None:
     program = Program((line, contract), ("﷐",))
     assert program.statements == (line, contract)
     assert program.sentinels[0] == "﷐"
+
+
+def test_the_sentinel_pool_is_the_noncharacter_space_in_allocation_order() -> None:
+    """The pool and the ranges are one definition seen twice, so they cannot drift.
+
+    Whatever the allocator hands out, ``char`` must already have subtracted --
+    otherwise a document could spell a mask. Order is ascending from U+FDD0, so
+    allocation is deterministic and a script always masks the same way.
+    """
+    assert len(SENTINEL_POOL) == 66
+    assert all(is_noncharacter(point) for point in SENTINEL_POOL)
+    assert sorted(SENTINEL_POOL) == list(SENTINEL_POOL)
+    assert SENTINEL_POOL[0] == 0xFDD0
+    assert SENTINEL_POOL[-1] == 0x10FFFF
+    covered = sum(high - low + 1 for low, high in NONCHARACTER_RANGES)
+    assert covered == len(SENTINEL_POOL)
 
 
 def test_a_resolver_is_a_plain_callable() -> None:

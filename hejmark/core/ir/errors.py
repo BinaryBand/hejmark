@@ -28,13 +28,15 @@ class HimarkScopeError(ValueError):
 
 
 class HimarkSentinelError(ValueError):
-    """Raised when the sentinel boundary is crossed: an L2 refusal, not a scope.
+    """Raised at the sentinel boundary: an L2 refusal, not a scope diagnostic.
 
-    The sentinel space is engine-private noncharacters. A document that arrives
-    already spelling one is refused at ingest (docs/foundation/L2.md), so
-    nothing engine-private can be forged or collided with from outside. The
-    program denotes -- this is L2 declining to run it, never L1.5 declining to
-    expand it.
+    The sentinel space is engine-private noncharacters, and it is finite, so
+    L2 (docs/foundation/L2.md) refuses at both edges of it. A document that
+    arrives already spelling a noncharacter is refused at ingest, so nothing
+    engine-private can be forged or collided with from outside; a script
+    declaring more sentinels than the pool seats is refused at allocation, a
+    finite pool outrun being kin to a budget. Either script denotes -- this is
+    L2 declining to run one, never L1.5 declining to expand it.
     """
 
 

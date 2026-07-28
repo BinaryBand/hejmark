@@ -30,7 +30,7 @@ from hejmark.core.floor.syntax import UniverseNode
 # The Unicode noncharacters: the contiguous block U+FDD0..U+FDEF, plus the last
 # two code points of every plane. Unicode reserves them for internal use, which
 # is what makes them safe to use as engine-private markers -- no legitimate
-# document spells one. Sentinel faces are allocated from the block base in
+# document spells one. Sentinel faces are allocated from U+FDD0 up in
 # declaration order, so allocation is deterministic and per-script.
 SENTINEL_BASE = 0xFDD0
 SENTINEL_BLOCK_END = 0xFDEF
@@ -44,6 +44,16 @@ _PLANE_END = 0xFFFE
 NONCHARACTER_RANGES: tuple[tuple[int, int], ...] = (
     (SENTINEL_BASE, SENTINEL_BLOCK_END),
     *((plane + _PLANE_END, plane + _PLANE_MASK) for plane in range(0, 0x110000, 0x10000)),
+)
+
+
+# The same space again, enumerated in allocation order, for the caller that
+# must *draw* from it (the compiler's sentinel allocator). Derived from the
+# ranges rather than listed, so the pool can never offer a code point ``char``
+# still admits -- the third view of one definition, never a second list. Its
+# length is the pool L2 bounds a script's declarations by.
+SENTINEL_POOL: tuple[int, ...] = tuple(
+    point for low, high in NONCHARACTER_RANGES for point in range(low, high + 1)
 )
 
 

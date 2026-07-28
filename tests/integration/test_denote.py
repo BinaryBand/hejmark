@@ -1,4 +1,4 @@
-"""The north-star table, executable: L1_TEMP.md's denotation rows, end to end.
+"""The north-star table, executable: L1.md's denotation rows, end to end.
 
 Each row parses real source and asserts the denoted entries as face tuples --
 the whole universe for finite rows, a prefix through the lazy iterator for
@@ -45,6 +45,13 @@ PREFIX: dict[str, Faces] = {
     "{a,b,&{a,b}}{b}": [("ab",), ("bb",), ("aab",), ("abb",)],
     "{b,c}{a,b,&{a,b}}": [("ba",), ("bb",), ("baa",)],
     "{b}{a,b,&{a,b}}{b}{a,b,&{a,b}}": [("baba",), ("babb",), ("babaa",)],
+    # The row above's foil. Both are products of the same closure, and the
+    # table's claim is that they part on order type -- $\omega^2$ there, where
+    # `b`-seams keep infinitely many full blocks, against $\omega \cdot 2$ here,
+    # where every split is legal so the least one pins the prefix to a single
+    # character. A prefix cannot witness an order type (`L1/Order` mechanizes
+    # that); what it pins is the enumeration the type is read off.
+    "{a,b,&{a,b}}{a,b,&{a,b}}": [("aa",), ("ab",), ("aaa",), ("aab",)],
     "{a,&{b}}": [("a",), ("ab",), ("abb",), ("abbb",)],
     "{ab,{a}&{b}}": [("ab",), ("aabb",), ("aaabbb",)],
     "{0,{1..9,&{0..9}}}": [(str(n),) for n in range(14)],
