@@ -57,8 +57,8 @@ Two payloads never mix: a `Program` (whole script, `run`) and a `Query` (one exp
 
 - `hejmark`: `cli -> adapters -> core`, exhaustive.
 - `core`: `driver -> {compiler | engine | contract} -> ir -> floor`, exhaustive.
-- `engine`: `execute -> scan -> denote`, exhaustive; `engine.denote`: `universe -> window -> order`, exhaustive.
+- `engine`: `service -> execute -> scan -> denote -> budget`, exhaustive; `engine.denote`: `universe -> split -> window -> order`, exhaustive. `budget` is at the bottom because L2's work meter is charged at the membership question -- denotation's own chokepoint -- while the runs that *open* one are up in `scan` and `execute`.
 - `compiler`, `engine`, `contract` never import each other -- the two edges between them (`LateResolver` and `ToFaces`) cross as callback values injected by `driver.py`, never as imports.
 - `contract.py` is L2's *seam*, not the whole of L2. An obligation that cannot be expressed as a `Program -> Program` step lands where it is enforceable -- reach on the floor, the budgets with the runs they meter -- and is identified as L2's by the error class it raises. See CLAUDE.md's table.
-- `core/floor/` is L1 as **data** only -- `syntax` (the five constructors) and `binder` (where a closure binds). Denoting one of those trees is what it takes to execute it, so denotation lives under `engine/denote/`.
+- `core/floor/` is L1 as **data** only -- `syntax` (the five constructors), `binder` (where a closure binds, and whether it settles) and `reach` (how long a face an expression can wear). Denoting one of those trees is what it takes to execute it, so denotation lives under `engine/denote/`.
 - `core` does no I/O -- reading `.hmk`/`.g4` files lives in `adapters/`.
