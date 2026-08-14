@@ -4,6 +4,8 @@ These are teaching notes, not the specification. The normative specs live in `do
 
 A naming note before you start, because the specs will otherwise trip you: the project and its package are **Hejmark** (`pyproject.toml`'s `name`, the `hejmark` CLI, this repository), but the *language itself* -- the specs, the grammar, the error classes (`HimarkScopeError`, `HimarkUnsettledError`, ...) -- still carries its older name, **Himark**. You will see both. They mean the same thing; nothing in this curriculum makes anything of the difference beyond this paragraph.
 
+In a hurry, or just want it all in one sitting? [`single-page.md`](single-page.md) distills all eleven lessons below into one document -- same facts, no per-lesson recaps or repeated exercises, denser but faster to read start to finish.
+
 ## Who this is for
 
 An ambitious junior programmer who is comfortable writing code but has never had to think about ordinals, well-orders, or machine-checked proofs, and who has opened `docs/foundation/L1.md` once, felt the ground tilt, and closed it again. That reaction is correct. The document is dense because the ideas are genuinely subtle, not because it is trying to show off. The goal of these lessons is to get you to the point where that density reads as *economy* rather than *noise* -- where you can look at a single row of a north-star table and unpack the whole paragraph it compresses, and where you can point at a Python module or a Rust one and say what layer it belongs to and why.
